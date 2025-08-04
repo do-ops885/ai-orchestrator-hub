@@ -165,7 +165,7 @@ impl NLPProcessor {
                     .filter(|c| c.is_alphanumeric() || c.is_whitespace())
                     .collect()
             })
-            .filter(|word| !word.is_empty())
+            .filter(|word: &&str| !word.is_empty())
             .collect()
     }
 

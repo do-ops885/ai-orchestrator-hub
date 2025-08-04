@@ -1,4 +1,4 @@
-# Rust build
+# Rust build artifacts
 /target/
 **/*.rs.bk
 
@@ -7,6 +7,12 @@ Cargo.lock
 
 # Node dependencies
 node_modules/
+
+# Next.js build output
+.next/
+out/
+dist/
+build/
 
 # Environment files
 .env
@@ -28,13 +34,10 @@ Thumbs.db
 .idea/
 *.swp
 
-# Build output
-dist/
-build/
-out/
-
 # Coverage reports
 coverage/
 *.lcov
 
 # Misc
+*.tgz
+*.bak

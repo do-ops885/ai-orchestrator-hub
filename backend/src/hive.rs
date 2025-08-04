@@ -127,10 +127,9 @@ impl HiveCoordinator {
                 }
                 
                 // Additional neural learning cycle
-                if let Ok(neural_proc) = neural_learning.read().await.try_read() {
-                    // Neural learning happens during agent interactions
-                    tracing::debug!("Neural learning cycle completed");
-                }
+                let neural_proc = neural_learning.read().await;
+                // Neural learning happens during agent interactions
+                tracing::debug!("Neural learning cycle completed");
             }
         });
 
@@ -215,7 +214,7 @@ impl HiveCoordinator {
         }.to_string();
         
         // Register with neural processor
-        if let Ok(mut neural_processor) = self.neural_processor.write().await.try_write() {
+        let mut neural_processor = self.neural_processor.write().await;
             if let Err(e) = neural_processor.create_neural_agent(agent_id, specialization, use_advanced).await {
                 tracing::warn!("Failed to create neural agent capabilities: {}", e);
             }

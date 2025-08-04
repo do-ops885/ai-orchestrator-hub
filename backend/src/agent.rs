@@ -126,10 +126,9 @@ impl Agent {
     pub fn can_perform_task(&self, task: &Task) -> bool {
         if !task.required_capabilities.is_empty() {
             let required = &task.required_capabilities;
-                required.iter().all(|req_cap| {
-                    self.get_capability_score(&req_cap.name) >= req_cap.minimum_proficiency
-                })
-            }
+            required.iter().all(|req_cap| {
+                self.get_capability_score(&req_cap.name) >= req_cap.minimum_proficiency
+            })
         } else {
             true
         }
