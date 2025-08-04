@@ -1,0 +1,40 @@
+# Rust build
+/target/
+**/*.rs.bk
+
+# Rust package manager
+Cargo.lock
+
+# Node dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+
+# Build output
+dist/
+build/
+out/
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Misc
