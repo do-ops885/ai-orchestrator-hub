@@ -163,9 +163,10 @@ impl NLPProcessor {
             .map(|word| {
                 word.chars()
                     .filter(|c| c.is_alphanumeric() || c.is_whitespace())
-                    .collect()
+                    .collect::<String>()
             })
-            .filter(|word: &&str| !word.is_empty())
+            .filter(|word: &String| !word.is_empty())
+            .map(|s| s.to_string())
             .collect()
     }
 
@@ -259,8 +260,8 @@ impl NLPProcessor {
     async fn learn_success_pattern(
         &self,
         input: &ProcessedText,
-        output: &ProcessedText,
-        agent_id: Uuid,
+        _output: &ProcessedText,
+        _agent_id: Uuid,
     ) -> Result<()> {
         let pattern = LanguagePattern {
             pattern_id: Uuid::new_v4(),
@@ -281,8 +282,8 @@ impl NLPProcessor {
     async fn learn_failure_pattern(
         &self,
         input: &ProcessedText,
-        output: &ProcessedText,
-        agent_id: Uuid,
+        _output: &ProcessedText,
+        _agent_id: Uuid,
     ) -> Result<()> {
         let pattern = LanguagePattern {
             pattern_id: Uuid::new_v4(),

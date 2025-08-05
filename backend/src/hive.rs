@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use uuid::Uuid;
@@ -8,7 +7,7 @@ use dashmap::DashMap;
 use rand::Rng;
 
 use crate::agent::{Agent, AgentBehavior, AgentType, AgentCapability};
-use crate::task::{Task, TaskResult, TaskQueue, TaskRequiredCapability};
+use crate::task::{Task, TaskQueue, TaskRequiredCapability};
 use crate::nlp::NLPProcessor;
 use crate::neural::HybridNeuralProcessor;
 
@@ -99,9 +98,9 @@ impl HiveCoordinator {
     async fn start_background_processes(&self) {
         let agents = Arc::clone(&self.agents);
         let task_queue = Arc::clone(&self.task_queue);
-        let nlp_processor = Arc::clone(&self.nlp_processor);
-        let metrics = Arc::clone(&self.metrics);
-        let swarm_center = Arc::clone(&self.swarm_center);
+        let _nlp_processor = Arc::clone(&self.nlp_processor);
+        let _metrics = Arc::clone(&self.metrics);
+        let _swarm_center = Arc::clone(&self.swarm_center);
 
         // Task distribution process
         tokio::spawn(async move {
@@ -127,7 +126,7 @@ impl HiveCoordinator {
                 }
                 
                 // Additional neural learning cycle
-                let neural_proc = neural_learning.read().await;
+                let _neural_proc = neural_learning.read().await;
                 // Neural learning happens during agent interactions
                 tracing::debug!("Neural learning cycle completed");
             }
@@ -176,7 +175,7 @@ impl HiveCoordinator {
             _ => AgentType::Worker,
         };
 
-        let mut agent = Agent::new(name, agent_type);
+        let mut agent = Agent::new(name.clone(), agent_type.clone());
 
         // Add capabilities from config
         if let Some(capabilities) = config.get("capabilities").and_then(|v| v.as_array()) {
@@ -195,8 +194,11 @@ impl HiveCoordinator {
         }
 
         // Set initial position
-        let mut rng = rand::thread_rng();
-        agent.position = (rng.gen_range(-100.0..100.0), rng.gen_range(-100.0..100.0));
+        // Set initial position
+        {
+            let mut rng = rand::thread_rng();
+            agent.position = (rng.gen_range(-100.0..100.0), rng.gen_range(-100.0..100.0));
+        }
 
         let agent_id = agent.id;
         
@@ -206,18 +208,17 @@ impl HiveCoordinator {
             .unwrap_or(false);
         
         // Create neural agent capabilities
-        let specialization = match agent_type {
+        let specialization = match &agent_type {
             AgentType::Learner => "learning",
             AgentType::Coordinator => "coordination", 
-            AgentType::Specialist(ref spec) => spec,
+            AgentType::Specialist(spec) => spec,
             _ => "general",
         }.to_string();
         
         // Register with neural processor
         let mut neural_processor = self.neural_processor.write().await;
-            if let Err(e) = neural_processor.create_neural_agent(agent_id, specialization, use_advanced).await {
-                tracing::warn!("Failed to create neural agent capabilities: {}", e);
-            }
+        if let Err(e) = neural_processor.create_neural_agent(agent_id, specialization, use_advanced).await {
+            tracing::warn!("Failed to create neural agent capabilities: {}", e);
         }
         
         self.agents.insert(agent_id, agent);
@@ -237,9 +238,13 @@ impl HiveCoordinator {
             .unwrap_or("general")
             .to_string();
 
-        let priority = config.get("priority")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(5) as u8;
+        let priority = match config.get("priority").and_then(|v| v.as_u64()).unwrap_or(1) {
+            0 => crate::task::TaskPriority::Low,
+            1 => crate::task::TaskPriority::Medium,
+            2 => crate::task::TaskPriority::High,
+            3 => crate::task::TaskPriority::Critical,
+            _ => crate::task::TaskPriority::Medium,
+        };
 
         let mut required_capabilities = None;
         if let Some(caps) = config.get("required_capabilities").and_then(|v| v.as_array()) {
@@ -260,7 +265,7 @@ impl HiveCoordinator {
             }
         }
 
-        let task = Task::new(description.clone(), description, task_type, priority, required_capabilities.unwrap_or_default());
+        let task = Task::new(description.clone(), description.clone(), task_type, priority, required_capabilities.unwrap_or_default());
         let task_id = task.id;
 
         let mut queue = self.task_queue.write().await;
@@ -382,7 +387,7 @@ impl HiveCoordinator {
         task_queue: &RwLock<TaskQueue>,
         metrics: &RwLock<SwarmMetrics>,
     ) -> anyhow::Result<()> {
-        let queue = task_queue.read().await;
+        let _queue = task_queue.read().await;
         let mut metrics_guard = metrics.write().await;
 
         metrics_guard.total_agents = agents.len();

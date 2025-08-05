@@ -42,7 +42,6 @@ After analyzing both the current `nlp.rs` implementation and the ruv-FANN librar
 - Adaptive learning enhancement
 
 ### Phase 3: Optimization (Future)
-- GPU acceleration for large swarms
 - Advanced forecasting models
 - Distributed neural processing
 - Real-time model switching

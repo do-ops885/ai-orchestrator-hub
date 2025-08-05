@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::arch::x86_64::*;
 
 #[cfg(target_arch = "aarch64")]
@@ -96,8 +95,10 @@ impl CpuOptimizer {
 }
 
 /// High-performance vectorized operations for semantic processing
+#[allow(dead_code)]
 pub struct VectorizedOps;
 
+#[allow(dead_code)]
 impl VectorizedOps {
     /// Compute dot product using optimal SIMD instructions
     pub fn dot_product(a: &[f32], b: &[f32]) -> f32 {
@@ -312,8 +313,10 @@ impl VectorizedOps {
 }
 
 /// Quantized neural network operations for memory efficiency
+#[allow(dead_code)]
 pub struct QuantizedOps;
 
+#[allow(dead_code)]
 impl QuantizedOps {
     /// Convert f32 weights to 8-bit quantized representation
     pub fn quantize_weights(weights: &[f32]) -> QuantizedWeights {
@@ -384,6 +387,7 @@ impl QuantizedOps {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct QuantizedWeights {
     pub data: Vec<u8>,
     pub scale: f32,
@@ -391,6 +395,7 @@ pub struct QuantizedWeights {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct QuantizedWeights16 {
     pub data: Vec<u16>,
     pub scale: f32,
@@ -398,8 +403,10 @@ pub struct QuantizedWeights16 {
 }
 
 /// Cache-friendly memory operations
+#[allow(dead_code)]
 pub struct CacheOptimizedOps;
 
+#[allow(dead_code)]
 impl CacheOptimizedOps {
     /// Cache-friendly matrix multiplication with blocking
     pub fn blocked_matrix_multiply(
@@ -444,8 +451,10 @@ impl CacheOptimizedOps {
 }
 
 /// Performance benchmarking utilities
+#[allow(dead_code)]
 pub struct CpuBenchmark;
 
+#[allow(dead_code)]
 impl CpuBenchmark {
     pub fn benchmark_dot_product(size: usize, iterations: usize) -> f64 {
         let a: Vec<f32> = (0..size).map(|i| i as f32).collect();
@@ -493,6 +502,7 @@ impl CpuBenchmark {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct BenchmarkResults {
     pub dot_product_time_us: f64,
     pub quantization_time_us: f64,
@@ -501,6 +511,7 @@ pub struct BenchmarkResults {
     pub vector_width: usize,
 }
 
+#[allow(dead_code)]
 impl BenchmarkResults {
     pub fn print_report(&self) {
         println!("\n📊 CPU Optimization Benchmark Results");

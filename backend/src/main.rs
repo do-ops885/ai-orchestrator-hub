@@ -9,7 +9,7 @@ mod cpu_optimization;
 use axum::{
     extract::{ws::WebSocketUpgrade, State},
     response::Response,
-    routing::{get, post},
+    routing::get,
     Router,
 };
 use std::sync::Arc;
@@ -71,17 +71,17 @@ async fn get_agents(State(state): State<AppState>) -> axum::Json<serde_json::Val
 async fn create_agent(
     State(state): State<AppState>,
     axum::Json(payload): axum::Json<serde_json::Value>,
-) -> axum::Json<serde_json::Value> {
-    let mut hive = state.hive.write().await;
+) -> Result<axum::Json<serde_json::Value>, axum::Json<serde_json::Value>> {
+    let hive = state.hive.write().await;
     match hive.create_agent(payload).await {
-        Ok(agent_id) => axum::Json(serde_json::json!({
+        Ok(agent_id) => Ok(axum::Json(serde_json::json!({
             "success": true,
             "agent_id": agent_id
-        })),
-        Err(e) => axum::Json(serde_json::json!({
+        }))),
+        Err(e) => Err(axum::Json(serde_json::json!({
             "success": false,
             "error": e.to_string()
-        })),
+        }))),
     }
 }
 
@@ -93,17 +93,17 @@ async fn get_tasks(State(state): State<AppState>) -> axum::Json<serde_json::Valu
 async fn create_task(
     State(state): State<AppState>,
     axum::Json(payload): axum::Json<serde_json::Value>,
-) -> axum::Json<serde_json::Value> {
-    let mut hive = state.hive.write().await;
+) -> Result<axum::Json<serde_json::Value>, axum::Json<serde_json::Value>> {
+    let hive = state.hive.write().await;
     match hive.create_task(payload).await {
-        Ok(task_id) => axum::Json(serde_json::json!({
+        Ok(task_id) => Ok(axum::Json(serde_json::json!({
             "success": true,
             "task_id": task_id
-        })),
-        Err(e) => axum::Json(serde_json::json!({
+        }))),
+        Err(e) => Err(axum::Json(serde_json::json!({
             "success": false,
             "error": e.to_string()
-        })),
+        }))),
     }
 }
 

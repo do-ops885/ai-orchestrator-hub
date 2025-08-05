@@ -107,7 +107,7 @@ impl TaskQueue {
     }
 
     pub fn complete_task(&mut self, result: TaskResult) {
-        if let Some(task) = self.assigned_tasks.remove(&result.agent_id) {
+        if let Some(_task) = self.assigned_tasks.remove(&result.agent_id) {
             if result.success {
                 self.completed_tasks.push(result);
             } else {

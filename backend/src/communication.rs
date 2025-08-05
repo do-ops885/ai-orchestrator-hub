@@ -100,7 +100,7 @@ async fn handle_client_message(
     match message.action.as_str() {
         "create_agent" => {
             let payload = message.payload.unwrap_or(serde_json::json!({}));
-            let mut hive = state.hive.write().await;
+            let hive = state.hive.write().await;
             match hive.create_agent(payload).await {
                 Ok(agent_id) => Ok(WebSocketMessage {
                     message_type: "agent_created".to_string(),
@@ -121,7 +121,7 @@ async fn handle_client_message(
         }
         "create_task" => {
             let payload = message.payload.unwrap_or(serde_json::json!({}));
-            let mut hive = state.hive.write().await;
+            let hive = state.hive.write().await;
             match hive.create_task(payload).await {
                 Ok(task_id) => Ok(WebSocketMessage {
                     message_type: "task_created".to_string(),

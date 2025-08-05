@@ -158,6 +158,7 @@ impl Agent {
 #[async_trait]
 pub trait AgentBehavior {
     async fn execute_task(&mut self, task: Task) -> anyhow::Result<TaskResult>;
+    #[allow(dead_code)]
     async fn communicate(&mut self, message: &str, target_agent: Option<Uuid>) -> anyhow::Result<String>;
     async fn learn(&mut self, nlp_processor: &NLPProcessor) -> anyhow::Result<()>;
     async fn update_position(&mut self, swarm_center: (f64, f64), neighbors: &[Agent]) -> anyhow::Result<()>;
