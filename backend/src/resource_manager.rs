@@ -3,9 +3,6 @@ use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 
-/// Phase 2: Intelligent Resource Management System
-/// CPU-native, GPU-optional - built for the GPU-poor
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemResources {
     pub cpu_cores: usize,

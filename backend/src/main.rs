@@ -6,6 +6,7 @@ mod communication;
 mod neural;
 mod cpu_optimization;
 mod resource_manager;
+mod work_stealing_queue;
 
 use axum::{
     extract::{ws::WebSocketUpgrade, State},

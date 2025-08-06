@@ -3,11 +3,13 @@ pub mod communication;
 pub mod cpu_optimization;
 pub mod hive;
 pub mod mcp;
+pub mod memory_pool;
 pub mod neural;
 pub mod nlp;
 pub mod optimized_agent;
 pub mod resource_manager;
 pub mod task;
+pub mod work_stealing_queue;
 
 pub use agent::*;
 pub use hive::*;

@@ -11,6 +11,7 @@ use crate::task::{Task, TaskQueue, TaskRequiredCapability};
 use crate::nlp::NLPProcessor;
 use crate::neural::HybridNeuralProcessor;
 use crate::resource_manager::ResourceManager;
+use crate::work_stealing_queue::{WorkStealingQueue, WorkStealingMetrics};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SwarmMetrics {
@@ -36,7 +37,8 @@ pub struct HiveStatus {
 pub struct HiveCoordinator {
     pub id: Uuid,
     pub agents: Arc<DashMap<Uuid, Agent>>,
-    pub task_queue: Arc<RwLock<TaskQueue>>,
+    pub task_queue: Arc<RwLock<TaskQueue>>, // Legacy queue for compatibility
+    pub work_stealing_queue: Arc<WorkStealingQueue>, // New high-performance queue system
     pub nlp_processor: Arc<NLPProcessor>,
     pub neural_processor: Arc<RwLock<HybridNeuralProcessor>>,
     pub metrics: Arc<RwLock<SwarmMetrics>>,
@@ -78,6 +80,7 @@ impl HiveCoordinator {
             id: Uuid::new_v4(),
             agents: Arc::new(DashMap::new()),
             task_queue: Arc::new(RwLock::new(TaskQueue::new())),
+            work_stealing_queue: Arc::new(WorkStealingQueue::new()),
             nlp_processor: Arc::new(NLPProcessor::new().await?),
             neural_processor: Arc::new(RwLock::new(HybridNeuralProcessor::new().await?)),
             metrics: Arc::new(RwLock::new(SwarmMetrics {
@@ -105,24 +108,43 @@ impl HiveCoordinator {
     async fn start_background_processes(&self) {
         let agents = Arc::clone(&self.agents);
         let task_queue = Arc::clone(&self.task_queue);
+        let work_stealing_queue = Arc::clone(&self.work_stealing_queue);
         let _nlp_processor = Arc::clone(&self.nlp_processor);
         let _metrics = Arc::clone(&self.metrics);
         let _swarm_center = Arc::clone(&self.swarm_center);
         let resource_manager = Arc::clone(&self.resource_manager);
 
-        // Phase 2: Dynamic task distribution with resource optimization
-        let resource_manager_tasks = Arc::clone(&resource_manager);
+        // High-performance work-stealing task distribution
+        let agents_ws = Arc::clone(&agents);
+        let work_stealing_ws = Arc::clone(&work_stealing_queue);
+        let resource_manager_ws = Arc::clone(&resource_manager);
         tokio::spawn(async move {
             loop {
                 // Get current resource profile for adaptive timing
-                let profile = resource_manager_tasks.get_current_profile().await;
+                let profile = resource_manager_ws.get_current_profile().await;
                 let mut interval = tokio::time::interval(
-                    tokio::time::Duration::from_millis(profile.update_frequency)
+                    tokio::time::Duration::from_millis(profile.update_frequency / 2) // More frequent for work-stealing
+                );
+                interval.tick().await;
+                
+                if let Err(e) = Self::work_stealing_distribution(&agents_ws, &work_stealing_ws).await {
+                    tracing::error!("Work-stealing distribution error: {}", e);
+                }
+            }
+        });
+
+        // Legacy task distribution (for backward compatibility)
+        let resource_manager_legacy = Arc::clone(&resource_manager);
+        tokio::spawn(async move {
+            loop {
+                let profile = resource_manager_legacy.get_current_profile().await;
+                let mut interval = tokio::time::interval(
+                    tokio::time::Duration::from_millis(profile.update_frequency * 2) // Less frequent
                 );
                 interval.tick().await;
                 
                 if let Err(e) = Self::distribute_tasks(&agents, &task_queue).await {
-                    tracing::error!("Task distribution error: {}", e);
+                    tracing::error!("Legacy task distribution error: {}", e);
                 }
             }
         });
@@ -252,9 +274,14 @@ impl HiveCoordinator {
             tracing::warn!("Failed to create neural agent capabilities: {}", e);
         }
         
+        // Register agent with work-stealing queue system
+        if let Err(e) = self.work_stealing_queue.register_agent(agent_id).await {
+            tracing::warn!("Failed to register agent {} with work-stealing queue: {}", agent_id, e);
+        }
+
         self.agents.insert(agent_id, agent);
 
-        tracing::info!("Created agent {} with ID {} (neural: {})", name, agent_id, use_advanced);
+        tracing::info!("Created agent {} with ID {} (neural: {}, work-stealing: enabled)", name, agent_id, use_advanced);
         Ok(agent_id)
     }
 
@@ -299,10 +326,15 @@ impl HiveCoordinator {
         let task = Task::new(description.clone(), description.clone(), task_type, priority, required_capabilities.unwrap_or_default());
         let task_id = task.id;
 
-        let mut queue = self.task_queue.write().await;
-        queue.add_task(task);
+        // Submit to work-stealing queue for high-performance distribution
+        if let Err(e) = self.work_stealing_queue.submit_task(task.clone()).await {
+            tracing::warn!("Failed to submit task to work-stealing queue: {}, falling back to legacy queue", e);
+            // Fallback to legacy queue
+            let mut queue = self.task_queue.write().await;
+            queue.add_task(task);
+        }
 
-        tracing::info!("Created task {} with ID {}", description, task_id);
+        tracing::info!("Created task {} with ID {} (work-stealing: enabled)", description, task_id);
         Ok(task_id)
     }
 
@@ -359,6 +391,84 @@ impl HiveCoordinator {
                 break;
             }
         }
+
+        Ok(())
+    }
+
+    /// High-performance work-stealing task distribution
+    async fn work_stealing_distribution(
+        agents: &DashMap<Uuid, Agent>,
+        work_stealing_queue: &WorkStealingQueue,
+    ) -> anyhow::Result<()> {
+        // Process tasks for each agent using work-stealing
+        let agent_futures: Vec<_> = agents.iter().map(|entry| {
+            let agent_id = *entry.key();
+            let agent = entry.value().clone();
+            let queue = work_stealing_queue.clone();
+            
+            async move {
+                // Skip if agent is busy or low energy
+                if !matches!(agent.state, crate::agent::AgentState::Idle) || agent.energy < 10.0 {
+                    return Ok(());
+                }
+
+                // Try to get a task (including work stealing)
+                if let Some(task) = queue.get_task_for_agent(agent_id).await {
+                    // Mark agent as busy in the work-stealing system
+                    if let Some(agent_queue) = queue.agent_queues.get(&agent_id) {
+                        agent_queue.set_busy(true).await;
+                    }
+
+                    // Execute task asynchronously
+                    let agents_clone = agents.clone();
+                    let queue_clone = queue.clone();
+                    tokio::spawn(async move {
+                        let mut agent_exec = agent;
+                        let start_time = std::time::Instant::now();
+                        
+                        match agent_exec.execute_task(task).await {
+                            Ok(result) => {
+                                // Update agent in the map
+                                if let Some(mut agent_ref) = agents_clone.get_mut(&agent_id) {
+                                    *agent_ref.value_mut() = agent_exec;
+                                }
+                                
+                                // Mark task completion and agent as available
+                                if let Some(agent_queue) = queue_clone.agent_queues.get(&agent_id) {
+                                    agent_queue.mark_task_completed().await;
+                                    agent_queue.set_busy(false).await;
+                                }
+                                
+                                let duration = start_time.elapsed();
+                                tracing::debug!("🚀 Work-stealing task completed in {:?}: {:?}", duration, result);
+                            }
+                            Err(e) => {
+                                // Mark agent as available even on failure
+                                if let Some(agent_queue) = queue_clone.agent_queues.get(&agent_id) {
+                                    agent_queue.set_busy(false).await;
+                                }
+                                tracing::error!("Work-stealing task execution failed: {}", e);
+                            }
+                        }
+                    });
+                }
+                
+                Ok::<(), anyhow::Error>(())
+            }
+        }).collect();
+
+        // Execute all agent task processing concurrently
+        let results = futures::future::join_all(agent_futures).await;
+        
+        // Log any errors
+        for result in results {
+            if let Err(e) = result {
+                tracing::error!("Work-stealing agent processing error: {}", e);
+            }
+        }
+
+        // Update work-stealing metrics
+        work_stealing_queue.update_metrics().await;
 
         Ok(())
     }
@@ -498,10 +608,22 @@ impl HiveCoordinator {
 
     pub async fn get_tasks_info(&self) -> serde_json::Value {
         let queue = self.task_queue.read().await;
+        let ws_metrics = self.work_stealing_queue.get_metrics().await;
+        
         serde_json::json!({
-            "pending_tasks": queue.get_pending_count(),
-            "completed_tasks": queue.get_completed_count(),
-            "failed_tasks": queue.get_failed_count(),
+            "legacy_queue": {
+                "pending_tasks": queue.get_pending_count(),
+                "completed_tasks": queue.get_completed_count(),
+                "failed_tasks": queue.get_failed_count(),
+            },
+            "work_stealing_queue": {
+                "total_queue_depth": ws_metrics.total_queue_depth,
+                "global_queue_depth": ws_metrics.global_queue_depth,
+                "active_agents": ws_metrics.active_agents,
+                "steal_efficiency": ws_metrics.system_metrics.load_balance_efficiency,
+                "total_steals": ws_metrics.system_metrics.successful_steals,
+                "agent_queues": ws_metrics.agent_metrics.len(),
+            }
         })
     }
 
