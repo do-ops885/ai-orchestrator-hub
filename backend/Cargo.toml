@@ -23,6 +23,7 @@ dashmap = "5.5"
 rand = "0.8"
 nalgebra = "0.32"
 petgraph = "0.6"
+num_cpus = "1.16"
 
 # Optional: Add ruv-FANN for advanced neural capabilities
 ruv-fann = { version = "0.1.6", optional = true, features = ["std", "serde", "parallel"] }

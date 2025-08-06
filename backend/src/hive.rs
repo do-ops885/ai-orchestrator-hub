@@ -10,6 +10,7 @@ use crate::agent::{Agent, AgentBehavior, AgentType, AgentCapability};
 use crate::task::{Task, TaskQueue, TaskRequiredCapability};
 use crate::nlp::NLPProcessor;
 use crate::neural::HybridNeuralProcessor;
+use crate::resource_manager::ResourceManager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SwarmMetrics {
@@ -42,6 +43,7 @@ pub struct HiveCoordinator {
     pub swarm_center: Arc<RwLock<(f64, f64)>>,
     pub communication_channel: mpsc::UnboundedSender<CommunicationMessage>,
     pub communication_receiver: Arc<RwLock<mpsc::UnboundedReceiver<CommunicationMessage>>>,
+    pub resource_manager: Arc<ResourceManager>, // Phase 2: Intelligent resource management
     pub created_at: DateTime<Utc>,
 }
 
@@ -68,6 +70,10 @@ impl HiveCoordinator {
     pub async fn new() -> anyhow::Result<Self> {
         let (tx, rx) = mpsc::unbounded_channel();
         
+        // Phase 2: Initialize resource manager for intelligent optimization
+        let resource_manager = Arc::new(ResourceManager::new().await?);
+        tracing::info!("🚀 Phase 2: Resource manager initialized - CPU-native, GPU-optional");
+        
         let coordinator = Self {
             id: Uuid::new_v4(),
             agents: Arc::new(DashMap::new()),
@@ -86,10 +92,11 @@ impl HiveCoordinator {
             swarm_center: Arc::new(RwLock::new((0.0, 0.0))),
             communication_channel: tx,
             communication_receiver: Arc::new(RwLock::new(rx)),
+            resource_manager,
             created_at: Utc::now(),
         };
 
-        // Start background processes
+        // Start background processes with Phase 2 optimizations
         coordinator.start_background_processes().await;
         
         Ok(coordinator)
@@ -101,14 +108,38 @@ impl HiveCoordinator {
         let _nlp_processor = Arc::clone(&self.nlp_processor);
         let _metrics = Arc::clone(&self.metrics);
         let _swarm_center = Arc::clone(&self.swarm_center);
+        let resource_manager = Arc::clone(&self.resource_manager);
 
-        // Task distribution process
+        // Phase 2: Dynamic task distribution with resource optimization
+        let resource_manager_tasks = Arc::clone(&resource_manager);
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
             loop {
+                // Get current resource profile for adaptive timing
+                let profile = resource_manager_tasks.get_current_profile().await;
+                let mut interval = tokio::time::interval(
+                    tokio::time::Duration::from_millis(profile.update_frequency)
+                );
                 interval.tick().await;
+                
                 if let Err(e) = Self::distribute_tasks(&agents, &task_queue).await {
                     tracing::error!("Task distribution error: {}", e);
+                }
+            }
+        });
+
+        // Phase 2: Resource monitoring and auto-optimization
+        let resource_manager_monitor = Arc::clone(&resource_manager);
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
+            loop {
+                interval.tick().await;
+                if let Err(e) = resource_manager_monitor.update_system_metrics().await {
+                    tracing::error!("Resource monitoring error: {}", e);
+                } else {
+                    let (resources, profile, _hardware_class) = resource_manager_monitor.get_system_info().await;
+                    tracing::debug!("📊 System: CPU {:.1}%, Memory {:.1}%, Profile: {} (max agents: {})", 
+                                   resources.cpu_usage, resources.memory_usage, 
+                                   profile.profile_name, profile.max_agents);
                 }
             }
         });
@@ -485,6 +516,18 @@ impl HiveCoordinator {
             "metrics": *metrics,
             "swarm_center": *swarm_center,
             "total_energy": self.agents.iter().map(|a| a.value().energy).sum::<f64>(),
+        })
+    }
+
+    pub async fn get_resource_info(&self) -> serde_json::Value {
+        let (system_resources, resource_profile, hardware_class) = self.resource_manager.get_system_info().await;
+        
+        serde_json::json!({
+            "system_resources": system_resources,
+            "resource_profile": resource_profile,
+            "hardware_class": format!("{:?}", hardware_class),
+            "phase_2_status": "active",
+            "optimization_enabled": true
         })
     }
 }

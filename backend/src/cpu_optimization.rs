@@ -386,7 +386,7 @@ impl QuantizedOps {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[allow(dead_code)]
 pub struct QuantizedWeights {
     pub data: Vec<u8>,

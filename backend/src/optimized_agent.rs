@@ -1,11 +1,10 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::agent::{Agent, AgentBehavior, AgentCapability, AgentMemory, AgentState, AgentType, Experience};
+use crate::agent::{Agent, AgentBehavior, AgentCapability, AgentType, Experience};
 use crate::cpu_optimization::{VectorizedOps, QuantizedOps, CpuOptimizer, QuantizedWeights};
 use crate::nlp::NLPProcessor;
 use crate::task::{Task, TaskResult};
@@ -173,7 +172,7 @@ impl OptimizedAgent {
             }
             OptimizationLevel::Standard => {
                 // Use 16-bit quantization for balanced performance
-                let quantized_weights_16 = QuantizedOps::quantize_weights_16bit(&capability_matrix);
+                let _quantized_weights_16 = QuantizedOps::quantize_weights_16bit(&capability_matrix);
                 // Convert to 8-bit format for compatibility
                 let quantized_weights = QuantizedOps::quantize_weights(&capability_matrix);
                 self.quantized_capabilities = Some(QuantizedCapabilities {
@@ -201,41 +200,40 @@ impl OptimizedAgent {
     fn capability_to_features(&self, capability: &AgentCapability) -> Vec<f32> {
         // Convert capability to 10-dimensional feature vector
         vec![
-            capability.proficiency,
-            capability.learning_rate,
+            capability.proficiency as f32,
+            capability.learning_rate as f32,
             capability.name.len() as f32 / 20.0, // Normalized name length
             1.0, // Bias term
-            capability.proficiency * capability.learning_rate, // Interaction term
-            capability.proficiency.powi(2), // Squared proficiency
-            capability.learning_rate.powi(2), // Squared learning rate
-            (capability.proficiency + capability.learning_rate) / 2.0, // Average
-            capability.proficiency - capability.learning_rate, // Difference
+            (capability.proficiency * capability.learning_rate) as f32, // Interaction term
+            capability.proficiency.powi(2) as f32, // Squared proficiency
+            capability.learning_rate.powi(2) as f32, // Squared learning rate
+            ((capability.proficiency + capability.learning_rate) / 2.0) as f32, // Average
+            (capability.proficiency - capability.learning_rate) as f32, // Difference
             0.5, // Reserved for future features
         ]
     }
 
     /// Calculate task fitness using optimized operations
     pub fn calculate_optimized_task_fitness(&self, task: &Task) -> f64 {
-        if let Some(required_caps) = &task.required_capabilities {
-            let mut fitness_scores = Vec::new();
-            let mut weights = Vec::new();
+        let required_caps = &task.required_capabilities;
+        let mut fitness_scores = Vec::new();
+        let mut weights = Vec::new();
 
-            for req_cap in required_caps {
-                if let Some(agent_cap) = self.base_agent.capabilities.iter()
-                    .find(|c| c.name == req_cap.name) {
-                    fitness_scores.push(agent_cap.proficiency as f32);
-                    weights.push(req_cap.weight.unwrap_or(1.0) as f32);
-                }
+        for req_cap in required_caps {
+            if let Some(agent_cap) = self.base_agent.capabilities.iter()
+                .find(|c| c.name == req_cap.name) {
+                fitness_scores.push(agent_cap.proficiency as f32);
+                weights.push(1.0); // Default weight since field doesn't exist
             }
+        }
 
-            if !fitness_scores.is_empty() {
-                // Use vectorized weighted average calculation
-                let weighted_sum = VectorizedOps::dot_product(&fitness_scores, &weights);
-                let weight_sum: f32 = weights.iter().sum();
-                
-                if weight_sum > 0.0 {
-                    return (weighted_sum / weight_sum) as f64;
-                }
+        if !fitness_scores.is_empty() {
+            // Use vectorized weighted average calculation
+            let weighted_sum = VectorizedOps::dot_product(&fitness_scores, &weights);
+            let weight_sum: f32 = weights.iter().sum();
+            
+            if weight_sum > 0.0 {
+                return (weighted_sum / weight_sum) as f64;
             }
         }
 
@@ -399,7 +397,7 @@ impl AgentBehavior for OptimizedAgent {
             task_id: task.id,
             agent_id: self.base_agent.id,
             success,
-            result: if success {
+            output: if success {
                 format!("Task completed successfully by optimized agent {} ({}x speedup)", 
                        self.base_agent.name, 
                        self.get_optimization_stats().speed_improvement_factor)
@@ -407,8 +405,11 @@ impl AgentBehavior for OptimizedAgent {
                 format!("Task failed - optimized agent {} needs more training", 
                        self.base_agent.name)
             },
-            execution_time: chrono::Duration::milliseconds(elapsed_ms as i64),
-            timestamp: Utc::now(),
+            error_message: if success { None } else { Some("Optimization failed".to_string()) },
+            completed_at: Utc::now(),
+            execution_time: elapsed_ms as u64,
+            quality_score: if success { Some(0.8) } else { Some(0.2) },
+            learned_insights: vec!["CPU optimization applied".to_string()],
         })
     }
 

@@ -5,6 +5,7 @@ mod task;
 mod communication;
 mod neural;
 mod cpu_optimization;
+mod resource_manager;
 
 use axum::{
     extract::{ws::WebSocketUpgrade, State},
@@ -45,6 +46,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/agents", get(get_agents).post(create_agent))
         .route("/api/tasks", get(get_tasks).post(create_task))
         .route("/api/hive/status", get(get_hive_status))
+        .route("/api/resources", get(get_resource_info)) // Phase 2: Resource monitoring
         .layer(CorsLayer::permissive())
         .with_state(app_state);
 
@@ -110,4 +112,9 @@ async fn create_task(
 async fn get_hive_status(State(state): State<AppState>) -> axum::Json<serde_json::Value> {
     let hive = state.hive.read().await;
     axum::Json(hive.get_status().await)
+}
+
+async fn get_resource_info(State(state): State<AppState>) -> axum::Json<serde_json::Value> {
+    let hive = state.hive.read().await;
+    axum::Json(hive.get_resource_info().await)
 }

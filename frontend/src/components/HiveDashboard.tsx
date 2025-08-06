@@ -4,6 +4,7 @@ import { useHiveStore } from '@/store/hiveStore';
 import { SwarmVisualization } from './SwarmVisualization';
 import { MetricsPanel } from './MetricsPanel';
 import { NeuralMetrics } from './NeuralMetrics';
+import { ResourceMonitor } from './ResourceMonitor';
 
 export function HiveDashboard() {
   const { hiveStatus, agents } = useHiveStore();
@@ -51,8 +52,9 @@ export function HiveDashboard() {
         <MetricsPanel metrics={hiveStatus.metrics} />
       </div>
 
-      <div className="mt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         <NeuralMetrics agents={agents} />
+        <ResourceMonitor />
       </div>
     </div>
   );
