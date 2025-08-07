@@ -5,7 +5,7 @@ use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 
-use crate::agent::{AgentType, AgentState, AgentCapability, AgentMemory};
+use crate::agents::{AgentType, AgentState, AgentCapability, AgentMemory};
 
 /// High-performance memory pool for agent management
 /// Separates hot (frequently accessed) and cold (rarely accessed) data

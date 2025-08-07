@@ -17,6 +17,7 @@ tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "fs"] }
 tokio-tungstenite = "0.21"
 futures-util = "0.3"
+futures = "0.3"
 reqwest = { version = "0.11", features = ["json"] }
 async-trait = "0.1"
 dashmap = "5.5"
@@ -33,3 +34,46 @@ default = ["basic-nlp"]
 basic-nlp = []
 advanced-neural = ["ruv-fann"]
 gpu-acceleration = ["ruv-fann/gpu"]
+
+# Clippy lint configuration
+[lints.clippy]
+# Deny common issues that should never be allowed
+all = "warn"
+correctness = "deny"
+suspicious = "deny"
+complexity = "warn"
+perf = "warn"
+style = "warn"
+pedantic = "warn"
+
+# Specific denials for critical issues
+unwrap_used = "deny"
+expect_used = "warn"
+panic = "deny"
+todo = "warn"
+unimplemented = "warn"
+unreachable = "warn"
+
+# Performance-critical denials
+clone_on_ref_ptr = "deny"
+rc_buffer = "deny"
+rc_mutex = "deny"
+
+# Allow some pedantic lints that may be too strict
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"
+similar_names = "allow"
+too_many_lines = "allow"
+cast_precision_loss = "allow"
+cast_possible_truncation = "allow"
+cast_sign_loss = "allow"
+
+[lints.rust]
+# Rust compiler lints
+unsafe_code = "warn"
+missing_docs = "warn"
+unused_imports = "deny"
+unused_variables = "deny"
+dead_code = "warn"
+unreachable_code = "deny"

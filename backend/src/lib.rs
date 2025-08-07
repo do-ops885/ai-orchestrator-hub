@@ -1,21 +1,18 @@
-pub mod agent;
-pub mod communication;
-pub mod cpu_optimization;
-pub mod hive;
-pub mod mcp;
-pub mod memory_pool;
+pub mod core;
+pub mod agents;
+pub mod tasks;
 pub mod neural;
-pub mod nlp;
-pub mod optimized_agent;
-pub mod resource_manager;
-pub mod task;
-pub mod work_stealing_queue;
+pub mod communication;
+pub mod infrastructure;
+pub mod utils;
 
-pub use agent::*;
-pub use hive::*;
+pub use core::*;
+pub use agents::*;
+pub use tasks::*;
 pub use neural::*;
-pub use nlp::*;
-pub use task::*;
+pub use communication::*;
+pub use infrastructure::*;
+pub use utils::*;
 
 // Re-export AppState for communication module
 #[derive(Clone)]

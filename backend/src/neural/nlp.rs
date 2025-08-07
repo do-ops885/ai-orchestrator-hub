@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use crate::cpu_optimization::{VectorizedOps, CpuOptimizer};
+use crate::neural::{VectorizedOps, CpuOptimizer};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NLPInsight {
@@ -153,7 +153,10 @@ impl NLPProcessor {
         }
 
         // Sort by confidence
-        similar_insights.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        similar_insights.sort_by(|a, b| {
+            b.confidence.partial_cmp(&a.confidence)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         Ok(similar_insights)
     }
 
@@ -222,7 +225,10 @@ impl NLPProcessor {
             })
             .collect();
 
-        keyword_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        keyword_scores.sort_by(|a, b| {
+            b.1.partial_cmp(&a.1)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         keyword_scores.into_iter()
             .take(5)
             .map(|(word, _)| word)

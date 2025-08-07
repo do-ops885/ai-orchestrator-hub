@@ -6,7 +6,7 @@ use uuid::Uuid;
 #[cfg(feature = "advanced-neural")]
 use ruv_fann::{Network, ActivationFunction};
 
-use crate::nlp::{NLPProcessor, ProcessedText};
+use crate::neural::{NLPProcessor, ProcessedText};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NeuralAgent {

@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::nlp::NLPProcessor;
-use crate::task::{Task, TaskResult};
+use crate::neural::NLPProcessor;
+use crate::tasks::{Task, TaskResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentType {
@@ -36,6 +36,16 @@ pub struct AgentMemory {
     pub experiences: Vec<Experience>,
     pub learned_patterns: HashMap<String, f64>,
     pub social_connections: HashMap<Uuid, f64>, // agent_id -> trust_score
+}
+
+impl AgentMemory {
+    pub fn new() -> Self {
+        Self {
+            experiences: Vec::new(),
+            learned_patterns: HashMap::new(),
+            social_connections: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

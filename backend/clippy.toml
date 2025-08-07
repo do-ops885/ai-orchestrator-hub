@@ -1,0 +1,160 @@
+# Clippy Configuration - Rust Best Practices
+# This file configures Clippy lints for the multiagent hive system
+
+# === GENERAL CONFIGURATION ===
+# Minimum Supported Rust Version - automatically detected from Cargo.toml
+# msrv = "1.70.0"  # Uncomment and adjust if needed
+
+# Avoid breaking exported APIs for library compatibility
+avoid-breaking-exported-api = true
+
+# === CODE QUALITY THRESHOLDS ===
+# Function complexity and size limits
+too-many-arguments-threshold = 7
+too-many-lines-threshold = 100
+type-complexity-threshold = 250
+
+# Memory and performance thresholds
+pass-by-value-size-limit = 256
+trivial-copy-size-limit = "target_pointer_width"
+large-stack-frames = 512000
+array-size-threshold = 16384
+future-size-threshold = 16384
+
+# === NAMING AND STYLE ===
+# Disallowed variable names (extend defaults)
+disallowed-names = ["foo", "bar", "baz", "quux", ".."]
+
+# Single character binding threshold
+single-char-binding-names-threshold = 4
+
+# Minimum identifier character length
+min-ident-chars-threshold = 1
+allowed-idents-below-min-chars = ["i", "j", "k", "x", "y", "z", "w", "n", "id", ".."]
+
+# Struct field naming
+struct-field-name-threshold = 3
+
+# === MODULE AND IMPORT ORGANIZATION ===
+# Module name repetition settings
+allow-exact-repetitions = true
+allowed-prefixes = ["to", "from", "as", "into", "try_into", "try_from", ".."]
+
+# Wildcard import control
+warn-on-all-wildcard-imports = false
+allowed-wildcard-imports = ["std::prelude", "tokio::prelude"]
+
+# === DOCUMENTATION REQUIREMENTS ===
+# Documentation checks for private items
+check-private-items = false
+missing-docs-in-crate-items = false
+missing-docs-allow-unused = true
+
+# === TEST-SPECIFIC ALLOWANCES ===
+# Allow certain practices in test code
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true
+allow-panic-in-tests = true
+allow-print-in-tests = true
+allow-dbg-in-tests = true
+allow-useless-vec-in-tests = true
+allow-indexing-slicing-in-tests = true
+
+# === CONST AND COMPILE-TIME CODE ===
+# Allow certain practices in const contexts
+allow-expect-in-consts = true
+allow-unwrap-in-consts = true
+
+# === ARITHMETIC AND NUMERIC LITERALS ===
+# Arithmetic side effects configuration
+arithmetic-side-effects-allowed = []
+
+# Literal formatting
+literal-representation-threshold = 16384
+unreadable-literal-lint-fractions = true
+verbose-bit-mask-threshold = 1
+
+# === PERFORMANCE AND MEMORY ===
+# Box and Vec thresholds
+unnecessary-box-size = 128
+vec-box-size-threshold = 4096
+too-large-for-stack = 200
+
+# === ADVANCED FEATURES ===
+# Trait and type configuration
+max-trait-bounds = 3
+max-fn-params-bools = 3
+max-struct-bools = 3
+
+# Include file size limits
+max-include-file-size = 1000000
+
+# Slice pattern suggestions
+max-suggested-slice-pattern-length = 3
+
+# === SPECIFIC LINT CONFIGURATIONS ===
+# Allow comparison to zero in modulo operations
+allow-comparison-to-zero = true
+
+# Raw string configuration
+allow-one-hash-in-raw-strings = false
+
+# Mixed format args
+allow-mixed-uninlined-format-args = true
+
+# Private module inception
+allow-private-module-inception = false
+
+# === IGNORED TYPES FOR INTERIOR MUTABILITY ===
+# Types to treat as non-interior-mutable
+ignore-interior-mutability = ["bytes::Bytes"]
+
+# === UNICODE AND INTERNATIONALIZATION ===
+# Allowed Unicode scripts
+allowed-scripts = ["Latin"]
+
+# === SOURCE CODE ORGANIZATION ===
+# Item ordering within modules
+source-item-ordering = ["enum", "impl", "module", "struct", "trait"]
+trait-assoc-item-kinds-order = ["const", "type", "fn"]
+
+# Module item groupings and ordering
+module-item-order-groupings = [
+    ["modules", ["extern_crate", "mod", "foreign_mod"]],
+    ["use", ["use"]],
+    ["macros", ["macro"]],
+    ["global_asm", ["global_asm"]],
+    ["UPPER_SNAKE_CASE", ["static", "const"]],
+    ["PascalCase", ["ty_alias", "enum", "struct", "union", "trait", "trait_alias", "impl"]],
+    ["lower_snake_case", ["fn"]]
+]
+module-items-ordered-within-groupings = "none"
+
+# === SEMICOLON STYLE ===
+# Semicolon inside block configuration
+semicolon-inside-block-ignore-singleline = false
+
+# === CASE STYLE ===
+# Upper case acronyms
+upper-case-acronyms-aggressive = false
+
+# === CARGO-SPECIFIC ===
+# Ignore cargo publish settings (for internal testing)
+cargo-ignore-publish = false
+
+# === ALLOWED DUPLICATE CRATES ===
+# Crates that are allowed to have multiple versions
+allowed-duplicate-crates = []
+
+# === ALLOWED DOTFILES ===
+# Additional dotfiles to allow
+allowed-dotfiles = []
+
+# === MANUAL PATTERN MATCHING ===
+# Let-else pattern matching
+matches-for-let-else = "WellKnownTypes"
+
+# === SAFETY COMMENTS ===
+# Accept safety comments above attributes and statements
+accept-comment-above-attributes = true
+accept-comment-above-statement = true

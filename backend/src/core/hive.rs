@@ -6,12 +6,11 @@ use serde::{Deserialize, Serialize};
 use dashmap::DashMap;
 use rand::Rng;
 
-use crate::agent::{Agent, AgentBehavior, AgentType, AgentCapability};
-use crate::task::{Task, TaskQueue, TaskRequiredCapability};
-use crate::nlp::NLPProcessor;
-use crate::neural::HybridNeuralProcessor;
-use crate::resource_manager::ResourceManager;
-use crate::work_stealing_queue::{WorkStealingQueue, WorkStealingMetrics};
+use crate::agents::{Agent, AgentBehavior, AgentType, AgentCapability};
+use crate::tasks::{Task, TaskQueue, TaskRequiredCapability};
+use crate::neural::{NLPProcessor, HybridNeuralProcessor};
+use crate::infrastructure::{ResourceManager};
+use crate::tasks::WorkStealingQueue;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SwarmMetrics {
@@ -34,6 +33,7 @@ pub struct HiveStatus {
     pub total_energy: f64,
 }
 
+#[derive(Clone)]
 pub struct HiveCoordinator {
     pub id: Uuid,
     pub agents: Arc<DashMap<Uuid, Agent>>,
@@ -100,24 +100,33 @@ impl HiveCoordinator {
         };
 
         // Start background processes with Phase 2 optimizations
-        coordinator.start_background_processes().await;
+        // Start background processes in a separate task
+        let coordinator_arc = Arc::new(RwLock::new(coordinator));
+        let coordinator_clone = coordinator_arc.clone();
+        tokio::spawn(async move {
+            Self::start_background_processes(coordinator_clone).await;
+        });
         
+        // Return the coordinator from the Arc
+        let coordinator = coordinator_arc.read().await.clone();
         Ok(coordinator)
     }
 
-    async fn start_background_processes(&self) {
-        let agents = Arc::clone(&self.agents);
-        let task_queue = Arc::clone(&self.task_queue);
-        let work_stealing_queue = Arc::clone(&self.work_stealing_queue);
-        let _nlp_processor = Arc::clone(&self.nlp_processor);
-        let _metrics = Arc::clone(&self.metrics);
-        let _swarm_center = Arc::clone(&self.swarm_center);
-        let resource_manager = Arc::clone(&self.resource_manager);
+    async fn start_background_processes(coordinator: Arc<RwLock<Self>>) {
+        let (agents, task_queue, _work_stealing_queue, resource_manager) = {
+            let coord = coordinator.read().await;
+            (
+                Arc::clone(&coord.agents),
+                Arc::clone(&coord.task_queue),
+                Arc::clone(&coord.work_stealing_queue),
+                Arc::clone(&coord.resource_manager),
+            )
+        };
 
         // High-performance work-stealing task distribution
         let agents_ws = Arc::clone(&agents);
-        let work_stealing_ws = Arc::clone(&work_stealing_queue);
         let resource_manager_ws = Arc::clone(&resource_manager);
+        let coordinator_ws = coordinator.clone();
         tokio::spawn(async move {
             loop {
                 // Get current resource profile for adaptive timing
@@ -127,7 +136,10 @@ impl HiveCoordinator {
                 );
                 interval.tick().await;
                 
-                if let Err(e) = Self::work_stealing_distribution(&agents_ws, &work_stealing_ws).await {
+                if let Err(e) = {
+                    let coord = coordinator_ws.read().await;
+                    coord.work_stealing_distribution(&agents_ws).await
+                } {
                     tracing::error!("Work-stealing distribution error: {}", e);
                 }
             }
@@ -167,9 +179,15 @@ impl HiveCoordinator {
         });
 
         // Learning process
-        let agents_learning = Arc::clone(&self.agents);
-        let nlp_learning = Arc::clone(&self.nlp_processor);
-        let neural_learning = Arc::clone(&self.neural_processor);
+        let coordinator_learning = coordinator.clone();
+        let (agents_learning, nlp_learning, neural_learning) = {
+            let coord = coordinator_learning.read().await;
+            (
+                Arc::clone(&coord.agents),
+                Arc::clone(&coord.nlp_processor),
+                Arc::clone(&coord.neural_processor),
+            )
+        };
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
             loop {
@@ -186,8 +204,14 @@ impl HiveCoordinator {
         });
 
         // Swarm coordination process
-        let agents_swarm = Arc::clone(&self.agents);
-        let swarm_center_coord = Arc::clone(&self.swarm_center);
+        let coordinator_swarm = coordinator.clone();
+        let (agents_swarm, swarm_center_coord) = {
+            let coord = coordinator_swarm.read().await;
+            (
+                Arc::clone(&coord.agents),
+                Arc::clone(&coord.swarm_center),
+            )
+        };
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
             loop {
@@ -199,9 +223,15 @@ impl HiveCoordinator {
         });
 
         // Metrics update process
-        let agents_metrics = Arc::clone(&self.agents);
-        let task_queue_metrics = Arc::clone(&self.task_queue);
-        let metrics_update = Arc::clone(&self.metrics);
+        let coordinator_metrics = coordinator.clone();
+        let (agents_metrics, task_queue_metrics, metrics_update) = {
+            let coord = coordinator_metrics.read().await;
+            (
+                Arc::clone(&coord.agents),
+                Arc::clone(&coord.task_queue),
+                Arc::clone(&coord.metrics),
+            )
+        };
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(15));
             loop {
@@ -223,7 +253,11 @@ impl HiveCoordinator {
             Some("coordinator") => AgentType::Coordinator,
             Some("learner") => AgentType::Learner,
             Some(specialist) if specialist.starts_with("specialist:") => {
-                AgentType::Specialist(specialist.strip_prefix("specialist:").unwrap().to_string())
+                AgentType::Specialist(
+                    specialist.strip_prefix("specialist:")
+                        .unwrap_or(specialist)
+                        .to_string()
+                )
             }
             _ => AgentType::Worker,
         };
@@ -397,14 +431,14 @@ impl HiveCoordinator {
 
     /// High-performance work-stealing task distribution
     async fn work_stealing_distribution(
+        &self,
         agents: &DashMap<Uuid, Agent>,
-        work_stealing_queue: &WorkStealingQueue,
     ) -> anyhow::Result<()> {
         // Process tasks for each agent using work-stealing
         let agent_futures: Vec<_> = agents.iter().map(|entry| {
             let agent_id = *entry.key();
             let agent = entry.value().clone();
-            let queue = work_stealing_queue.clone();
+            let queue = self.work_stealing_queue.clone();
             
             async move {
                 // Skip if agent is busy or low energy
@@ -421,7 +455,7 @@ impl HiveCoordinator {
 
                     // Execute task asynchronously
                     let agents_clone = agents.clone();
-                    let queue_clone = queue.clone();
+                    let queue_clone = self.work_stealing_queue.clone();
                     tokio::spawn(async move {
                         let mut agent_exec = agent;
                         let start_time = std::time::Instant::now();
@@ -468,7 +502,7 @@ impl HiveCoordinator {
         }
 
         // Update work-stealing metrics
-        work_stealing_queue.update_metrics().await;
+        self.work_stealing_queue.update_metrics().await;
 
         Ok(())
     }

@@ -5,8 +5,8 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, error, debug};
-use crate::{HiveCoordinator, AgentType, TaskPriority};
+use tracing::{info, debug};
+use crate::{core::HiveCoordinator, agents::AgentType, tasks::TaskPriority};
 
 /// Best Practice MCP (Model Context Protocol) Server Implementation
 /// 
@@ -328,7 +328,7 @@ impl MCPToolHandler for CreateSwarmAgentTool {
             .and_then(|v| v.as_str())
             .unwrap_or("Worker");
         
-        let agent_type = match agent_type_str {
+        let _agent_type = match agent_type_str {
             "Worker" => AgentType::Worker,
             "Coordinator" => AgentType::Coordinator,
             "Learner" => AgentType::Learner,
@@ -400,7 +400,7 @@ impl MCPToolHandler for AssignSwarmTaskTool {
             .and_then(|v| v.as_str())
             .unwrap_or("Medium");
 
-        let priority = match priority_str {
+        let _priority = match priority_str {
             "Low" => TaskPriority::Low,
             "Medium" => TaskPriority::Medium,
             "High" => TaskPriority::High,
@@ -493,7 +493,7 @@ impl MCPToolHandler for AnalyzeWithNLPTool {
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing text to analyze"))?;
 
-        let hive = self.hive.read().await;
+        let _hive = self.hive.read().await;
         // Use basic NLP analysis for now
         let analysis = json!({
             "sentiment": "neutral",

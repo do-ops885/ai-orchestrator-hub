@@ -4,10 +4,9 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::agent::{Agent, AgentBehavior, AgentCapability, AgentType, Experience};
-use crate::cpu_optimization::{VectorizedOps, QuantizedOps, CpuOptimizer, QuantizedWeights};
-use crate::nlp::NLPProcessor;
-use crate::task::{Task, TaskResult};
+use crate::agents::{Agent, AgentBehavior, AgentCapability, AgentType, Experience};
+use crate::neural::{VectorizedOps, QuantizedOps, CpuOptimizer, QuantizedWeights, NLPProcessor};
+use crate::tasks::{Task, TaskResult};
 
 /// CPU-optimized agent with SIMD acceleration and quantized neural processing
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -528,7 +527,7 @@ impl AgentBehavior for OptimizedAgent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent::AgentType;
+    use crate::agents::AgentType;
 
     #[test]
     fn test_optimized_agent_creation() {

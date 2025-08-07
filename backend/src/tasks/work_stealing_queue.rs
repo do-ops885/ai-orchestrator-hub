@@ -3,12 +3,14 @@ use std::collections::VecDeque;
 use tokio::sync::{Mutex, RwLock, Notify};
 use uuid::Uuid;
 use dashmap::DashMap;
-use rand::Rng;
+use rand::prelude::SliceRandom;
+// use rand::rngs::StdRng;
+use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 
-use crate::task::{Task, TaskPriority};
-use crate::agent::Agent;
+use crate::tasks::{Task, TaskPriority};
+// use crate::agent::Agent;
 
 /// High-performance work-stealing task queue system
 /// Implements best practices for concurrent task distribution
@@ -276,7 +278,7 @@ impl WorkStealingQueue {
         }
 
         // Randomize to avoid thundering herd
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rngs::StdRng::from_entropy();
         candidates.shuffle(&mut rng);
 
         // Try to steal from candidates
@@ -346,9 +348,10 @@ impl WorkStealingQueue {
         
         let total_agents = self.agent_queues.len();
         if total_agents > 0 {
-            let total_depth: usize = futures::future::join_all(
-                self.agent_queues.iter().map(|entry| entry.value().get_queue_depth())
-            ).await.iter().sum();
+            let mut total_depth = 0;
+            for entry in self.agent_queues.iter() {
+                total_depth += entry.value().get_queue_depth().await;
+            }
 
             metrics.average_queue_depth = total_depth as f64 / total_agents as f64;
         }
@@ -430,7 +433,7 @@ impl LoadBalancer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::task::TaskPriority;
+    use crate::tasks::TaskPriority;
 
     #[tokio::test]
     async fn test_work_stealing_basic_operations() {
