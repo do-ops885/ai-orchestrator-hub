@@ -20,7 +20,7 @@ use tracing::{info, warn, error, Level};
 use tracing_subscriber;
 
 use crate::core::HiveCoordinator;
-use crate::utils::{HiveConfig, HiveError};
+use crate::utils::HiveConfig;
 use crate::infrastructure::MetricsCollector;
 use crate::utils::InputValidator;
 
@@ -248,7 +248,7 @@ async fn get_resource_info(State(state): State<AppState>) -> Result<axum::Json<s
     Ok(axum::Json(resource_info))
 }
 
-async fn health_check(State(state): State<AppState>) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
+async fn health_check(State(_state): State<AppState>) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
     let start_time = std::time::Instant::now();
     
     // Check hive coordinator health

@@ -6,8 +6,6 @@ pub mod telemetry;
 pub mod middleware;
 
 pub use resource_manager::*;
-pub use memory_pool::*;
 pub use cache::*;
 pub use metrics::*;
 pub use telemetry::*;
-pub use middleware::*;

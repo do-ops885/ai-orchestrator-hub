@@ -1,12 +1,11 @@
-// ESLint Flat Config - Modern Best Practices
+// ESLint Flat Config - Modern Best Practices with Next.js Integration
 import js from '@eslint/js'
 import tseslint from '@typescript-eslint/eslint-plugin'
 import tsparser from '@typescript-eslint/parser'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
-import { defineConfig } from 'eslint/config'
 
-export default defineConfig([
+export default [
   // Base recommended configurations
   js.configs.recommended,
   
@@ -33,17 +32,16 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': ['error', { 
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
-        caughtErrorsIgnorePattern: '^_'
+        caughtErrorsIgnorePattern: '^_',
       }],
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/prefer-const': 'error',
       '@typescript-eslint/no-non-null-assertion': 'warn',
       '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
       '@typescript-eslint/no-use-before-define': ['error', { 
         functions: false, 
         classes: true, 
         variables: true,
-        typedefs: false 
+        typedefs: false, 
       }],
       '@typescript-eslint/strict-boolean-expressions': ['error', {
         allowString: false,
@@ -67,18 +65,17 @@ export default defineConfig([
       
       // React Refresh rules for development
       'react-refresh/only-export-components': ['warn', { 
-        allowConstantExport: true 
+        allowConstantExport: true, 
       }],
     },
   },
 
-  // Next.js specific configuration
+  // Additional Next.js specific overrides
   {
-    name: 'nextjs-setup',
+    name: 'nextjs-overrides',
     files: ['**/*.{js,jsx,ts,tsx}'],
     rules: {
-      // Next.js best practices
-      'no-html-link-for-pages': 'off', // Handled by Next.js
+      // Additional rules not covered by eslint-config-next
       'prefer-const': 'error',
       'no-var': 'error',
       'no-console': ['warn', { allow: ['warn', 'error'] }],
@@ -180,4 +177,4 @@ export default defineConfig([
       reportUnusedDisableDirectives: 'warn',
     },
   },
-])
+]

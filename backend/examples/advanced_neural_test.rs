@@ -1,11 +1,8 @@
-use std::collections::HashMap;
 use uuid::Uuid;
 use anyhow::Result;
-use tokio::time::{sleep, Duration};
 
-// Import internal modules for testing
-use crate::neural::HybridNeuralProcessor;
-use crate::agent::{Agent, AgentType, AgentCapability};
+// Import external crate modules for testing
+use multiagent_hive::neural::HybridNeuralProcessor;
 
 #[tokio::main]
 async fn main() -> Result<()> {

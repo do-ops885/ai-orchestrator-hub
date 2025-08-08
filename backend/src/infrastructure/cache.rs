@@ -154,10 +154,10 @@ where
 }
 
 /// Specialized cache for agent data
-pub type AgentCache = Cache<uuid::Uuid, crate::agent::Agent>;
+pub type AgentCache = Cache<uuid::Uuid, crate::agents::Agent>;
 
 /// Specialized cache for task data  
-pub type TaskCache = Cache<uuid::Uuid, crate::task::Task>;
+pub type TaskCache = Cache<uuid::Uuid, crate::tasks::Task>;
 
 /// Specialized cache for hive status
 pub type StatusCache = Cache<String, serde_json::Value>;
@@ -167,7 +167,7 @@ pub struct CacheManager {
     pub agents: AgentCache,
     pub tasks: TaskCache,
     pub status: StatusCache,
-    pub metrics: Cache<String, crate::metrics::SystemMetrics>,
+    pub metrics: Cache<String, crate::infrastructure::SystemMetrics>,
 }
 
 impl CacheManager {

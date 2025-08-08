@@ -331,11 +331,11 @@ impl HiveCoordinator {
             .to_string();
 
         let priority = match config.get("priority").and_then(|v| v.as_u64()).unwrap_or(1) {
-            0 => crate::task::TaskPriority::Low,
-            1 => crate::task::TaskPriority::Medium,
-            2 => crate::task::TaskPriority::High,
-            3 => crate::task::TaskPriority::Critical,
-            _ => crate::task::TaskPriority::Medium,
+            0 => crate::tasks::TaskPriority::Low,
+            1 => crate::tasks::TaskPriority::Medium,
+            2 => crate::tasks::TaskPriority::High,
+            3 => crate::tasks::TaskPriority::Critical,
+            _ => crate::tasks::TaskPriority::Medium,
         };
 
         let mut required_capabilities = None;
@@ -442,7 +442,7 @@ impl HiveCoordinator {
             
             async move {
                 // Skip if agent is busy or low energy
-                if !matches!(agent.state, crate::agent::AgentState::Idle) || agent.energy < 10.0 {
+                if !matches!(agent.state, crate::agents::AgentState::Idle) || agent.energy < 10.0 {
                     return Ok(());
                 }
 
@@ -567,7 +567,7 @@ impl HiveCoordinator {
 
         metrics_guard.total_agents = agents.len();
         metrics_guard.active_agents = agents.iter()
-            .filter(|a| matches!(a.value().state, crate::agent::AgentState::Working))
+            .filter(|a| matches!(a.value().state, crate::agents::AgentState::Working))
             .count();
 
         // Calculate average performance

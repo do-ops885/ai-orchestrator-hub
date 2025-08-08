@@ -1,7 +1,6 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useHiveStore } from '@/store/hiveStore';
+import { useState, useEffect } from 'react'
 
 interface SystemResources {
   cpu_cores: number;
@@ -21,33 +20,33 @@ interface ResourceProfile {
 }
 
 export function ResourceMonitor() {
-  const [systemResources, setSystemResources] = useState<SystemResources | null>(null);
-  const [resourceProfile, setResourceProfile] = useState<ResourceProfile | null>(null);
-  const [hardwareClass, setHardwareClass] = useState<string>('Unknown');
+  const [systemResources, setSystemResources] = useState<SystemResources | null>(null)
+  const [resourceProfile, setResourceProfile] = useState<ResourceProfile | null>(null)
+  const [hardwareClass, setHardwareClass] = useState<string>('Unknown')
 
   useEffect(() => {
     // Fetch resource information from backend
     const fetchResourceInfo = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/resources');
+        const response = await fetch('http://localhost:3001/api/resources')
         if (response.ok) {
-          const data = await response.json();
-          setSystemResources(data.system_resources);
-          setResourceProfile(data.resource_profile);
-          setHardwareClass(data.hardware_class);
+          const data = await response.json()
+          setSystemResources(data.system_resources)
+          setResourceProfile(data.resource_profile)
+          setHardwareClass(data.hardware_class)
         }
       } catch (error) {
-        console.error('Failed to fetch resource info:', error);
+        console.error('Failed to fetch resource info:', error)
       }
-    };
+    }
 
-    fetchResourceInfo();
-    const interval = setInterval(fetchResourceInfo, 30000); // Update every 30 seconds
+    fetchResourceInfo()
+    const interval = setInterval(fetchResourceInfo, 30000) // Update every 30 seconds
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => clearInterval(interval)
+  }, [])
 
-  if (!systemResources || !resourceProfile) {
+  if (systemResources === null || resourceProfile === null) {
     return (
       <div className="bg-white overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
@@ -57,24 +56,24 @@ export function ResourceMonitor() {
           <div className="text-gray-500">Loading resource information...</div>
         </div>
       </div>
-    );
+    )
   }
 
   const getUsageColor = (usage: number) => {
-    if (usage < 50) return 'text-green-600 bg-green-50';
-    if (usage < 80) return 'text-yellow-600 bg-yellow-50';
-    return 'text-red-600 bg-red-50';
-  };
+    if (usage < 50) {return 'text-green-600 bg-green-50'}
+    if (usage < 80) {return 'text-yellow-600 bg-yellow-50'}
+    return 'text-red-600 bg-red-50'
+  }
 
   const getHardwareIcon = (hwClass: string) => {
     switch (hwClass) {
-      case 'EdgeDevice': return '📱';
-      case 'Desktop': return '🖥️';
-      case 'Server': return '🖥️';
-      case 'Cloud': return '☁️';
-      default: return '💻';
+      case 'EdgeDevice': return '📱'
+      case 'Desktop': return '🖥️'
+      case 'Server': return '🖥️'
+      case 'Cloud': return '☁️'
+      default: return '💻'
     }
-  };
+  }
 
   return (
     <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -181,5 +180,5 @@ export function ResourceMonitor() {
         </div>
       </div>
     </div>
-  );
+  )
 }

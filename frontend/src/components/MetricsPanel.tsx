@@ -1,32 +1,32 @@
-'use client';
+'use client'
 
-import { HiveMetrics } from '@/store/hiveStore';
+import { HiveMetrics } from '@/store/hiveStore'
 
 interface MetricsPanelProps {
   metrics: HiveMetrics;
 }
 
 export function MetricsPanel({ metrics }: MetricsPanelProps) {
-  const formatPercentage = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const formatPercentage = (value: number) => `${(value * 100).toFixed(1)}%`
 
   const metricItems = [
     {
       label: 'Average Performance',
       value: formatPercentage(metrics.average_performance),
       color: 'blue',
-      description: 'Overall capability proficiency across all agents'
+      description: 'Overall capability proficiency across all agents',
     },
     {
       label: 'Swarm Cohesion',
       value: formatPercentage(metrics.swarm_cohesion),
       color: 'green',
-      description: 'How well agents are coordinated spatially'
+      description: 'How well agents are coordinated spatially',
     },
     {
       label: 'Learning Progress',
       value: formatPercentage(metrics.learning_progress),
       color: 'purple',
-      description: 'Collective learning advancement of the hive'
+      description: 'Collective learning advancement of the hive',
     },
     {
       label: 'Task Success Rate',
@@ -34,9 +34,9 @@ export function MetricsPanel({ metrics }: MetricsPanelProps) {
         ? formatPercentage(metrics.completed_tasks / (metrics.completed_tasks + metrics.failed_tasks))
         : '0%',
       color: 'yellow',
-      description: 'Ratio of successful to total completed tasks'
-    }
-  ];
+      description: 'Ratio of successful to total completed tasks',
+    },
+  ]
 
   const getColorClasses = (color: string) => {
     const colors = {
@@ -44,9 +44,9 @@ export function MetricsPanel({ metrics }: MetricsPanelProps) {
       green: 'bg-green-50 text-green-700 border-green-200',
       purple: 'bg-purple-50 text-purple-700 border-purple-200',
       yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    };
-    return colors[color as keyof typeof colors] || colors.blue;
-  };
+    }
+    return colors[color as keyof typeof colors] ?? colors.blue
+  }
 
   return (
     <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -84,5 +84,5 @@ export function MetricsPanel({ metrics }: MetricsPanelProps) {
         </div>
       </div>
     </div>
-  );
+  )
 }

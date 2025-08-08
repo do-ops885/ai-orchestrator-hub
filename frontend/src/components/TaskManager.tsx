@@ -1,69 +1,69 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { useHiveStore } from '@/store/hiveStore';
-import { Plus, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { useState } from 'react'
+import { useHiveStore } from '@/store/hiveStore'
+import { Plus, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
 
 export function TaskManager() {
-  const { createTask } = useHiveStore();
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const { createTask } = useHiveStore()
+  const [showCreateForm, setShowCreateForm] = useState(false)
   const [newTask, setNewTask] = useState({
     description: '',
     type: 'general',
     priority: 5,
-    required_capabilities: [{ name: '', min_proficiency: 0.5, weight: 1.0 }]
-  });
+    required_capabilities: [{ name: '', min_proficiency: 0.5, weight: 1.0 }],
+  })
 
   const handleCreateTask = () => {
     // Filter out empty capabilities
-    const filteredCapabilities = newTask.required_capabilities.filter(cap => cap.name.trim() !== '');
+    const filteredCapabilities = newTask.required_capabilities.filter(cap => cap.name.trim() !== '')
     
     const taskConfig = {
       ...newTask,
-      required_capabilities: filteredCapabilities.length > 0 ? filteredCapabilities : undefined
-    };
+      required_capabilities: filteredCapabilities.length > 0 ? filteredCapabilities : undefined,
+    }
     
-    createTask(taskConfig);
+    createTask(taskConfig)
     setNewTask({
       description: '',
       type: 'general',
       priority: 5,
-      required_capabilities: [{ name: '', min_proficiency: 0.5, weight: 1.0 }]
-    });
-    setShowCreateForm(false);
-  };
+      required_capabilities: [{ name: '', min_proficiency: 0.5, weight: 1.0 }],
+    })
+    setShowCreateForm(false)
+  }
 
   const addRequiredCapability = () => {
     setNewTask({
       ...newTask,
-      required_capabilities: [...newTask.required_capabilities, { name: '', min_proficiency: 0.5, weight: 1.0 }]
-    });
-  };
+      required_capabilities: [...newTask.required_capabilities, { name: '', min_proficiency: 0.5, weight: 1.0 }],
+    })
+  }
 
-  const updateRequiredCapability = (index: number, field: string, value: any) => {
-    const updated = [...newTask.required_capabilities];
-    updated[index] = { ...updated[index], [field]: value };
-    setNewTask({ ...newTask, required_capabilities: updated });
-  };
+  const updateRequiredCapability = (index: number, field: string, value: string | number) => {
+    const updated = [...newTask.required_capabilities]
+    updated[index] = { ...updated[index], [field]: value }
+    setNewTask({ ...newTask, required_capabilities: updated })
+  }
 
   const removeRequiredCapability = (index: number) => {
-    const updated = newTask.required_capabilities.filter((_, i) => i !== index);
-    setNewTask({ ...newTask, required_capabilities: updated });
-  };
+    const updated = newTask.required_capabilities.filter((_, i) => i !== index)
+    setNewTask({ ...newTask, required_capabilities: updated })
+  }
 
   const getPriorityColor = (priority: number) => {
-    if (priority >= 8) return 'bg-red-100 text-red-800';
-    if (priority >= 6) return 'bg-yellow-100 text-yellow-800';
-    if (priority >= 4) return 'bg-blue-100 text-blue-800';
-    return 'bg-gray-100 text-gray-800';
-  };
+    if (priority >= 8) {return 'bg-red-100 text-red-800'}
+    if (priority >= 6) {return 'bg-yellow-100 text-yellow-800'}
+    if (priority >= 4) {return 'bg-blue-100 text-blue-800'}
+    return 'bg-gray-100 text-gray-800'
+  }
 
   const getPriorityLabel = (priority: number) => {
-    if (priority >= 8) return 'Critical';
-    if (priority >= 6) return 'High';
-    if (priority >= 4) return 'Medium';
-    return 'Low';
-  };
+    if (priority >= 8) {return 'Critical'}
+    if (priority >= 6) {return 'High'}
+    if (priority >= 4) {return 'Medium'}
+    return 'Low'
+  }
 
   // Mock task data for demonstration (in real app, this would come from the store)
   const mockTasks = [
@@ -75,7 +75,7 @@ export function TaskManager() {
       status: 'Completed',
       assigned_agent: 'NLP-Agent-001',
       created_at: '2024-01-15T10:30:00Z',
-      completed_at: '2024-01-15T10:45:00Z'
+      completed_at: '2024-01-15T10:45:00Z',
     },
     {
       id: '2',
@@ -84,7 +84,7 @@ export function TaskManager() {
       priority: 6,
       status: 'InProgress',
       assigned_agent: 'Coordinator-001',
-      created_at: '2024-01-15T11:00:00Z'
+      created_at: '2024-01-15T11:00:00Z',
     },
     {
       id: '3',
@@ -92,19 +92,19 @@ export function TaskManager() {
       type: 'data_processing',
       priority: 5,
       status: 'Pending',
-      created_at: '2024-01-15T11:15:00Z'
-    }
-  ];
+      created_at: '2024-01-15T11:15:00Z',
+    },
+  ]
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'Completed': return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'Failed': return <XCircle className="w-5 h-5 text-red-500" />;
-      case 'InProgress': return <Clock className="w-5 h-5 text-blue-500" />;
-      case 'Pending': return <AlertCircle className="w-5 h-5 text-yellow-500" />;
-      default: return <Clock className="w-5 h-5 text-gray-500" />;
+      case 'Completed': return <CheckCircle className="w-5 h-5 text-green-500" />
+      case 'Failed': return <XCircle className="w-5 h-5 text-red-500" />
+      case 'InProgress': return <Clock className="w-5 h-5 text-blue-500" />
+      case 'Pending': return <AlertCircle className="w-5 h-5 text-yellow-500" />
+      default: return <Clock className="w-5 h-5 text-gray-500" />
     }
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -252,7 +252,7 @@ export function TaskManager() {
                     <div className="text-sm text-gray-500">
                       Type: {task.type} • Created: {new Date(task.created_at).toLocaleString()}
                     </div>
-                    {task.assigned_agent && (
+                    {task.assigned_agent !== null && task.assigned_agent !== undefined && task.assigned_agent !== '' && (
                       <div className="text-sm text-blue-600">
                         Assigned to: {task.assigned_agent}
                       </div>
@@ -262,7 +262,7 @@ export function TaskManager() {
                 
                 <div className="text-right">
                   <div className="text-sm font-medium text-gray-900">{task.status}</div>
-                  {task.completed_at && (
+                  {task.completed_at !== null && task.completed_at !== undefined && task.completed_at !== '' && (
                     <div className="text-sm text-gray-500">
                       Completed: {new Date(task.completed_at).toLocaleString()}
                     </div>
@@ -282,5 +282,5 @@ export function TaskManager() {
         )}
       </div>
     </div>
-  );
+  )
 }

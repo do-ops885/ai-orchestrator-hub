@@ -1,20 +1,20 @@
-'use client';
+'use client'
 
-import { useHiveStore } from '@/store/hiveStore';
-import { SwarmVisualization } from './SwarmVisualization';
-import { MetricsPanel } from './MetricsPanel';
-import { NeuralMetrics } from './NeuralMetrics';
-import { ResourceMonitor } from './ResourceMonitor';
+import { useHiveStore } from '@/store/hiveStore'
+import { SwarmVisualization } from './SwarmVisualization'
+import { MetricsPanel } from './MetricsPanel'
+import { NeuralMetrics } from './NeuralMetrics'
+import { ResourceMonitor } from './ResourceMonitor'
 
 export function HiveDashboard() {
-  const { hiveStatus, agents } = useHiveStore();
+  const { hiveStatus, agents } = useHiveStore()
 
-  if (!hiveStatus) {
+  if (hiveStatus === null || hiveStatus === undefined) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-gray-500">Loading hive status...</div>
       </div>
-    );
+    )
   }
 
   return (
@@ -57,5 +57,5 @@ export function HiveDashboard() {
         <ResourceMonitor />
       </div>
     </div>
-  );
+  )
 }

@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::neural::NLPProcessor;
 use crate::tasks::{Task, TaskResult};
+use crate::agents::memory::{AgentMemorySystem, MemoryContent, TaskOutcome};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentType {
@@ -31,6 +32,7 @@ pub struct AgentCapability {
     pub learning_rate: f64,
 }
 
+// Legacy AgentMemory - kept for backward compatibility
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentMemory {
     pub experiences: Vec<Experience>,

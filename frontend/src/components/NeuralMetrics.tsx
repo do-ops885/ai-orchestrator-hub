@@ -1,37 +1,43 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { Brain, Cpu, Zap, TrendingUp } from 'lucide-react';
+import { useState } from 'react'
+import { Brain, Cpu, Zap, TrendingUp } from 'lucide-react'
 
 interface NeuralMetricsProps {
-  agents: any[];
+  agents: Array<{
+    id: string;
+    name: string;
+    type: string;
+    energy: number;
+    neural_type?: string;
+  }>;
 }
 
 export function NeuralMetrics({ agents }: NeuralMetricsProps) {
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
 
   // Mock neural performance data (in real app, this would come from backend)
   const neuralData = {
     processing_mode: 'hybrid',
-    basic_agents: agents.filter(a => !a.neural_type || a.neural_type === 'basic').length,
+    basic_agents: agents.filter(a => a.neural_type === undefined || a.neural_type === null || a.neural_type === 'basic').length,
     advanced_agents: agents.filter(a => a.neural_type === 'fann' || a.neural_type === 'lstm').length,
     avg_prediction_accuracy: 0.847,
     learning_rate: 0.023,
     neural_efficiency: 0.92,
-  };
+  }
 
-  const getAgentNeuralType = (agent: any) => {
+  const getAgentNeuralType = (agent: { type: string; neural_type?: string }) => {
     // Mock neural type detection
-    if (agent.type === 'Learner') return 'LSTM';
-    if (agent.type === 'Specialist') return 'FANN';
-    return 'Basic NLP';
-  };
+    if (agent.type === 'Learner') {return 'LSTM'}
+    if (agent.type === 'Specialist') {return 'FANN'}
+    return 'Basic NLP'
+  }
 
   const getPerformanceColor = (performance: number) => {
-    if (performance >= 0.8) return 'text-green-600';
-    if (performance >= 0.6) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+    if (performance >= 0.8) {return 'text-green-600'}
+    if (performance >= 0.6) {return 'text-yellow-600'}
+    return 'text-red-600'
+  }
 
   return (
     <div className="bg-white shadow rounded-lg p-6">
@@ -136,5 +142,5 @@ export function NeuralMetrics({ agents }: NeuralMetricsProps) {
         </div>
       </div>
     </div>
-  );
+  )
 }

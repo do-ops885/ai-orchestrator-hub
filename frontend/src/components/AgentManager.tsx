@@ -1,58 +1,58 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { useHiveStore } from '@/store/hiveStore';
-import { Plus, User, Brain, Settings, Zap } from 'lucide-react';
+import { useState } from 'react'
+import { useHiveStore } from '@/store/hiveStore'
+import { Plus, User, Brain, Settings, Zap } from 'lucide-react'
 
 export function AgentManager() {
-  const { agents, createAgent } = useHiveStore();
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const { agents, createAgent } = useHiveStore()
+  const [showCreateForm, setShowCreateForm] = useState(false)
   const [newAgent, setNewAgent] = useState({
     name: '',
     type: 'Worker',
-    capabilities: [{ name: '', proficiency: 0.5, learning_rate: 0.1 }]
-  });
+    capabilities: [{ name: '', proficiency: 0.5, learning_rate: 0.1 }],
+  })
 
   const handleCreateAgent = () => {
-    createAgent(newAgent);
+    createAgent(newAgent)
     setNewAgent({
       name: '',
       type: 'Worker',
-      capabilities: [{ name: '', proficiency: 0.5, learning_rate: 0.1 }]
-    });
-    setShowCreateForm(false);
-  };
+      capabilities: [{ name: '', proficiency: 0.5, learning_rate: 0.1 }],
+    })
+    setShowCreateForm(false)
+  }
 
   const addCapability = () => {
     setNewAgent({
       ...newAgent,
-      capabilities: [...newAgent.capabilities, { name: '', proficiency: 0.5, learning_rate: 0.1 }]
-    });
-  };
+      capabilities: [...newAgent.capabilities, { name: '', proficiency: 0.5, learning_rate: 0.1 }],
+    })
+  }
 
-  const updateCapability = (index: number, field: string, value: any) => {
-    const updated = [...newAgent.capabilities];
-    updated[index] = { ...updated[index], [field]: value };
-    setNewAgent({ ...newAgent, capabilities: updated });
-  };
+  const updateCapability = (index: number, field: string, value: string | number) => {
+    const updated = [...newAgent.capabilities]
+    updated[index] = { ...updated[index], [field]: value }
+    setNewAgent({ ...newAgent, capabilities: updated })
+  }
 
   const getAgentIcon = (type: string) => {
     switch (type) {
-      case 'Coordinator': return <Settings className="w-5 h-5" />;
-      case 'Learner': return <Brain className="w-5 h-5" />;
-      default: return <User className="w-5 h-5" />;
+      case 'Coordinator': return <Settings className="w-5 h-5" />
+      case 'Learner': return <Brain className="w-5 h-5" />
+      default: return <User className="w-5 h-5" />
     }
-  };
+  }
 
   const getStateColor = (state: string) => {
     switch (state) {
-      case 'Working': return 'bg-green-100 text-green-800';
-      case 'Learning': return 'bg-blue-100 text-blue-800';
-      case 'Idle': return 'bg-gray-100 text-gray-800';
-      case 'Failed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'Working': return 'bg-green-100 text-green-800'
+      case 'Learning': return 'bg-blue-100 text-blue-800'
+      case 'Idle': return 'bg-gray-100 text-gray-800'
+      case 'Failed': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -231,5 +231,5 @@ export function AgentManager() {
         )}
       </div>
     </div>
-  );
+  )
 }

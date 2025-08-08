@@ -1,22 +1,22 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { HiveDashboard } from '@/components/HiveDashboard';
-import { AgentManager } from '@/components/AgentManager';
-import { TaskManager } from '@/components/TaskManager';
-import { useHiveStore } from '@/store/hiveStore';
+import { useState, useEffect } from 'react'
+import { HiveDashboard } from '@/components/HiveDashboard'
+import { AgentManager } from '@/components/AgentManager'
+import { TaskManager } from '@/components/TaskManager'
+import { useHiveStore } from '@/store/hiveStore'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const { connectWebSocket, disconnect, isConnected } = useHiveStore();
+  const [activeTab, setActiveTab] = useState('dashboard')
+  const { connectWebSocket, disconnect, isConnected } = useHiveStore()
 
   useEffect(() => {
-    connectWebSocket('ws://localhost:3001/ws');
+    connectWebSocket('ws://localhost:3001/ws')
     
     return () => {
-      disconnect();
-    };
-  }, [connectWebSocket, disconnect]);
+      disconnect()
+    }
+  }, [connectWebSocket, disconnect])
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -56,5 +56,5 @@ export default function Home() {
         {activeTab === 'tasks' && <TaskManager />}
       </main>
     </div>
-  );
+  )
 }

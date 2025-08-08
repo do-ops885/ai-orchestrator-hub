@@ -136,7 +136,7 @@ impl TaskQueue {
         self.failed_tasks.len()
     }
 
-    pub fn find_suitable_tasks(&self, capabilities: &[crate::agent::AgentCapability]) -> Vec<&Task> {
+    pub fn find_suitable_tasks(&self, capabilities: &[crate::agents::AgentCapability]) -> Vec<&Task> {
         self.pending_tasks
             .iter()
             .filter(|task| {

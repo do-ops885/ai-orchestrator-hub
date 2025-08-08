@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 
 use crate::tasks::{Task, TaskPriority};
-// use crate::agent::Agent;
+// use crate::agents::Agent;
 
 /// High-performance work-stealing task queue system
 /// Implements best practices for concurrent task distribution

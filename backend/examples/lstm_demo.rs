@@ -1,13 +1,8 @@
-// Internal module imports for example
+// External crate imports for example
 use uuid::Uuid;
 use anyhow::Result;
 
-// Since this is an example within the crate, we need to reference the modules directly
-mod neural;
-mod nlp;
-mod cpu_optimization;
-
-use neural::HybridNeuralProcessor;
+use multiagent_hive::neural::HybridNeuralProcessor;
 
 #[tokio::main]
 async fn main() -> Result<()> {

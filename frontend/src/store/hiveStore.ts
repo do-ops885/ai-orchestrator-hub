@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from 'zustand'
 
 export interface Agent {
   id: string;
@@ -43,13 +43,13 @@ interface HiveStore {
   // Data
   agents: Agent[];
   hiveStatus: HiveStatus | null;
-  tasks: any[];
+  tasks: unknown[];
   
   // Actions
   connectWebSocket: (url: string) => void;
   disconnect: () => void;
-  createAgent: (config: any) => void;
-  createTask: (config: any) => void;
+  createAgent: (config: unknown) => void;
+  createTask: (config: unknown) => void;
   updateAgents: (agents: Agent[]) => void;
   updateHiveStatus: (status: HiveStatus) => void;
 }
@@ -62,89 +62,92 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   tasks: [],
 
   connectWebSocket: (url: string) => {
-    const socket = new WebSocket(url);
+    const socket = new WebSocket(url)
     
     socket.onopen = () => {
-      console.log('WebSocket connected');
-      set({ isConnected: true, socket });
-    };
+      console.warn('WebSocket connected')
+      set({ isConnected: true, socket })
+    }
     
     socket.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data);
+        const message = JSON.parse(event.data)
         
-        switch (message.message_type) {
-          case 'hive_status':
-            set({ hiveStatus: message.data });
-            break;
-          case 'agents_update':
-            set({ agents: message.data.agents || [] });
-            break;
-          case 'metrics_update':
-            const currentStatus = get().hiveStatus;
-            if (currentStatus && message.data.metrics) {
-              set({
-                hiveStatus: {
-                  ...currentStatus,
-                  metrics: message.data.metrics,
-                  swarm_center: message.data.swarm_center || currentStatus.swarm_center,
-                  total_energy: message.data.total_energy || currentStatus.total_energy,
-                }
-              });
+        if (typeof message.message_type === 'string') {
+          switch (message.message_type) {
+            case 'hive_status':
+              set({ hiveStatus: message.data })
+              break
+            case 'agents_update':
+              set({ agents: message.data?.agents ?? [] })
+              break
+            case 'metrics_update': {
+              const currentStatus = get().hiveStatus
+              if (currentStatus !== null && currentStatus !== undefined && message.data?.metrics !== null && message.data?.metrics !== undefined) {
+                set({
+                  hiveStatus: {
+                    ...currentStatus,
+                    metrics: message.data.metrics,
+                    swarm_center: message.data.swarm_center ?? currentStatus.swarm_center,
+                    total_energy: message.data.total_energy ?? currentStatus.total_energy,
+                  },
+                })
+              }
+              break
             }
-            break;
-          case 'agent_created':
-          case 'task_created':
-            console.log('Created:', message.data);
-            break;
-          case 'error':
-            console.error('Hive error:', message.data.error);
-            break;
+            case 'agent_created':
+            case 'task_created':
+              console.warn('Created:', message.data)
+              break
+            case 'error':
+              console.error('Hive error:', message.data?.error)
+              break
+          }
         }
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+        console.error('Failed to parse WebSocket message:', error)
       }
-    };
+    }
     
     socket.onclose = () => {
-      console.log('WebSocket disconnected');
-      set({ isConnected: false, socket: null });
-    };
+      console.warn('WebSocket disconnected')
+      set({ isConnected: false, socket: null })
+    }
     
     socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      set({ isConnected: false });
-    };
+      console.error('WebSocket error:', error)
+      set({ isConnected: false })
+    }
   },
 
   disconnect: () => {
-    const { socket } = get();
-    if (socket) {
-      socket.close();
+    const { socket } = get()
+    if (socket !== null && socket !== undefined) {
+      socket.close()
     }
-    set({ isConnected: false, socket: null });
+    set({ isConnected: false, socket: null })
   },
 
-  createAgent: (config: any) => {
-    const { socket } = get();
-    if (socket && socket.readyState === WebSocket.OPEN) {
+  createAgent: (config: unknown) => {
+    const { socket } = get()
+    if (socket !== null && socket !== undefined && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({
         action: 'create_agent',
-        payload: config
-      }));
+        payload: config,
+      }))
     }
   },
 
-  createTask: (config: any) => {
-    const { socket } = get();
-    if (socket && socket.readyState === WebSocket.OPEN) {
+  createTask: (config: unknown) => {
+    const { socket } = get()
+    if (socket !== null && socket !== undefined && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({
         action: 'create_task',
-        payload: config
-      }));
+        payload: config,
+      }))
     }
   },
 
   updateAgents: (agents: Agent[]) => set({ agents }),
   updateHiveStatus: (status: HiveStatus) => set({ hiveStatus: status }),
-}));
+}))
