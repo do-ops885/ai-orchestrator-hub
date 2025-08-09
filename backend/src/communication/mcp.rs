@@ -341,7 +341,7 @@ impl MCPToolHandler for CreateSwarmAgentTool {
             _ => AgentType::Worker,
         };
 
-        let mut hive = self.hive.write().await;
+        let hive = self.hive.write().await;
         let config = json!({
             "agent_type": agent_type_str,
             "specialization": params.get("specialization").and_then(|v| v.as_str()).unwrap_or("general")
@@ -408,7 +408,7 @@ impl MCPToolHandler for AssignSwarmTaskTool {
             _ => TaskPriority::Medium,
         };
 
-        let mut hive = self.hive.write().await;
+        let hive = self.hive.write().await;
         let config = json!({
             "description": description,
             "priority": priority_str

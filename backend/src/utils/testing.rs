@@ -41,7 +41,7 @@ impl TestHarness {
     /// Create test agents with various configurations
     pub async fn create_test_agents(&self, count: usize) -> anyhow::Result<Vec<Uuid>> {
         let mut agent_ids = Vec::new();
-        let mut hive = self.hive.write().await;
+        let hive = self.hive.write().await;
 
         for i in 0..count {
             let agent_type = match i % 4 {
@@ -73,7 +73,7 @@ impl TestHarness {
     /// Create test tasks with various priorities
     pub async fn create_test_tasks(&self, count: usize) -> anyhow::Result<Vec<Uuid>> {
         let mut task_ids = Vec::new();
-        let mut hive = self.hive.write().await;
+        let hive = self.hive.write().await;
 
         for i in 0..count {
             let priority = match i % 4 {

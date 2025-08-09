@@ -1,3 +1,9 @@
+//! # Hive Coordination System
+//!
+//! This module implements the central coordination system for the multiagent hive.
+//! The `HiveCoordinator` manages agent lifecycles, task distribution, neural processing,
+//! and real-time communication between system components.
+
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use uuid::Uuid;
@@ -12,63 +18,165 @@ use crate::neural::{NLPProcessor, HybridNeuralProcessor};
 use crate::infrastructure::{ResourceManager};
 use crate::tasks::WorkStealingQueue;
 
+/// Comprehensive metrics tracking swarm performance and behavior.
+///
+/// These metrics provide insights into the overall health and efficiency
+/// of the multiagent system, enabling monitoring and optimization.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SwarmMetrics {
+    /// Total number of agents in the hive
     pub total_agents: usize,
+    /// Number of agents currently active (not idle or failed)
     pub active_agents: usize,
+    /// Total number of successfully completed tasks
     pub completed_tasks: usize,
+    /// Total number of failed tasks
     pub failed_tasks: usize,
+    /// Average performance score across all agents (0.0 to 1.0)
     pub average_performance: f64,
+    /// Measure of how well agents work together (0.0 to 1.0)
     pub swarm_cohesion: f64,
+    /// Progress of the collective learning process (0.0 to 1.0)
     pub learning_progress: f64,
 }
 
+/// Current status and state of the entire hive system.
+///
+/// This structure provides a comprehensive snapshot of the hive's current
+/// state, including metrics, positioning, and energy levels.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HiveStatus {
+    /// Unique identifier for this hive instance
     pub id: Uuid,
+    /// Timestamp when the hive was created
     pub created_at: DateTime<Utc>,
+    /// Timestamp of the last status update
     pub last_update: DateTime<Utc>,
+    /// Current performance and behavioral metrics
     pub metrics: SwarmMetrics,
+    /// Geometric center of the swarm in 2D space
     pub swarm_center: (f64, f64),
+    /// Total energy across all agents in the hive
     pub total_energy: f64,
 }
 
+/// Central coordinator for the multiagent hive system.
+///
+/// The `HiveCoordinator` is the core component that manages all aspects of the
+/// multiagent system, including agent lifecycles, task distribution, neural
+/// processing, and inter-agent communication.
+///
+/// # Architecture
+///
+/// The coordinator uses a hybrid approach with both legacy and modern queue systems:
+/// - Legacy `TaskQueue` for backward compatibility
+/// - High-performance `WorkStealingQueue` for optimal task distribution
+/// - Thread-safe `DashMap` for concurrent agent access
+/// - Async communication channels for real-time coordination
+///
+/// # Example
+///
+/// ```rust
+/// use multiagent_hive::HiveCoordinator;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let hive = HiveCoordinator::new().await?;
+///     // Use the hive coordinator...
+///     Ok(())
+/// }
+/// ```
 #[derive(Clone)]
 pub struct HiveCoordinator {
+    /// Unique identifier for this hive instance
     pub id: Uuid,
+    /// Thread-safe map of all agents in the hive
     pub agents: Arc<DashMap<Uuid, Agent>>,
-    pub task_queue: Arc<RwLock<TaskQueue>>, // Legacy queue for compatibility
-    pub work_stealing_queue: Arc<WorkStealingQueue>, // New high-performance queue system
+    /// Legacy task queue for backward compatibility
+    pub task_queue: Arc<RwLock<TaskQueue>>,
+    /// High-performance work-stealing queue system
+    pub work_stealing_queue: Arc<WorkStealingQueue>,
+    /// Natural language processing engine
     pub nlp_processor: Arc<NLPProcessor>,
+    /// Hybrid neural processing system (basic + optional advanced)
     pub neural_processor: Arc<RwLock<HybridNeuralProcessor>>,
+    /// Current swarm performance metrics
     pub metrics: Arc<RwLock<SwarmMetrics>>,
+    /// Geometric center of the swarm
     pub swarm_center: Arc<RwLock<(f64, f64)>>,
+    /// Channel for sending inter-agent communication messages
     pub communication_channel: mpsc::UnboundedSender<CommunicationMessage>,
+    /// Receiver for inter-agent communication messages
     pub communication_receiver: Arc<RwLock<mpsc::UnboundedReceiver<CommunicationMessage>>>,
-    pub resource_manager: Arc<ResourceManager>, // Phase 2: Intelligent resource management
+    /// Intelligent resource management system
+    pub resource_manager: Arc<ResourceManager>,
+    /// Timestamp when this coordinator was created
     pub created_at: DateTime<Utc>,
 }
 
+/// Inter-agent communication message structure
 #[derive(Debug, Clone)]
 pub struct CommunicationMessage {
+    /// ID of the agent sending the message
     pub from_agent: Uuid,
-    pub to_agent: Option<Uuid>, // None for broadcast
+    /// ID of the target agent (None for broadcast)
+    pub to_agent: Option<Uuid>,
+    /// Type of message being sent
     pub message_type: MessageType,
+    /// Message content
     pub content: String,
+    /// When the message was created
     pub timestamp: DateTime<Utc>,
 }
 
+/// Types of messages that can be sent between agents
 #[derive(Debug, Clone)]
 pub enum MessageType {
+    /// Request for task assignment or information
     TaskRequest,
+    /// Response to a task request
     TaskResponse,
+    /// Sharing learned patterns or insights
     LearningShare,
+    /// Agent status updates
     StatusUpdate,
+    /// Coordination and collaboration messages
     Coordination,
+    /// Emergency or critical system messages
     Emergency,
 }
 
 impl HiveCoordinator {
+    /// Creates a new hive coordinator with default configuration.
+    ///
+    /// Initializes all subsystems including neural processing, resource management,
+    /// and communication channels. The coordinator starts with empty agent and task
+    /// collections but is ready to accept new agents and tasks.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the initialized `HiveCoordinator` on success,
+    /// or an error if any subsystem fails to initialize.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - Neural processing initialization fails
+    /// - Resource manager initialization fails
+    /// - Communication channel setup fails
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use multiagent_hive::HiveCoordinator;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> anyhow::Result<()> {
+    ///     let hive = HiveCoordinator::new().await?;
+    ///     println!("Hive coordinator initialized with ID: {}", hive.id);
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn new() -> anyhow::Result<Self> {
         let (tx, rx) = mpsc::unbounded_channel();
         

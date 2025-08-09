@@ -24,7 +24,7 @@
 //!                        └─────────────────┘    └─────────────────┘
 //! ```
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use uuid::Uuid;
@@ -39,7 +39,6 @@ const LONG_TERM_CAPACITY: usize = 1000;
 const CONSOLIDATION_THRESHOLD: f64 = 0.6;
 
 /// Time after which short-term memories start to decay (in hours)
-const MEMORY_DECAY_HOURS: i64 = 24;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryItem {
@@ -209,20 +208,20 @@ impl AgentMemorySystem {
     }
 
     /// Retrieve memories based on context and relevance
-    pub fn recall_memories(&mut self, context: &str, limit: usize) -> Vec<&MemoryItem> {
+    pub fn recall_memories(&mut self, context: &str, limit: usize) -> Vec<MemoryItem> {
         let mut relevant_memories = Vec::new();
 
         // Search short-term memory
         for memory in &self.short_term_memory {
             if self.is_memory_relevant(memory, context) {
-                relevant_memories.push(memory);
+                relevant_memories.push(memory.clone());
             }
         }
 
         // Search long-term memory
         for memory in &self.long_term_memory {
             if self.is_memory_relevant(memory, context) {
-                relevant_memories.push(memory);
+                relevant_memories.push(memory.clone());
             }
         }
 
@@ -233,9 +232,12 @@ impl AgentMemorySystem {
             score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
         });
 
+        // Collect memory IDs for access count updates
+        let memory_ids: Vec<Uuid> = relevant_memories.iter().map(|m| m.id).collect();
+        
         // Update access counts for retrieved memories
-        for memory in &relevant_memories {
-            self.increment_access_count(memory.id);
+        for memory_id in memory_ids {
+            self.increment_access_count(memory_id);
         }
 
         relevant_memories.into_iter().take(limit).collect()
@@ -262,6 +264,32 @@ impl AgentMemorySystem {
 
     /// Update social memory based on interaction
     pub fn update_social_memory(&mut self, agent_id: Uuid, interaction_success: bool, task_id: Option<Uuid>) {
+        // Create new collaboration record if task-related
+        let new_collaboration = if let Some(task_id) = task_id {
+            Some(CollaborationRecord {
+                task_id,
+                role: "collaborator".to_string(), // Could be more specific
+                success: interaction_success,
+                efficiency: if interaction_success { 0.8 } else { 0.3 },
+                timestamp: Utc::now(),
+            })
+        } else {
+            None
+        };
+
+        // Get current collaboration history and calculate new reliability score
+        let mut updated_history = if let Some(entry) = self.social_memory.get(&agent_id) {
+            entry.collaboration_history.clone()
+        } else {
+            Vec::new()
+        };
+        
+        if let Some(collaboration) = &new_collaboration {
+            updated_history.push(collaboration.clone());
+        }
+        
+        let reliability_score = self.calculate_reliability_score(&updated_history);
+
         let social_entry = self.social_memory.entry(agent_id).or_insert_with(|| {
             self.memory_stats.social_connections += 1;
             SocialMemory {
@@ -279,19 +307,12 @@ impl AgentMemorySystem {
         social_entry.trust_level = (social_entry.trust_level + trust_adjustment).clamp(0.0, 1.0);
 
         // Add collaboration record if task-related
-        if let Some(task_id) = task_id {
-            let collaboration = CollaborationRecord {
-                task_id,
-                role: "collaborator".to_string(), // Could be more specific
-                success: interaction_success,
-                efficiency: if interaction_success { 0.8 } else { 0.3 },
-                timestamp: Utc::now(),
-            };
+        if let Some(collaboration) = new_collaboration {
             social_entry.collaboration_history.push(collaboration);
         }
 
-        // Update reliability score based on recent history
-        social_entry.reliability_score = self.calculate_reliability_score(&social_entry.collaboration_history);
+        // Update reliability score and timestamp
+        social_entry.reliability_score = reliability_score;
         social_entry.last_interaction = Utc::now();
 
         // Store social interaction in memory

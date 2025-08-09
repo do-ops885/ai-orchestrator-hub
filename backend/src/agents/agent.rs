@@ -1,3 +1,25 @@
+//! # Agent System
+//!
+//! This module defines the core agent types, behaviors, and capabilities within
+//! the multiagent hive system. Agents are autonomous entities that can execute
+//! tasks, learn from experiences, and communicate with other agents.
+//!
+//! ## Agent Types
+//!
+//! - **Worker**: General-purpose agents for task execution
+//! - **Coordinator**: Leadership agents that manage other agents
+//! - **Specialist**: Domain-specific agents with specialized capabilities
+//! - **Learner**: Agents focused on continuous learning and adaptation
+//!
+//! ## Agent States
+//!
+//! Agents transition through various states during their lifecycle:
+//! - **Idle**: Available for task assignment
+//! - **Working**: Actively executing tasks
+//! - **Learning**: Processing new patterns and insights
+//! - **Communicating**: Coordinating with other agents
+//! - **Failed**: Error state requiring intervention
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -6,38 +28,81 @@ use uuid::Uuid;
 
 use crate::neural::NLPProcessor;
 use crate::tasks::{Task, TaskResult};
-use crate::agents::memory::{AgentMemorySystem, MemoryContent, TaskOutcome};
 
+/// Defines the different types of agents in the hive system.
+///
+/// Each agent type has specific roles and capabilities within the swarm:
+/// - Workers handle general task execution
+/// - Coordinators manage and direct other agents
+/// - Specialists have domain-specific expertise
+/// - Learners focus on continuous improvement and adaptation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentType {
+    /// General-purpose agent for task execution
     Worker,
+    /// Leadership agent that coordinates other agents
     Coordinator,
+    /// Specialized agent with domain-specific expertise
+    /// The String parameter specifies the specialization area
     Specialist(String),
+    /// Agent focused on learning and adaptation
     Learner,
 }
 
+/// Represents the current operational state of an agent.
+///
+/// Agents transition between these states based on their current activities
+/// and the tasks they are assigned. State transitions are managed by the
+/// hive coordinator and can be monitored for system health.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AgentState {
+    /// Agent is available and waiting for task assignment
     Idle,
+    /// Agent is actively executing a task
     Working,
+    /// Agent is processing new information or improving capabilities
     Learning,
+    /// Agent is coordinating with other agents
     Communicating,
+    /// Agent has encountered an error and requires intervention
     Failed,
 }
 
+/// Represents a specific capability that an agent possesses.
+///
+/// Capabilities define what an agent can do and how well they can do it.
+/// They can improve over time through learning and experience.
+///
+/// # Examples
+///
+/// ```rust
+/// use multiagent_hive::AgentCapability;
+///
+/// let capability = AgentCapability {
+///     name: "data_processing".to_string(),
+///     proficiency: 0.85,
+///     learning_rate: 0.1,
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentCapability {
+    /// Name of the capability (e.g., "data_processing", "communication")
     pub name: String,
-    pub proficiency: f64, // 0.0 to 1.0
+    /// Current proficiency level from 0.0 (novice) to 1.0 (expert)
+    pub proficiency: f64,
+    /// Rate at which this capability improves through experience (0.0 to 1.0)
     pub learning_rate: f64,
 }
 
-// Legacy AgentMemory - kept for backward compatibility
+/// Legacy agent memory system - kept for backward compatibility
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentMemory {
+    /// Past experiences and task outcomes
     pub experiences: Vec<Experience>,
+    /// Learned patterns with confidence scores
     pub learned_patterns: HashMap<String, f64>,
-    pub social_connections: HashMap<Uuid, f64>, // agent_id -> trust_score
+    /// Social connections with trust scores (agent_id -> trust_score)
+    pub social_connections: HashMap<Uuid, f64>,
 }
 
 impl AgentMemory {
@@ -50,12 +115,18 @@ impl AgentMemory {
     }
 }
 
+/// A recorded experience from task execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Experience {
+    /// When the experience occurred
     pub timestamp: DateTime<Utc>,
+    /// Type of task that was executed
     pub task_type: String,
+    /// Whether the task was completed successfully
     pub success: bool,
+    /// Contextual information about the task
     pub context: String,
+    /// Any insights learned from this experience
     pub learned_insight: Option<String>,
 }
 

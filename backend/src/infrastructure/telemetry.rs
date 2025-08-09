@@ -88,14 +88,14 @@ impl TelemetrySubscriber for ConsoleTelemetrySubscriber {
 /// Webhook subscriber for external integrations
 pub struct WebhookTelemetrySubscriber {
     url: String,
-    client: reqwest::Client,
+    _client: reqwest::Client,
 }
 
 impl WebhookTelemetrySubscriber {
     pub fn new(url: String) -> Self {
         Self {
             url,
-            client: reqwest::Client::new(),
+            _client: reqwest::Client::new(),
         }
     }
 }

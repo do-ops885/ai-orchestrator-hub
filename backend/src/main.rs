@@ -1,3 +1,7 @@
+//! # Multiagent Hive System - Main Server
+//! 
+//! Entry point for the multiagent hive system backend server.
+
 mod core;
 mod agents;
 mod tasks;
@@ -24,10 +28,14 @@ use crate::utils::HiveConfig;
 use crate::infrastructure::MetricsCollector;
 use crate::utils::InputValidator;
 
+/// Application state containing shared resources
 #[derive(Clone)]
 pub struct AppState {
+    /// The main hive coordinator managing all agents and tasks
     pub hive: Arc<RwLock<HiveCoordinator>>,
+    /// System configuration
     pub config: Arc<HiveConfig>,
+    /// Metrics collection system
     pub metrics: Arc<MetricsCollector>,
 }
 
