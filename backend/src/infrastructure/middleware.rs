@@ -121,7 +121,7 @@ async fn record_request_metrics(
     duration: std::time::Duration,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Update performance metrics
-    let performance_metrics = crate::infrastructure::PerformanceMetrics {
+    let performance_metrics = crate::infrastructure::metrics::PerformanceMetrics {
         requests_per_second: 1.0, // This would be calculated over time
         average_response_time_ms: duration.as_millis() as f64,
         p95_response_time_ms: duration.as_millis() as f64, // Simplified

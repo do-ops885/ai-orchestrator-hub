@@ -54,7 +54,7 @@ pub enum AgentType {
 /// Agents transition between these states based on their current activities
 /// and the tasks they are assigned. State transitions are managed by the
 /// hive coordinator and can be monitored for system health.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum AgentState {
     /// Agent is available and waiting for task assignment
     Idle,

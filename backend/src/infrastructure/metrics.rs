@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use chrono::{DateTime, Utc};
+use tracing::{warn, debug};
 
 /// Comprehensive metrics collection for the hive system
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +33,26 @@ pub struct ResourceUsageMetrics {
     pub network_bytes_in: u64,
     pub network_bytes_out: u64,
     pub disk_usage_bytes: u64,
+    pub network_io: NetworkMetrics,
+    pub disk_io: DiskMetrics,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct NetworkMetrics {
+    pub bytes_sent: u64,
+    pub bytes_received: u64,
+    pub connections_active: u32,
+    pub websocket_connections: u32,
+    pub requests_per_second: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DiskMetrics {
+    pub reads_per_second: f64,
+    pub writes_per_second: f64,
+    pub read_bytes: u64,
+    pub write_bytes: u64,
+    pub disk_usage_percent: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +63,20 @@ pub struct AgentMetrics {
     pub failed_agents: usize,
     pub average_agent_performance: f64,
     pub agent_utilization_percent: f64,
+    pub individual_agent_metrics: HashMap<uuid::Uuid, IndividualAgentMetrics>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndividualAgentMetrics {
+    pub agent_id: uuid::Uuid,
+    pub tasks_completed: u32,
+    pub tasks_failed: u32,
+    pub average_task_duration: f64,
+    pub energy_consumption_rate: f64,
+    pub learning_progress: f64,
+    pub social_interaction_count: u32,
+    pub last_activity: chrono::DateTime<chrono::Utc>,
+    pub current_state: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,6 +102,8 @@ pub struct MetricsCollector {
     current_metrics: Arc<RwLock<SystemMetrics>>,
     historical_metrics: Arc<RwLock<Vec<SystemMetrics>>>,
     max_history_size: usize,
+    alert_thresholds: MetricThresholds,
+    start_time: std::time::Instant,
 }
 
 impl MetricsCollector {
@@ -75,6 +112,18 @@ impl MetricsCollector {
             current_metrics: Arc::new(RwLock::new(SystemMetrics::default())),
             historical_metrics: Arc::new(RwLock::new(Vec::new())),
             max_history_size,
+            alert_thresholds: MetricThresholds::default(),
+            start_time: std::time::Instant::now(),
+        }
+    }
+
+    pub fn with_thresholds(max_history_size: usize, thresholds: MetricThresholds) -> Self {
+        Self {
+            current_metrics: Arc::new(RwLock::new(SystemMetrics::default())),
+            historical_metrics: Arc::new(RwLock::new(Vec::new())),
+            max_history_size,
+            alert_thresholds: thresholds,
+            start_time: std::time::Instant::now(),
         }
     }
     
@@ -152,6 +201,146 @@ impl MetricsCollector {
             error_rate_trend: calculate_trend(previous.error_metrics.error_rate_per_minute, recent.error_metrics.error_rate_per_minute),
         }
     }
+
+    /// Check for alerts based on current metrics
+    pub async fn check_alerts(&self) -> Vec<Alert> {
+        let mut alerts = Vec::new();
+        let current = self.current_metrics.read().await;
+        
+        // CPU alerts
+        if current.resource_usage.cpu_usage_percent >= self.alert_thresholds.cpu_critical {
+            alerts.push(Alert::new(
+                AlertLevel::Critical,
+                "CPU usage critical".to_string(),
+                format!("CPU usage: {:.1}%", current.resource_usage.cpu_usage_percent),
+            ));
+        } else if current.resource_usage.cpu_usage_percent >= self.alert_thresholds.cpu_warning {
+            alerts.push(Alert::new(
+                AlertLevel::Warning,
+                "CPU usage high".to_string(),
+                format!("CPU usage: {:.1}%", current.resource_usage.cpu_usage_percent),
+            ));
+        }
+
+        // Memory alerts
+        if current.resource_usage.memory_usage_percent >= self.alert_thresholds.memory_critical {
+            alerts.push(Alert::new(
+                AlertLevel::Critical,
+                "Memory usage critical".to_string(),
+                format!("Memory usage: {:.1}%", current.resource_usage.memory_usage_percent),
+            ));
+        } else if current.resource_usage.memory_usage_percent >= self.alert_thresholds.memory_warning {
+            alerts.push(Alert::new(
+                AlertLevel::Warning,
+                "Memory usage high".to_string(),
+                format!("Memory usage: {:.1}%", current.resource_usage.memory_usage_percent),
+            ));
+        }
+
+        // Task failure rate alerts
+        let failure_rate = if current.task_metrics.total_tasks_submitted > 0 {
+            (current.task_metrics.total_tasks_failed as f64 / current.task_metrics.total_tasks_submitted as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        if failure_rate >= self.alert_thresholds.task_failure_rate_critical {
+            alerts.push(Alert::new(
+                AlertLevel::Critical,
+                "High task failure rate".to_string(),
+                format!("Task failure rate: {:.1}%", failure_rate),
+            ));
+        } else if failure_rate >= self.alert_thresholds.task_failure_rate_warning {
+            alerts.push(Alert::new(
+                AlertLevel::Warning,
+                "Elevated task failure rate".to_string(),
+                format!("Task failure rate: {:.1}%", failure_rate),
+            ));
+        }
+
+        // Agent failure rate alerts
+        let agent_failure_rate = if current.agent_metrics.total_agents > 0 {
+            (current.agent_metrics.failed_agents as f64 / current.agent_metrics.total_agents as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        if agent_failure_rate >= self.alert_thresholds.agent_failure_rate_critical {
+            alerts.push(Alert::new(
+                AlertLevel::Critical,
+                "High agent failure rate".to_string(),
+                format!("Agent failure rate: {:.1}%", agent_failure_rate),
+            ));
+        } else if agent_failure_rate >= self.alert_thresholds.agent_failure_rate_warning {
+            alerts.push(Alert::new(
+                AlertLevel::Warning,
+                "Elevated agent failure rate".to_string(),
+                format!("Agent failure rate: {:.1}%", agent_failure_rate),
+            ));
+        }
+
+        if !alerts.is_empty() {
+            warn!("Generated {} alerts", alerts.len());
+        }
+
+        alerts
+    }
+
+    /// Update individual agent metrics
+    pub async fn update_individual_agent_metrics(&self, agent_id: uuid::Uuid, metrics: IndividualAgentMetrics) {
+        let mut current = self.current_metrics.write().await;
+        current.agent_metrics.individual_agent_metrics.insert(agent_id, metrics);
+        current.timestamp = Utc::now();
+        
+        debug!("Updated metrics for agent {}", agent_id);
+    }
+
+    /// Get system uptime
+    pub fn get_uptime(&self) -> std::time::Duration {
+        self.start_time.elapsed()
+    }
+
+    /// Collect comprehensive system metrics
+    pub async fn collect_system_metrics(&self) -> anyhow::Result<SystemMetrics> {
+        let mut current = self.current_metrics.write().await;
+        
+        // Update resource usage with enhanced metrics
+        current.resource_usage.network_io = self.get_network_metrics().await?;
+        current.resource_usage.disk_io = self.get_disk_metrics().await?;
+        current.timestamp = Utc::now();
+        
+        Ok(current.clone())
+    }
+
+    async fn get_network_metrics(&self) -> anyhow::Result<NetworkMetrics> {
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs();
+        
+        // Simulate network activity (in production, use system APIs)
+        Ok(NetworkMetrics {
+            bytes_sent: (current_time * 1024) + 1024 * 1024,
+            bytes_received: (current_time * 2048) + 2048 * 1024,
+            connections_active: 10 + (current_time % 20) as u32,
+            websocket_connections: 5 + (current_time % 10) as u32,
+            requests_per_second: 50.0 + (current_time % 30) as f64,
+        })
+    }
+
+    async fn get_disk_metrics(&self) -> anyhow::Result<DiskMetrics> {
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs();
+        
+        // Simulate disk activity (in production, use system APIs)
+        Ok(DiskMetrics {
+            reads_per_second: 100.0 + (current_time % 50) as f64,
+            writes_per_second: 50.0 + (current_time % 25) as f64,
+            read_bytes: (current_time * 1024) + 1024 * 1024,
+            write_bytes: (current_time * 512) + 512 * 1024,
+            disk_usage_percent: 65.0 + (current_time % 10) as f64,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,6 +358,77 @@ pub enum TrendDirection {
     Decreasing,
     Stable,
     Unknown,
+}
+
+#[derive(Debug, Clone)]
+pub struct MetricThresholds {
+    pub cpu_warning: f64,
+    pub cpu_critical: f64,
+    pub memory_warning: f64,
+    pub memory_critical: f64,
+    pub task_failure_rate_warning: f64,
+    pub task_failure_rate_critical: f64,
+    pub agent_failure_rate_warning: f64,
+    pub agent_failure_rate_critical: f64,
+    pub response_time_warning: f64,
+    pub response_time_critical: f64,
+}
+
+impl Default for MetricThresholds {
+    fn default() -> Self {
+        Self {
+            cpu_warning: 70.0,
+            cpu_critical: 90.0,
+            memory_warning: 80.0,
+            memory_critical: 95.0,
+            task_failure_rate_warning: 10.0,
+            task_failure_rate_critical: 25.0,
+            agent_failure_rate_warning: 5.0,
+            agent_failure_rate_critical: 15.0,
+            response_time_warning: 1000.0, // milliseconds
+            response_time_critical: 5000.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Alert {
+    pub level: AlertLevel,
+    pub title: String,
+    pub description: String,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub id: uuid::Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AlertLevel {
+    Info,
+    Warning,
+    Critical,
+}
+
+impl Alert {
+    pub fn new(level: AlertLevel, title: String, description: String) -> Self {
+        Self {
+            level,
+            title,
+            description,
+            timestamp: chrono::Utc::now(),
+            id: uuid::Uuid::new_v4(),
+        }
+    }
+}
+
+impl Default for MetricsTrends {
+    fn default() -> Self {
+        Self {
+            cpu_trend: TrendDirection::Unknown,
+            memory_trend: TrendDirection::Unknown,
+            task_completion_trend: TrendDirection::Unknown,
+            agent_performance_trend: TrendDirection::Unknown,
+            error_rate_trend: TrendDirection::Unknown,
+        }
+    }
 }
 
 impl Default for SystemMetrics {
@@ -205,6 +465,8 @@ impl Default for ResourceUsageMetrics {
             network_bytes_in: 0,
             network_bytes_out: 0,
             disk_usage_bytes: 0,
+            network_io: NetworkMetrics::default(),
+            disk_io: DiskMetrics::default(),
         }
     }
 }
@@ -218,6 +480,7 @@ impl Default for AgentMetrics {
             failed_agents: 0,
             average_agent_performance: 0.0,
             agent_utilization_percent: 0.0,
+            individual_agent_metrics: HashMap::new(),
         }
     }
 }
@@ -242,18 +505,6 @@ impl Default for ErrorMetrics {
             error_rate_per_minute: 0.0,
             errors_by_type: HashMap::new(),
             critical_errors: 0,
-        }
-    }
-}
-
-impl Default for MetricsTrends {
-    fn default() -> Self {
-        Self {
-            cpu_trend: TrendDirection::Unknown,
-            memory_trend: TrendDirection::Unknown,
-            task_completion_trend: TrendDirection::Unknown,
-            agent_performance_trend: TrendDirection::Unknown,
-            error_rate_trend: TrendDirection::Unknown,
         }
     }
 }

@@ -30,6 +30,10 @@ pub enum HiveError {
     /// Neural processing errors
     NeuralProcessingError(String),
     NLPError(String),
+    
+    /// Circuit breaker errors
+    CircuitBreakerOpen(String),
+    OperationFailed(String),
 }
 
 impl fmt::Display for HiveError {
@@ -50,6 +54,8 @@ impl fmt::Display for HiveError {
             HiveError::DatabaseError(reason) => write!(f, "Database error: {}", reason),
             HiveError::NeuralProcessingError(reason) => write!(f, "Neural processing error: {}", reason),
             HiveError::NLPError(reason) => write!(f, "NLP error: {}", reason),
+            HiveError::CircuitBreakerOpen(reason) => write!(f, "Circuit breaker open: {}", reason),
+            HiveError::OperationFailed(reason) => write!(f, "Operation failed: {}", reason),
         }
     }
 }

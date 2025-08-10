@@ -10,6 +10,7 @@ pub struct HiveConfig {
     pub resources: ResourceConfig,
     pub neural: NeuralConfig,
     pub logging: LoggingConfig,
+    pub performance: PerformanceConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +63,18 @@ pub struct LoggingConfig {
     pub max_file_size_mb: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerformanceConfig {
+    pub cpu_warning_threshold: Option<f64>,
+    pub cpu_critical_threshold: Option<f64>,
+    pub memory_warning_threshold: Option<f64>,
+    pub memory_critical_threshold: Option<f64>,
+    pub metrics_collection_interval_ms: u64,
+    pub alert_check_interval_ms: u64,
+    pub circuit_breaker_failure_threshold: u64,
+    pub circuit_breaker_recovery_timeout_ms: u64,
+}
+
 impl Default for HiveConfig {
     fn default() -> Self {
         Self {
@@ -102,6 +115,16 @@ impl Default for HiveConfig {
                 format: "json".to_string(),
                 file_path: None,
                 max_file_size_mb: 100,
+            },
+            performance: PerformanceConfig {
+                cpu_warning_threshold: Some(70.0),
+                cpu_critical_threshold: Some(90.0),
+                memory_warning_threshold: Some(80.0),
+                memory_critical_threshold: Some(95.0),
+                metrics_collection_interval_ms: 5000,
+                alert_check_interval_ms: 30000,
+                circuit_breaker_failure_threshold: 5,
+                circuit_breaker_recovery_timeout_ms: 30000,
             },
         }
     }
@@ -145,6 +168,38 @@ impl HiveConfig {
         }
         if let Ok(log_file) = env::var("HIVE_LOG_FILE") {
             config.logging.file_path = Some(log_file);
+        }
+        
+        // Performance configuration
+        if let Ok(cpu_warning) = env::var("HIVE_CPU_WARNING_THRESHOLD") {
+            if let Ok(threshold) = cpu_warning.parse::<f64>() {
+                config.performance.cpu_warning_threshold = Some(threshold);
+            }
+        }
+        if let Ok(cpu_critical) = env::var("HIVE_CPU_CRITICAL_THRESHOLD") {
+            if let Ok(threshold) = cpu_critical.parse::<f64>() {
+                config.performance.cpu_critical_threshold = Some(threshold);
+            }
+        }
+        if let Ok(memory_warning) = env::var("HIVE_MEMORY_WARNING_THRESHOLD") {
+            if let Ok(threshold) = memory_warning.parse::<f64>() {
+                config.performance.memory_warning_threshold = Some(threshold);
+            }
+        }
+        if let Ok(memory_critical) = env::var("HIVE_MEMORY_CRITICAL_THRESHOLD") {
+            if let Ok(threshold) = memory_critical.parse::<f64>() {
+                config.performance.memory_critical_threshold = Some(threshold);
+            }
+        }
+        if let Ok(interval) = env::var("HIVE_METRICS_INTERVAL") {
+            if let Ok(ms) = interval.parse::<u64>() {
+                config.performance.metrics_collection_interval_ms = ms;
+            }
+        }
+        if let Ok(threshold) = env::var("HIVE_CIRCUIT_BREAKER_THRESHOLD") {
+            if let Ok(t) = threshold.parse::<u64>() {
+                config.performance.circuit_breaker_failure_threshold = t;
+            }
         }
         
         config
