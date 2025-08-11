@@ -40,6 +40,10 @@ pub struct AppState {
     pub config: Arc<HiveConfig>,
     /// Enhanced metrics collection system with alerting and trend analysis
     pub metrics: Arc<MetricsCollector>,
+    /// Advanced metrics collector with predictive analytics
+    pub advanced_metrics: Arc<crate::infrastructure::AdvancedMetricsCollector>,
+    /// Intelligent alerting system with adaptive thresholds
+    pub intelligent_alerting: Arc<crate::infrastructure::IntelligentAlertingSystem>,
     /// Circuit breaker for resilience
     pub circuit_breaker: Arc<CircuitBreaker>,
     /// Agent recovery manager for error handling
@@ -96,6 +100,37 @@ async fn main() -> anyhow::Result<()> {
     let metrics = Arc::new(MetricsCollector::with_thresholds(1000, metric_thresholds));
     info!("✅ Enhanced metrics collector initialized with custom thresholds");
 
+    // Initialize advanced metrics collector with predictive analytics
+    let advanced_metrics = Arc::new(crate::infrastructure::AdvancedMetricsCollector::new(2000));
+    info!("🔮 Advanced metrics collector initialized with predictive analytics");
+
+    // Initialize intelligent alerting system
+    let alert_config = crate::infrastructure::IntelligentAlertConfig::default();
+    let intelligent_alerting = Arc::new(crate::infrastructure::IntelligentAlertingSystem::new(
+        advanced_metrics.clone(),
+        alert_config,
+    ));
+    
+    // Initialize default alert rules and notification channels
+    intelligent_alerting.initialize_default_rules().await;
+    
+    // Add console notification channel
+    let console_channel = crate::infrastructure::NotificationChannel {
+        id: uuid::Uuid::new_v4(),
+        name: "Console".to_string(),
+        channel_type: crate::infrastructure::ChannelType::Console,
+        config: crate::infrastructure::ChannelConfig {
+            endpoint: None,
+            headers: std::collections::HashMap::new(),
+            template: None,
+            rate_limit_per_hour: None,
+        },
+        enabled: true,
+        severity_filter: vec![], // Accept all severity levels
+    };
+    intelligent_alerting.add_notification_channel(console_channel).await;
+    info!("🚨 Intelligent alerting system initialized with default rules");
+
     // Initialize circuit breaker for resilience
     let circuit_breaker = Arc::new(CircuitBreaker::new(
         5, // failure threshold
@@ -143,6 +178,8 @@ async fn main() -> anyhow::Result<()> {
         hive,
         config: config.clone(),
         metrics: metrics.clone(),
+        advanced_metrics: advanced_metrics.clone(),
+        intelligent_alerting: intelligent_alerting.clone(),
         circuit_breaker,
         recovery_manager,
         swarm_intelligence,
@@ -212,16 +249,23 @@ async fn start_background_tasks(app_state: AppState) {
     let metrics_interval = Duration::from_millis(app_state.config.performance.metrics_collection_interval_ms);
     let alert_interval = Duration::from_millis(app_state.config.performance.alert_check_interval_ms);
     
-    // Metrics collection task
+    // Enhanced metrics collection task with advanced analytics
     let metrics_state = app_state.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(metrics_interval);
         loop {
             interval.tick().await;
             
-            // Collect system metrics
+            // Collect traditional system metrics
             if let Err(e) = metrics_state.metrics.collect_system_metrics().await {
                 error!("Failed to collect system metrics: {}", e);
+            }
+            
+            // Collect advanced metrics with predictive analytics
+            if let Err(e) = metrics_state.advanced_metrics.collect_advanced_metrics().await {
+                error!("Failed to collect advanced metrics: {}", e);
+            } else {
+                debug!("Advanced metrics collected successfully");
             }
             
             // Snapshot current metrics for historical analysis
@@ -229,64 +273,66 @@ async fn start_background_tasks(app_state: AppState) {
             
             // Update hive metrics
             let hive = metrics_state.hive.read().await.get_status().await;
-            let hive_metrics = crate::infrastructure::SystemMetrics {
-                performance: crate::infrastructure::PerformanceMetrics {
-                    requests_per_second: 0.0,
-                    average_response_time_ms: 0.0,
-                    p95_response_time_ms: 0.0,
-                    p99_response_time_ms: 0.0,
-                    throughput_tasks_per_second: 0.0,
-                },
-                resource_usage: crate::infrastructure::ResourceUsageMetrics {
-                    cpu_usage_percent: hive.get("cpu_usage").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    memory_usage_percent: hive.get("memory_usage").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    memory_usage_bytes: 0,
-                    network_bytes_in: 0,
-                    network_bytes_out: 0,
-                    disk_usage_bytes: 0,
-                    network_io: crate::infrastructure::NetworkMetrics::default(),
-                    disk_io: crate::infrastructure::DiskMetrics::default(),
-                },
-                agent_metrics: crate::infrastructure::AgentMetrics {
-                    total_agents: hive.get("total_agents").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
-                    active_agents: hive.get("active_agents").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
-                    idle_agents: hive.get("idle_agents").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
-                    failed_agents: hive.get("failed_agents").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
-                    average_agent_performance: 0.0,
-                    agent_utilization_percent: 0.0,
-                    individual_agent_metrics: std::collections::HashMap::new(),
-                },
-                task_metrics: crate::infrastructure::TaskMetrics {
-                    total_tasks_submitted: hive.get("total_tasks").and_then(|v| v.as_u64()).unwrap_or(0),
-                    total_tasks_completed: hive.get("completed_tasks").and_then(|v| v.as_u64()).unwrap_or(0),
-                    total_tasks_failed: hive.get("failed_tasks").and_then(|v| v.as_u64()).unwrap_or(0),
-                    tasks_in_queue: hive.get("pending_tasks").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
-                    average_task_duration_ms: hive.get("average_task_completion_time").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    task_success_rate: 0.0,
-                },
-                error_metrics: crate::infrastructure::ErrorMetrics {
-                    total_errors: 0,
-                    error_rate_per_minute: 0.0,
-                    errors_by_type: std::collections::HashMap::new(),
-                    critical_errors: 0,
-                },
-                timestamp: chrono::Utc::now(),
+            
+            // Update agent metrics from hive status
+            let agent_metrics = crate::infrastructure::AgentMetrics {
+                total_agents: hive.get("total_agents").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+                active_agents: hive.get("active_agents").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+                idle_agents: hive.get("idle_agents").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+                failed_agents: hive.get("failed_agents").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+                average_agent_performance: hive.get("average_performance").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                agent_utilization_percent: 0.0,
+                individual_agent_metrics: std::collections::HashMap::new(),
             };
             
-            // Update the current metrics instead of calling a non-existent method
-            // We'll just snapshot the metrics for now
+            // Update task metrics from hive status
+            let task_metrics = crate::infrastructure::TaskMetrics {
+                total_tasks_submitted: hive.get("total_tasks").and_then(|v| v.as_u64()).unwrap_or(0),
+                total_tasks_completed: hive.get("completed_tasks").and_then(|v| v.as_u64()).unwrap_or(0),
+                total_tasks_failed: hive.get("failed_tasks").and_then(|v| v.as_u64()).unwrap_or(0),
+                tasks_in_queue: hive.get("pending_tasks").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+                average_task_duration_ms: hive.get("average_task_completion_time").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                task_success_rate: if hive.get("total_tasks").and_then(|v| v.as_u64()).unwrap_or(0) > 0 {
+                    (hive.get("completed_tasks").and_then(|v| v.as_u64()).unwrap_or(0) as f64 / 
+                     hive.get("total_tasks").and_then(|v| v.as_u64()).unwrap_or(1) as f64) * 100.0
+                } else {
+                    0.0
+                },
+            };
+            
+            // Update the metrics systems with the collected data
+            metrics_state.metrics.update_agent_metrics(agent_metrics).await;
+            metrics_state.metrics.update_task_metrics(task_metrics).await;
+            
+            // Snapshot the current metrics for historical analysis
             metrics_state.metrics.snapshot_current_metrics().await;
         }
     });
     
-    // Alert checking task
+    // Intelligent alert processing task
     let alert_state = app_state.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(alert_interval);
         loop {
             interval.tick().await;
             
-            // Check for alerts
+            // Process intelligent alerts with predictive capabilities
+            match alert_state.intelligent_alerting.process_intelligent_alerts().await {
+                Ok(intelligent_alerts) => {
+                    if !intelligent_alerts.is_empty() {
+                        info!("🚨 Processed {} intelligent alerts", intelligent_alerts.len());
+                        for alert in &intelligent_alerts {
+                            debug!("Alert: {} (confidence: {:.2}, predicted: {})", 
+                                   alert.base_alert.title, alert.confidence, alert.predicted);
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to process intelligent alerts: {}", e);
+                }
+            }
+            
+            // Also check traditional alerts as backup
             let alerts = alert_state.metrics.check_alerts().await;
             for alert in alerts {
                 match alert.level {
