@@ -520,9 +520,9 @@ mod tests {
 
         // High priority task should be retrieved first
         let first_task = agent_queue.pop_task().await.unwrap();
-        assert_eq!(first_task.name, "high_task");
+        assert_eq!(first_task.title, "high_task");
 
         let second_task = agent_queue.pop_task().await.unwrap();
-        assert_eq!(second_task.name, "low_task");
+        assert_eq!(second_task.title, "low_task");
     }
 }

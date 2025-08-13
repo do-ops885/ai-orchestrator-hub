@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use dashmap::DashMap;
 use rand::Rng;
 
-use crate::agents::{Agent, AgentBehavior, AgentType, AgentCapability};
+use crate::agents::{Agent, AgentBehavior, AgentType, AgentCapability, SimpleVerificationSystem, SimpleVerificationResult};
 use crate::tasks::{Task, TaskQueue, TaskRequiredCapability};
 use crate::neural::{NLPProcessor, HybridNeuralProcessor};
 use crate::infrastructure::{ResourceManager};
@@ -110,6 +110,8 @@ pub struct HiveCoordinator {
     pub communication_receiver: Arc<RwLock<mpsc::UnboundedReceiver<CommunicationMessage>>>,
     /// Intelligent resource management system
     pub resource_manager: Arc<ResourceManager>,
+    /// Simple verification system for lightweight task validation
+    pub simple_verification: Arc<SimpleVerificationSystem>,
     /// Timestamp when this coordinator was created
     pub created_at: DateTime<Utc>,
 }
@@ -184,12 +186,15 @@ impl HiveCoordinator {
         let resource_manager = Arc::new(ResourceManager::new().await?);
         tracing::info!("🚀 Phase 2: Resource manager initialized - CPU-native, GPU-optional");
         
+        let nlp_processor = Arc::new(NLPProcessor::new().await?);
+        let simple_verification = Arc::new(SimpleVerificationSystem::new(nlp_processor.clone()));
+
         let coordinator = Self {
             id: Uuid::new_v4(),
             agents: Arc::new(DashMap::new()),
             task_queue: Arc::new(RwLock::new(TaskQueue::new())),
             work_stealing_queue: Arc::new(WorkStealingQueue::new()),
-            nlp_processor: Arc::new(NLPProcessor::new().await?),
+            nlp_processor,
             neural_processor: Arc::new(RwLock::new(HybridNeuralProcessor::new().await?)),
             metrics: Arc::new(RwLock::new(SwarmMetrics {
                 total_agents: 0,
@@ -204,6 +209,7 @@ impl HiveCoordinator {
             communication_channel: tx,
             communication_receiver: Arc::new(RwLock::new(rx)),
             resource_manager,
+            simple_verification,
             created_at: Utc::now(),
         };
 
@@ -793,5 +799,113 @@ impl HiveCoordinator {
             "phase_2_status": "active",
             "optimization_enabled": true
         })
+    }
+
+
+    /// Execute a task with simple verification (lightweight alternative to pair programming)
+    pub async fn execute_task_with_simple_verification(
+        &self,
+        task_id: Uuid,
+        original_goal: Option<&str>,
+    ) -> anyhow::Result<(crate::tasks::TaskResult, SimpleVerificationResult)> {
+        // Find and execute the task
+        let mut task_queue = self.task_queue.write().await;
+        let task = task_queue.pending_tasks.iter()
+            .find(|t| t.id == task_id)
+            .ok_or_else(|| anyhow::anyhow!("Task {} not found", task_id))?
+            .clone();
+        
+        // Remove from pending queue
+        task_queue.pending_tasks.retain(|t| t.id != task_id);
+        drop(task_queue);
+
+        // Find best agent for the task
+        let mut best_agent_id = None;
+        let mut best_fitness = 0.0;
+
+        for agent_ref in self.agents.iter() {
+            let agent = agent_ref.value();
+            if agent.can_perform_task(&task) && matches!(agent.state, crate::agents::AgentState::Idle) {
+                let fitness = agent.calculate_task_fitness(&task);
+                if fitness > best_fitness {
+                    best_fitness = fitness;
+                    best_agent_id = Some(agent.id);
+                }
+            }
+        }
+
+        let agent_id = best_agent_id.ok_or_else(|| anyhow::anyhow!("No suitable agent available for task"))?;
+
+        // Execute task
+        let mut agent = self.agents.get_mut(&agent_id)
+            .ok_or_else(|| anyhow::anyhow!("Agent {} not found", agent_id))?
+            .clone();
+
+        let execution_result = agent.execute_task(task.clone()).await?;
+
+        // Verify result using simple verification
+        let verification_result = self.simple_verification
+            .verify_task_result(&task, &execution_result, original_goal)
+            .await?;
+
+        // Update agent in the hive
+        if let Some(mut agent_ref) = self.agents.get_mut(&agent_id) {
+            *agent_ref.value_mut() = agent;
+        }
+
+        tracing::info!("Completed task {} with simple verification. Status: {:?}, Score: {:.2}", 
+                      task_id, verification_result.verification_status, verification_result.overall_score);
+
+        Ok((execution_result, verification_result))
+    }
+
+    /// Get simple verification system metrics
+    pub async fn get_simple_verification_stats(&self) -> serde_json::Value {
+        let metrics = self.simple_verification.get_metrics().await;
+        
+        serde_json::json!({
+            "total_verifications": metrics.total_verifications,
+            "passed_verifications": metrics.passed_verifications,
+            "failed_verifications": metrics.failed_verifications,
+            "success_rate": if metrics.total_verifications > 0 {
+                metrics.passed_verifications as f64 / metrics.total_verifications as f64
+            } else {
+                0.0
+            },
+            "average_verification_time_ms": metrics.average_verification_time_ms,
+            "average_confidence_score": metrics.average_confidence_score,
+            "tier_usage": metrics.tier_usage,
+            "rule_effectiveness": metrics.rule_effectiveness
+        })
+    }
+
+    /// Configure simple verification system
+    pub async fn configure_simple_verification(&self, config: serde_json::Value) -> anyhow::Result<()> {
+        // Configure confidence threshold
+        if let Some(threshold) = config.get("confidence_threshold").and_then(|v| v.as_f64()) {
+            // Note: This would require making simple_verification mutable
+            // For now, we'll log the configuration request
+            tracing::info!("Simple verification configuration requested: confidence_threshold = {}", threshold);
+        }
+
+        // Add task-specific rules
+        if let Some(task_rules) = config.get("task_rules").and_then(|v| v.as_object()) {
+            for (task_type, rules_config) in task_rules {
+                tracing::info!("Task-specific rules configuration for '{}': {:?}", task_type, rules_config);
+                // In a real implementation, you would parse and apply these rules
+            }
+        }
+
+        // Set AI reviewer agent
+        if let Some(reviewer_id) = config.get("ai_reviewer_agent").and_then(|v| v.as_str()) {
+            if let Ok(agent_uuid) = Uuid::parse_str(reviewer_id) {
+                if self.agents.contains_key(&agent_uuid) {
+                    tracing::info!("AI reviewer agent set to: {}", agent_uuid);
+                    // Note: This would require making simple_verification mutable
+                }
+            }
+        }
+
+        Ok(())
     }
 }

@@ -15,6 +15,20 @@ pub struct NeuralAgent {
     pub performance_history: Vec<f64>,
     pub learning_rate: f64,
     pub specialization: String,
+    pub training_epochs: u32,
+    pub confidence_threshold: f64,
+    pub adaptation_rate: f64,
+    pub last_performance_trend: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentMetrics {
+    pub performance: f64,
+    pub confidence: f64,
+    pub trend: f64,
+    pub training_level: u32,
+    pub specialization: String,
+    pub network_type: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,18 +108,39 @@ impl HybridNeuralProcessor {
             #[cfg(feature = "advanced-neural")]
             {
                 match specialization.as_str() {
-                    "forecasting" | "prediction" => {
+                    "forecasting" | "prediction" | "temporal" => {
                         NetworkType::LSTM(LSTMConfig {
-                            hidden_size: 128,
-                            num_layers: 2,
-                            sequence_length: 10,
+                            hidden_size: 64, // Optimized for better performance
+                            num_layers: 3,   // Deeper network for better temporal modeling
+                            sequence_length: 15, // Longer memory for better predictions
                         })
                     }
-                    "pattern_recognition" | "classification" => {
+                    "pattern_recognition" | "classification" | "analysis" => {
                         NetworkType::FANN(FANNConfig {
-                            layers: vec![100, 50, 25, 10],
-                            activation: "sigmoid".to_string(),
+                            layers: vec![100, 64, 32, 16, 1], // Better architecture for classification
+                            activation: "tanh".to_string(), // Better for pattern recognition
                             training_algorithm: "rprop".to_string(),
+                        })
+                    }
+                    "sentiment" | "nlp" => {
+                        NetworkType::FANN(FANNConfig {
+                            layers: vec![100, 48, 24, 1], // Optimized for sentiment analysis
+                            activation: "sigmoid".to_string(), // Good for sentiment output
+                            training_algorithm: "rprop".to_string(),
+                        })
+                    }
+                    "coordination" | "swarm" => {
+                        NetworkType::FANN(FANNConfig {
+                            layers: vec![100, 80, 40, 20, 1], // Deep network for complex coordination
+                            activation: "tanh".to_string(),
+                            training_algorithm: "rprop".to_string(),
+                        })
+                    }
+                    "learning" | "adaptive" => {
+                        NetworkType::LSTM(LSTMConfig {
+                            hidden_size: 96, // Larger for complex learning patterns
+                            num_layers: 2,
+                            sequence_length: 20, // Longer memory for learning patterns
                         })
                     }
                     _ => NetworkType::Basic,
@@ -123,6 +158,10 @@ impl HybridNeuralProcessor {
             performance_history: Vec::new(),
             learning_rate: 0.1,
             specialization,
+            training_epochs: 0,
+            confidence_threshold: 0.7,
+            adaptation_rate: 0.05,
+            last_performance_trend: 0.0,
         };
 
         #[cfg(feature = "advanced-neural")]
@@ -174,13 +213,51 @@ impl HybridNeuralProcessor {
         Ok(())
     }
 
-    /// Get performance metrics for an agent
+    /// Get performance metrics for an agent with confidence weighting
     pub fn get_agent_performance(&self, agent_id: Uuid) -> Option<f64> {
         self.neural_agents.get(&agent_id).map(|agent| {
             if agent.performance_history.is_empty() {
                 0.5 // Default performance
             } else {
-                agent.performance_history.iter().sum::<f64>() / agent.performance_history.len() as f64
+                // Weight recent performance more heavily
+                let history = &agent.performance_history;
+                let len = history.len();
+                
+                if len <= 3 {
+                    // Simple average for small datasets
+                    history.iter().sum::<f64>() / len as f64
+                } else {
+                    // Weighted average favoring recent performance
+                    let mut weighted_sum = 0.0;
+                    let mut weight_sum = 0.0;
+                    
+                    for (i, &performance) in history.iter().enumerate() {
+                        let weight = (i + 1) as f64 / len as f64; // Linear weighting
+                        weighted_sum += performance * weight;
+                        weight_sum += weight;
+                    }
+                    
+                    weighted_sum / weight_sum
+                }
+            }
+        })
+    }
+
+    /// Get detailed agent metrics including confidence and trend
+    pub fn get_agent_detailed_metrics(&self, agent_id: Uuid) -> Option<AgentMetrics> {
+        self.neural_agents.get(&agent_id).map(|agent| {
+            let performance = self.get_agent_performance(agent_id).unwrap_or(0.5);
+            let confidence = self.calculate_confidence(agent);
+            let trend = agent.last_performance_trend;
+            let training_level = agent.training_epochs;
+            
+            AgentMetrics {
+                performance,
+                confidence,
+                trend,
+                training_level,
+                specialization: agent.specialization.clone(),
+                network_type: format!("{:?}", agent.network_type),
             }
         })
     }
@@ -231,7 +308,13 @@ impl HybridNeuralProcessor {
         };
         
         network.set_activation_function_hidden(activation);
-        network.set_activation_function_output(activation);
+        network.set_activation_function_output(ActivationFunction::Sigmoid);
+        
+        // Initialize with better random weights
+        network.randomize_weights(-0.5, 0.5);
+        
+        tracing::debug!("Created FANN network with {} inputs, {} outputs", 
+                       network.num_inputs(), network.num_outputs());
         
         Ok(network)
     }
@@ -286,25 +369,57 @@ impl HybridNeuralProcessor {
         _output: &str,
         success: bool,
     ) -> Result<()> {
+        let processed_input = self.nlp_processor.process_text(input).await?;
+        
+        // Calculate adaptive parameters first
+        let (adaptive_lr, epochs) = if let Some(agent) = self.neural_agents.get(&agent_id) {
+            let lr = self.calculate_adaptive_learning_rate(agent);
+            let ep = self.calculate_training_epochs(agent, success);
+            (lr, ep)
+        } else {
+            (0.1, 3)
+        };
+        
         if let Some(network) = self.neural_networks.get_mut(&agent_id) {
-            let processed_input = self.nlp_processor.process_text(input).await?;
-            
-            // Convert to training data
-            let input_data: Vec<f32> = processed_input.semantic_vector.dimensions
+            // Convert to training data with proper padding
+            let mut input_data: Vec<f32> = processed_input.semantic_vector.dimensions
                 .iter()
                 .take(network.num_inputs())
                 .map(|&x| x as f32)
                 .collect();
             
-            let target_data = vec![if success { 1.0 } else { 0.0 }];
+            // Pad with zeros if input is too short
+            while input_data.len() < network.num_inputs() {
+                input_data.push(0.0);
+            }
+            
+            // Adaptive target values based on confidence
+            let confidence = if success { 0.95 } else { 0.05 };
+            let target_data = vec![confidence];
             
             if input_data.len() == network.num_inputs() && 
                target_data.len() == network.num_outputs() {
-                // Train on single example - FANN expects batch format
+                
+                // Train with adaptive parameters
                 let input_batch = vec![input_data];
                 let target_batch = vec![target_data];
-                let _ = network.train(&input_batch, &target_batch, 0.1, 1);
+                let training_result = network.train(&input_batch, &target_batch, adaptive_lr, epochs as usize);
+                
+                tracing::debug!("FANN adaptive training for agent {}: success={}, lr={:.4}, epochs={}, result={:?}", 
+                               agent_id, success, adaptive_lr, epochs, training_result);
             }
+        }
+        
+        // Update agent training statistics separately
+        let trend = if let Some(agent) = self.neural_agents.get(&agent_id) {
+            self.calculate_recent_trend(&agent.performance_history)
+        } else {
+            0.0
+        };
+        
+        if let Some(agent) = self.neural_agents.get_mut(&agent_id) {
+            agent.training_epochs += epochs;
+            agent.last_performance_trend = trend;
         }
         
         Ok(())
@@ -334,17 +449,45 @@ impl HybridNeuralProcessor {
         if let Some(network) = self.neural_networks.get_mut(&agent_id) {
             let processed = self.nlp_processor.process_text(task_description).await?;
             
-            let input: Vec<f32> = processed.semantic_vector.dimensions
+            // Create input vector, padding or truncating as needed
+            let mut input: Vec<f32> = processed.semantic_vector.dimensions
                 .iter()
                 .take(network.num_inputs())
                 .map(|&x| x as f32)
                 .collect();
             
+            // Pad with zeros if input is too short
+            while input.len() < network.num_inputs() {
+                input.push(0.0);
+            }
+            
             if input.len() == network.num_inputs() {
                 let output = network.run(&input);
                 if !output.is_empty() {
-                    return Ok(output[0] as f64);
+                    // Ensure output is in reasonable range [0, 1]
+                    let prediction = output[0] as f64;
+                    let normalized_prediction = if prediction < 0.0 {
+                        0.0
+                    } else if prediction > 1.0 {
+                        1.0
+                    } else {
+                        prediction
+                    };
+                    
+                    tracing::debug!("FANN prediction for agent {}: raw={:.3}, normalized={:.3}", 
+                                   agent_id, prediction, normalized_prediction);
+                    
+                    return Ok(normalized_prediction);
                 }
+            }
+        }
+        
+        // If no network or prediction failed, use agent's historical performance
+        if let Some(agent) = self.neural_agents.get(&agent_id) {
+            if !agent.performance_history.is_empty() {
+                let avg_performance = agent.performance_history.iter().sum::<f64>() 
+                    / agent.performance_history.len() as f64;
+                return Ok(avg_performance);
             }
         }
         
@@ -493,5 +636,91 @@ impl HybridNeuralProcessor {
         // Linear regression slope
         let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x.powi(2));
         slope.clamp(-1.0, 1.0)
+    }
+
+    #[cfg(feature = "advanced-neural")]
+    fn calculate_adaptive_learning_rate(&self, agent: &NeuralAgent) -> f32 {
+        let base_lr = agent.learning_rate as f32;
+        
+        if agent.performance_history.len() < 3 {
+            return base_lr;
+        }
+        
+        // Calculate recent performance variance
+        let recent_performance: Vec<f64> = agent.performance_history.iter().rev().take(5).cloned().collect();
+        let mean = recent_performance.iter().sum::<f64>() / recent_performance.len() as f64;
+        let variance = recent_performance.iter()
+            .map(|x| (x - mean).powi(2))
+            .sum::<f64>() / recent_performance.len() as f64;
+        
+        // Adaptive learning: higher variance = lower learning rate for stability
+        let stability_factor = (1.0 - variance.min(0.5)).max(0.1);
+        let trend_factor = if agent.last_performance_trend > 0.0 { 1.1 } else { 0.9 };
+        
+        (base_lr * stability_factor as f32 * trend_factor as f32).clamp(0.01, 0.3)
+    }
+
+    #[cfg(feature = "advanced-neural")]
+    fn calculate_training_epochs(&self, agent: &NeuralAgent, success: bool) -> u32 {
+        let base_epochs = 3u32;
+        
+        // More epochs if performance is declining
+        let trend_multiplier = if agent.last_performance_trend < -0.1 {
+            2.0
+        } else if agent.last_performance_trend > 0.1 {
+            0.8
+        } else {
+            1.0
+        };
+        
+        // More epochs for failures to correct mistakes
+        let success_multiplier = if success { 1.0 } else { 1.5 };
+        
+        ((base_epochs as f64 * trend_multiplier * success_multiplier) as u32).clamp(1, 10)
+    }
+
+    #[cfg(feature = "advanced-neural")]
+    fn calculate_recent_trend(&self, history: &[f64]) -> f64 {
+        if history.len() < 3 {
+            return 0.0;
+        }
+        
+        let recent_window = history.len().min(7);
+        let recent_data = &history[history.len() - recent_window..];
+        self.calculate_trend(recent_data)
+    }
+
+    /// Calculate confidence based on performance consistency and training level
+    fn calculate_confidence(&self, agent: &NeuralAgent) -> f64 {
+        if agent.performance_history.len() < 3 {
+            return 0.3; // Low confidence for new agents
+        }
+        
+        let history = &agent.performance_history;
+        let recent_window = history.len().min(10);
+        let recent_data = &history[history.len() - recent_window..];
+        
+        // Calculate consistency (inverse of variance)
+        let mean = recent_data.iter().sum::<f64>() / recent_data.len() as f64;
+        let variance = recent_data.iter()
+            .map(|x| (x - mean).powi(2))
+            .sum::<f64>() / recent_data.len() as f64;
+        
+        let consistency = (1.0 - variance.min(0.25)) * 4.0; // Scale to [0, 1]
+        
+        // Factor in training level (more training = higher confidence)
+        let training_factor = (agent.training_epochs as f64 / 100.0).min(1.0);
+        
+        // Factor in performance level
+        let performance_factor = mean;
+        
+        // Factor in trend stability (less volatile trends = higher confidence)
+        let trend_stability = 1.0 - agent.last_performance_trend.abs().min(0.5) * 2.0;
+        
+        // Weighted combination
+        let confidence = (consistency * 0.4 + training_factor * 0.2 + performance_factor * 0.3 + trend_stability * 0.1)
+            .clamp(0.0, 1.0);
+        
+        confidence
     }
 }

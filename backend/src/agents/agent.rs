@@ -245,6 +245,7 @@ pub trait AgentBehavior {
     async fn communicate(&mut self, message: &str, target_agent: Option<Uuid>) -> anyhow::Result<String>;
     async fn learn(&mut self, nlp_processor: &NLPProcessor) -> anyhow::Result<()>;
     async fn update_position(&mut self, swarm_center: (f64, f64), neighbors: &[Agent]) -> anyhow::Result<()>;
+    
 }
 
 #[async_trait]

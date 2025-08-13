@@ -16,8 +16,8 @@ type-complexity-threshold = 250
 
 # Memory and performance thresholds
 pass-by-value-size-limit = 256
-trivial-copy-size-limit = "target_pointer_width"
-large-stack-frames = 512000
+trivial-copy-size-limit = 64
+stack-size-threshold = 512000
 array-size-threshold = 16384
 future-size-threshold = 16384
 
@@ -37,7 +37,6 @@ struct-field-name-threshold = 3
 
 # === MODULE AND IMPORT ORGANIZATION ===
 # Module name repetition settings
-allow-exact-repetitions = true
 allowed-prefixes = ["to", "from", "as", "into", "try_into", "try_from", ".."]
 
 # Wildcard import control
