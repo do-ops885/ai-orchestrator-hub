@@ -5,6 +5,9 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use serde::{Serialize, Deserialize};
 
+// Add this import if SystemMetrics is defined in another file in the infrastructure module
+use crate::infrastructure::metrics::SystemMetrics;
+
 /// High-performance in-memory cache with TTL support
 #[derive(Debug)]
 pub struct Cache<K, V> 
@@ -167,7 +170,7 @@ pub struct CacheManager {
     pub agents: AgentCache,
     pub tasks: TaskCache,
     pub status: StatusCache,
-    pub metrics: Cache<String, crate::infrastructure::SystemMetrics>,
+    pub metrics: Cache<String, SystemMetrics>,
 }
 
 impl CacheManager {

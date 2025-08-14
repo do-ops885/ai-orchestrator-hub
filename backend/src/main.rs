@@ -25,7 +25,8 @@ use tracing_subscriber;
 
 use crate::core::{HiveCoordinator, SwarmIntelligenceEngine};
 use crate::utils::HiveConfig;
-use crate::infrastructure::{MetricsCollector, CircuitBreaker, MetricThresholds};
+use crate::infrastructure::{MetricsCollector, CircuitBreaker};
+use crate::infrastructure::metrics::{MetricThresholds, AgentMetrics, TaskMetrics, AlertLevel};
 use crate::utils::InputValidator;
 use crate::agents::AgentRecoveryManager;
 use crate::neural::AdaptiveLearningSystem;
@@ -275,7 +276,7 @@ async fn start_background_tasks(app_state: AppState) {
             let hive = metrics_state.hive.read().await.get_status().await;
             
             // Update agent metrics from hive status
-            let agent_metrics = crate::infrastructure::AgentMetrics {
+            let agent_metrics = AgentMetrics {
                 total_agents: hive.get("total_agents").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
                 active_agents: hive.get("active_agents").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
                 idle_agents: hive.get("idle_agents").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
@@ -286,7 +287,7 @@ async fn start_background_tasks(app_state: AppState) {
             };
             
             // Update task metrics from hive status
-            let task_metrics = crate::infrastructure::TaskMetrics {
+            let task_metrics = TaskMetrics {
                 total_tasks_submitted: hive.get("total_tasks").and_then(|v| v.as_u64()).unwrap_or(0),
                 total_tasks_completed: hive.get("completed_tasks").and_then(|v| v.as_u64()).unwrap_or(0),
                 total_tasks_failed: hive.get("failed_tasks").and_then(|v| v.as_u64()).unwrap_or(0),
@@ -336,14 +337,14 @@ async fn start_background_tasks(app_state: AppState) {
             let alerts = alert_state.metrics.check_alerts().await;
             for alert in alerts {
                 match alert.level {
-                    crate::infrastructure::AlertLevel::Critical => {
+                    AlertLevel::Critical => {
                         error!("🚨 CRITICAL ALERT: {} - {}", alert.title, alert.description);
                         // In production, you would send notifications here
                     }
-                    crate::infrastructure::AlertLevel::Warning => {
+                    AlertLevel::Warning => {
                         warn!("⚠️  WARNING: {} - {}", alert.title, alert.description);
                     }
-                    crate::infrastructure::AlertLevel::Info => {
+                    AlertLevel::Info => {
                         info!("ℹ️  INFO: {} - {}", alert.title, alert.description);
                     }
                 }

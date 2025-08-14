@@ -275,7 +275,7 @@ impl SimpleVerificationSystem {
         };
         
         let format_compliance_score = self.calculate_weighted_score(&scores, &rules);
-        let overall_score = (goal_alignment_score * 0.6 + format_compliance_score * 0.4);
+        let overall_score = goal_alignment_score * 0.6 + format_compliance_score * 0.4;
         
         Ok(SimpleVerificationResult {
             task_id: task.id,
@@ -342,7 +342,7 @@ impl SimpleVerificationSystem {
         
         let goal_alignment_score = scores.get("goal_alignment").copied().unwrap_or(1.0);
         let format_compliance_score = self.calculate_weighted_score(&scores, &rules);
-        let overall_score = (goal_alignment_score * 0.6 + format_compliance_score * 0.4);
+        let overall_score = goal_alignment_score * 0.6 + format_compliance_score * 0.4;
         
         Ok(SimpleVerificationResult {
             task_id: task.id,
