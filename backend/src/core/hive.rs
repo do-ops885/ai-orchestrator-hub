@@ -187,7 +187,7 @@ impl HiveCoordinator {
         tracing::info!("🚀 Phase 2: Resource manager initialized - CPU-native, GPU-optional");
         
         let nlp_processor = Arc::new(NLPProcessor::new().await?);
-        let simple_verification = Arc::new(SimpleVerificationSystem::new(nlp_processor.clone()));
+        let simple_verification = Arc::new(SimpleVerificationSystem::new(Arc::clone(&nlp_processor)));
 
         let coordinator = Self {
             id: Uuid::new_v4(),
@@ -216,7 +216,7 @@ impl HiveCoordinator {
         // Start background processes with Phase 2 optimizations
         // Start background processes in a separate task
         let coordinator_arc = Arc::new(RwLock::new(coordinator));
-        let coordinator_clone = coordinator_arc.clone();
+        let coordinator_clone = Arc::clone(&coordinator_arc);
         tokio::spawn(async move {
             Self::start_background_processes(coordinator_clone).await;
         });
@@ -226,7 +226,19 @@ impl HiveCoordinator {
         Ok(coordinator)
     }
 
+    /// Starts all background processes for the hive system.
+    /// 
+    /// This includes work-stealing task distribution, learning processes,
+    /// swarm coordination, and metrics collection.
     async fn start_background_processes(coordinator: Arc<RwLock<Self>>) {
+        Self::start_work_stealing_process(Arc::clone(&coordinator)).await;
+        Self::start_learning_process(Arc::clone(&coordinator)).await;
+        Self::start_swarm_coordination_process(Arc::clone(&coordinator)).await;
+        Self::start_metrics_collection_process(Arc::clone(&coordinator)).await;
+    }
+
+    /// Starts the work-stealing task distribution process.
+    async fn start_work_stealing_process(coordinator: Arc<RwLock<Self>>) {
         let (agents, task_queue, _work_stealing_queue, resource_manager) = {
             let coord = coordinator.read().await;
             (
@@ -240,7 +252,7 @@ impl HiveCoordinator {
         // High-performance work-stealing task distribution
         let agents_ws = Arc::clone(&agents);
         let resource_manager_ws = Arc::clone(&resource_manager);
-        let coordinator_ws = coordinator.clone();
+        let coordinator_ws = Arc::clone(&coordinator);
         tokio::spawn(async move {
             loop {
                 // Get current resource profile for adaptive timing
@@ -291,9 +303,12 @@ impl HiveCoordinator {
                 }
             }
         });
+    }
 
+    /// Starts the learning process for agents and neural networks.
+    async fn start_learning_process(coordinator: Arc<RwLock<Self>>) {
         // Learning process
-        let coordinator_learning = coordinator.clone();
+        let coordinator_learning = Arc::clone(&coordinator);
         let (agents_learning, nlp_learning, neural_learning) = {
             let coord = coordinator_learning.read().await;
             (
@@ -316,9 +331,12 @@ impl HiveCoordinator {
                 tracing::debug!("Neural learning cycle completed");
             }
         });
+    }
 
+    /// Starts the swarm coordination and formation optimization process.
+    async fn start_swarm_coordination_process(coordinator: Arc<RwLock<Self>>) {
         // Swarm coordination process
-        let coordinator_swarm = coordinator.clone();
+        let coordinator_swarm = Arc::clone(&coordinator);
         let (agents_swarm, swarm_center_coord) = {
             let coord = coordinator_swarm.read().await;
             (
@@ -335,9 +353,12 @@ impl HiveCoordinator {
                 }
             }
         });
+    }
 
+    /// Starts the metrics collection and system monitoring process.
+    async fn start_metrics_collection_process(coordinator: Arc<RwLock<Self>>) {
         // Metrics update process
-        let coordinator_metrics = coordinator.clone();
+        let coordinator_metrics = Arc::clone(&coordinator);
         let (agents_metrics, task_queue_metrics, metrics_update) = {
             let coord = coordinator_metrics.read().await;
             (
@@ -357,6 +378,19 @@ impl HiveCoordinator {
         });
     }
 
+    /// Creates a new agent with the specified configuration.
+    /// 
+    /// # Arguments
+    /// * `config` - JSON configuration containing agent parameters:
+    ///   - `name`: Agent name (default: "Agent")
+    ///   - `type`: Agent type ("coordinator", "learner", "specialist:domain", or "worker")
+    ///   - `capabilities`: Array of capability objects with name and proficiency
+    /// 
+    /// # Returns
+    /// Returns the UUID of the created agent on success.
+    /// 
+    /// # Errors
+    /// Returns an error if agent creation fails or configuration is invalid.
     pub async fn create_agent(&self, config: serde_json::Value) -> anyhow::Result<Uuid> {
         let name = config.get("name")
             .and_then(|v| v.as_str())
@@ -383,7 +417,7 @@ impl HiveCoordinator {
             for cap in capabilities {
                 if let (Some(cap_name), Some(proficiency)) = (
                     cap.get("name").and_then(|v| v.as_str()),
-                    cap.get("proficiency").and_then(|v| v.as_f64())
+                    cap.get("proficiency").and_then(serde_json::Value::as_f64)
                 ) {
                     agent.add_capability(AgentCapability {
                         name: cap_name.to_string(),
@@ -433,6 +467,20 @@ impl HiveCoordinator {
         Ok(agent_id)
     }
 
+    /// Creates a new task with the specified configuration.
+    /// 
+    /// # Arguments
+    /// * `config` - JSON configuration containing task parameters:
+    ///   - `description`: Task description (default: "Generic task")
+    ///   - `type`: Task type (default: "general")
+    ///   - `priority`: Priority level (0=Low, 1=Medium, 2=High, 3=Critical)
+    ///   - `required_capabilities`: Array of required capability objects
+    /// 
+    /// # Returns
+    /// Returns the UUID of the created task on success.
+    /// 
+    /// # Errors
+    /// Returns an error if task creation fails or configuration is invalid.
     pub async fn create_task(&self, config: serde_json::Value) -> anyhow::Result<Uuid> {
         let description = config.get("description")
             .and_then(|v| v.as_str())
@@ -515,14 +563,14 @@ impl HiveCoordinator {
                     // Execute task asynchronously
                     let task_clone = task.clone();
                     let agent_clone = agent.clone();
-                    let agents_clone = agents.clone();
+                    let agents_map = agents.clone();
                     
                     tokio::spawn(async move {
                         let mut agent_exec = agent_clone;
                         match agent_exec.execute_task(task_clone).await {
                             Ok(result) => {
                                 // Update agent in the map
-                                if let Some(mut agent_ref) = agents_clone.get_mut(&agent_id) {
+                                if let Some(mut agent_ref) = agents_map.get_mut(&agent_id) {
                                     *agent_ref.value_mut() = agent_exec;
                                 }
                                 tracing::info!("Task completed: {:?}", result);
@@ -568,7 +616,7 @@ impl HiveCoordinator {
                     }
 
                     // Execute task asynchronously
-                    let agents_clone = agents.clone();
+                    let agents_map2 = agents.clone();
                     let queue_clone = self.work_stealing_queue.clone();
                     tokio::spawn(async move {
                         let mut agent_exec = agent;
@@ -577,7 +625,7 @@ impl HiveCoordinator {
                         match agent_exec.execute_task(task).await {
                             Ok(result) => {
                                 // Update agent in the map
-                                if let Some(mut agent_ref) = agents_clone.get_mut(&agent_id) {
+                                if let Some(mut agent_ref) = agents_map2.get_mut(&agent_id) {
                                     *agent_ref.value_mut() = agent_exec;
                                 }
                                 
@@ -730,6 +778,12 @@ impl HiveCoordinator {
         Ok(())
     }
 
+    /// Retrieves information about all agents in the hive.
+    /// 
+    /// # Returns
+    /// Returns a JSON object containing:
+    /// - `agents`: Array of agent objects with their current state, capabilities, and metrics
+    /// - `total_count`: Total number of agents in the hive
     pub async fn get_agents_info(&self) -> serde_json::Value {
         let agents: Vec<serde_json::Value> = self.agents.iter()
             .map(|agent_ref| {
@@ -754,6 +808,12 @@ impl HiveCoordinator {
         })
     }
 
+    /// Retrieves information about all tasks in the hive.
+    /// 
+    /// # Returns
+    /// Returns a JSON object containing:
+    /// - `tasks`: Array of task objects with their status, priority, and requirements
+    /// - `total_count`: Total number of tasks in the system
     pub async fn get_tasks_info(&self) -> serde_json::Value {
         let queue = self.task_queue.read().await;
         let ws_metrics = self.work_stealing_queue.get_metrics().await;
@@ -775,6 +835,15 @@ impl HiveCoordinator {
         })
     }
 
+    /// Retrieves the current status and metrics of the hive system.
+    /// 
+    /// # Returns
+    /// Returns a comprehensive JSON object containing:
+    /// - `hive_id`: Unique identifier of this hive instance
+    /// - `metrics`: Performance metrics (agent counts, task completion rates, etc.)
+    /// - `swarm_center`: Current center point of the agent swarm
+    /// - `total_energy`: Aggregate energy level of all agents
+    /// - Timestamps for creation and last update
     pub async fn get_status(&self) -> serde_json::Value {
         let metrics = self.metrics.read().await;
         let swarm_center = self.swarm_center.read().await;
@@ -789,6 +858,14 @@ impl HiveCoordinator {
         })
     }
 
+    /// Retrieves current resource utilization and system health information.
+    /// 
+    /// # Returns
+    /// Returns a JSON object containing:
+    /// - `cpu_usage`: Current CPU utilization percentage
+    /// - `memory_usage`: Current memory utilization percentage
+    /// - `active_connections`: Number of active WebSocket connections
+    /// - `system_health`: Overall system health status
     pub async fn get_resource_info(&self) -> serde_json::Value {
         let (system_resources, resource_profile, hardware_class) = self.resource_manager.get_system_info().await;
         

@@ -16,15 +16,15 @@ pub mod adaptive_verification;
 // pub mod collaborative_learning;
 /// Pair programming verification system (temporarily disabled)
 // pub mod verification;
-/// Verification engine and coordination (temporarily disabled)
+// Verification engine and coordination (temporarily disabled)
 // pub mod verification_engine;
-/// Concrete verification strategies (temporarily disabled)
+// Concrete verification strategies (temporarily disabled)
 // pub mod verification_strategies;
 
 pub use agent::*;
 pub use recovery::*;
 pub use simple_verification::*;
-pub use adaptive_verification::*;
+// pub use adaptive_verification::*;  // Currently unused
 // pub use verification::*;
 // pub use verification_engine::*;
 // pub use verification_strategies::*;

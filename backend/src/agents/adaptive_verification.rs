@@ -478,7 +478,6 @@ impl AdaptiveVerificationSystem {
     }
 
     /// Helper methods
-    
     fn get_recent_outcomes<'a>(&self, performance: &'a PerformanceTracker, window: Duration) -> Vec<&'a VerificationOutcome> {
         let cutoff = Utc::now() - window;
         performance.verification_outcomes

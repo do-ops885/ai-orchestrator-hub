@@ -1,3 +1,4 @@
+#![allow(unsafe_code)]
 use std::arch::x86_64::*;
 
 #[cfg(target_arch = "aarch64")]

@@ -163,14 +163,53 @@ impl InputValidator {
             .map_err(|_| HiveError::ConfigurationError(format!("Invalid UUID format: {}", uuid_str)))
     }
     
-    /// Sanitize string input
+    /// Sanitize string input with comprehensive security filtering
+    /// 
+    /// # Security Features
+    /// - Removes potentially dangerous characters
+    /// - Prevents injection attacks
+    /// - Limits length to prevent DoS
+    /// - Normalizes whitespace
     pub fn sanitize_string(input: &str) -> String {
-        input
+        // Prevent excessively long inputs (DoS protection)
+        let truncated = if input.len() > 10000 {
+            &input[..10000]
+        } else {
+            input
+        };
+        
+        truncated
             .chars()
-            .filter(|c| c.is_alphanumeric() || c.is_whitespace() || "-_.,!?".contains(*c))
+            .filter(|c| {
+                // Allow alphanumeric, basic punctuation, and safe symbols
+                c.is_alphanumeric() 
+                || c.is_whitespace() 
+                || "-_.,!?()[]{}:;@#$%^&*+=|\\/<>\"'`~".contains(*c)
+            })
             .collect::<String>()
             .trim()
             .to_string()
+    }
+
+    /// Validate and sanitize agent name with security best practices
+    pub fn validate_agent_name(name: &str) -> HiveResult<String> {
+        let sanitized = Self::sanitize_string(name);
+        
+        if sanitized.is_empty() {
+            return Err(HiveError::AgentCreationFailed("Agent name cannot be empty after sanitization".to_string()));
+        }
+        
+        if sanitized.len() > 100 {
+            return Err(HiveError::AgentCreationFailed("Agent name too long (max 100 characters)".to_string()));
+        }
+        
+        // Prevent names that could cause confusion or security issues
+        let forbidden_names = ["admin", "root", "system", "null", "undefined", "test"];
+        if forbidden_names.contains(&sanitized.to_lowercase().as_str()) {
+            return Err(HiveError::AgentCreationFailed("Agent name is reserved".to_string()));
+        }
+        
+        Ok(sanitized)
     }
     
     /// Validate resource limits

@@ -1,10 +1,10 @@
-import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
-export const metadata: Metadata = {
+// eslint-disable-next-line react-refresh/only-export-components
+export const metadata = {
   title: 'Multiagent Hive System',
   description: 'A sophisticated multiagent system implementing hive/swarm intelligence with NLP self-learning capabilities.',
 }

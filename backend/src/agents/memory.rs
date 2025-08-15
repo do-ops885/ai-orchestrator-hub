@@ -376,7 +376,6 @@ impl AgentMemorySystem {
     }
 
     /// Private helper methods
-    
     fn calculate_emotional_valence(&self, content: &MemoryContent) -> f64 {
         match content {
             MemoryContent::TaskExperience { outcome, .. } => match outcome {

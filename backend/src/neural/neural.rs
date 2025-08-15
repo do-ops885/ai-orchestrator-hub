@@ -630,11 +630,11 @@ impl HybridNeuralProcessor {
         let n = sequence.len() as f64;
         let sum_x: f64 = (0..sequence.len()).map(|i| i as f64).sum();
         let sum_y: f64 = sequence.iter().sum();
-        let sum_xy: f64 = sequence.iter().enumerate().map(|(i, &y)| i as f64 * y).sum();
-        let sum_x2: f64 = (0..sequence.len()).map(|i| (i as f64).powi(2)).sum();
+        let sum_x_times_y: f64 = sequence.iter().enumerate().map(|(i, &y)| i as f64 * y).sum();
+        let sum_x_squared: f64 = (0..sequence.len()).map(|i| (i as f64).powi(2)).sum();
         
         // Linear regression slope
-        let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x.powi(2));
+        let slope = (n * sum_x_times_y - sum_x * sum_y) / (n * sum_x_squared - sum_x.powi(2));
         slope.clamp(-1.0, 1.0)
     }
 

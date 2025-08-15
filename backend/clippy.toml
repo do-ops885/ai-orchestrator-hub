@@ -47,7 +47,7 @@ allowed-wildcard-imports = ["std::prelude", "tokio::prelude"]
 # Documentation checks for private items
 check-private-items = false
 missing-docs-in-crate-items = false
-missing-docs-allow-unused = true
+# missing-docs-allow-unused = true  # This field doesn't exist in clippy
 
 # === TEST-SPECIFIC ALLOWANCES ===
 # Allow certain practices in test code
