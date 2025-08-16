@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 /// Comprehensive health check system for monitoring system components
 #[derive(Debug, Clone)]
@@ -460,7 +459,7 @@ impl<E: std::fmt::Display> std::fmt::Display for CircuitBreakerError<E> {
     }
 }
 
-impl<E: std::error::Error> std::error::Error for CircuitBreakerError<E> {
+impl<E: std::error::Error + 'static> std::error::Error for CircuitBreakerError<E> {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             CircuitBreakerError::CircuitOpen => None,

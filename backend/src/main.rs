@@ -1,6 +1,13 @@
 //! # Multiagent Hive System - Main Server
 //! 
 //! Entry point for the multiagent hive system backend server.
+//! 
+//! This server implements a sophisticated multiagent hive system with:
+//! - RESTful API for agent and task management
+//! - WebSocket support for real-time communication
+//! - Advanced neural processing capabilities
+//! - Comprehensive monitoring and observability
+//! - Production-ready error handling and configuration
 
 mod core;
 mod agents;
@@ -23,8 +30,10 @@ use tower_http::cors::CorsLayer;
 use tracing::{info, warn, error, debug, Level};
 use tracing_subscriber;
 
+// Import enhanced error handling and configuration
+use crate::utils::error::{HiveError, HiveResult, ResultExt};
+use crate::utils::config::HiveConfig;
 use crate::core::{HiveCoordinator, SwarmIntelligenceEngine};
-use crate::utils::HiveConfig;
 use crate::infrastructure::{MetricsCollector, CircuitBreaker};
 use crate::infrastructure::metrics::{MetricThresholds, AgentMetrics, TaskMetrics, AlertLevel};
 use crate::utils::InputValidator;
@@ -56,18 +65,21 @@ pub struct AppState {
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Load configuration
-    let config = Arc::new(HiveConfig::from_env());
+async fn main() -> HiveResult<()> {
+    // Load and validate configuration with enhanced error handling
+    let config = Arc::new(
+        HiveConfig::load()
+            .map_err(|e| {
+                eprintln!("❌ Configuration error: {}", e);
+                std::process::exit(1);
+            })?
+    );
     
-    // Validate configuration
-    if let Err(e) = config.validate() {
-        eprintln!("Configuration validation failed: {}", e);
-        std::process::exit(1);
-    }
+    info!("✅ Configuration loaded and validated successfully");
+    debug!("Server will start on {}:{}", config.server.host, config.server.port);
 
-    // Initialize structured logging
-    let log_level = match config.logging.level.as_str() {
+    // Initialize structured logging based on configuration
+    let log_level = match config.monitoring.log_level.as_str() {
         "trace" => Level::TRACE,
         "debug" => Level::DEBUG,
         "info" => Level::INFO,
@@ -166,14 +178,11 @@ async fn main() -> anyhow::Result<()> {
     info!("✅ Adaptive learning system initialized");
 
     // Initialize the hive coordinator with enhanced capabilities
-    let hive = match HiveCoordinator::new().await {
-        Ok(coordinator) => Arc::new(RwLock::new(coordinator)),
-        Err(e) => {
-            error!("Failed to initialize hive coordinator: {}", e);
-            return Err(e);
-        }
-    };
-    info!("✅ Hive coordinator initialized");
+    let hive = Arc::new(RwLock::new(
+        HiveCoordinator::new().await
+            .with_context("hive coordinator initialization", "main")?
+    ));
+    info!("✅ Hive coordinator initialized with enhanced error handling");
 
     let app_state = AppState { 
         hive,

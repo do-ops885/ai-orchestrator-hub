@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 /// Rate limiter for protecting API endpoints and preventing abuse
 #[derive(Debug, Clone)]

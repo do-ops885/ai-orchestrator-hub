@@ -53,42 +53,94 @@ impl StructuredLogger {
 
     /// Log security events for audit trails
     pub fn log_security_event(event_type: SecurityEventType, details: SecurityEventDetails) {
-        let level = match event_type {
-            SecurityEventType::RateLimitExceeded | SecurityEventType::InvalidInput => Level::WARN,
-            SecurityEventType::UnauthorizedAccess | SecurityEventType::SuspiciousActivity => Level::ERROR,
-            SecurityEventType::AuthenticationSuccess => Level::INFO,
-        };
-
-        event!(
-            level,
-            event_type = ?event_type,
-            client_id = %details.client_id,
-            endpoint = %details.endpoint,
-            user_agent = ?details.user_agent,
-            ip_address = ?details.ip_address,
-            timestamp = %details.timestamp,
-            "Security event"
-        );
+        match event_type {
+            SecurityEventType::RateLimitExceeded | SecurityEventType::InvalidInput => {
+                event!(
+                    Level::WARN,
+                    event_type = ?event_type,
+                    client_id = %details.client_id,
+                    endpoint = %details.endpoint,
+                    user_agent = ?details.user_agent,
+                    ip_address = ?details.ip_address,
+                    timestamp = %details.timestamp,
+                    "Security event"
+                );
+            },
+            SecurityEventType::UnauthorizedAccess | SecurityEventType::SuspiciousActivity => {
+                event!(
+                    Level::ERROR,
+                    event_type = ?event_type,
+                    client_id = %details.client_id,
+                    endpoint = %details.endpoint,
+                    user_agent = ?details.user_agent,
+                    ip_address = ?details.ip_address,
+                    timestamp = %details.timestamp,
+                    "Security event"
+                );
+            },
+            SecurityEventType::AuthenticationSuccess => {
+                event!(
+                    Level::INFO,
+                    event_type = ?event_type,
+                    client_id = %details.client_id,
+                    endpoint = %details.endpoint,
+                    user_agent = ?details.user_agent,
+                    ip_address = ?details.ip_address,
+                    timestamp = %details.timestamp,
+                    "Security event"
+                );
+            },
+        }
     }
 
     /// Log API request/response for debugging
     pub fn log_api_request(method: &str, path: &str, status_code: u16, duration_ms: u64, client_id: &str) {
-        let level = match status_code {
-            200..=299 => Level::INFO,
-            400..=499 => Level::WARN,
-            500..=599 => Level::ERROR,
-            _ => Level::DEBUG,
-        };
-
-        event!(
-            level,
-            method = method,
-            path = path,
-            status_code = status_code,
-            duration_ms = duration_ms,
-            client_id = client_id,
-            "API request completed"
-        );
+        match status_code {
+            200..=299 => {
+                event!(
+                    Level::INFO,
+                    method = method,
+                    path = path,
+                    status_code = status_code,
+                    duration_ms = duration_ms,
+                    client_id = client_id,
+                    "API request completed"
+                );
+            },
+            400..=499 => {
+                event!(
+                    Level::WARN,
+                    method = method,
+                    path = path,
+                    status_code = status_code,
+                    duration_ms = duration_ms,
+                    client_id = client_id,
+                    "API request completed"
+                );
+            },
+            500..=599 => {
+                event!(
+                    Level::ERROR,
+                    method = method,
+                    path = path,
+                    status_code = status_code,
+                    duration_ms = duration_ms,
+                    client_id = client_id,
+                    "API request completed"
+                );
+            },
+            _ => {
+                event!(
+                    Level::DEBUG,
+                    method = method,
+                    path = path,
+                    status_code = status_code,
+                    duration_ms = duration_ms,
+                    client_id = client_id,
+                    "API request completed"
+                );
+            },
+        }
     }
 
     /// Log neural network training events
