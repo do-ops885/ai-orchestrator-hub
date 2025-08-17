@@ -3,13 +3,13 @@
 //! Demonstrates the pair programming verification system where every task
 //! is executed by a primary agent and independently verified by a verification agent.
 
-use multiagent_hive::{
-    HiveCoordinator, Agent, AgentType, AgentCapability,
-    VerificationLevel, VerifiedTaskResult, OverallTaskStatus
-};
 use anyhow::Result;
+use multiagent_hive::{
+    Agent, AgentCapability, AgentType, HiveCoordinator, OverallTaskStatus, VerificationLevel,
+    VerifiedTaskResult,
+};
 use serde_json::json;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 #[tokio::main]
@@ -31,7 +31,9 @@ async fn main() -> Result<()> {
     info!("✅ Created 3 agents for demonstration");
 
     // Create agent pairs
-    let pair_id = hive.create_agent_pair(primary_agent_id, verification_agent_id).await?;
+    let pair_id = hive
+        .create_agent_pair(primary_agent_id, verification_agent_id)
+        .await?;
     info!("✅ Created agent pair: {}", pair_id);
 
     // Demo 1: Simple task with verification
@@ -52,12 +54,18 @@ async fn main() -> Result<()> {
     // Demo 4: Show pair programming statistics
     info!("\n📊 Pair Programming Statistics");
     let stats = hive.get_pair_programming_stats().await;
-    println!("Pair Programming Stats:\n{}", serde_json::to_string_pretty(&stats)?);
+    println!(
+        "Pair Programming Stats:\n{}",
+        serde_json::to_string_pretty(&stats)?
+    );
 
     // Demo 5: Show overall hive status
     info!("\n🏠 Overall Hive Status");
     let hive_status = hive.get_status().await;
-    println!("Hive Status:\n{}", serde_json::to_string_pretty(&hive_status)?);
+    println!(
+        "Hive Status:\n{}",
+        serde_json::to_string_pretty(&hive_status)?
+    );
 
     info!("🎉 Pair Programming Verification Demo completed successfully!");
 
@@ -186,7 +194,7 @@ async fn demo_failing_task_verification(hive: &HiveCoordinator) -> Result<Verifi
     });
 
     let task_id = hive.create_verifiable_task(task_config).await?;
-    
+
     // This should fail because no agent has quantum computing capabilities
     match hive.execute_task_with_verification(task_id).await {
         Ok(result) => Ok(result),
@@ -199,8 +207,11 @@ async fn demo_failing_task_verification(hive: &HiveCoordinator) -> Result<Verifi
 }
 
 fn create_mock_failed_result(task_id: Uuid) -> Result<VerifiedTaskResult> {
-    use multiagent_hive::{TaskResult, VerificationResult, VerificationStatus, VerificationMethod, VerificationDetails, DiscrepancySeverity, Discrepancy};
     use chrono::Utc;
+    use multiagent_hive::{
+        Discrepancy, DiscrepancySeverity, TaskResult, VerificationDetails, VerificationMethod,
+        VerificationResult, VerificationStatus,
+    };
     use std::collections::HashMap;
 
     let execution_result = TaskResult {
@@ -245,33 +256,72 @@ fn create_mock_failed_result(task_id: Uuid) -> Result<VerifiedTaskResult> {
         },
     };
 
-    Ok(VerifiedTaskResult::new(execution_result, verification_result))
+    Ok(VerifiedTaskResult::new(
+        execution_result,
+        verification_result,
+    ))
 }
 
 fn print_verification_result(task_name: &str, result: &VerifiedTaskResult) {
     println!("\n📋 {} Results:", task_name);
     println!("   Overall Status: {:?}", result.overall_status);
-    println!("   Final Confidence: {:.1}%", result.final_confidence * 100.0);
+    println!(
+        "   Final Confidence: {:.1}%",
+        result.final_confidence * 100.0
+    );
     println!("   Meets Requirements: {}", result.meets_requirements);
-    
+
     println!("\n   Execution Result:");
     println!("     Success: {}", result.execution_result.success);
-    println!("     Output: {}", result.execution_result.output.chars().take(100).collect::<String>());
+    println!(
+        "     Output: {}",
+        result
+            .execution_result
+            .output
+            .chars()
+            .take(100)
+            .collect::<String>()
+    );
     if let Some(error) = &result.execution_result.error_message {
         println!("     Error: {}", error);
     }
-    
+
     println!("\n   Verification Result:");
-    println!("     Status: {:?}", result.verification_result.verification_status);
-    println!("     Goal Alignment: {:.1}%", result.verification_result.goal_alignment_score * 100.0);
-    println!("     Quality Score: {:.1}%", result.verification_result.quality_score * 100.0);
-    println!("     Verification Confidence: {:.1}%", result.verification_result.verification_confidence * 100.0);
-    println!("     Assessment: {}", result.verification_result.independent_assessment);
-    
+    println!(
+        "     Status: {:?}",
+        result.verification_result.verification_status
+    );
+    println!(
+        "     Goal Alignment: {:.1}%",
+        result.verification_result.goal_alignment_score * 100.0
+    );
+    println!(
+        "     Quality Score: {:.1}%",
+        result.verification_result.quality_score * 100.0
+    );
+    println!(
+        "     Verification Confidence: {:.1}%",
+        result.verification_result.verification_confidence * 100.0
+    );
+    println!(
+        "     Assessment: {}",
+        result.verification_result.independent_assessment
+    );
+
     if !result.verification_result.discrepancies_found.is_empty() {
         println!("\n   Discrepancies Found:");
-        for (i, discrepancy) in result.verification_result.discrepancies_found.iter().enumerate() {
-            println!("     {}. {} (Severity: {:?})", i + 1, discrepancy.description, discrepancy.severity);
+        for (i, discrepancy) in result
+            .verification_result
+            .discrepancies_found
+            .iter()
+            .enumerate()
+        {
+            println!(
+                "     {}. {} (Severity: {:?})",
+                i + 1,
+                discrepancy.description,
+                discrepancy.severity
+            );
         }
     }
 
@@ -284,7 +334,7 @@ fn print_verification_result(task_name: &str, result: &VerifiedTaskResult) {
         OverallTaskStatus::VerificationError => "⚡ VERIFICATION ERROR",
         OverallTaskStatus::RequiresReview => "👁️  REQUIRES REVIEW",
     };
-    
+
     println!("\n   Status: {}", status_indicator);
     println!("   {}", "=".repeat(60));
 }

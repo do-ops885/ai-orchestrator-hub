@@ -26,11 +26,11 @@ struct ClientState {
 
 impl RateLimiter {
     /// Create a new rate limiter with specified limits
-    /// 
+    ///
     /// # Arguments
     /// * `max_requests` - Maximum requests allowed per window
     /// * `window_duration` - Duration of the rate limiting window
-    /// 
+    ///
     /// # Examples
     /// ```
     /// // Allow 100 requests per minute
@@ -45,17 +45,17 @@ impl RateLimiter {
     }
 
     /// Check if a request from the given client should be allowed
-    /// 
+    ///
     /// # Arguments
     /// * `client_id` - Unique identifier for the client (IP, user ID, etc.)
-    /// 
+    ///
     /// # Returns
     /// * `Ok(())` if request is allowed
     /// * `Err(RateLimitError)` if rate limit exceeded
     pub async fn check_rate_limit(&self, client_id: &str) -> Result<(), RateLimitError> {
         let mut clients = self.clients.write().await;
         let now = Instant::now();
-        
+
         let client_state = clients.entry(client_id.to_string()).or_insert(ClientState {
             request_count: 0,
             window_start: now,
@@ -91,16 +91,17 @@ impl RateLimiter {
     pub async fn get_rate_limit_status(&self, client_id: &str) -> RateLimitStatus {
         let clients = self.clients.read().await;
         let now = Instant::now();
-        
+
         if let Some(client_state) = clients.get(client_id) {
-            let remaining = if now.duration_since(client_state.window_start) >= self.window_duration {
+            let remaining = if now.duration_since(client_state.window_start) >= self.window_duration
+            {
                 self.max_requests // Window has reset
             } else {
                 self.max_requests.saturating_sub(client_state.request_count)
             };
-            
+
             let reset_time = client_state.window_start + self.window_duration;
-            
+
             RateLimitStatus {
                 max_requests: self.max_requests,
                 remaining_requests: remaining,
@@ -122,10 +123,8 @@ impl RateLimiter {
         let mut clients = self.clients.write().await;
         let now = Instant::now();
         let cleanup_threshold = Duration::from_secs(3600); // 1 hour
-        
-        clients.retain(|_, state| {
-            now.duration_since(state.last_request) < cleanup_threshold
-        });
+
+        clients.retain(|_, state| now.duration_since(state.last_request) < cleanup_threshold);
     }
 
     /// Start background cleanup task

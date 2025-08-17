@@ -1,7 +1,7 @@
-use std::sync::atomic::{AtomicU64, AtomicBool, Ordering};
+use crate::utils::error::HiveError;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use crate::utils::error::HiveError;
 
 #[derive(Debug, Clone)]
 pub enum CircuitState {
@@ -42,16 +42,16 @@ impl CircuitBreaker {
                 if self.should_attempt_reset().await {
                     self.transition_to_half_open().await;
                 } else {
-                    return Err(HiveError::CircuitBreakerOpen(
-                        "Circuit breaker is open, operation rejected".to_string()
-                    ));
+                    return Err(HiveError::CircuitBreakerOpen {
+                        reason: "Circuit breaker is open, operation rejected".to_string(),
+                    });
                 }
             }
             CircuitState::HalfOpen => {
                 if self.is_executing.load(Ordering::Acquire) {
-                    return Err(HiveError::CircuitBreakerOpen(
-                        "Circuit breaker is half-open and already executing".to_string()
-                    ));
+                    return Err(HiveError::CircuitBreakerOpen {
+                        reason: "Circuit breaker is half-open and already executing".to_string(),
+                    });
                 }
             }
             CircuitState::Closed => {}
@@ -68,7 +68,9 @@ impl CircuitBreaker {
             }
             Err(error) => {
                 self.on_failure().await;
-                Err(HiveError::OperationFailed(error.to_string()))
+                Err(HiveError::OperationFailed {
+                    reason: error.to_string(),
+                })
             }
         }
     }
@@ -117,7 +119,7 @@ mod tests {
     #[tokio::test]
     async fn test_circuit_breaker_closed_state() {
         let cb = CircuitBreaker::new(3, Duration::from_millis(100));
-        
+
         let result = cb.execute(|| Ok::<i32, &str>(42)).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 42);
@@ -126,15 +128,15 @@ mod tests {
     #[tokio::test]
     async fn test_circuit_breaker_opens_after_failures() {
         let cb = CircuitBreaker::new(2, Duration::from_millis(100));
-        
+
         // First failure
         let _ = cb.execute(|| Err::<i32, &str>("error")).await;
         assert_eq!(cb.get_failure_count(), 1);
-        
+
         // Second failure - should open circuit
         let _ = cb.execute(|| Err::<i32, &str>("error")).await;
         assert_eq!(cb.get_failure_count(), 2);
-        
+
         // Circuit should now be open
         let result = cb.execute(|| Ok::<i32, &str>(42)).await;
         assert!(result.is_err());
@@ -143,17 +145,17 @@ mod tests {
     #[tokio::test]
     async fn test_circuit_breaker_recovery() {
         let cb = CircuitBreaker::new(1, Duration::from_millis(50));
-        
+
         // Cause failure to open circuit
         let _ = cb.execute(|| Err::<i32, &str>("error")).await;
-        
+
         // Wait for recovery timeout
         sleep(Duration::from_millis(60)).await;
-        
+
         // Should transition to half-open and allow execution
         let result = cb.execute(|| Ok::<i32, &str>(42)).await;
         assert!(result.is_ok());
-        
+
         // Should be closed again after success
         matches!(cb.get_state().await, CircuitState::Closed);
     }

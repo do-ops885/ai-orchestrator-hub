@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::agents::{Agent, AgentBehavior, AgentCapability, AgentType, Experience};
-use crate::neural::{VectorizedOps, QuantizedOps, CpuOptimizer, QuantizedWeights, NLPProcessor};
+use crate::neural::{CpuOptimizer, NLPProcessor, QuantizedOps, QuantizedWeights, VectorizedOps};
 use crate::tasks::{Task, TaskResult};
 
 /// CPU-optimized agent with SIMD acceleration and quantized neural processing
@@ -53,7 +53,7 @@ impl OptimizedAgent {
     pub fn new(name: String, agent_type: AgentType, optimization_level: OptimizationLevel) -> Self {
         let base_agent = Agent::new(name, agent_type);
         let resource_constraints = Self::detect_resource_constraints();
-        
+
         Self {
             base_agent,
             optimization_level,
@@ -99,10 +99,10 @@ impl OptimizedAgent {
     fn detect_resource_constraints() -> ResourceConstraints {
         let available_memory = Self::get_available_memory_mb();
         let cpu_count = num_cpus::get();
-        
+
         ResourceConstraints {
             max_memory_mb: (available_memory * 0.8) as usize, // Use 80% of available memory
-            max_cpu_threads: cpu_count.min(4), // Limit to 4 threads for efficiency
+            max_cpu_threads: cpu_count.min(4),                // Limit to 4 threads for efficiency
             battery_mode: Self::is_battery_powered(),
             thermal_throttling: false,
         }
@@ -124,7 +124,7 @@ impl OptimizedAgent {
                 }
             }
         }
-        
+
         // Fallback: assume 2GB available
         2048.0
     }
@@ -151,7 +151,7 @@ impl OptimizedAgent {
         // Create capability matrix for quantization
         let matrix_size = capability_count * 10; // 10 features per capability
         let mut capability_matrix: Vec<f32> = Vec::with_capacity(matrix_size);
-        
+
         for capability in &self.base_agent.capabilities {
             // Convert capability to feature vector
             let features = self.capability_to_features(capability);
@@ -171,7 +171,8 @@ impl OptimizedAgent {
             }
             OptimizationLevel::Standard => {
                 // Use 16-bit quantization for balanced performance
-                let _quantized_weights_16 = QuantizedOps::quantize_weights_16bit(&capability_matrix);
+                let _quantized_weights_16 =
+                    QuantizedOps::quantize_weights_16bit(&capability_matrix);
                 // Convert to 8-bit format for compatibility
                 let quantized_weights = QuantizedOps::quantize_weights(&capability_matrix);
                 self.quantized_capabilities = Some(QuantizedCapabilities {
@@ -191,8 +192,11 @@ impl OptimizedAgent {
             }
         }
 
-        tracing::info!("🚀 Optimized {} capabilities with {:?} level", 
-                      capability_count, self.optimization_level);
+        tracing::info!(
+            "🚀 Optimized {} capabilities with {:?} level",
+            capability_count,
+            self.optimization_level
+        );
         Ok(())
     }
 
@@ -202,13 +206,13 @@ impl OptimizedAgent {
             capability.proficiency as f32,
             capability.learning_rate as f32,
             capability.name.len() as f32 / 20.0, // Normalized name length
-            1.0, // Bias term
+            1.0,                                 // Bias term
             (capability.proficiency * capability.learning_rate) as f32, // Interaction term
             capability.proficiency.powi(2) as f32, // Squared proficiency
             capability.learning_rate.powi(2) as f32, // Squared learning rate
             ((capability.proficiency + capability.learning_rate) / 2.0) as f32, // Average
             (capability.proficiency - capability.learning_rate) as f32, // Difference
-            0.5, // Reserved for future features
+            0.5,                                 // Reserved for future features
         ]
     }
 
@@ -219,8 +223,12 @@ impl OptimizedAgent {
         let mut weights = Vec::new();
 
         for req_cap in required_caps {
-            if let Some(agent_cap) = self.base_agent.capabilities.iter()
-                .find(|c| c.name == req_cap.name) {
+            if let Some(agent_cap) = self
+                .base_agent
+                .capabilities
+                .iter()
+                .find(|c| c.name == req_cap.name)
+            {
                 fitness_scores.push(agent_cap.proficiency as f32);
                 weights.push(1.0); // Default weight since field doesn't exist
             }
@@ -230,7 +238,7 @@ impl OptimizedAgent {
             // Use vectorized weighted average calculation
             let weighted_sum = VectorizedOps::dot_product(&fitness_scores, &weights);
             let weight_sum: f32 = weights.iter().sum();
-            
+
             if weight_sum > 0.0 {
                 return (weighted_sum / weight_sum) as f64;
             }
@@ -242,19 +250,19 @@ impl OptimizedAgent {
     /// Update performance profile with new measurements
     pub fn update_performance_profile(&mut self, task_time_ms: f64, memory_usage_mb: f64) {
         let alpha = 0.1; // Exponential moving average factor
-        
-        self.performance_profile.avg_task_time_ms = 
+
+        self.performance_profile.avg_task_time_ms =
             alpha * task_time_ms + (1.0 - alpha) * self.performance_profile.avg_task_time_ms;
-        
-        self.performance_profile.memory_usage_mb = 
+
+        self.performance_profile.memory_usage_mb =
             alpha * memory_usage_mb + (1.0 - alpha) * self.performance_profile.memory_usage_mb;
-        
+
         // Update CPU utilization (simplified)
         self.performance_profile.cpu_utilization = self.measure_cpu_utilization();
-        
+
         // Check if we're using SIMD acceleration
         let optimizer = CpuOptimizer::new();
-        self.performance_profile.simd_acceleration = 
+        self.performance_profile.simd_acceleration =
             optimizer.simd_support.avx2 || optimizer.simd_support.neon;
     }
 
@@ -272,7 +280,7 @@ impl OptimizedAgent {
     pub fn adapt_to_resources(&mut self) {
         let current_memory = self.performance_profile.memory_usage_mb;
         let max_memory = self.resource_constraints.max_memory_mb as f64;
-        
+
         if current_memory > max_memory * 0.9 {
             // Memory pressure - reduce optimization level
             self.optimization_level = match self.optimization_level {
@@ -280,9 +288,11 @@ impl OptimizedAgent {
                 OptimizationLevel::Standard => OptimizationLevel::Minimal,
                 OptimizationLevel::Minimal => OptimizationLevel::Minimal,
             };
-            
-            tracing::warn!("🔥 Memory pressure detected, reducing optimization to {:?}", 
-                          self.optimization_level);
+
+            tracing::warn!(
+                "🔥 Memory pressure detected, reducing optimization to {:?}",
+                self.optimization_level
+            );
         } else if current_memory < max_memory * 0.5 {
             // Memory available - increase optimization level
             self.optimization_level = match self.optimization_level {
@@ -355,40 +365,47 @@ impl AgentBehavior for OptimizedAgent {
         // Use optimized fitness calculation
         let fitness = self.calculate_optimized_task_fitness(&task);
         let success_probability = fitness * 0.8 + 0.2;
-        
+
         // Simulate task execution with optimization-aware processing
         let processing_time = match self.optimization_level {
-            OptimizationLevel::Minimal => 200,    // Slower but memory efficient
-            OptimizationLevel::Standard => 100,   // Balanced
-            OptimizationLevel::Aggressive => 50,  // Fastest
+            OptimizationLevel::Minimal => 200,   // Slower but memory efficient
+            OptimizationLevel::Standard => 100,  // Balanced
+            OptimizationLevel::Aggressive => 50, // Fastest
         };
-        
+
         tokio::time::sleep(tokio::time::Duration::from_millis(processing_time)).await;
-        
+
         let success = rand::random::<f64>() < success_probability;
-        
+
         // Create experience with optimization metadata
         let experience = Experience {
             timestamp: Utc::now(),
             task_type: task.task_type.clone(),
             success,
-            context: format!("{} (optimized: {:?})", task.description, self.optimization_level),
+            context: format!(
+                "{} (optimized: {:?})",
+                task.description, self.optimization_level
+            ),
             learned_insight: if success {
-                Some(format!("Successfully completed {} task with {:?} optimization", 
-                           task.task_type, self.optimization_level))
+                Some(format!(
+                    "Successfully completed {} task with {:?} optimization",
+                    task.task_type, self.optimization_level
+                ))
             } else {
-                Some(format!("Failed {} task - optimization level: {:?}", 
-                           task.task_type, self.optimization_level))
+                Some(format!(
+                    "Failed {} task - optimization level: {:?}",
+                    task.task_type, self.optimization_level
+                ))
             },
         };
 
         self.base_agent.learn_from_experience(experience);
-        
+
         // Update performance metrics
         let elapsed_ms = start_time.elapsed().as_millis() as f64;
         let current_memory = start_memory + 5.0; // Simulate memory usage
         self.update_performance_profile(elapsed_ms, current_memory);
-        
+
         // Adaptive resource management
         self.adapt_to_resources();
 
@@ -397,14 +414,22 @@ impl AgentBehavior for OptimizedAgent {
             agent_id: self.base_agent.id,
             success,
             output: if success {
-                format!("Task completed successfully by optimized agent {} ({}x speedup)", 
-                       self.base_agent.name, 
-                       self.get_optimization_stats().speed_improvement_factor)
+                format!(
+                    "Task completed successfully by optimized agent {} ({}x speedup)",
+                    self.base_agent.name,
+                    self.get_optimization_stats().speed_improvement_factor
+                )
             } else {
-                format!("Task failed - optimized agent {} needs more training", 
-                       self.base_agent.name)
+                format!(
+                    "Task failed - optimized agent {} needs more training",
+                    self.base_agent.name
+                )
             },
-            error_message: if success { None } else { Some("Optimization failed".to_string()) },
+            error_message: if success {
+                None
+            } else {
+                Some("Optimization failed".to_string())
+            },
             completed_at: Utc::now(),
             execution_time: elapsed_ms as u64,
             quality_score: if success { Some(0.8) } else { Some(0.2) },
@@ -415,21 +440,28 @@ impl AgentBehavior for OptimizedAgent {
     async fn communicate(&mut self, message: &str, target_agent: Option<Uuid>) -> Result<String> {
         // Use optimized text processing for communication
         let start_time = std::time::Instant::now();
-        
+
         // Simulate optimized communication processing
         let processing_delay = match self.optimization_level {
             OptimizationLevel::Minimal => 50,
             OptimizationLevel::Standard => 25,
             OptimizationLevel::Aggressive => 10,
         };
-        
+
         tokio::time::sleep(tokio::time::Duration::from_millis(processing_delay)).await;
-        
+
         let response = match target_agent {
-            Some(target) => format!("Optimized agent {} responding to {}: Acknowledged - {} (processed in {}ms)", 
-                                  self.base_agent.name, target, message, start_time.elapsed().as_millis()),
-            None => format!("Optimized agent {} broadcasting: {} (SIMD: {})", 
-                          self.base_agent.name, message, self.performance_profile.simd_acceleration),
+            Some(target) => format!(
+                "Optimized agent {} responding to {}: Acknowledged - {} (processed in {}ms)",
+                self.base_agent.name,
+                target,
+                message,
+                start_time.elapsed().as_millis()
+            ),
+            None => format!(
+                "Optimized agent {} broadcasting: {} (SIMD: {})",
+                self.base_agent.name, message, self.performance_profile.simd_acceleration
+            ),
         };
 
         Ok(response)
@@ -438,47 +470,55 @@ impl AgentBehavior for OptimizedAgent {
     async fn learn(&mut self, nlp_processor: &NLPProcessor) -> Result<()> {
         // Delegate to base agent but with performance tracking
         let start_time = std::time::Instant::now();
-        
+
         let result = self.base_agent.learn(nlp_processor).await;
-        
+
         let elapsed_ms = start_time.elapsed().as_millis() as f64;
         self.update_performance_profile(elapsed_ms, self.performance_profile.memory_usage_mb + 2.0);
-        
+
         result
     }
 
-    async fn update_position(&mut self, swarm_center: (f64, f64), neighbors: &[Agent]) -> Result<()> {
+    async fn update_position(
+        &mut self,
+        swarm_center: (f64, f64),
+        neighbors: &[Agent],
+    ) -> Result<()> {
         // Use optimized position calculations
         let start_time = std::time::Instant::now();
-        
+
         // Convert neighbor positions to f32 for vectorized operations
-        let neighbor_positions: Vec<(f32, f32)> = neighbors.iter()
+        let neighbor_positions: Vec<(f32, f32)> = neighbors
+            .iter()
             .map(|n| (n.position.0 as f32, n.position.1 as f32))
             .collect();
-        
+
         // Optimized swarm calculations using vectorized operations
         let mut separation = (0.0f32, 0.0f32);
         let mut alignment = (0.0f32, 0.0f32);
         let mut cohesion = (0.0f32, 0.0f32);
-        
-        let current_pos = (self.base_agent.position.0 as f32, self.base_agent.position.1 as f32);
+
+        let current_pos = (
+            self.base_agent.position.0 as f32,
+            self.base_agent.position.1 as f32,
+        );
         let mut neighbor_count = 0;
-        
+
         // Vectorized neighbor processing
         for &neighbor_pos in &neighbor_positions {
             let dx = neighbor_pos.0 - current_pos.0;
             let dy = neighbor_pos.1 - current_pos.1;
             let distance = (dx * dx + dy * dy).sqrt();
-            
+
             if distance < 50.0 && distance > 0.1 {
                 neighbor_count += 1;
-                
+
                 // Separation
                 if distance < 20.0 {
                     separation.0 += current_pos.0 - neighbor_pos.0;
                     separation.1 += current_pos.1 - neighbor_pos.1;
                 }
-                
+
                 // Alignment and cohesion
                 alignment.0 += neighbor_pos.0;
                 alignment.1 += neighbor_pos.1;
@@ -486,7 +526,7 @@ impl AgentBehavior for OptimizedAgent {
                 cohesion.1 += neighbor_pos.1;
             }
         }
-        
+
         if neighbor_count > 0 {
             let inv_count = 1.0 / neighbor_count as f32;
             alignment.0 *= inv_count;
@@ -494,32 +534,32 @@ impl AgentBehavior for OptimizedAgent {
             cohesion.0 *= inv_count;
             cohesion.1 *= inv_count;
         }
-        
+
         // Apply forces with optimization-aware weights
         let force_multiplier = match self.optimization_level {
             OptimizationLevel::Minimal => 0.05,    // Conservative movement
             OptimizationLevel::Standard => 0.1,    // Standard movement
             OptimizationLevel::Aggressive => 0.15, // Aggressive movement
         };
-        
-        let new_x = current_pos.0 + 
-                   separation.0 * force_multiplier + 
-                   alignment.0 * force_multiplier * 0.5 + 
-                   cohesion.0 * force_multiplier * 0.5 +
-                   (swarm_center.0 as f32 - current_pos.0) * force_multiplier * 0.1;
-                   
-        let new_y = current_pos.1 + 
-                   separation.1 * force_multiplier + 
-                   alignment.1 * force_multiplier * 0.5 + 
-                   cohesion.1 * force_multiplier * 0.5 +
-                   (swarm_center.1 as f32 - current_pos.1) * force_multiplier * 0.1;
-        
+
+        let new_x = current_pos.0
+            + separation.0 * force_multiplier
+            + alignment.0 * force_multiplier * 0.5
+            + cohesion.0 * force_multiplier * 0.5
+            + (swarm_center.0 as f32 - current_pos.0) * force_multiplier * 0.1;
+
+        let new_y = current_pos.1
+            + separation.1 * force_multiplier
+            + alignment.1 * force_multiplier * 0.5
+            + cohesion.1 * force_multiplier * 0.5
+            + (swarm_center.1 as f32 - current_pos.1) * force_multiplier * 0.1;
+
         self.base_agent.position = (new_x as f64, new_y as f64);
-        
+
         // Update performance metrics
         let elapsed_ms = start_time.elapsed().as_millis() as f64;
         self.update_performance_profile(elapsed_ms, self.performance_profile.memory_usage_mb);
-        
+
         Ok(())
     }
 }
@@ -534,20 +574,20 @@ mod tests {
         let agent = OptimizedAgent::new(
             "TestAgent".to_string(),
             AgentType::Worker,
-            OptimizationLevel::Standard
+            OptimizationLevel::Standard,
         );
-        
+
         assert_eq!(agent.base_agent.name, "TestAgent");
-        assert!(matches!(agent.optimization_level, OptimizationLevel::Standard));
+        assert!(matches!(
+            agent.optimization_level,
+            OptimizationLevel::Standard
+        ));
     }
 
     #[test]
     fn test_edge_device_configuration() {
-        let agent = OptimizedAgent::new_for_edge_device(
-            "EdgeAgent".to_string(),
-            AgentType::Worker
-        );
-        
+        let agent = OptimizedAgent::new_for_edge_device("EdgeAgent".to_string(), AgentType::Worker);
+
         assert!(agent.resource_constraints.max_memory_mb <= 256);
         assert_eq!(agent.resource_constraints.max_cpu_threads, 1);
         assert!(agent.resource_constraints.battery_mode);
@@ -558,15 +598,15 @@ mod tests {
         let mut agent = OptimizedAgent::new(
             "TestAgent".to_string(),
             AgentType::Worker,
-            OptimizationLevel::Minimal
+            OptimizationLevel::Minimal,
         );
-        
+
         agent.base_agent.add_capability(AgentCapability {
             name: "test_capability".to_string(),
             proficiency: 0.8,
             learning_rate: 0.1,
         });
-        
+
         let result = agent.optimize_capabilities();
         assert!(result.is_ok());
         assert!(agent.quantized_capabilities.is_some());

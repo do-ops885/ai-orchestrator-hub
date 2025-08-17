@@ -1,11 +1,11 @@
-use std::sync::Arc;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
-use crate::agents::{AgentType, AgentState, AgentCapability, AgentMemory};
+use crate::agents::{AgentCapability, AgentMemory, AgentState, AgentType};
 
 /// High-performance memory pool for agent management
 /// Separates hot (frequently accessed) and cold (rarely accessed) data
@@ -222,8 +222,11 @@ impl AgentMemoryPool {
             cold_pool.pop_front();
         }
 
-        tracing::info!("Optimized pool sizes - Hot: {}, Cold: {}", 
-                      hot_pool.len(), cold_pool.len());
+        tracing::info!(
+            "Optimized pool sizes - Hot: {}, Cold: {}",
+            hot_pool.len(),
+            cold_pool.len()
+        );
     }
 }
 
@@ -280,15 +283,14 @@ impl OptimizedAgent {
     pub fn complete_task(&mut self, performance_score: f32) {
         self.hot_data.current_task_id = None;
         self.hot_data.state = AgentState::Idle;
-        self.hot_data.performance_score = 
+        self.hot_data.performance_score =
             (self.hot_data.performance_score * 0.9) + (performance_score * 0.1);
         self.hot_data.last_activity = Utc::now();
     }
 
     /// Check if agent is available for new tasks
     pub fn is_available(&self) -> bool {
-        matches!(self.hot_data.state, AgentState::Idle) && 
-        self.hot_data.energy > 10.0
+        matches!(self.hot_data.state, AgentState::Idle) && self.hot_data.energy > 10.0
     }
 
     /// Calculate distance to another agent (for swarm coordination)
@@ -306,19 +308,19 @@ mod tests {
     #[tokio::test]
     async fn test_memory_pool_basic_operations() {
         let pool = AgentMemoryPool::new(5);
-        
+
         // Test hot data acquisition and release
         let hot_data = pool.acquire_hot_data().await;
         assert_eq!(hot_data.energy, 100.0);
-        
+
         pool.release_hot_data(hot_data).await;
-        
+
         // Test cold data acquisition and release
         let cold_data = pool.acquire_cold_data().await;
         assert!(cold_data.capabilities.is_empty());
-        
+
         pool.release_cold_data(cold_data).await;
-        
+
         // Check stats
         let stats = pool.get_pool_stats().await;
         assert_eq!(stats.total_allocations, 2);
@@ -340,16 +342,16 @@ mod tests {
         };
 
         let mut agent = OptimizedAgent::new(hot_data, Uuid::new_v4());
-        
+
         assert!(agent.is_available());
         assert_eq!(agent.get_performance_score(), 0.5);
-        
+
         // Test task assignment
         let task_id = Uuid::new_v4();
         agent.assign_task(task_id);
         assert!(!agent.is_available());
         assert_eq!(agent.hot_data.current_task_id, Some(task_id));
-        
+
         // Test task completion
         agent.complete_task(0.8);
         assert!(agent.is_available());
@@ -359,15 +361,15 @@ mod tests {
     #[tokio::test]
     async fn test_pool_optimization() {
         let pool = AgentMemoryPool::new(2);
-        
+
         // Acquire more objects than initial pool size
         let _hot1 = pool.acquire_hot_data().await;
         let _hot2 = pool.acquire_hot_data().await;
         let _hot3 = pool.acquire_hot_data().await; // Should create new object
-        
+
         let stats = pool.get_pool_stats().await;
         assert_eq!(stats.total_allocations, 3);
-        
+
         // Test pool resizing
         pool.optimize_pool_size(10).await;
         let stats_after = pool.get_pool_stats().await;

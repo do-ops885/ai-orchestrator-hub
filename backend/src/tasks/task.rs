@@ -136,13 +136,16 @@ impl TaskQueue {
         self.failed_tasks.len()
     }
 
-    pub fn find_suitable_tasks(&self, capabilities: &[crate::agents::AgentCapability]) -> Vec<&Task> {
+    pub fn find_suitable_tasks(
+        &self,
+        capabilities: &[crate::agents::AgentCapability],
+    ) -> Vec<&Task> {
         self.pending_tasks
             .iter()
             .filter(|task| {
                 task.required_capabilities.iter().all(|req_cap| {
                     capabilities.iter().any(|agent_cap| {
-                        agent_cap.name == req_cap.name 
+                        agent_cap.name == req_cap.name
                             && agent_cap.proficiency >= req_cap.minimum_proficiency
                     })
                 })
@@ -216,12 +219,7 @@ impl Task {
 }
 
 impl TaskResult {
-    pub fn success(
-        task_id: Uuid,
-        agent_id: Uuid,
-        output: String,
-        execution_time: u64,
-    ) -> Self {
+    pub fn success(task_id: Uuid, agent_id: Uuid, output: String, execution_time: u64) -> Self {
         Self {
             task_id,
             agent_id,

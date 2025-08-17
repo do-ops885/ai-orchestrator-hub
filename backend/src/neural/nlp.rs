@@ -1,9 +1,9 @@
+use crate::neural::{CpuOptimizer, VectorizedOps};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use crate::neural::{VectorizedOps, CpuOptimizer};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NLPInsight {
@@ -49,9 +49,12 @@ pub struct NLPProcessor {
 impl NLPProcessor {
     pub async fn new() -> Result<Self> {
         let optimizer = CpuOptimizer::new();
-        tracing::info!("🚀 CPU Optimizer initialized with SIMD support: AVX2={}, NEON={}", 
-                      optimizer.simd_support.avx2, optimizer.simd_support.neon);
-        
+        tracing::info!(
+            "🚀 CPU Optimizer initialized with SIMD support: AVX2={}, NEON={}",
+            optimizer.simd_support.avx2,
+            optimizer.simd_support.neon
+        );
+
         Ok(Self {
             learned_patterns: RwLock::new(HashMap::new()),
             insights: RwLock::new(Vec::new()),
@@ -89,18 +92,23 @@ impl NLPProcessor {
         let processed_output = self.process_text(output).await?;
 
         // Update vocabulary based on success/failure
-        self.update_vocabulary(&processed_input.tokens, success).await;
-        self.update_vocabulary(&processed_output.tokens, success).await;
+        self.update_vocabulary(&processed_input.tokens, success)
+            .await;
+        self.update_vocabulary(&processed_output.tokens, success)
+            .await;
 
         // Learn patterns from successful interactions
         if success {
-            self.learn_success_pattern(&processed_input, &processed_output, agent_id).await?;
+            self.learn_success_pattern(&processed_input, &processed_output, agent_id)
+                .await?;
         } else {
-            self.learn_failure_pattern(&processed_input, &processed_output, agent_id).await?;
+            self.learn_failure_pattern(&processed_input, &processed_output, agent_id)
+                .await?;
         }
 
         // Generate insights
-        self.generate_insights(&processed_input, &processed_output, success, agent_id).await?;
+        self.generate_insights(&processed_input, &processed_output, success, agent_id)
+            .await?;
 
         Ok(())
     }
@@ -125,7 +133,9 @@ impl NLPProcessor {
 
         // Suggest successful patterns
         for pattern in patterns.values() {
-            if matches!(pattern.pattern_type, PatternType::SuccessIndicator) && pattern.success_rate > 0.8 {
+            if matches!(pattern.pattern_type, PatternType::SuccessIndicator)
+                && pattern.success_rate > 0.8
+            {
                 suggestions.push(format!(
                     "Consider incorporating elements from successful pattern: '{}'",
                     pattern.keywords.join(" ")
@@ -139,14 +149,14 @@ impl NLPProcessor {
     pub async fn find_similar_experiences(&self, text: &str) -> Result<Vec<NLPInsight>> {
         let processed = self.process_text(text).await?;
         let insights = self.insights.read().await;
-        
+
         let mut similar_insights = Vec::new();
         for insight in insights.iter() {
             let similarity = self.calculate_semantic_similarity(
                 &processed.semantic_vector,
-                &self.text_to_semantic_vector(&insight.context).await
+                &self.text_to_semantic_vector(&insight.context).await,
             );
-            
+
             if similarity > 0.7 {
                 similar_insights.push(insight.clone());
             }
@@ -154,7 +164,8 @@ impl NLPProcessor {
 
         // Sort by confidence
         similar_insights.sort_by(|a, b| {
-            b.confidence.partial_cmp(&a.confidence)
+            b.confidence
+                .partial_cmp(&a.confidence)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
         Ok(similar_insights)
@@ -177,7 +188,7 @@ impl NLPProcessor {
         // CPU-optimized bag-of-words approach with learned weights
         let vocabulary = self.vocabulary.read().await;
         let mut dimensions = vec![0.0; 100]; // Fixed dimension size
-        
+
         // Vectorized approach for better cache utilization
         for (i, token) in tokens.iter().enumerate() {
             let weight = vocabulary.get(token).copied().unwrap_or(0.1);
@@ -188,7 +199,7 @@ impl NLPProcessor {
         // Use vectorized norm calculation
         let dimensions_f32: Vec<f32> = dimensions.iter().map(|&x| x as f32).collect();
         let magnitude = VectorizedOps::vector_norm(&dimensions_f32) as f64;
-        
+
         SemanticVector {
             dimensions,
             magnitude,
@@ -197,14 +208,32 @@ impl NLPProcessor {
 
     pub fn analyze_sentiment(&self, tokens: &[String]) -> f64 {
         // Simple sentiment analysis
-        let positive_words = ["good", "great", "excellent", "success", "complete", "done", "perfect"];
-        let negative_words = ["bad", "fail", "error", "wrong", "problem", "issue", "difficult"];
+        let positive_words = [
+            "good",
+            "great",
+            "excellent",
+            "success",
+            "complete",
+            "done",
+            "perfect",
+        ];
+        let negative_words = [
+            "bad",
+            "fail",
+            "error",
+            "wrong",
+            "problem",
+            "issue",
+            "difficult",
+        ];
 
-        let positive_count = tokens.iter()
+        let positive_count = tokens
+            .iter()
             .filter(|token| positive_words.contains(&token.as_str()))
             .count() as f64;
-        
-        let negative_count = tokens.iter()
+
+        let negative_count = tokens
+            .iter()
             .filter(|token| negative_words.contains(&token.as_str()))
             .count() as f64;
 
@@ -225,11 +254,9 @@ impl NLPProcessor {
             })
             .collect();
 
-        keyword_scores.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        keyword_scores.into_iter()
+        keyword_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        keyword_scores
+            .into_iter()
             .take(5)
             .map(|(word, _)| word)
             .collect()
@@ -240,10 +267,12 @@ impl NLPProcessor {
         let mut matching_patterns = Vec::new();
 
         for pattern in patterns.values() {
-            let matches = pattern.keywords.iter()
+            let matches = pattern
+                .keywords
+                .iter()
                 .filter(|keyword| tokens.contains(keyword))
                 .count();
-            
+
             if matches as f64 / pattern.keywords.len() as f64 > 0.5 {
                 matching_patterns.push(pattern.pattern_id);
             }
@@ -315,8 +344,9 @@ impl NLPProcessor {
         agent_id: Uuid,
     ) -> Result<()> {
         let insight = NLPInsight {
-            pattern: format!("Input: {} -> Output: {}", 
-                input.keywords.join(" "), 
+            pattern: format!(
+                "Input: {} -> Output: {}",
+                input.keywords.join(" "),
                 output.keywords.join(" ")
             ),
             confidence: if success { 0.8 } else { 0.6 },
@@ -336,10 +366,12 @@ impl NLPProcessor {
     }
 
     fn text_matches_pattern(&self, processed: &ProcessedText, pattern: &LanguagePattern) -> bool {
-        let matches = pattern.keywords.iter()
+        let matches = pattern
+            .keywords
+            .iter()
             .filter(|keyword| processed.keywords.contains(keyword))
             .count();
-        
+
         matches as f64 / pattern.keywords.len() as f64 > 0.3
     }
 
@@ -351,7 +383,7 @@ impl NLPProcessor {
         // Use CPU-optimized vectorized operations for better performance
         let vec1_f32: Vec<f32> = vec1.dimensions.iter().map(|&x| x as f32).collect();
         let vec2_f32: Vec<f32> = vec2.dimensions.iter().map(|&x| x as f32).collect();
-        
+
         let similarity = VectorizedOps::cosine_similarity(&vec1_f32, &vec2_f32);
         similarity as f64
     }

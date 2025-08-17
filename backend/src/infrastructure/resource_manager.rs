@@ -1,7 +1,7 @@
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemResources {
@@ -24,10 +24,10 @@ pub struct ResourceProfile {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HardwareClass {
-    EdgeDevice,    // Raspberry Pi, IoT devices
-    Desktop,       // Standard desktop/laptop
-    Server,        // High-performance server
-    Cloud,         // Cloud instance
+    EdgeDevice, // Raspberry Pi, IoT devices
+    Desktop,    // Standard desktop/laptop
+    Server,     // High-performance server
+    Cloud,      // Cloud instance
 }
 
 pub struct ResourceManager {
@@ -42,7 +42,7 @@ impl ResourceManager {
         let system_resources = Self::detect_system_resources().await?;
         let hardware_class = Self::classify_hardware(&system_resources);
         let profile = Self::create_optimal_profile(&hardware_class, &system_resources);
-        
+
         Ok(Self {
             system_resources: Arc::new(RwLock::new(system_resources)),
             current_profile: Arc::new(RwLock::new(profile)),
@@ -55,7 +55,7 @@ impl ResourceManager {
         let cpu_cores = num_cpus::get();
         let available_memory = Self::get_available_memory();
         let simd_capabilities = vec!["SSE4.1".to_string(), "AVX2".to_string()]; // Simplified for Phase 2
-        
+
         Ok(SystemResources {
             cpu_cores,
             available_memory,
@@ -75,7 +75,10 @@ impl ResourceManager {
         }
     }
 
-    fn create_optimal_profile(hardware_class: &HardwareClass, _resources: &SystemResources) -> ResourceProfile {
+    fn create_optimal_profile(
+        hardware_class: &HardwareClass,
+        _resources: &SystemResources,
+    ) -> ResourceProfile {
         match hardware_class {
             HardwareClass::EdgeDevice => ResourceProfile {
                 profile_name: "Edge Optimized".to_string(),
@@ -110,40 +113,46 @@ impl ResourceManager {
 
     pub async fn update_system_metrics(&self) -> anyhow::Result<()> {
         let mut resources = self.system_resources.write().await;
-        
+
         // Update CPU and memory usage
         resources.cpu_usage = Self::get_cpu_usage();
         resources.memory_usage = Self::get_memory_usage();
         resources.last_updated = Utc::now();
-        
+
         // Auto-optimize if enabled
         if self.auto_optimization {
             self.auto_optimize(&*resources).await?;
         }
-        
+
         Ok(())
     }
 
     async fn auto_optimize(&self, resources: &SystemResources) -> anyhow::Result<()> {
         let mut profile = self.current_profile.write().await;
-        
+
         // Reduce load if system is under stress
         if resources.cpu_usage > 80.0 || resources.memory_usage > 85.0 {
             profile.max_agents = (profile.max_agents as f64 * 0.8) as usize;
             profile.update_frequency = (profile.update_frequency as f64 * 1.5) as u64;
-            tracing::warn!("System under stress, reducing load: max_agents={}, update_freq={}ms", 
-                          profile.max_agents, profile.update_frequency);
+            tracing::warn!(
+                "System under stress, reducing load: max_agents={}, update_freq={}ms",
+                profile.max_agents,
+                profile.update_frequency
+            );
         }
-        
         // Increase load if system has capacity
         else if resources.cpu_usage < 50.0 && resources.memory_usage < 60.0 {
             let optimal_profile = Self::create_optimal_profile(&self.hardware_class, resources);
             if profile.max_agents < optimal_profile.max_agents {
-                profile.max_agents = std::cmp::min(profile.max_agents + 5, optimal_profile.max_agents);
-                profile.update_frequency = std::cmp::max(profile.update_frequency - 500, optimal_profile.update_frequency);
+                profile.max_agents =
+                    std::cmp::min(profile.max_agents + 5, optimal_profile.max_agents);
+                profile.update_frequency = std::cmp::max(
+                    profile.update_frequency - 500,
+                    optimal_profile.update_frequency,
+                );
             }
         }
-        
+
         Ok(())
     }
 

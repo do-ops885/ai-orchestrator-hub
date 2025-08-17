@@ -1,20 +1,20 @@
-use std::sync::Arc;
-use std::collections::VecDeque;
-use tokio::sync::{Mutex, RwLock, Notify};
-use uuid::Uuid;
 use dashmap::DashMap;
 use rand::prelude::SliceRandom;
+use std::collections::VecDeque;
+use std::sync::Arc;
+use tokio::sync::{Mutex, Notify, RwLock};
+use uuid::Uuid;
 // use rand::rngs::StdRng;
+use chrono::{DateTime, Utc};
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 use crate::tasks::{Task, TaskPriority};
 // use crate::agents::Agent;
 
 /// High-performance work-stealing task queue system
 /// Implements best practices for concurrent task distribution
-/// 
+///
 /// Key Features:
 /// - Lock-free work stealing between agent queues
 /// - Priority-based task scheduling
@@ -81,7 +81,7 @@ impl AgentTaskQueue {
                 local_queue.push_back(task);
             }
         }
-        
+
         *self.last_activity.write().await = Utc::now();
         Ok(())
     }
@@ -113,7 +113,8 @@ impl AgentTaskQueue {
     pub async fn steal_task(&self) -> Option<Task> {
         // Only steal from local queue, not priority queue
         let mut local_queue = self.local_queue.lock().await;
-        if local_queue.len() > 1 { // Only steal if queue has multiple tasks
+        if local_queue.len() > 1 {
+            // Only steal if queue has multiple tasks
             let stolen_task = local_queue.pop_back(); // Steal from back (LIFO for better cache locality)
             if stolen_task.is_some() {
                 let mut steal_count = self.steal_count.lock().await;
@@ -197,7 +198,7 @@ impl WorkStealingQueue {
     pub async fn register_agent(&self, agent_id: Uuid) -> anyhow::Result<()> {
         let agent_queue = AgentTaskQueue::new(agent_id);
         self.agent_queues.insert(agent_id, agent_queue);
-        
+
         tracing::info!("🔧 Registered agent {} with work-stealing queue", agent_id);
         Ok(())
     }
@@ -210,7 +211,7 @@ impl WorkStealingQueue {
             for task in remaining_tasks {
                 self.submit_task(task).await?;
             }
-            
+
             tracing::info!("🔧 Unregistered agent {} and redistributed tasks", agent_id);
         }
         Ok(())
@@ -231,7 +232,7 @@ impl WorkStealingQueue {
         let mut global_queue = self.global_queue.lock().await;
         global_queue.push_back(task);
         self.notification.notify_waiters(); // Wake up all workers
-        
+
         Ok(())
     }
 
@@ -267,7 +268,8 @@ impl WorkStealingQueue {
             let agent_id = *entry.key();
             if agent_id != requesting_agent_id {
                 let queue_depth = entry.value().get_queue_depth().await;
-                if queue_depth > 1 { // Only steal from agents with multiple tasks
+                if queue_depth > 1 {
+                    // Only steal from agents with multiple tasks
                     candidates.push(agent_id);
                 }
             }
@@ -282,12 +284,16 @@ impl WorkStealingQueue {
         candidates.shuffle(&mut rng);
 
         // Try to steal from candidates
-        for victim_id in candidates.iter().take(3) { // Limit steal attempts
+        for victim_id in candidates.iter().take(3) {
+            // Limit steal attempts
             if let Some(victim_queue) = self.agent_queues.get(victim_id) {
                 if let Some(stolen_task) = victim_queue.steal_task().await {
                     metrics.successful_steals += 1;
-                    tracing::debug!("🔄 Agent {} stole task from agent {}", 
-                                   requesting_agent_id, victim_id);
+                    tracing::debug!(
+                        "🔄 Agent {} stole task from agent {}",
+                        requesting_agent_id,
+                        victim_id
+                    );
                     return Some(stolen_task);
                 }
             }
@@ -299,7 +305,7 @@ impl WorkStealingQueue {
     /// Drain all tasks from an agent's queues
     async fn drain_agent_tasks(&self, agent_queue: &AgentTaskQueue) -> Vec<Task> {
         let mut tasks = Vec::new();
-        
+
         // Drain priority queue
         {
             let mut priority_queue = agent_queue.priority_queue.lock().await;
@@ -345,7 +351,7 @@ impl WorkStealingQueue {
     /// Update system metrics
     pub async fn update_metrics(&self) {
         let mut metrics = self.metrics.write().await;
-        
+
         let total_agents = self.agent_queues.len();
         if total_agents > 0 {
             let mut total_depth = 0;
@@ -388,7 +394,10 @@ impl LoadBalancer {
     }
 
     /// Find the best agent for task assignment based on load and capability
-    pub async fn find_best_agent(&self, agent_queues: &DashMap<Uuid, AgentTaskQueue>) -> Option<Uuid> {
+    pub async fn find_best_agent(
+        &self,
+        agent_queues: &DashMap<Uuid, AgentTaskQueue>,
+    ) -> Option<Uuid> {
         let mut best_agent = None;
         let mut best_score = f64::INFINITY;
 
@@ -405,7 +414,7 @@ impl LoadBalancer {
             let queue_depth = queue.get_queue_depth().await as f64;
             let last_activity = *queue.last_activity.read().await;
             let idle_time = (Utc::now() - last_activity).num_seconds() as f64;
-            
+
             // Score combines queue depth and idle time
             let load_score = queue_depth + (1.0 / (idle_time + 1.0));
 
@@ -419,7 +428,7 @@ impl LoadBalancer {
         if let Some(agent_id) = best_agent {
             let mut history = self.assignment_history.write().await;
             history.push((agent_id, Utc::now()));
-            
+
             // Keep history bounded
             if history.len() > 1000 {
                 history.drain(0..500);
@@ -451,7 +460,7 @@ mod tests {
             "Test task description".to_string(),
             "test".to_string(),
             TaskPriority::Medium,
-            vec![]
+            vec![],
         );
 
         // Submit task
@@ -479,7 +488,7 @@ mod tests {
                     format!("Task {} description", i),
                     "test".to_string(),
                     TaskPriority::Medium,
-                    vec![]
+                    vec![],
                 );
                 agent1_queue.push_task(task).await.unwrap();
             }
@@ -504,7 +513,7 @@ mod tests {
             "Low priority task".to_string(),
             "test".to_string(),
             TaskPriority::Low,
-            vec![]
+            vec![],
         );
         agent_queue.push_task(low_task).await.unwrap();
 
@@ -514,7 +523,7 @@ mod tests {
             "High priority task".to_string(),
             "test".to_string(),
             TaskPriority::High,
-            vec![]
+            vec![],
         );
         agent_queue.push_task(high_task).await.unwrap();
 

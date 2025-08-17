@@ -1,16 +1,16 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use serde::{Serialize, Deserialize};
 
 // Add this import if SystemMetrics is defined in another file in the infrastructure module
 use crate::infrastructure::metrics::SystemMetrics;
 
 /// High-performance in-memory cache with TTL support
 #[derive(Debug)]
-pub struct Cache<K, V> 
+pub struct Cache<K, V>
 where
     K: Clone + Eq + Hash + Send + Sync,
     V: Clone + Send + Sync,
@@ -61,7 +61,7 @@ where
     /// Insert a value with custom TTL
     pub async fn insert_with_ttl(&self, key: K, value: V, ttl: Duration) {
         let mut data = self.data.write().await;
-        
+
         // Check if we need to evict entries
         if data.len() >= self.max_size {
             self.evict_lru(&mut data).await;
@@ -80,7 +80,7 @@ where
     /// Get a value from the cache
     pub async fn get(&self, key: &K) -> Option<V> {
         let mut data = self.data.write().await;
-        
+
         if let Some(entry) = data.get_mut(key) {
             // Check if entry has expired
             if Instant::now() > entry.expires_at {
@@ -91,7 +91,7 @@ where
             // Update access statistics
             entry.access_count += 1;
             entry.last_accessed = Instant::now();
-            
+
             Some(entry.value.clone())
         } else {
             None
@@ -113,12 +113,16 @@ where
     /// Get cache statistics
     pub async fn stats(&self) -> CacheStats {
         let data = self.data.read().await;
-        
+
         let total_entries = data.len();
         let total_hits: u64 = data.values().map(|entry| entry.access_count).sum();
         let total_accesses = total_hits; // Simplified for demo
-        let total_misses = if total_accesses > total_hits { total_accesses - total_hits } else { 0 };
-        
+        let total_misses = if total_accesses > total_hits {
+            total_accesses - total_hits
+        } else {
+            0
+        };
+
         let hit_rate = if total_accesses > 0 {
             total_hits as f64 / total_accesses as f64
         } else {
@@ -140,7 +144,7 @@ where
     pub async fn cleanup_expired(&self) {
         let mut data = self.data.write().await;
         let now = Instant::now();
-        
+
         data.retain(|_, entry| now <= entry.expires_at);
     }
 
@@ -191,13 +195,13 @@ impl CacheManager {
             let mut interval = tokio::time::interval(Duration::from_secs(60));
             loop {
                 interval.tick().await;
-                
+
                 // Clean up expired entries in all caches
                 cache_manager.agents.cleanup_expired().await;
                 cache_manager.tasks.cleanup_expired().await;
                 cache_manager.status.cleanup_expired().await;
                 cache_manager.metrics.cleanup_expired().await;
-                
+
                 tracing::debug!("Cache cleanup completed");
             }
         });
@@ -215,7 +219,7 @@ impl CacheManager {
             "tasks": task_stats,
             "status": status_stats,
             "metrics": metrics_stats,
-            "total_memory_estimate": 
+            "total_memory_estimate":
                 agent_stats.memory_usage_estimate +
                 task_stats.memory_usage_estimate +
                 status_stats.memory_usage_estimate +

@@ -1,9 +1,9 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
-use tracing::{warn, debug};
+use tracing::{debug, warn};
 
 /// Comprehensive metrics collection for the hive system
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,42 +126,46 @@ impl MetricsCollector {
             start_time: std::time::Instant::now(),
         }
     }
-    
+
     pub async fn update_performance_metrics(&self, metrics: PerformanceMetrics) {
         let mut current = self.current_metrics.write().await;
         current.performance = metrics;
         current.timestamp = Utc::now();
     }
-    
+
     pub async fn update_resource_metrics(&self, metrics: ResourceUsageMetrics) {
         let mut current = self.current_metrics.write().await;
         current.resource_usage = metrics;
         current.timestamp = Utc::now();
     }
-    
+
     pub async fn update_agent_metrics(&self, metrics: AgentMetrics) {
         let mut current = self.current_metrics.write().await;
         current.agent_metrics = metrics;
         current.timestamp = Utc::now();
     }
-    
+
     pub async fn update_task_metrics(&self, metrics: TaskMetrics) {
         let mut current = self.current_metrics.write().await;
         current.task_metrics = metrics;
         current.timestamp = Utc::now();
     }
-    
+
     pub async fn record_error(&self, error_type: &str) {
         let mut current = self.current_metrics.write().await;
         current.error_metrics.total_errors += 1;
-        *current.error_metrics.errors_by_type.entry(error_type.to_string()).or_insert(0) += 1;
+        *current
+            .error_metrics
+            .errors_by_type
+            .entry(error_type.to_string())
+            .or_insert(0) += 1;
         current.timestamp = Utc::now();
     }
-    
+
     pub async fn get_current_metrics(&self) -> SystemMetrics {
         self.current_metrics.read().await.clone()
     }
-    
+
     pub async fn get_historical_metrics(&self, limit: Option<usize>) -> Vec<SystemMetrics> {
         let history = self.historical_metrics.read().await;
         match limit {
@@ -169,36 +173,51 @@ impl MetricsCollector {
             None => history.clone(),
         }
     }
-    
+
     pub async fn snapshot_current_metrics(&self) {
         let current = self.current_metrics.read().await.clone();
         let mut history = self.historical_metrics.write().await;
-        
+
         history.push(current);
-        
+
         // Maintain max history size
         if history.len() > self.max_history_size {
             history.remove(0);
         }
     }
-    
+
     /// Calculate trends and anomalies
     pub async fn analyze_trends(&self) -> MetricsTrends {
         let history = self.historical_metrics.read().await;
-        
+
         if history.len() < 2 {
             return MetricsTrends::default();
         }
-        
+
         let recent = &history[history.len() - 1];
         let previous = &history[history.len() - 2];
-        
+
         MetricsTrends {
-            cpu_trend: calculate_trend(previous.resource_usage.cpu_usage_percent, recent.resource_usage.cpu_usage_percent),
-            memory_trend: calculate_trend(previous.resource_usage.memory_usage_percent, recent.resource_usage.memory_usage_percent),
-            task_completion_trend: calculate_trend(previous.task_metrics.task_success_rate, recent.task_metrics.task_success_rate),
-            agent_performance_trend: calculate_trend(previous.agent_metrics.average_agent_performance, recent.agent_metrics.average_agent_performance),
-            error_rate_trend: calculate_trend(previous.error_metrics.error_rate_per_minute, recent.error_metrics.error_rate_per_minute),
+            cpu_trend: calculate_trend(
+                previous.resource_usage.cpu_usage_percent,
+                recent.resource_usage.cpu_usage_percent,
+            ),
+            memory_trend: calculate_trend(
+                previous.resource_usage.memory_usage_percent,
+                recent.resource_usage.memory_usage_percent,
+            ),
+            task_completion_trend: calculate_trend(
+                previous.task_metrics.task_success_rate,
+                recent.task_metrics.task_success_rate,
+            ),
+            agent_performance_trend: calculate_trend(
+                previous.agent_metrics.average_agent_performance,
+                recent.agent_metrics.average_agent_performance,
+            ),
+            error_rate_trend: calculate_trend(
+                previous.error_metrics.error_rate_per_minute,
+                recent.error_metrics.error_rate_per_minute,
+            ),
         }
     }
 
@@ -206,19 +225,25 @@ impl MetricsCollector {
     pub async fn check_alerts(&self) -> Vec<Alert> {
         let mut alerts = Vec::new();
         let current = self.current_metrics.read().await;
-        
+
         // CPU alerts
         if current.resource_usage.cpu_usage_percent >= self.alert_thresholds.cpu_critical {
             alerts.push(Alert::new(
                 AlertLevel::Critical,
                 "CPU usage critical".to_string(),
-                format!("CPU usage: {:.1}%", current.resource_usage.cpu_usage_percent),
+                format!(
+                    "CPU usage: {:.1}%",
+                    current.resource_usage.cpu_usage_percent
+                ),
             ));
         } else if current.resource_usage.cpu_usage_percent >= self.alert_thresholds.cpu_warning {
             alerts.push(Alert::new(
                 AlertLevel::Warning,
                 "CPU usage high".to_string(),
-                format!("CPU usage: {:.1}%", current.resource_usage.cpu_usage_percent),
+                format!(
+                    "CPU usage: {:.1}%",
+                    current.resource_usage.cpu_usage_percent
+                ),
             ));
         }
 
@@ -227,19 +252,29 @@ impl MetricsCollector {
             alerts.push(Alert::new(
                 AlertLevel::Critical,
                 "Memory usage critical".to_string(),
-                format!("Memory usage: {:.1}%", current.resource_usage.memory_usage_percent),
+                format!(
+                    "Memory usage: {:.1}%",
+                    current.resource_usage.memory_usage_percent
+                ),
             ));
-        } else if current.resource_usage.memory_usage_percent >= self.alert_thresholds.memory_warning {
+        } else if current.resource_usage.memory_usage_percent
+            >= self.alert_thresholds.memory_warning
+        {
             alerts.push(Alert::new(
                 AlertLevel::Warning,
                 "Memory usage high".to_string(),
-                format!("Memory usage: {:.1}%", current.resource_usage.memory_usage_percent),
+                format!(
+                    "Memory usage: {:.1}%",
+                    current.resource_usage.memory_usage_percent
+                ),
             ));
         }
 
         // Task failure rate alerts
         let failure_rate = if current.task_metrics.total_tasks_submitted > 0 {
-            (current.task_metrics.total_tasks_failed as f64 / current.task_metrics.total_tasks_submitted as f64) * 100.0
+            (current.task_metrics.total_tasks_failed as f64
+                / current.task_metrics.total_tasks_submitted as f64)
+                * 100.0
         } else {
             0.0
         };
@@ -260,7 +295,8 @@ impl MetricsCollector {
 
         // Agent failure rate alerts
         let agent_failure_rate = if current.agent_metrics.total_agents > 0 {
-            (current.agent_metrics.failed_agents as f64 / current.agent_metrics.total_agents as f64) * 100.0
+            (current.agent_metrics.failed_agents as f64 / current.agent_metrics.total_agents as f64)
+                * 100.0
         } else {
             0.0
         };
@@ -287,11 +323,18 @@ impl MetricsCollector {
     }
 
     /// Update individual agent metrics
-    pub async fn update_individual_agent_metrics(&self, agent_id: uuid::Uuid, metrics: IndividualAgentMetrics) {
+    pub async fn update_individual_agent_metrics(
+        &self,
+        agent_id: uuid::Uuid,
+        metrics: IndividualAgentMetrics,
+    ) {
         let mut current = self.current_metrics.write().await;
-        current.agent_metrics.individual_agent_metrics.insert(agent_id, metrics);
+        current
+            .agent_metrics
+            .individual_agent_metrics
+            .insert(agent_id, metrics);
         current.timestamp = Utc::now();
-        
+
         debug!("Updated metrics for agent {}", agent_id);
     }
 
@@ -303,12 +346,12 @@ impl MetricsCollector {
     /// Collect comprehensive system metrics
     pub async fn collect_system_metrics(&self) -> anyhow::Result<SystemMetrics> {
         let mut current = self.current_metrics.write().await;
-        
+
         // Update resource usage with enhanced metrics
         current.resource_usage.network_io = self.get_network_metrics().await?;
         current.resource_usage.disk_io = self.get_disk_metrics().await?;
         current.timestamp = Utc::now();
-        
+
         Ok(current.clone())
     }
 
@@ -316,7 +359,7 @@ impl MetricsCollector {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
-        
+
         // Simulate network activity (in production, use system APIs)
         Ok(NetworkMetrics {
             bytes_sent: (current_time * 1024) + 1024 * 1024,
@@ -331,7 +374,7 @@ impl MetricsCollector {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
-        
+
         // Simulate disk activity (in production, use system APIs)
         Ok(DiskMetrics {
             reads_per_second: 100.0 + (current_time % 50) as f64,
@@ -512,7 +555,7 @@ impl Default for ErrorMetrics {
 fn calculate_trend(previous: f64, current: f64) -> TrendDirection {
     let threshold = 0.05; // 5% threshold for stability
     let change = (current - previous) / previous.max(0.001); // Avoid division by zero
-    
+
     if change > threshold {
         TrendDirection::Increasing
     } else if change < -threshold {

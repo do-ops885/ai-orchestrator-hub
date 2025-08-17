@@ -1,15 +1,15 @@
+use crate::{agents::AgentType, core::HiveCoordinator, tasks::TaskPriority};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, debug};
-use crate::{core::HiveCoordinator, agents::AgentType, tasks::TaskPriority};
+use tracing::{debug, info};
 
 /// Best Practice MCP (Model Context Protocol) Server Implementation
-/// 
+///
 /// This implementation follows all MCP standards and provides a clean,
 /// extensible architecture for the multiagent hive system.
 /// MCP Protocol Types
@@ -61,7 +61,7 @@ pub mod error_codes {
     pub const METHOD_NOT_FOUND: i32 = -32601;
     pub const INVALID_PARAMS: i32 = -32602;
     pub const INTERNAL_ERROR: i32 = -32603;
-    
+
     // MCP-specific error codes
     pub const TOOL_NOT_FOUND: i32 = -32000;
     pub const RESOURCE_NOT_FOUND: i32 = -32001;
@@ -100,7 +100,9 @@ impl HiveMCPServer {
         let mut server = Self {
             name: "multiagent-hive-mcp".to_string(),
             version: "1.0.0".to_string(),
-            description: "Multiagent Hive System MCP Server - Swarm intelligence for any MCP client".to_string(),
+            description:
+                "Multiagent Hive System MCP Server - Swarm intelligence for any MCP client"
+                    .to_string(),
             hive,
             tools: HashMap::new(),
             resources: HashMap::new(),
@@ -108,12 +110,27 @@ impl HiveMCPServer {
         };
 
         // Register hive-specific tools
-        server.register_tool("create_swarm_agent".to_string(), Box::new(CreateSwarmAgentTool::new(server.hive.clone())));
-        server.register_tool("assign_swarm_task".to_string(), Box::new(AssignSwarmTaskTool::new(server.hive.clone())));
-        server.register_tool("get_swarm_status".to_string(), Box::new(GetSwarmStatusTool::new(server.hive.clone())));
-        server.register_tool("analyze_with_nlp".to_string(), Box::new(AnalyzeWithNLPTool::new(server.hive.clone())));
-        server.register_tool("coordinate_agents".to_string(), Box::new(CoordinateAgentsTool::new(server.hive.clone())));
-        
+        server.register_tool(
+            "create_swarm_agent".to_string(),
+            Box::new(CreateSwarmAgentTool::new(server.hive.clone())),
+        );
+        server.register_tool(
+            "assign_swarm_task".to_string(),
+            Box::new(AssignSwarmTaskTool::new(server.hive.clone())),
+        );
+        server.register_tool(
+            "get_swarm_status".to_string(),
+            Box::new(GetSwarmStatusTool::new(server.hive.clone())),
+        );
+        server.register_tool(
+            "analyze_with_nlp".to_string(),
+            Box::new(AnalyzeWithNLPTool::new(server.hive.clone())),
+        );
+        server.register_tool(
+            "coordinate_agents".to_string(),
+            Box::new(CoordinateAgentsTool::new(server.hive.clone())),
+        );
+
         // Register utility tools
         server.register_tool("echo".to_string(), Box::new(EchoTool));
         server.register_tool("system_info".to_string(), Box::new(SystemInfoTool));
@@ -143,7 +160,10 @@ impl HiveMCPServer {
 
     /// Handle incoming MCP request
     pub async fn handle_request(&self, request: MCPRequest) -> MCPResponse {
-        debug!("Handling MCP request: {} (id: {:?})", request.method, request.id);
+        debug!(
+            "Handling MCP request: {} (id: {:?})",
+            request.method, request.id
+        );
 
         let result = match request.method.as_str() {
             "initialize" => self.handle_initialize(request.params).await,
@@ -176,7 +196,7 @@ impl HiveMCPServer {
 
     async fn handle_initialize(&self, params: Option<Value>) -> Result<Value, MCPError> {
         info!("Initializing MCP server: {}", self.name);
-        
+
         let client_info = params
             .as_ref()
             .and_then(|p| p.get("clientInfo"))
@@ -198,14 +218,18 @@ impl HiveMCPServer {
 
     async fn handle_list_tools(&self) -> Result<Value, MCPError> {
         debug!("Listing {} MCP tools", self.tools.len());
-        
-        let tools: Vec<Value> = self.tools.iter().map(|(name, handler)| {
-            json!({
-                "name": name,
-                "description": handler.get_description(),
-                "inputSchema": handler.get_schema()
+
+        let tools: Vec<Value> = self
+            .tools
+            .iter()
+            .map(|(name, handler)| {
+                json!({
+                    "name": name,
+                    "description": handler.get_description(),
+                    "inputSchema": handler.get_schema()
+                })
             })
-        }).collect();
+            .collect();
 
         Ok(json!({
             "tools": tools
@@ -219,7 +243,8 @@ impl HiveMCPServer {
             data: None,
         })?;
 
-        let tool_name = params.get("name")
+        let tool_name = params
+            .get("name")
             .and_then(|v| v.as_str())
             .ok_or_else(|| MCPError {
                 code: error_codes::INVALID_PARAMS,
@@ -227,7 +252,10 @@ impl HiveMCPServer {
                 data: None,
             })?;
 
-        let arguments = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
+        let arguments = params
+            .get("arguments")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
 
         debug!("Calling MCP tool: {} with args: {}", tool_name, arguments);
 
@@ -254,7 +282,7 @@ impl HiveMCPServer {
 
     async fn handle_list_resources(&self) -> Result<Value, MCPError> {
         debug!("Listing {} MCP resources", self.resources.len());
-        
+
         let resources: Vec<&MCPResource> = self.resources.values().collect();
         Ok(json!({
             "resources": resources
@@ -268,7 +296,8 @@ impl HiveMCPServer {
             data: None,
         })?;
 
-        let uri = params.get("uri")
+        let uri = params
+            .get("uri")
             .and_then(|v| v.as_str())
             .ok_or_else(|| MCPError {
                 code: error_codes::INVALID_PARAMS,
@@ -289,7 +318,7 @@ impl HiveMCPServer {
                         "text": serde_json::to_string_pretty(&status).unwrap_or_else(|_| "{}".to_string())
                     }]
                 }))
-            },
+            }
             _ => {
                 let resource = self.resources.get(uri).ok_or_else(|| MCPError {
                     code: error_codes::RESOURCE_NOT_FOUND,
@@ -324,20 +353,22 @@ impl CreateSwarmAgentTool {
 #[async_trait]
 impl MCPToolHandler for CreateSwarmAgentTool {
     async fn execute(&self, params: &Value) -> Result<Value> {
-        let agent_type_str = params.get("agent_type")
+        let agent_type_str = params
+            .get("agent_type")
             .and_then(|v| v.as_str())
             .unwrap_or("Worker");
-        
+
         let _agent_type = match agent_type_str {
             "Worker" => AgentType::Worker,
             "Coordinator" => AgentType::Coordinator,
             "Learner" => AgentType::Learner,
             "Specialist" => {
-                let specialization = params.get("specialization")
+                let specialization = params
+                    .get("specialization")
                     .and_then(|v| v.as_str())
                     .unwrap_or("general");
                 AgentType::Specialist(specialization.to_string())
-            },
+            }
             _ => AgentType::Worker,
         };
 
@@ -347,7 +378,7 @@ impl MCPToolHandler for CreateSwarmAgentTool {
             "specialization": params.get("specialization").and_then(|v| v.as_str()).unwrap_or("general")
         });
         let agent_id = hive.create_agent(config).await?;
-        
+
         Ok(json!({
             "success": true,
             "agent_id": agent_id,
@@ -392,11 +423,13 @@ impl AssignSwarmTaskTool {
 #[async_trait]
 impl MCPToolHandler for AssignSwarmTaskTool {
     async fn execute(&self, params: &Value) -> Result<Value> {
-        let description = params.get("description")
+        let description = params
+            .get("description")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing task description"))?;
 
-        let priority_str = params.get("priority")
+        let priority_str = params
+            .get("priority")
             .and_then(|v| v.as_str())
             .unwrap_or("Medium");
 
@@ -414,7 +447,7 @@ impl MCPToolHandler for AssignSwarmTaskTool {
             "priority": priority_str
         });
         let task_id = hive.create_task(config).await?;
-        
+
         Ok(json!({
             "success": true,
             "task_id": task_id,
@@ -489,7 +522,8 @@ impl AnalyzeWithNLPTool {
 #[async_trait]
 impl MCPToolHandler for AnalyzeWithNLPTool {
     async fn execute(&self, params: &Value) -> Result<Value> {
-        let text = params.get("text")
+        let text = params
+            .get("text")
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing text to analyze"))?;
 
@@ -501,7 +535,7 @@ impl MCPToolHandler for AnalyzeWithNLPTool {
             "length": text.len(),
             "word_count": text.split_whitespace().count()
         });
-        
+
         Ok(json!({
             "analysis": analysis,
             "text": text,
@@ -540,7 +574,8 @@ impl CoordinateAgentsTool {
 #[async_trait]
 impl MCPToolHandler for CoordinateAgentsTool {
     async fn execute(&self, params: &Value) -> Result<Value> {
-        let strategy = params.get("strategy")
+        let strategy = params
+            .get("strategy")
             .and_then(|v| v.as_str())
             .unwrap_or("default");
 
@@ -558,7 +593,7 @@ impl MCPToolHandler for CoordinateAgentsTool {
                 _ => vec!["Standard coordination applied"]
             }
         });
-        
+
         Ok(json!({
             "strategy": strategy,
             "result": coordination_result,
@@ -592,10 +627,11 @@ pub struct EchoTool;
 #[async_trait]
 impl MCPToolHandler for EchoTool {
     async fn execute(&self, params: &Value) -> Result<Value> {
-        let message = params.get("message")
+        let message = params
+            .get("message")
             .and_then(|v| v.as_str())
             .unwrap_or("Hello from MCP!");
-        
+
         Ok(json!({
             "echo": message,
             "timestamp": chrono::Utc::now().to_rfc3339()

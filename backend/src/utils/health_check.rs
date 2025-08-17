@@ -42,7 +42,7 @@ impl HealthCheckManager {
         }
 
         let execution_time = start_time.elapsed();
-        
+
         // Update overall system status
         let mut system_health = self.overall_status.write().await;
         system_health.status = if overall_healthy {
@@ -73,7 +73,7 @@ impl HealthCheckManager {
             loop {
                 interval_timer.tick().await;
                 let report = self.run_all_checks().await;
-                
+
                 // Log health status changes
                 if report.overall_status != HealthStatus::Healthy {
                     tracing::warn!("System health check failed: {:?}", report);
@@ -121,9 +121,9 @@ impl HealthCheck {
     /// Execute the health check with timeout
     pub async fn execute(&mut self) -> HealthCheckResult {
         let start_time = Instant::now();
-        
+
         let result = tokio::time::timeout(self.timeout, (self.check_fn.0)()).await;
-        
+
         let check_result = match result {
             Ok(Ok(details)) => HealthCheckResult {
                 status: HealthStatus::Healthy,
@@ -155,7 +155,17 @@ impl HealthCheck {
 
 /// Health check function wrapper
 #[derive(Clone)]
-pub struct HealthCheckFunction(pub Arc<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<HashMap<String, String>, String>> + Send>> + Send + Sync>);
+pub struct HealthCheckFunction(
+    pub  Arc<
+        dyn Fn() -> std::pin::Pin<
+                Box<
+                    dyn std::future::Future<Output = Result<HashMap<String, String>, String>>
+                        + Send,
+                >,
+            > + Send
+            + Sync,
+    >,
+);
 
 impl std::fmt::Debug for HealthCheckFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -247,7 +257,7 @@ impl StandardHealthChecks {
                     let mut details = HashMap::new();
                     details.insert("memory_usage_percent".to_string(), "65".to_string());
                     details.insert("available_mb".to_string(), "2048".to_string());
-                    
+
                     // Check if memory usage is acceptable
                     if 65.0 > 90.0 {
                         Err("Memory usage too high".to_string())
@@ -380,7 +390,7 @@ impl CircuitBreaker {
     /// Check if the circuit breaker allows execution
     async fn can_execute(&self) -> bool {
         let mut state = self.state.write().await;
-        
+
         match state.status {
             CircuitBreakerStatus::Closed => true,
             CircuitBreakerStatus::Open => {
@@ -404,7 +414,7 @@ impl CircuitBreaker {
     /// Record a successful operation
     async fn record_success(&self) {
         let mut state = self.state.write().await;
-        
+
         match state.status {
             CircuitBreakerStatus::Closed => {
                 state.failure_count = 0;
@@ -426,10 +436,10 @@ impl CircuitBreaker {
     /// Record a failed operation
     async fn record_failure(&self) {
         let mut state = self.state.write().await;
-        
+
         state.failure_count += 1;
         state.last_failure_time = Some(Instant::now());
-        
+
         if state.failure_count >= self.failure_threshold {
             state.status = CircuitBreakerStatus::Open;
         } else if state.status == CircuitBreakerStatus::HalfOpen {

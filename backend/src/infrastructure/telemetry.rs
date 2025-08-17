@@ -1,8 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
-use serde::{Serialize, Deserialize};
 use tracing::{info, warn};
 
 /// Advanced telemetry and observability system
@@ -61,7 +61,10 @@ pub struct TelemetryMetrics {
 
 /// Trait for telemetry subscribers (webhooks, databases, etc.)
 pub trait TelemetrySubscriber {
-    fn on_event(&self, event: &TelemetryEvent) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
+    fn on_event(
+        &self,
+        event: &TelemetryEvent,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
     fn name(&self) -> &str;
 }
 
@@ -69,7 +72,10 @@ pub trait TelemetrySubscriber {
 pub struct ConsoleTelemetrySubscriber;
 
 impl TelemetrySubscriber for ConsoleTelemetrySubscriber {
-    fn on_event(&self, event: &TelemetryEvent) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn on_event(
+        &self,
+        event: &TelemetryEvent,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         match event.severity {
             Severity::Debug => tracing::debug!("📊 Telemetry: {:?}", event),
             Severity::Info => tracing::info!("📊 Telemetry: {:?}", event),
@@ -101,7 +107,10 @@ impl WebhookTelemetrySubscriber {
 }
 
 impl TelemetrySubscriber for WebhookTelemetrySubscriber {
-    fn on_event(&self, _event: &TelemetryEvent) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn on_event(
+        &self,
+        _event: &TelemetryEvent,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // In a real implementation, this would be async
         // For now, we'll just log the intent
         info!("📡 Would send telemetry event to webhook: {}", self.url);
@@ -138,7 +147,13 @@ impl TelemetryCollector {
     }
 
     /// Record a telemetry event
-    pub async fn record_event(&self, event_type: EventType, source: String, data: serde_json::Value, severity: Severity) {
+    pub async fn record_event(
+        &self,
+        event_type: EventType,
+        source: String,
+        data: serde_json::Value,
+        severity: Severity,
+    ) {
         let event = TelemetryEvent {
             id: uuid::Uuid::new_v4(),
             timestamp: SystemTime::now()
@@ -156,7 +171,7 @@ impl TelemetryCollector {
         {
             let mut events = self.events.write().await;
             events.push(event.clone());
-            
+
             // Maintain max events limit
             if events.len() > self.max_events {
                 events.remove(0);
@@ -168,17 +183,18 @@ impl TelemetryCollector {
             let mut metrics = self.metrics.write().await;
             metrics.total_events += 1;
             metrics.last_event_timestamp = event.timestamp;
-            
+
             let type_key = format!("{:?}", event_type);
             *metrics.events_by_type.entry(type_key).or_insert(0) += 1;
-            
+
             let severity_key = format!("{:?}", severity);
             *metrics.events_by_severity.entry(severity_key).or_insert(0) += 1;
-            
+
             // Calculate uptime and events per minute
             metrics.uptime_seconds = event.timestamp - metrics.start_time;
             if metrics.uptime_seconds > 0 {
-                metrics.average_events_per_minute = (metrics.total_events as f64 / metrics.uptime_seconds as f64) * 60.0;
+                metrics.average_events_per_minute =
+                    (metrics.total_events as f64 / metrics.uptime_seconds as f64) * 60.0;
             }
         }
 
@@ -207,7 +223,11 @@ impl TelemetryCollector {
     }
 
     /// Get events by type
-    pub async fn get_events_by_type(&self, event_type: &EventType, limit: usize) -> Vec<TelemetryEvent> {
+    pub async fn get_events_by_type(
+        &self,
+        event_type: &EventType,
+        limit: usize,
+    ) -> Vec<TelemetryEvent> {
         let events = self.events.read().await;
         events
             .iter()
@@ -230,12 +250,13 @@ impl TelemetryCollector {
             let mut interval = tokio::time::interval(Duration::from_secs(300)); // 5 minutes
             loop {
                 interval.tick().await;
-                
+
                 // Cleanup old events (keep last 24 hours)
                 let cutoff_time = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
-                    .as_secs() - (24 * 60 * 60); // 24 hours ago
+                    .as_secs()
+                    - (24 * 60 * 60); // 24 hours ago
 
                 {
                     let mut events = collector.events.write().await;

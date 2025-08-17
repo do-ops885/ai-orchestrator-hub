@@ -2,7 +2,7 @@
 //!
 //! This example demonstrates the lightweight verification system as an alternative
 //! to the complex pair programming verification. Shows how to:
-//! 
+//!
 //! 1. Create agents and tasks
 //! 2. Execute tasks with simple verification
 //! 3. Compare verification tiers (Quick, Standard, Thorough)
@@ -11,7 +11,7 @@
 //!
 //! Run with: `cargo run --example simple_verification_demo`
 
-use multiagent_hive::{HiveCoordinator, VerificationRule, RuleType};
+use multiagent_hive::{HiveCoordinator, RuleType, VerificationRule};
 use serde_json::json;
 use tokio;
 use tracing::{info, warn};
@@ -195,7 +195,10 @@ async fn create_demo_tasks(hive: &HiveCoordinator) -> anyhow::Result<Vec<uuid::U
     Ok(tasks)
 }
 
-async fn demo_basic_verification(hive: &HiveCoordinator, tasks: &[uuid::Uuid]) -> anyhow::Result<()> {
+async fn demo_basic_verification(
+    hive: &HiveCoordinator,
+    tasks: &[uuid::Uuid],
+) -> anyhow::Result<()> {
     if tasks.is_empty() {
         warn!("No tasks available for basic verification demo");
         return Ok(());
@@ -205,19 +208,37 @@ async fn demo_basic_verification(hive: &HiveCoordinator, tasks: &[uuid::Uuid]) -
     let original_goal = Some("Provide actionable insights that help improve customer satisfaction");
 
     info!("Executing task with simple verification...");
-    
-    match hive.execute_task_with_simple_verification(task_id, original_goal).await {
+
+    match hive
+        .execute_task_with_simple_verification(task_id, original_goal)
+        .await
+    {
         Ok((execution_result, verification_result)) => {
             info!("✅ Task execution successful!");
             info!("   Execution success: {}", execution_result.success);
-            info!("   Verification status: {:?}", verification_result.verification_status);
+            info!(
+                "   Verification status: {:?}",
+                verification_result.verification_status
+            );
             info!("   Overall score: {:.2}", verification_result.overall_score);
-            info!("   Goal alignment: {:.2}", verification_result.goal_alignment_score);
-            info!("   Verification tier: {:?}", verification_result.verification_tier);
-            info!("   Issues found: {}", verification_result.issues_found.len());
-            
+            info!(
+                "   Goal alignment: {:.2}",
+                verification_result.goal_alignment_score
+            );
+            info!(
+                "   Verification tier: {:?}",
+                verification_result.verification_tier
+            );
+            info!(
+                "   Issues found: {}",
+                verification_result.issues_found.len()
+            );
+
             for issue in &verification_result.issues_found {
-                info!("   - {:?} ({:?}): {}", issue.severity, issue.issue_type, issue.description);
+                info!(
+                    "   - {:?} ({:?}): {}",
+                    issue.severity, issue.issue_type, issue.description
+                );
             }
         }
         Err(e) => {
@@ -228,18 +249,29 @@ async fn demo_basic_verification(hive: &HiveCoordinator, tasks: &[uuid::Uuid]) -
     Ok(())
 }
 
-async fn demo_verification_tiers(hive: &HiveCoordinator, tasks: &[uuid::Uuid]) -> anyhow::Result<()> {
+async fn demo_verification_tiers(
+    hive: &HiveCoordinator,
+    tasks: &[uuid::Uuid],
+) -> anyhow::Result<()> {
     info!("Demonstrating different verification tiers based on task priority...");
 
     for (i, &task_id) in tasks.iter().enumerate() {
-        if i >= 3 { break; } // Limit to first 3 tasks
-        
+        if i >= 3 {
+            break;
+        } // Limit to first 3 tasks
+
         info!("Task {}: Executing with automatic tier selection", i + 1);
-        
-        match hive.execute_task_with_simple_verification(task_id, None).await {
+
+        match hive
+            .execute_task_with_simple_verification(task_id, None)
+            .await
+        {
             Ok((_, verification_result)) => {
                 info!("   Tier used: {:?}", verification_result.verification_tier);
-                info!("   Verification time: {}ms", verification_result.verification_time_ms);
+                info!(
+                    "   Verification time: {}ms",
+                    verification_result.verification_time_ms
+                );
                 info!("   Confidence: {:.2}", verification_result.confidence_score);
             }
             Err(e) => {
@@ -282,10 +314,19 @@ async fn demo_verification_metrics(hive: &HiveCoordinator) -> anyhow::Result<()>
     let metrics = hive.get_simple_verification_stats().await;
     info!("📊 Verification Metrics:");
     info!("   Total verifications: {}", metrics["total_verifications"]);
-    info!("   Success rate: {:.1}%", metrics["success_rate"].as_f64().unwrap_or(0.0) * 100.0);
-    info!("   Average verification time: {:.1}ms", metrics["average_verification_time_ms"]);
-    info!("   Average confidence: {:.2}", metrics["average_confidence_score"]);
-    
+    info!(
+        "   Success rate: {:.1}%",
+        metrics["success_rate"].as_f64().unwrap_or(0.0) * 100.0
+    );
+    info!(
+        "   Average verification time: {:.1}ms",
+        metrics["average_verification_time_ms"]
+    );
+    info!(
+        "   Average confidence: {:.2}",
+        metrics["average_confidence_score"]
+    );
+
     if let Some(tier_usage) = metrics["tier_usage"].as_object() {
         info!("   Tier usage:");
         for (tier, count) in tier_usage {
@@ -296,7 +337,10 @@ async fn demo_verification_metrics(hive: &HiveCoordinator) -> anyhow::Result<()>
     Ok(())
 }
 
-async fn demo_performance_comparison(hive: &HiveCoordinator, tasks: &[uuid::Uuid]) -> anyhow::Result<()> {
+async fn demo_performance_comparison(
+    hive: &HiveCoordinator,
+    tasks: &[uuid::Uuid],
+) -> anyhow::Result<()> {
     if tasks.len() < 2 {
         warn!("Not enough tasks for performance comparison");
         return Ok(());
@@ -307,12 +351,18 @@ async fn demo_performance_comparison(hive: &HiveCoordinator, tasks: &[uuid::Uuid
     // Simple verification timing
     let start_time = std::time::Instant::now();
     let task_id = tasks[tasks.len() - 1]; // Use last task
-    
-    match hive.execute_task_with_simple_verification(task_id, None).await {
+
+    match hive
+        .execute_task_with_simple_verification(task_id, None)
+        .await
+    {
         Ok((_, verification_result)) => {
             let simple_duration = start_time.elapsed();
             info!("✅ Simple verification completed in {:?}", simple_duration);
-            info!("   Verification time: {}ms", verification_result.verification_time_ms);
+            info!(
+                "   Verification time: {}ms",
+                verification_result.verification_time_ms
+            );
             info!("   Total time: {:?}", simple_duration);
             info!("   Status: {:?}", verification_result.verification_status);
         }
@@ -344,8 +394,8 @@ fn create_custom_verification_rules() -> Vec<VerificationRule> {
         },
         VerificationRule {
             rule_id: "required_keywords".to_string(),
-            rule_type: RuleType::KeywordPresence { 
-                keywords: vec!["analysis".to_string(), "insights".to_string()] 
+            rule_type: RuleType::KeywordPresence {
+                keywords: vec!["analysis".to_string(), "insights".to_string()],
             },
             threshold: 0.5, // At least 50% of keywords must be present
             weight: 0.3,
@@ -360,8 +410,12 @@ fn create_custom_verification_rules() -> Vec<VerificationRule> {
         },
         VerificationRule {
             rule_id: "no_profanity".to_string(),
-            rule_type: RuleType::KeywordAbsence { 
-                forbidden_words: vec!["bad".to_string(), "terrible".to_string(), "awful".to_string()] 
+            rule_type: RuleType::KeywordAbsence {
+                forbidden_words: vec![
+                    "bad".to_string(),
+                    "terrible".to_string(),
+                    "awful".to_string(),
+                ],
             },
             threshold: 1.0,
             weight: 0.4,

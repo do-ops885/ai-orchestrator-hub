@@ -12,16 +12,15 @@ use crate::infrastructure::MetricsCollector;
 use crate::utils::HiveConfig;
 
 /// Request ID middleware for tracing
-pub async fn request_id_middleware(
-    mut request: Request,
-    next: Next,
-) -> Response {
+pub async fn request_id_middleware(mut request: Request, next: Next) -> Response {
     let request_id = Uuid::new_v4().to_string();
     request.headers_mut().insert(
         "x-request-id",
-        request_id.parse().unwrap_or_else(|_| "unknown".parse().unwrap()),
+        request_id
+            .parse()
+            .unwrap_or_else(|_| "unknown".parse().unwrap()),
     );
-    
+
     let response = next.run(request).await;
     response
 }
@@ -35,7 +34,8 @@ pub async fn logging_middleware(
     let start = Instant::now();
     let method = request.method().clone();
     let uri = request.uri().clone();
-    let request_id = request.headers()
+    let request_id = request
+        .headers()
         .get("x-request-id")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("unknown")
@@ -93,24 +93,24 @@ pub async fn rate_limiting_middleware(
 }
 
 /// Security headers middleware
-pub async fn security_headers_middleware(
-    request: Request,
-    next: Next,
-) -> Response {
+pub async fn security_headers_middleware(request: Request, next: Next) -> Response {
     let mut response = next.run(request).await;
-    
+
     let headers = response.headers_mut();
     headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
     headers.insert("X-Frame-Options", "DENY".parse().unwrap());
     headers.insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
-    headers.insert("Referrer-Policy", "strict-origin-when-cross-origin".parse().unwrap());
+    headers.insert(
+        "Referrer-Policy",
+        "strict-origin-when-cross-origin".parse().unwrap(),
+    );
     headers.insert(
         "Content-Security-Policy",
         "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
             .parse()
             .unwrap(),
     );
-    
+
     response
 }
 
@@ -126,11 +126,13 @@ async fn record_request_metrics(
         average_response_time_ms: duration.as_millis() as f64,
         p95_response_time_ms: duration.as_millis() as f64, // Simplified
         p99_response_time_ms: duration.as_millis() as f64, // Simplified
-        throughput_tasks_per_second: 0.0, // Would be calculated separately
+        throughput_tasks_per_second: 0.0,                  // Would be calculated separately
     };
-    
-    metrics.update_performance_metrics(performance_metrics).await;
-    
+
+    metrics
+        .update_performance_metrics(performance_metrics)
+        .await;
+
     // Record errors if status indicates failure
     if status.is_client_error() || status.is_server_error() {
         let error_type = if status.is_client_error() {
@@ -140,21 +142,29 @@ async fn record_request_metrics(
         };
         metrics.record_error(error_type).await;
     }
-    
+
     Ok(())
 }
 
 /// CORS middleware with configurable origins
 pub fn cors_middleware(config: &HiveConfig) -> tower_http::cors::CorsLayer {
-    use tower_http::cors::{CorsLayer, Any};
     use axum::http::Method;
-    
+    use tower_http::cors::{Any, CorsLayer};
+
     let mut cors = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_headers(Any)
         .expose_headers([axum::http::HeaderName::from_static("x-request-id")]);
-    
-    if config.server.cors_origins.is_empty() || config.server.cors_origins.contains(&"*".to_string()) {
+
+    if config.server.cors_origins.is_empty()
+        || config.server.cors_origins.contains(&"*".to_string())
+    {
         cors = cors.allow_origin(Any);
     } else {
         for origin in &config.server.cors_origins {
@@ -163,6 +173,6 @@ pub fn cors_middleware(config: &HiveConfig) -> tower_http::cors::CorsLayer {
             }
         }
     }
-    
+
     cors
 }

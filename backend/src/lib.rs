@@ -44,31 +44,31 @@
 //! - `gpu-acceleration`: GPU support for neural processing
 
 //! # Multiagent Hive System
-//! 
-//! A sophisticated hybrid neural multiagent hive system implementing swarm intelligence 
+//!
+//! A sophisticated hybrid neural multiagent hive system implementing swarm intelligence
 //! with NLP self-learning capabilities. CPU-native, GPU-optional - built for the GPU-poor.
 
-/// Core hive coordination and management
-pub mod core;
 /// Agent implementations and behaviors
 pub mod agents;
-/// Task management and distribution
-pub mod tasks;
-/// Neural processing and NLP capabilities
-pub mod neural;
 /// Communication protocols and WebSocket handling
 pub mod communication;
+/// Core hive coordination and management
+pub mod core;
 /// Infrastructure components (metrics, caching, telemetry)
 pub mod infrastructure;
+/// Neural processing and NLP capabilities
+pub mod neural;
+/// Task management and distribution
+pub mod tasks;
 /// Utility functions and configuration
 pub mod utils;
 
-pub use core::*;
 pub use agents::*;
-pub use tasks::*;
-pub use neural::*;
 pub use communication::*;
+pub use core::*;
 pub use infrastructure::*;
+pub use neural::*;
+pub use tasks::*;
 pub use utils::*;
 
 /// Application state shared across the system

@@ -1,9 +1,9 @@
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc};
-use tracing::{info, debug};
+use tracing::{debug, info};
 use uuid::Uuid;
 
 /// Advanced metrics collection system with real-time monitoring and trend analysis
@@ -109,7 +109,7 @@ impl AdvancedMetricsCollector {
     /// Collect comprehensive system metrics with advanced analytics
     pub async fn collect_advanced_metrics(&self) -> anyhow::Result<MetricsSnapshot> {
         let mut performance = self.performance_metrics.write().await;
-        
+
         // Collect system performance metrics
         performance.cpu_usage = self.get_cpu_usage().await?;
         performance.memory_usage = self.get_memory_usage().await?;
@@ -132,13 +132,16 @@ impl AdvancedMetricsCollector {
         // Store in historical data
         let mut history = self.historical_data.write().await;
         history.push(snapshot.clone());
-        
+
         // Maintain max history size
         if history.len() > self.max_history_size {
             history.remove(0);
         }
 
-        info!("Advanced metrics collected - Health Score: {:.2}", health_score);
+        info!(
+            "Advanced metrics collected - Health Score: {:.2}",
+            health_score
+        );
         Ok(snapshot)
     }
 
@@ -172,7 +175,7 @@ impl AdvancedMetricsCollector {
     pub async fn get_predictive_insights(&self) -> PredictiveInsights {
         let trends = self.analyze_trends().await;
         let anomalies = self.detect_anomalies().await;
-        
+
         PredictiveInsights {
             trends,
             anomalies,
@@ -186,7 +189,7 @@ impl AdvancedMetricsCollector {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
-        
+
         // Simulate realistic CPU usage with some variability
         Ok(45.0 + (current_time % 30) as f64 + (current_time % 7) as f64 * 2.0)
     }
@@ -196,7 +199,7 @@ impl AdvancedMetricsCollector {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
-        
+
         Ok(60.0 + (current_time % 20) as f64 + (current_time % 5) as f64 * 1.5)
     }
 
@@ -204,7 +207,7 @@ impl AdvancedMetricsCollector {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
-        
+
         Ok(AdvancedNetworkMetrics {
             bytes_sent: (current_time * 1024) + 1024 * 1024,
             bytes_received: (current_time * 2048) + 2048 * 1024,
@@ -221,7 +224,7 @@ impl AdvancedMetricsCollector {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
-        
+
         Ok(AdvancedDiskMetrics {
             reads_per_second: 100.0 + (current_time % 50) as f64,
             writes_per_second: 50.0 + (current_time % 25) as f64,
@@ -235,9 +238,13 @@ impl AdvancedMetricsCollector {
     async fn calculate_system_health_score(&self, performance: &AdvancedPerformanceMetrics) -> f64 {
         let cpu_score = (100.0 - performance.cpu_usage) / 100.0;
         let memory_score = (100.0 - performance.memory_usage) / 100.0;
-        let network_score = if performance.network_io.response_time_p95 < 100.0 { 1.0 } else { 0.5 };
+        let network_score = if performance.network_io.response_time_p95 < 100.0 {
+            1.0
+        } else {
+            0.5
+        };
         let disk_score = (100.0 - performance.disk_io.disk_usage_percent) / 100.0;
-        
+
         (cpu_score + memory_score + network_score + disk_score) / 4.0
     }
 
@@ -248,46 +255,54 @@ impl AdvancedMetricsCollector {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        
+
         (5 + (current_time % 15)) as usize
     }
 
     async fn generate_recommendations(&self) -> Vec<String> {
         let mut recommendations = Vec::new();
-        
+
         let performance = self.performance_metrics.read().await;
-        
+
         if performance.cpu_usage > 80.0 {
-            recommendations.push("Consider scaling up CPU resources or optimizing agent workloads".to_string());
+            recommendations.push(
+                "Consider scaling up CPU resources or optimizing agent workloads".to_string(),
+            );
         }
-        
+
         if performance.memory_usage > 85.0 {
-            recommendations.push("Memory usage is high - consider garbage collection or memory optimization".to_string());
+            recommendations.push(
+                "Memory usage is high - consider garbage collection or memory optimization"
+                    .to_string(),
+            );
         }
-        
+
         if performance.network_io.response_time_p95 > 200.0 {
-            recommendations.push("Network latency is elevated - check network configuration".to_string());
+            recommendations
+                .push("Network latency is elevated - check network configuration".to_string());
         }
-        
+
         recommendations
     }
 
     async fn generate_forecast(&self) -> SystemForecast {
         let history = self.historical_data.read().await;
-        
+
         if history.len() < 5 {
             return SystemForecast::default();
         }
-        
+
         // Simple linear trend forecast
-        let recent_health_scores: Vec<f64> = history.iter()
+        let recent_health_scores: Vec<f64> = history
+            .iter()
             .rev()
             .take(5)
             .map(|s| s.system_health_score)
             .collect();
-        
-        let avg_health = recent_health_scores.iter().sum::<f64>() / recent_health_scores.len() as f64;
-        
+
+        let avg_health =
+            recent_health_scores.iter().sum::<f64>() / recent_health_scores.len() as f64;
+
         SystemForecast {
             predicted_health_score_1h: avg_health,
             predicted_health_score_24h: avg_health * 0.95, // Slight degradation over time
@@ -310,16 +325,16 @@ impl TrendAnalyzer {
             return TrendAnalysis::default();
         }
 
-        let recent_data: Vec<&MetricsSnapshot> = history.iter()
-            .rev()
-            .take(self.window_size)
-            .collect();
+        let recent_data: Vec<&MetricsSnapshot> =
+            history.iter().rev().take(self.window_size).collect();
 
         TrendAnalysis {
             cpu_trend: self.calculate_trend(recent_data.iter().map(|s| s.performance.cpu_usage)),
-            memory_trend: self.calculate_trend(recent_data.iter().map(|s| s.performance.memory_usage)),
+            memory_trend: self
+                .calculate_trend(recent_data.iter().map(|s| s.performance.memory_usage)),
             health_trend: self.calculate_trend(recent_data.iter().map(|s| s.system_health_score)),
-            agent_count_trend: self.calculate_trend(recent_data.iter().map(|s| s.agent_count as f64)),
+            agent_count_trend: self
+                .calculate_trend(recent_data.iter().map(|s| s.agent_count as f64)),
         }
     }
 
@@ -332,11 +347,13 @@ impl TrendAnalyzer {
             return TrendDirection::Stable;
         }
 
-        let first_half_avg = values.iter().take(values.len() / 2).sum::<f64>() / (values.len() / 2) as f64;
-        let second_half_avg = values.iter().skip(values.len() / 2).sum::<f64>() / (values.len() - values.len() / 2) as f64;
-        
+        let first_half_avg =
+            values.iter().take(values.len() / 2).sum::<f64>() / (values.len() / 2) as f64;
+        let second_half_avg = values.iter().skip(values.len() / 2).sum::<f64>()
+            / (values.len() - values.len() / 2) as f64;
+
         let change_ratio = (second_half_avg - first_half_avg) / first_half_avg;
-        
+
         if change_ratio > self.trend_threshold {
             TrendDirection::Increasing
         } else if change_ratio < -self.trend_threshold {
@@ -357,39 +374,42 @@ impl AnomalyDetector {
 
     pub fn detect(&self, history: &[MetricsSnapshot]) -> Vec<Anomaly> {
         let mut anomalies = Vec::new();
-        
+
         if history.len() < self.baseline_window + 5 {
             return anomalies;
         }
 
         // Use baseline window to establish normal behavior
-        let baseline_data: Vec<&MetricsSnapshot> = history.iter()
+        let baseline_data: Vec<&MetricsSnapshot> = history
+            .iter()
             .rev()
             .skip(5)
             .take(self.baseline_window)
             .collect();
 
-        let recent_data: Vec<&MetricsSnapshot> = history.iter()
-            .rev()
-            .take(5)
-            .collect();
+        let recent_data: Vec<&MetricsSnapshot> = history.iter().rev().take(5).collect();
 
         // Calculate baseline statistics
-        let baseline_health_avg = baseline_data.iter()
+        let baseline_health_avg = baseline_data
+            .iter()
             .map(|s| s.system_health_score)
-            .sum::<f64>() / baseline_data.len() as f64;
+            .sum::<f64>()
+            / baseline_data.len() as f64;
 
         let baseline_health_std = {
-            let variance = baseline_data.iter()
+            let variance = baseline_data
+                .iter()
                 .map(|s| (s.system_health_score - baseline_health_avg).powi(2))
-                .sum::<f64>() / baseline_data.len() as f64;
+                .sum::<f64>()
+                / baseline_data.len() as f64;
             variance.sqrt()
         };
 
         // Check for anomalies in recent data
         for snapshot in recent_data {
-            let z_score = (snapshot.system_health_score - baseline_health_avg) / baseline_health_std;
-            
+            let z_score =
+                (snapshot.system_health_score - baseline_health_avg) / baseline_health_std;
+
             if z_score.abs() > self.sensitivity {
                 anomalies.push(Anomaly {
                     timestamp: snapshot.timestamp,
@@ -403,8 +423,10 @@ impl AnomalyDetector {
                     } else {
                         AnomalySeverity::Medium
                     },
-                    description: format!("Health score anomaly detected: {:.2} (z-score: {:.2})", 
-                                       snapshot.system_health_score, z_score),
+                    description: format!(
+                        "Health score anomaly detected: {:.2} (z-score: {:.2})",
+                        snapshot.system_health_score, z_score
+                    ),
                     affected_metrics: vec!["system_health_score".to_string()],
                 });
             }

@@ -4,18 +4,18 @@
 //! without the complexity of mandatory agent pairs. Leverages existing NLP and neural
 //! processing capabilities for intelligent verification.
 
+use anyhow::Result;
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use uuid::Uuid;
-use anyhow::Result;
-use chrono::{DateTime, Utc};
 use tracing::{debug, warn};
+use uuid::Uuid;
 
+use crate::agents::Agent;
 use crate::neural::NLPProcessor;
 use crate::tasks::{Task, TaskResult};
-use crate::agents::Agent;
 
 /// Lightweight verification result
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,7 +125,7 @@ impl SimpleVerificationSystem {
     /// Create a new verification system
     pub fn new(nlp_processor: Arc<NLPProcessor>) -> Self {
         let mut global_rules = Vec::new();
-        
+
         // Default global rules
         global_rules.push(VerificationRule {
             rule_id: "goal_alignment".to_string(),
@@ -134,18 +134,23 @@ impl SimpleVerificationSystem {
             weight: 0.5,
             enabled: true,
         });
-        
+
         global_rules.push(VerificationRule {
             rule_id: "basic_length".to_string(),
-            rule_type: RuleType::LengthCheck { min: 10, max: 10000 },
+            rule_type: RuleType::LengthCheck {
+                min: 10,
+                max: 10000,
+            },
             threshold: 1.0,
             weight: 0.1,
             enabled: true,
         });
-        
+
         global_rules.push(VerificationRule {
             rule_id: "positive_sentiment".to_string(),
-            rule_type: RuleType::SentimentCheck { min_sentiment: -0.5 },
+            rule_type: RuleType::SentimentCheck {
+                min_sentiment: -0.5,
+            },
             threshold: 1.0,
             weight: 0.1,
             enabled: true,
@@ -179,24 +184,33 @@ impl SimpleVerificationSystem {
         original_goal: Option<&str>,
     ) -> Result<SimpleVerificationResult> {
         let start_time = std::time::Instant::now();
-        
+
         // Determine verification tier based on task priority and type
         let tier = self.determine_verification_tier(task, result);
-        
+
         let verification_result = match tier {
             VerificationTier::Quick => self.quick_verification(task, result, original_goal).await?,
-            VerificationTier::Standard => self.standard_verification(task, result, original_goal).await?,
-            VerificationTier::Thorough => self.thorough_verification(task, result, original_goal).await?,
+            VerificationTier::Standard => {
+                self.standard_verification(task, result, original_goal)
+                    .await?
+            }
+            VerificationTier::Thorough => {
+                self.thorough_verification(task, result, original_goal)
+                    .await?
+            }
         };
 
         let verification_time_ms = start_time.elapsed().as_millis() as u64;
-        
+
         // Update metrics
-        self.update_metrics(&verification_result, verification_time_ms).await;
-        
-        debug!("Verification completed in {}ms with tier {:?}: {:?}", 
-               verification_time_ms, tier, verification_result.verification_status);
-        
+        self.update_metrics(&verification_result, verification_time_ms)
+            .await;
+
+        debug!(
+            "Verification completed in {}ms with tier {:?}: {:?}",
+            verification_time_ms, tier, verification_result.verification_status
+        );
+
         Ok(SimpleVerificationResult {
             verification_time_ms,
             ..verification_result
@@ -209,24 +223,24 @@ impl SimpleVerificationSystem {
         if matches!(task.priority, crate::tasks::TaskPriority::Critical) {
             return VerificationTier::Thorough;
         }
-        
+
         // Failed tasks get standard verification to understand issues
         if !result.success {
             return VerificationTier::Standard;
         }
-        
+
         // Low confidence results get upgraded verification
         if let Some(quality_score) = result.quality_score {
             if quality_score < 0.7 {
                 return VerificationTier::Standard;
             }
         }
-        
+
         // High priority tasks get standard verification
         if matches!(task.priority, crate::tasks::TaskPriority::High) {
             return VerificationTier::Standard;
         }
-        
+
         // Default to quick verification
         VerificationTier::Quick
     }
@@ -240,14 +254,14 @@ impl SimpleVerificationSystem {
     ) -> Result<SimpleVerificationResult> {
         let mut issues = Vec::new();
         let mut scores = HashMap::new();
-        
+
         // Apply basic rules
         let rules = self.get_applicable_rules(&task.task_type);
         for rule in &rules {
             if !rule.enabled {
                 continue;
             }
-            
+
             let score = match &rule.rule_type {
                 RuleType::LengthCheck { min, max } => {
                     self.check_length(&result.output, *min, *max, &mut issues)
@@ -263,20 +277,20 @@ impl SimpleVerificationSystem {
                 }
                 _ => 1.0, // Skip complex rules in quick mode
             };
-            
+
             scores.insert(rule.rule_id.clone(), score);
         }
-        
+
         // Basic goal alignment if provided
         let goal_alignment_score = if let Some(goal) = original_goal {
             self.basic_goal_alignment(&result.output, goal).await
         } else {
             1.0
         };
-        
+
         let format_compliance_score = self.calculate_weighted_score(&scores, &rules);
         let overall_score = goal_alignment_score * 0.6 + format_compliance_score * 0.4;
-        
+
         Ok(SimpleVerificationResult {
             task_id: task.id,
             verification_status: self.determine_status(overall_score, &issues),
@@ -301,24 +315,26 @@ impl SimpleVerificationSystem {
     ) -> Result<SimpleVerificationResult> {
         let mut issues = Vec::new();
         let mut scores = HashMap::new();
-        
+
         // Apply all rules including NLP-based ones
         let rules = self.get_applicable_rules(&task.task_type);
         for rule in &rules {
             if !rule.enabled {
                 continue;
             }
-            
+
             let score = match &rule.rule_type {
                 RuleType::SemanticSimilarity => {
                     if let Some(goal) = original_goal {
-                        self.semantic_similarity_check(&result.output, goal, &mut issues).await
+                        self.semantic_similarity_check(&result.output, goal, &mut issues)
+                            .await
                     } else {
                         1.0
                     }
                 }
                 RuleType::SentimentCheck { min_sentiment } => {
-                    self.sentiment_check(&result.output, *min_sentiment, &mut issues).await
+                    self.sentiment_check(&result.output, *min_sentiment, &mut issues)
+                        .await
                 }
                 RuleType::StructureCheck { expected_sections } => {
                     self.structure_check(&result.output, expected_sections, &mut issues)
@@ -336,14 +352,14 @@ impl SimpleVerificationSystem {
                     self.check_keyword_absence(&result.output, forbidden_words, &mut issues)
                 }
             };
-            
+
             scores.insert(rule.rule_id.clone(), score);
         }
-        
+
         let goal_alignment_score = scores.get("goal_alignment").copied().unwrap_or(1.0);
         let format_compliance_score = self.calculate_weighted_score(&scores, &rules);
         let overall_score = goal_alignment_score * 0.6 + format_compliance_score * 0.4;
-        
+
         Ok(SimpleVerificationResult {
             task_id: task.id,
             verification_status: self.determine_status(overall_score, &issues),
@@ -367,40 +383,46 @@ impl SimpleVerificationSystem {
         original_goal: Option<&str>,
     ) -> Result<SimpleVerificationResult> {
         // First run standard verification
-        let mut standard_result = self.standard_verification(task, result, original_goal).await?;
-        
+        let mut standard_result = self
+            .standard_verification(task, result, original_goal)
+            .await?;
+
         // If we have an AI reviewer agent, use it for additional analysis
         if let Some(_reviewer_id) = self.ai_reviewer_agent_id {
             // In a real implementation, you would invoke the AI reviewer agent here
             // For now, we'll simulate enhanced analysis
-            
+
             // Enhance confidence based on thorough analysis
             standard_result.confidence_score = 0.95;
             standard_result.verification_tier = VerificationTier::Thorough;
-            standard_result.verifier_notes = "Thorough verification with AI reviewer analysis".to_string();
-            
+            standard_result.verifier_notes =
+                "Thorough verification with AI reviewer analysis".to_string();
+
             // Add AI-specific insights
             if standard_result.overall_score < 0.8 {
                 standard_result.issues_found.push(VerificationIssue {
                     issue_type: IssueType::QualityIssue,
                     severity: IssueSeverity::Minor,
                     description: "AI reviewer suggests potential quality improvements".to_string(),
-                    suggestion: Some("Consider refining the output for better clarity and completeness".to_string()),
+                    suggestion: Some(
+                        "Consider refining the output for better clarity and completeness"
+                            .to_string(),
+                    ),
                 });
             }
         }
-        
+
         Ok(standard_result)
     }
 
     /// Get applicable rules for a task type
     fn get_applicable_rules(&self, task_type: &str) -> Vec<VerificationRule> {
         let mut rules = self.global_rules.clone();
-        
+
         if let Some(task_rules) = self.verification_rules.get(task_type) {
             rules.extend(task_rules.clone());
         }
-        
+
         rules
     }
 
@@ -412,16 +434,16 @@ impl SimpleVerificationSystem {
             .split_whitespace()
             .map(|s| s.to_string())
             .collect();
-        
+
         let goal_words: std::collections::HashSet<String> = goal
             .to_lowercase()
             .split_whitespace()
             .map(|s| s.to_string())
             .collect();
-        
+
         let intersection = output_words.intersection(&goal_words).count();
         let union = output_words.union(&goal_words).count();
-        
+
         if union == 0 {
             0.0
         } else {
@@ -437,23 +459,30 @@ impl SimpleVerificationSystem {
         issues: &mut Vec<VerificationIssue>,
     ) -> f64 {
         // Use existing NLP processor for semantic analysis
-        let output_processed = self.nlp_processor.process_text(output).await.unwrap_or_else(|_| {
-            // Fallback to basic processing if NLP fails
-            crate::neural::nlp::ProcessedText {
-                original_text: output.to_string(),
-                tokens: output.split_whitespace().map(|s| s.to_string()).collect(),
-                semantic_vector: crate::neural::nlp::SemanticVector {
-                    dimensions: vec![0.0; 100],
-                    magnitude: 0.0,
-                },
-                sentiment: 0.0,
-                keywords: Vec::new(),
-                identified_patterns: Vec::new(),
-            }
-        });
-        
-        let goal_processed = self.nlp_processor.process_text(goal).await.unwrap_or_else(|_| {
-            crate::neural::nlp::ProcessedText {
+        let output_processed = self
+            .nlp_processor
+            .process_text(output)
+            .await
+            .unwrap_or_else(|_| {
+                // Fallback to basic processing if NLP fails
+                crate::neural::nlp::ProcessedText {
+                    original_text: output.to_string(),
+                    tokens: output.split_whitespace().map(|s| s.to_string()).collect(),
+                    semantic_vector: crate::neural::nlp::SemanticVector {
+                        dimensions: vec![0.0; 100],
+                        magnitude: 0.0,
+                    },
+                    sentiment: 0.0,
+                    keywords: Vec::new(),
+                    identified_patterns: Vec::new(),
+                }
+            });
+
+        let goal_processed = self
+            .nlp_processor
+            .process_text(goal)
+            .await
+            .unwrap_or_else(|_| crate::neural::nlp::ProcessedText {
                 original_text: goal.to_string(),
                 tokens: goal.split_whitespace().map(|s| s.to_string()).collect(),
                 semantic_vector: crate::neural::nlp::SemanticVector {
@@ -463,32 +492,43 @@ impl SimpleVerificationSystem {
                 sentiment: 0.0,
                 keywords: Vec::new(),
                 identified_patterns: Vec::new(),
-            }
-        });
-        
+            });
+
         // Calculate semantic similarity
-        let similarity = if output_processed.semantic_vector.magnitude > 0.0 && goal_processed.semantic_vector.magnitude > 0.0 {
+        let similarity = if output_processed.semantic_vector.magnitude > 0.0
+            && goal_processed.semantic_vector.magnitude > 0.0
+        {
             // Use cosine similarity
-            let dot_product: f64 = output_processed.semantic_vector.dimensions
+            let dot_product: f64 = output_processed
+                .semantic_vector
+                .dimensions
                 .iter()
                 .zip(goal_processed.semantic_vector.dimensions.iter())
                 .map(|(a, b)| a * b)
                 .sum();
-            
-            dot_product / (output_processed.semantic_vector.magnitude * goal_processed.semantic_vector.magnitude)
+
+            dot_product
+                / (output_processed.semantic_vector.magnitude
+                    * goal_processed.semantic_vector.magnitude)
         } else {
             self.basic_goal_alignment(output, goal).await
         };
-        
+
         if similarity < 0.7 {
             issues.push(VerificationIssue {
                 issue_type: IssueType::GoalMismatch,
-                severity: if similarity < 0.5 { IssueSeverity::Major } else { IssueSeverity::Minor },
+                severity: if similarity < 0.5 {
+                    IssueSeverity::Major
+                } else {
+                    IssueSeverity::Minor
+                },
                 description: format!("Low semantic similarity to goal: {:.2}", similarity),
-                suggestion: Some("Consider aligning output more closely with the original goal".to_string()),
+                suggestion: Some(
+                    "Consider aligning output more closely with the original goal".to_string(),
+                ),
             });
         }
-        
+
         similarity
     }
 
@@ -501,12 +541,15 @@ impl SimpleVerificationSystem {
     ) -> f64 {
         let tokens: Vec<String> = output.split_whitespace().map(|s| s.to_string()).collect();
         let sentiment = self.nlp_processor.analyze_sentiment(&tokens);
-        
+
         if sentiment < min_sentiment {
             issues.push(VerificationIssue {
                 issue_type: IssueType::QualityIssue,
                 severity: IssueSeverity::Minor,
-                description: format!("Sentiment score {:.2} below threshold {:.2}", sentiment, min_sentiment),
+                description: format!(
+                    "Sentiment score {:.2} below threshold {:.2}",
+                    sentiment, min_sentiment
+                ),
                 suggestion: Some("Consider using more positive language".to_string()),
             });
             0.0
@@ -524,30 +567,34 @@ impl SimpleVerificationSystem {
     ) -> f64 {
         let output_lower = output.to_lowercase();
         let mut found_sections = 0;
-        
+
         for section in expected_sections {
             if output_lower.contains(&section.to_lowercase()) {
                 found_sections += 1;
             }
         }
-        
+
         let score = found_sections as f64 / expected_sections.len() as f64;
-        
+
         if score < 1.0 {
             let missing_sections: Vec<String> = expected_sections
                 .iter()
                 .filter(|section| !output_lower.contains(&section.to_lowercase()))
                 .cloned()
                 .collect();
-            
+
             issues.push(VerificationIssue {
                 issue_type: IssueType::StructureIssue,
-                severity: if score < 0.5 { IssueSeverity::Major } else { IssueSeverity::Minor },
+                severity: if score < 0.5 {
+                    IssueSeverity::Major
+                } else {
+                    IssueSeverity::Minor
+                },
                 description: format!("Missing expected sections: {}", missing_sections.join(", ")),
                 suggestion: Some("Include all required sections in the output".to_string()),
             });
         }
-        
+
         score
     }
 
@@ -560,7 +607,7 @@ impl SimpleVerificationSystem {
         issues: &mut Vec<VerificationIssue>,
     ) -> f64 {
         let length = output.len();
-        
+
         if length < min {
             issues.push(VerificationIssue {
                 issue_type: IssueType::LengthIssue,
@@ -619,30 +666,34 @@ impl SimpleVerificationSystem {
     ) -> f64 {
         let output_lower = output.to_lowercase();
         let mut found_keywords = 0;
-        
+
         for keyword in keywords {
             if output_lower.contains(&keyword.to_lowercase()) {
                 found_keywords += 1;
             }
         }
-        
+
         let score = found_keywords as f64 / keywords.len() as f64;
-        
+
         if score < 1.0 {
             let missing_keywords: Vec<String> = keywords
                 .iter()
                 .filter(|keyword| !output_lower.contains(&keyword.to_lowercase()))
                 .cloned()
                 .collect();
-            
+
             issues.push(VerificationIssue {
                 issue_type: IssueType::MissingKeywords,
-                severity: if score < 0.5 { IssueSeverity::Major } else { IssueSeverity::Minor },
+                severity: if score < 0.5 {
+                    IssueSeverity::Major
+                } else {
+                    IssueSeverity::Minor
+                },
                 description: format!("Missing required keywords: {}", missing_keywords.join(", ")),
                 suggestion: Some("Include all required keywords in the output".to_string()),
             });
         }
-        
+
         score
     }
 
@@ -655,13 +706,13 @@ impl SimpleVerificationSystem {
     ) -> f64 {
         let output_lower = output.to_lowercase();
         let mut found_forbidden = Vec::new();
-        
+
         for word in forbidden_words {
             if output_lower.contains(&word.to_lowercase()) {
                 found_forbidden.push(word.clone());
             }
         }
-        
+
         if !found_forbidden.is_empty() {
             issues.push(VerificationIssue {
                 issue_type: IssueType::QualityIssue,
@@ -683,14 +734,14 @@ impl SimpleVerificationSystem {
     ) -> f64 {
         let mut total_weight = 0.0;
         let mut weighted_sum = 0.0;
-        
+
         for rule in rules {
             if let Some(score) = scores.get(&rule.rule_id) {
                 weighted_sum += score * rule.weight;
                 total_weight += rule.weight;
             }
         }
-        
+
         if total_weight > 0.0 {
             weighted_sum / total_weight
         } else {
@@ -704,9 +755,14 @@ impl SimpleVerificationSystem {
         overall_score: f64,
         issues: &[VerificationIssue],
     ) -> SimpleVerificationStatus {
-        let critical_issues = issues.iter().any(|i| matches!(i.severity, IssueSeverity::Critical));
-        let major_issues = issues.iter().filter(|i| matches!(i.severity, IssueSeverity::Major)).count();
-        
+        let critical_issues = issues
+            .iter()
+            .any(|i| matches!(i.severity, IssueSeverity::Critical));
+        let major_issues = issues
+            .iter()
+            .filter(|i| matches!(i.severity, IssueSeverity::Major))
+            .count();
+
         if critical_issues {
             SimpleVerificationStatus::Failed
         } else if overall_score < 0.5 || major_issues > 2 {
@@ -723,9 +779,9 @@ impl SimpleVerificationSystem {
     /// Update verification metrics
     async fn update_metrics(&self, result: &SimpleVerificationResult, verification_time_ms: u64) {
         let mut metrics = self.metrics.write().await;
-        
+
         metrics.total_verifications += 1;
-        
+
         match result.verification_status {
             SimpleVerificationStatus::Passed | SimpleVerificationStatus::PassedWithIssues => {
                 metrics.passed_verifications += 1;
@@ -735,15 +791,16 @@ impl SimpleVerificationSystem {
             }
             _ => {}
         }
-        
+
         // Update running averages
         let total = metrics.total_verifications as f64;
-        metrics.average_verification_time_ms = 
-            (metrics.average_verification_time_ms * (total - 1.0) + verification_time_ms as f64) / total;
-        
-        metrics.average_confidence_score = 
+        metrics.average_verification_time_ms =
+            (metrics.average_verification_time_ms * (total - 1.0) + verification_time_ms as f64)
+                / total;
+
+        metrics.average_confidence_score =
             (metrics.average_confidence_score * (total - 1.0) + result.confidence_score) / total;
-        
+
         // Update tier usage
         let tier_key = format!("{:?}", result.verification_tier);
         *metrics.tier_usage.entry(tier_key).or_insert(0) += 1;
@@ -783,6 +840,8 @@ impl SimpleVerificationCapable for Agent {
         original_goal: Option<&str>,
         verification_system: &SimpleVerificationSystem,
     ) -> Result<SimpleVerificationResult> {
-        verification_system.verify_task_result(task, result, original_goal).await
+        verification_system
+            .verify_task_result(task, result, original_goal)
+            .await
     }
 }

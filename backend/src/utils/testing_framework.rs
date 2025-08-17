@@ -1,16 +1,14 @@
-/// Comprehensive testing framework for the multiagent hive system
-/// 
-/// This module provides utilities for testing all aspects of the system,
-/// including unit tests, integration tests, property-based tests, and benchmarks.
+//! Comprehensive testing framework for the multiagent hive system
+//!
+//! This module provides utilities for testing all aspects of the system,
+//! including unit tests, integration tests, property-based tests, and benchmarks.
 
-use std::time::{Duration, Instant};
+use crate::core::HiveCoordinator;
+use crate::utils::error::{HiveError, HiveResult};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use crate::utils::error::{HiveError, HiveResult};
-use crate::core::HiveCoordinator;
-use crate::agents::Agent;
-use crate::tasks::Task;
 
 /// Test harness for comprehensive system testing
 pub struct TestHarness {
@@ -71,123 +69,124 @@ impl Default for TestConfig {
 impl TestHarness {
     /// Create a new test harness
     pub async fn new() -> HiveResult<Self> {
-        let hive = HiveCoordinator::new().await
-            .map_err(|e| HiveError::OperationFailed { 
-                reason: format!("Failed to create test hive: {}", e) 
+        let hive = HiveCoordinator::new()
+            .await
+            .map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to create test hive: {}", e),
             })?;
-            
+
         Ok(Self {
             hive: Arc::new(RwLock::new(hive)),
             config: TestConfig::default(),
             metrics: TestMetrics::default(),
         })
     }
-    
+
     /// Create a test harness with custom configuration
     pub async fn with_config(config: TestConfig) -> HiveResult<Self> {
         let mut harness = Self::new().await?;
         harness.config = config;
         Ok(harness)
     }
-    
+
     /// Run comprehensive test suite
     pub async fn run_all_tests(&mut self) -> HiveResult<TestReport> {
         let mut report = TestReport::new();
-        
+
         // Unit tests
         report.unit_tests = self.run_unit_tests().await?;
-        
+
         // Integration tests
         report.integration_tests = self.run_integration_tests().await?;
-        
+
         // Performance tests
         if self.config.benchmark_enabled {
             report.performance_tests = Some(self.run_performance_tests().await?);
         }
-        
+
         // Stress tests
         if self.config.stress_test_enabled {
             report.stress_tests = Some(self.run_stress_tests().await?);
         }
-        
+
         Ok(report)
     }
-    
+
     /// Run unit tests for individual components
     async fn run_unit_tests(&mut self) -> HiveResult<TestResults> {
         let mut results = TestResults::new("Unit Tests");
-        
+
         // Test agent creation and management
         results.add_test(self.test_agent_creation().await);
         results.add_test(self.test_agent_capabilities().await);
         results.add_test(self.test_agent_lifecycle().await);
-        
+
         // Test task management
         results.add_test(self.test_task_creation().await);
         results.add_test(self.test_task_assignment().await);
         results.add_test(self.test_task_execution().await);
-        
+
         // Test error handling
         results.add_test(self.test_error_handling().await);
-        
+
         Ok(results)
     }
-    
+
     /// Run integration tests for system interactions
     async fn run_integration_tests(&mut self) -> HiveResult<TestResults> {
         let mut results = TestResults::new("Integration Tests");
-        
+
         // Test agent-task coordination
         results.add_test(self.test_agent_task_coordination().await);
-        
+
         // Test swarm intelligence
         results.add_test(self.test_swarm_behavior().await);
-        
+
         // Test neural processing integration
         results.add_test(self.test_neural_integration().await);
-        
+
         // Test communication protocols
         results.add_test(self.test_communication().await);
-        
+
         Ok(results)
     }
-    
+
     /// Run performance benchmarks
     async fn run_performance_tests(&mut self) -> HiveResult<TestResults> {
         let mut results = TestResults::new("Performance Tests");
-        
+
         // Benchmark agent creation
         results.add_test(self.benchmark_agent_creation().await);
-        
+
         // Benchmark task processing
         results.add_test(self.benchmark_task_processing().await);
-        
+
         // Benchmark memory usage
         results.add_test(self.benchmark_memory_usage().await);
-        
+
         Ok(results)
     }
-    
+
     /// Run stress tests
     async fn run_stress_tests(&mut self) -> HiveResult<TestResults> {
         let mut results = TestResults::new("Stress Tests");
-        
+
         // High load test
         results.add_test(self.stress_test_high_load().await);
-        
+
         // Memory pressure test
         results.add_test(self.stress_test_memory_pressure().await);
-        
+
         // Concurrent operations test
         results.add_test(self.stress_test_concurrency().await);
-        
+
         Ok(results)
     }
-    
+
     // Individual test implementations
     async fn test_agent_creation(&self) -> TestResult {
         let start = Instant::now();
-        
+
         match self.create_test_agent("test-agent").await {
             Ok(agent_id) => TestResult::success(
                 "Agent Creation",
@@ -201,10 +200,10 @@ impl TestHarness {
             ),
         }
     }
-    
+
     async fn test_agent_capabilities(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Test implementation here
         TestResult::success(
             "Agent Capabilities",
@@ -212,10 +211,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn test_agent_lifecycle(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Test implementation here
         TestResult::success(
             "Agent Lifecycle",
@@ -223,10 +222,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn test_task_creation(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Test implementation here
         TestResult::success(
             "Task Creation",
@@ -234,10 +233,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn test_task_assignment(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Test implementation here
         TestResult::success(
             "Task Assignment",
@@ -245,10 +244,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn test_task_execution(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Test implementation here
         TestResult::success(
             "Task Execution",
@@ -256,10 +255,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn test_error_handling(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Test implementation here
         TestResult::success(
             "Error Handling",
@@ -267,10 +266,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn test_agent_task_coordination(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Test implementation here
         TestResult::success(
             "Agent-Task Coordination",
@@ -278,10 +277,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn test_swarm_behavior(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Test implementation here
         TestResult::success(
             "Swarm Behavior",
@@ -289,10 +288,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn test_neural_integration(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Test implementation here
         TestResult::success(
             "Neural Integration",
@@ -300,10 +299,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn test_communication(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Test implementation here
         TestResult::success(
             "Communication",
@@ -311,10 +310,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn benchmark_agent_creation(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Benchmark implementation here
         TestResult::success(
             "Agent Creation Benchmark",
@@ -322,10 +321,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn benchmark_task_processing(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Benchmark implementation here
         TestResult::success(
             "Task Processing Benchmark",
@@ -333,10 +332,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn benchmark_memory_usage(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Benchmark implementation here
         TestResult::success(
             "Memory Usage Benchmark",
@@ -344,10 +343,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn stress_test_high_load(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Stress test implementation here
         TestResult::success(
             "High Load Stress Test",
@@ -355,10 +354,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn stress_test_memory_pressure(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Stress test implementation here
         TestResult::success(
             "Memory Pressure Stress Test",
@@ -366,10 +365,10 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     async fn stress_test_concurrency(&self) -> TestResult {
         let start = Instant::now();
-        
+
         // Stress test implementation here
         TestResult::success(
             "Concurrency Stress Test",
@@ -377,9 +376,9 @@ impl TestHarness {
             start.elapsed(),
         )
     }
-    
+
     /// Helper method to create a test agent
-    async fn create_test_agent(&self, name: &str) -> HiveResult<Uuid> {
+    async fn create_test_agent(&self, _name: &str) -> HiveResult<Uuid> {
         // Implementation would create an actual test agent
         Ok(Uuid::new_v4())
     }
@@ -407,7 +406,7 @@ impl TestResult {
             duration,
         }
     }
-    
+
     pub fn failure(name: &str, message: String, duration: Duration) -> Self {
         Self {
             name: name.to_string(),
@@ -437,20 +436,20 @@ impl TestResults {
             total_duration: Duration::ZERO,
         }
     }
-    
+
     pub fn add_test(&mut self, result: TestResult) {
         self.total_duration += result.duration;
         self.results.push(result);
     }
-    
+
     pub fn passed_count(&self) -> usize {
         self.results.iter().filter(|r| r.passed).count()
     }
-    
+
     pub fn failed_count(&self) -> usize {
         self.results.iter().filter(|r| !r.passed).count()
     }
-    
+
     pub fn success_rate(&self) -> f64 {
         if self.results.is_empty() {
             0.0
@@ -485,35 +484,35 @@ impl TestReport {
             total_duration: Duration::ZERO,
         }
     }
-    
+
     /// Calculate overall success rate
     pub fn overall_success_rate(&self) -> f64 {
         let mut total_tests = 0;
         let mut passed_tests = 0;
-        
+
         total_tests += self.unit_tests.results.len();
         passed_tests += self.unit_tests.passed_count();
-        
+
         total_tests += self.integration_tests.results.len();
         passed_tests += self.integration_tests.passed_count();
-        
+
         if let Some(ref perf) = self.performance_tests {
             total_tests += perf.results.len();
             passed_tests += perf.passed_count();
         }
-        
+
         if let Some(ref stress) = self.stress_tests {
             total_tests += stress.results.len();
             passed_tests += stress.passed_count();
         }
-        
+
         if total_tests == 0 {
             0.0
         } else {
             passed_tests as f64 / total_tests as f64
         }
     }
-    
+
     /// Generate a summary report
     pub fn summary(&self) -> String {
         format!(
@@ -531,12 +530,22 @@ impl TestReport {
             self.integration_tests.results.len(),
             self.integration_tests.success_rate() * 100.0,
             if let Some(ref perf) = self.performance_tests {
-                format!("{}/{} passed ({:.1}%)", perf.passed_count(), perf.results.len(), perf.success_rate() * 100.0)
+                format!(
+                    "{}/{} passed ({:.1}%)",
+                    perf.passed_count(),
+                    perf.results.len(),
+                    perf.success_rate() * 100.0
+                )
             } else {
                 "Not run".to_string()
             },
             if let Some(ref stress) = self.stress_tests {
-                format!("{}/{} passed ({:.1}%)", stress.passed_count(), stress.results.len(), stress.success_rate() * 100.0)
+                format!(
+                    "{}/{} passed ({:.1}%)",
+                    stress.passed_count(),
+                    stress.results.len(),
+                    stress.success_rate() * 100.0
+                )
             } else {
                 "Not run".to_string()
             },

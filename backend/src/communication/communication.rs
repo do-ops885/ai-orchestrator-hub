@@ -23,7 +23,7 @@ pub struct ClientMessage {
 pub async fn handle_websocket(socket: WebSocket, state: AppState) {
     let (mut sender, mut receiver) = socket.split();
     let client_id = Uuid::new_v4();
-    
+
     tracing::info!("WebSocket client {} connected", client_id);
 
     // Send initial hive status
@@ -37,12 +37,12 @@ pub async fn handle_websocket(socket: WebSocket, state: AppState) {
     let state_clone = state.clone();
     let sender_clone = Arc::new(RwLock::new(sender));
     let sender_for_updates = Arc::clone(&sender_clone);
-    
+
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
         loop {
             interval.tick().await;
-            
+
             // Send agent updates
             if let Ok(agents_info) = send_agents_update(&state_clone).await {
                 if let Ok(message) = serde_json::to_string(&agents_info) {
@@ -73,7 +73,11 @@ pub async fn handle_websocket(socket: WebSocket, state: AppState) {
                     if let Ok(response) = handle_client_message(client_msg, &state).await {
                         if let Ok(response_text) = serde_json::to_string(&response) {
                             let mut sender_guard = sender_clone.write().await;
-                            if sender_guard.send(Message::Text(response_text)).await.is_err() {
+                            if sender_guard
+                                .send(Message::Text(response_text))
+                                .await
+                                .is_err()
+                            {
                                 break;
                             }
                         }
@@ -159,7 +163,9 @@ async fn handle_client_message(
     }
 }
 
-async fn send_hive_status(state: &AppState) -> Result<WebSocketMessage, Box<dyn std::error::Error + Send + Sync>> {
+async fn send_hive_status(
+    state: &AppState,
+) -> Result<WebSocketMessage, Box<dyn std::error::Error + Send + Sync>> {
     let hive = state.hive.read().await;
     let status = hive.get_status().await;
     Ok(WebSocketMessage {
@@ -169,7 +175,9 @@ async fn send_hive_status(state: &AppState) -> Result<WebSocketMessage, Box<dyn 
     })
 }
 
-async fn send_agents_update(state: &AppState) -> Result<WebSocketMessage, Box<dyn std::error::Error + Send + Sync>> {
+async fn send_agents_update(
+    state: &AppState,
+) -> Result<WebSocketMessage, Box<dyn std::error::Error + Send + Sync>> {
     let hive = state.hive.read().await;
     let agents_info = hive.get_agents_info().await;
     Ok(WebSocketMessage {
@@ -179,7 +187,9 @@ async fn send_agents_update(state: &AppState) -> Result<WebSocketMessage, Box<dy
     })
 }
 
-async fn send_metrics_update(state: &AppState) -> Result<WebSocketMessage, Box<dyn std::error::Error + Send + Sync>> {
+async fn send_metrics_update(
+    state: &AppState,
+) -> Result<WebSocketMessage, Box<dyn std::error::Error + Send + Sync>> {
     let hive = state.hive.read().await;
     let status = hive.get_status().await;
     Ok(WebSocketMessage {

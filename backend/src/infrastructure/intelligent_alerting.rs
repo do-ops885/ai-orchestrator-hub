@@ -1,11 +1,13 @@
-use crate::infrastructure::advanced_metrics::{AdvancedMetricsCollector, Anomaly, AnomalySeverity, PredictiveInsights};
+use crate::infrastructure::advanced_metrics::{
+    AdvancedMetricsCollector, Anomaly, AnomalySeverity, PredictiveInsights,
+};
 use crate::infrastructure::metrics::{Alert, AlertLevel};
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde::{Serialize, Deserialize};
-use chrono::{DateTime, Utc, Duration};
-use tracing::{info, warn, error, debug};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 /// Intelligent alerting system with adaptive thresholds and predictive capabilities
@@ -161,7 +163,7 @@ impl IntelligentAlertingSystem {
     /// Initialize with default alert rules
     pub async fn initialize_default_rules(&self) {
         let mut rules = self.alert_rules.write().await;
-        
+
         // CPU usage alert
         rules.push(AlertRule {
             id: Uuid::new_v4(),
@@ -246,10 +248,10 @@ impl IntelligentAlertingSystem {
 
         // Process traditional threshold-based alerts
         let threshold_alerts = self.check_threshold_alerts(&current_metrics).await?;
-        
+
         // Process anomaly-based alerts
         let anomaly_alerts = self.check_anomaly_alerts(&insights.anomalies).await?;
-        
+
         // Process predictive alerts
         let predictive_alerts = if self.config.predictive_alerting_enabled {
             self.check_predictive_alerts(&insights).await?
@@ -268,7 +270,8 @@ impl IntelligentAlertingSystem {
 
         // Update adaptive thresholds if enabled
         if self.config.adaptive_learning_enabled {
-            self.update_adaptive_thresholds(&current_metrics, &final_alerts).await?;
+            self.update_adaptive_thresholds(&current_metrics, &final_alerts)
+                .await?;
         }
 
         // Send notifications
@@ -282,7 +285,10 @@ impl IntelligentAlertingSystem {
         Ok(final_alerts)
     }
 
-    async fn check_threshold_alerts(&self, metrics: &crate::infrastructure::advanced_metrics::MetricsSnapshot) -> anyhow::Result<Vec<IntelligentAlert>> {
+    async fn check_threshold_alerts(
+        &self,
+        metrics: &crate::infrastructure::advanced_metrics::MetricsSnapshot,
+    ) -> anyhow::Result<Vec<IntelligentAlert>> {
         let mut alerts = Vec::new();
         let rules = self.alert_rules.read().await;
         let adaptive_thresholds = self.adaptive_thresholds.read().await;
@@ -294,7 +300,8 @@ impl IntelligentAlertingSystem {
 
             let metric_value = self.get_metric_value(metrics, &rule.metric_name);
             let threshold = if rule.adaptive {
-                adaptive_thresholds.thresholds
+                adaptive_thresholds
+                    .thresholds
                     .get(&rule.metric_name)
                     .map(|t| t.current_threshold)
                     .unwrap_or(rule.threshold)
@@ -314,7 +321,10 @@ impl IntelligentAlertingSystem {
                 let base_alert = Alert::new(
                     rule.severity.clone(),
                     rule.name.clone(),
-                    format!("{}: {} (threshold: {})", rule.description, metric_value, threshold),
+                    format!(
+                        "{}: {} (threshold: {})",
+                        rule.description, metric_value, threshold
+                    ),
                 );
 
                 let intelligent_alert = IntelligentAlert {
@@ -323,7 +333,11 @@ impl IntelligentAlertingSystem {
                     predicted: false,
                     confidence: 1.0,
                     related_anomalies: Vec::new(),
-                    suggested_actions: self.generate_suggested_actions(&rule.metric_name, metric_value, threshold),
+                    suggested_actions: self.generate_suggested_actions(
+                        &rule.metric_name,
+                        metric_value,
+                        threshold,
+                    ),
                     auto_resolution_possible: self.can_auto_resolve(&rule.metric_name),
                 };
 
@@ -334,7 +348,10 @@ impl IntelligentAlertingSystem {
         Ok(alerts)
     }
 
-    async fn check_anomaly_alerts(&self, anomalies: &[Anomaly]) -> anyhow::Result<Vec<IntelligentAlert>> {
+    async fn check_anomaly_alerts(
+        &self,
+        anomalies: &[Anomaly],
+    ) -> anyhow::Result<Vec<IntelligentAlert>> {
         let mut alerts = Vec::new();
 
         for anomaly in anomalies {
@@ -366,7 +383,10 @@ impl IntelligentAlertingSystem {
         Ok(alerts)
     }
 
-    async fn check_predictive_alerts(&self, insights: &PredictiveInsights) -> anyhow::Result<Vec<IntelligentAlert>> {
+    async fn check_predictive_alerts(
+        &self,
+        insights: &PredictiveInsights,
+    ) -> anyhow::Result<Vec<IntelligentAlert>> {
         let mut alerts = Vec::new();
 
         // Check if predicted health score indicates future issues
@@ -374,8 +394,10 @@ impl IntelligentAlertingSystem {
             let base_alert = Alert::new(
                 AlertLevel::Warning,
                 "Predicted Performance Degradation".to_string(),
-                format!("System health predicted to drop to {:.2} within 1 hour", 
-                       insights.forecast.predicted_health_score_1h),
+                format!(
+                    "System health predicted to drop to {:.2} within 1 hour",
+                    insights.forecast.predicted_health_score_1h
+                ),
             );
 
             let intelligent_alert = IntelligentAlert {
@@ -394,10 +416,14 @@ impl IntelligentAlertingSystem {
         Ok(alerts)
     }
 
-    async fn correlate_alerts(&self, alerts: Vec<IntelligentAlert>) -> anyhow::Result<Vec<IntelligentAlert>> {
+    async fn correlate_alerts(
+        &self,
+        alerts: Vec<IntelligentAlert>,
+    ) -> anyhow::Result<Vec<IntelligentAlert>> {
         // Simple correlation based on timing and metric relationships
         let mut correlated_alerts = alerts;
-        let correlation_window = Duration::minutes(self.config.alert_correlation_window_minutes as i64);
+        let correlation_window =
+            Duration::minutes(self.config.alert_correlation_window_minutes as i64);
 
         // Group alerts that occurred within the correlation window
         let now = Utc::now();
@@ -411,19 +437,26 @@ impl IntelligentAlertingSystem {
         Ok(correlated_alerts)
     }
 
-    async fn apply_suppression(&self, alerts: Vec<IntelligentAlert>) -> anyhow::Result<Vec<IntelligentAlert>> {
+    async fn apply_suppression(
+        &self,
+        alerts: Vec<IntelligentAlert>,
+    ) -> anyhow::Result<Vec<IntelligentAlert>> {
         let mut suppression = self.alert_suppression.write().await;
         let mut final_alerts = Vec::new();
         let suppression_window = Duration::minutes(self.config.suppression_window_minutes as i64);
         let now = Utc::now();
 
         for alert in alerts {
-            let alert_key = format!("{}_{}", alert.base_alert.title, match alert.base_alert.level {
-                AlertLevel::Info => 0,
-                AlertLevel::Warning => 1,
-                AlertLevel::Critical => 2,
-            });
-            
+            let alert_key = format!(
+                "{}_{}",
+                alert.base_alert.title,
+                match alert.base_alert.level {
+                    AlertLevel::Info => 0,
+                    AlertLevel::Warning => 1,
+                    AlertLevel::Critical => 2,
+                }
+            );
+
             // Check if this alert type is currently suppressed
             if let Some(last_sent) = suppression.suppressed_alerts.get(&alert_key) {
                 if (now - *last_sent) < suppression_window {
@@ -446,7 +479,7 @@ impl IntelligentAlertingSystem {
         alerts: &[IntelligentAlert],
     ) -> anyhow::Result<()> {
         let mut adaptive_thresholds = self.adaptive_thresholds.write().await;
-        
+
         // Update thresholds based on alert frequency and system behavior
         for alert in alerts {
             if let Some(metric_name) = self.extract_metric_name(&alert.base_alert.title) {
@@ -459,7 +492,7 @@ impl IntelligentAlertingSystem {
                     };
 
                     let new_threshold = threshold.current_threshold * adjustment_factor;
-                    
+
                     threshold.adaptation_history.push(ThresholdAdjustment {
                         timestamp: Utc::now(),
                         old_threshold: threshold.current_threshold,
@@ -470,9 +503,11 @@ impl IntelligentAlertingSystem {
 
                     threshold.current_threshold = new_threshold;
                     threshold.last_updated = Utc::now();
-                    
-                    debug!("Adjusted threshold for {}: {} -> {}", 
-                           metric_name, threshold.current_threshold, new_threshold);
+
+                    debug!(
+                        "Adjusted threshold for {}: {} -> {}",
+                        metric_name, threshold.current_threshold, new_threshold
+                    );
                 }
             }
         }
@@ -482,33 +517,38 @@ impl IntelligentAlertingSystem {
 
     async fn send_notifications(&self, alert: &IntelligentAlert) -> anyhow::Result<()> {
         let channels = self.notification_channels.read().await;
-        
+
         for channel in channels.iter() {
             if !channel.enabled {
                 continue;
             }
 
             // Check if channel accepts this alert severity
-            if !channel.severity_filter.is_empty() && 
-               !channel.severity_filter.contains(&alert.base_alert.level) {
+            if !channel.severity_filter.is_empty()
+                && !channel.severity_filter.contains(&alert.base_alert.level)
+            {
                 continue;
             }
 
             match channel.channel_type {
-                ChannelType::Console => {
-                    match alert.base_alert.level {
-                        AlertLevel::Critical => error!("🚨 CRITICAL ALERT: {}", alert.base_alert.description),
-                        AlertLevel::Warning => warn!("⚠️  WARNING: {}", alert.base_alert.description),
-                        AlertLevel::Info => info!("ℹ️  INFO: {}", alert.base_alert.description),
+                ChannelType::Console => match alert.base_alert.level {
+                    AlertLevel::Critical => {
+                        error!("🚨 CRITICAL ALERT: {}", alert.base_alert.description)
                     }
-                }
+                    AlertLevel::Warning => warn!("⚠️  WARNING: {}", alert.base_alert.description),
+                    AlertLevel::Info => info!("ℹ️  INFO: {}", alert.base_alert.description),
+                },
                 ChannelType::Webhook => {
                     if let Some(endpoint) = &channel.config.endpoint {
-                        self.send_webhook_notification(endpoint, alert, &channel.config).await?;
+                        self.send_webhook_notification(endpoint, alert, &channel.config)
+                            .await?;
                     }
                 }
                 _ => {
-                    debug!("Notification channel type {:?} not yet implemented", channel.channel_type);
+                    debug!(
+                        "Notification channel type {:?} not yet implemented",
+                        channel.channel_type
+                    );
                 }
             }
         }
@@ -541,7 +581,7 @@ impl IntelligentAlertingSystem {
 
     async fn store_alert_history(&self, alerts: &[IntelligentAlert]) -> anyhow::Result<()> {
         let mut history = self.alert_history.write().await;
-        
+
         for alert in alerts {
             history.push(alert.base_alert.clone());
         }
@@ -557,7 +597,11 @@ impl IntelligentAlertingSystem {
 
     // Helper methods
 
-    fn get_metric_value(&self, metrics: &crate::infrastructure::advanced_metrics::MetricsSnapshot, metric_name: &str) -> f64 {
+    fn get_metric_value(
+        &self,
+        metrics: &crate::infrastructure::advanced_metrics::MetricsSnapshot,
+        metric_name: &str,
+    ) -> f64 {
         match metric_name {
             "cpu_usage" => metrics.performance.cpu_usage,
             "memory_usage" => metrics.performance.memory_usage,
@@ -568,7 +612,12 @@ impl IntelligentAlertingSystem {
         }
     }
 
-    fn generate_suggested_actions(&self, metric_name: &str, _value: f64, _threshold: f64) -> Vec<String> {
+    fn generate_suggested_actions(
+        &self,
+        metric_name: &str,
+        _value: f64,
+        _threshold: f64,
+    ) -> Vec<String> {
         match metric_name {
             "cpu_usage" => vec![
                 "Consider scaling up CPU resources".to_string(),
@@ -631,15 +680,12 @@ impl IntelligentAlertingSystem {
         let last_24h = now - Duration::hours(24);
         let last_hour = now - Duration::hours(1);
 
-        let alerts_24h = history.iter()
-            .filter(|a| a.timestamp >= last_24h)
-            .count();
+        let alerts_24h = history.iter().filter(|a| a.timestamp >= last_24h).count();
 
-        let alerts_1h = history.iter()
-            .filter(|a| a.timestamp >= last_hour)
-            .count();
+        let alerts_1h = history.iter().filter(|a| a.timestamp >= last_hour).count();
 
-        let critical_alerts_24h = history.iter()
+        let critical_alerts_24h = history
+            .iter()
             .filter(|a| a.timestamp >= last_24h && a.level == AlertLevel::Critical)
             .count();
 
@@ -654,12 +700,13 @@ impl IntelligentAlertingSystem {
 
     fn get_most_frequent_alert(&self, history: &[Alert]) -> Option<String> {
         let mut alert_counts: HashMap<String, usize> = HashMap::new();
-        
+
         for alert in history {
             *alert_counts.entry(alert.title.clone()).or_insert(0) += 1;
         }
 
-        alert_counts.into_iter()
+        alert_counts
+            .into_iter()
             .max_by_key(|(_, count)| *count)
             .map(|(title, _)| title)
     }

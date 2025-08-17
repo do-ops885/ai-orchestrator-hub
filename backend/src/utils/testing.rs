@@ -1,14 +1,14 @@
+use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use serde_json::json;
 
 use crate::{
-    core::HiveCoordinator, 
-    agents::AgentType, 
+    agents::AgentType,
+    core::HiveCoordinator,
+    infrastructure::{CacheManager, MetricsCollector, TelemetryCollector},
     tasks::TaskPriority,
-    utils::HiveConfig, 
-    infrastructure::{MetricsCollector, CacheManager, TelemetryCollector},
+    utils::HiveConfig,
 };
 
 /// Test utilities and fixtures for the hive system
@@ -102,7 +102,12 @@ impl TestHarness {
     }
 
     /// Simulate system load for performance testing
-    pub async fn simulate_load(&self, duration_secs: u64, agents_per_sec: u32, tasks_per_sec: u32) -> anyhow::Result<LoadTestResults> {
+    pub async fn simulate_load(
+        &self,
+        duration_secs: u64,
+        agents_per_sec: u32,
+        tasks_per_sec: u32,
+    ) -> anyhow::Result<LoadTestResults> {
         let start_time = std::time::Instant::now();
         let mut results = LoadTestResults::default();
 
@@ -158,7 +163,7 @@ impl TestHarness {
         // Validate agent consistency
         if let Some(agents_array) = agents_info.get("agents").and_then(|a| a.as_array()) {
             report.total_agents = agents_array.len();
-            
+
             for agent in agents_array {
                 if let Some(agent_id) = agent.get("id").and_then(|id| id.as_str()) {
                     if uuid::Uuid::parse_str(agent_id).is_ok() {
@@ -173,7 +178,7 @@ impl TestHarness {
         // Validate task consistency
         if let Some(tasks_array) = tasks_info.get("tasks").and_then(|t| t.as_array()) {
             report.total_tasks = tasks_array.len();
-            
+
             for task in tasks_array {
                 if let Some(task_id) = task.get("id").and_then(|id| id.as_str()) {
                     if uuid::Uuid::parse_str(task_id).is_ok() {
@@ -246,7 +251,7 @@ impl LoadTestResults {
     pub fn calculate_stats(&self) -> LoadTestStats {
         let total_operations = self.agents_created + self.tasks_created;
         let total_failures = self.agent_creation_failures + self.task_creation_failures;
-        
+
         let success_rate = if total_operations + total_failures > 0 {
             total_operations as f64 / (total_operations + total_failures) as f64
         } else {
@@ -260,13 +265,21 @@ impl LoadTestResults {
         };
 
         let avg_cpu = if !self.performance_samples.is_empty() {
-            self.performance_samples.iter().map(|s| s.cpu_usage).sum::<f64>() / self.performance_samples.len() as f64
+            self.performance_samples
+                .iter()
+                .map(|s| s.cpu_usage)
+                .sum::<f64>()
+                / self.performance_samples.len() as f64
         } else {
             0.0
         };
 
         let avg_memory = if !self.performance_samples.is_empty() {
-            self.performance_samples.iter().map(|s| s.memory_usage).sum::<f64>() / self.performance_samples.len() as f64
+            self.performance_samples
+                .iter()
+                .map(|s| s.memory_usage)
+                .sum::<f64>()
+                / self.performance_samples.len() as f64
         } else {
             0.0
         };
@@ -276,8 +289,18 @@ impl LoadTestResults {
             operations_per_second: ops_per_second,
             average_cpu_usage: avg_cpu,
             average_memory_usage: avg_memory,
-            peak_agents: self.performance_samples.iter().map(|s| s.active_agents).max().unwrap_or(0),
-            peak_queue_size: self.performance_samples.iter().map(|s| s.tasks_in_queue).max().unwrap_or(0),
+            peak_agents: self
+                .performance_samples
+                .iter()
+                .map(|s| s.active_agents)
+                .max()
+                .unwrap_or(0),
+            peak_queue_size: self
+                .performance_samples
+                .iter()
+                .map(|s| s.tasks_in_queue)
+                .max()
+                .unwrap_or(0),
         }
     }
 }
@@ -299,7 +322,7 @@ impl IntegrationTests {
     /// Test basic agent lifecycle
     pub async fn test_agent_lifecycle() -> anyhow::Result<()> {
         let harness = TestHarness::new().await?;
-        
+
         // Create agents
         let agent_ids = harness.create_test_agents(5).await?;
         assert_eq!(agent_ids.len(), 5);
@@ -312,7 +335,7 @@ impl IntegrationTests {
 
         // Cleanup
         harness.cleanup().await?;
-        
+
         println!("✅ Agent lifecycle test passed");
         Ok(())
     }
@@ -320,11 +343,11 @@ impl IntegrationTests {
     /// Test task processing
     pub async fn test_task_processing() -> anyhow::Result<()> {
         let harness = TestHarness::new().await?;
-        
+
         // Create agents and tasks
         let _agent_ids = harness.create_test_agents(3).await?;
         let task_ids = harness.create_test_tasks(5).await?;
-        
+
         assert_eq!(task_ids.len(), 5);
 
         // Wait for processing
@@ -337,7 +360,7 @@ impl IntegrationTests {
         }
 
         harness.cleanup().await?;
-        
+
         println!("✅ Task processing test passed");
         Ok(())
     }
@@ -345,18 +368,25 @@ impl IntegrationTests {
     /// Test system under load
     pub async fn test_load_handling() -> anyhow::Result<()> {
         let harness = TestHarness::new().await?;
-        
+
         // Run load test
         let results = harness.simulate_load(10, 2, 3).await?;
         let stats = results.calculate_stats();
-        
+
         // Validate performance
-        assert!(stats.success_rate > 0.9, "Success rate too low: {}", stats.success_rate);
+        assert!(
+            stats.success_rate > 0.9,
+            "Success rate too low: {}",
+            stats.success_rate
+        );
         assert!(stats.operations_per_second > 0.0, "No operations processed");
-        
-        println!("✅ Load handling test passed - Success rate: {:.2}%, Ops/sec: {:.2}", 
-                 stats.success_rate * 100.0, stats.operations_per_second);
-        
+
+        println!(
+            "✅ Load handling test passed - Success rate: {:.2}%, Ops/sec: {:.2}",
+            stats.success_rate * 100.0,
+            stats.operations_per_second
+        );
+
         harness.cleanup().await?;
         Ok(())
     }
@@ -364,23 +394,23 @@ impl IntegrationTests {
     /// Test system consistency
     pub async fn test_system_consistency() -> anyhow::Result<()> {
         let harness = TestHarness::new().await?;
-        
+
         // Create test data
         let _agent_ids = harness.create_test_agents(10).await?;
         let _task_ids = harness.create_test_tasks(15).await?;
-        
+
         // Validate consistency
         let report = harness.validate_system_consistency().await?;
-        
+
         assert_eq!(report.total_agents, 10);
         assert_eq!(report.valid_agents, 10);
         assert_eq!(report.invalid_agent_ids, 0);
         assert_eq!(report.total_tasks, 15);
         assert_eq!(report.valid_tasks, 15);
         assert_eq!(report.invalid_task_ids, 0);
-        
+
         println!("✅ System consistency test passed");
-        
+
         harness.cleanup().await?;
         Ok(())
     }
@@ -388,12 +418,12 @@ impl IntegrationTests {
     /// Run all integration tests
     pub async fn run_all() -> anyhow::Result<()> {
         println!("🧪 Running integration tests...");
-        
+
         Self::test_agent_lifecycle().await?;
         Self::test_task_processing().await?;
         Self::test_load_handling().await?;
         Self::test_system_consistency().await?;
-        
+
         println!("🎉 All integration tests passed!");
         Ok(())
     }

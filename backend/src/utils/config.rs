@@ -1,8 +1,8 @@
+use crate::utils::error::{HiveError, HiveResult};
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::path::Path;
 use std::fs;
-use crate::utils::error::{HiveError, HiveResult};
+use std::path::Path;
 
 /// Configuration for the multiagent hive system
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,44 +141,43 @@ impl HiveConfig {
         config.validate()?;
         Ok(config)
     }
-    
+
     /// Load configuration from a TOML file
     pub fn from_file<P: AsRef<Path>>(path: P) -> HiveResult<Self> {
-        let content = fs::read_to_string(path.as_ref())
-            .map_err(|e| HiveError::ConfigurationError { 
-                reason: format!("Failed to read config file: {}", e) 
+        let content =
+            fs::read_to_string(path.as_ref()).map_err(|e| HiveError::ConfigurationError {
+                reason: format!("Failed to read config file: {}", e),
             })?;
-            
-        let config: Self = toml::from_str(&content)
-            .map_err(|e| HiveError::ConfigurationError { 
-                reason: format!("Failed to parse config file: {}", e) 
-            })?;
-            
+
+        let config: Self = toml::from_str(&content).map_err(|e| HiveError::ConfigurationError {
+            reason: format!("Failed to parse config file: {}", e),
+        })?;
+
         config.validate()?;
         Ok(config)
     }
-    
+
     /// Load configuration with precedence: file -> env -> defaults
     pub fn load() -> HiveResult<Self> {
         // Start with defaults
         let mut config = Self::default();
-        
+
         // Try to load from config file if specified
         if let Ok(config_path) = env::var("HIVE_CONFIG_FILE") {
             if Path::new(&config_path).exists() {
                 config = Self::from_file(config_path)?;
             }
         }
-        
+
         // Override with environment variables
         config.load_from_env()?;
-        
+
         // Validate final configuration
         config.validate()?;
-        
+
         Ok(config)
     }
-    
+
     /// Load configuration from environment variables (internal helper)
     fn load_from_env(&mut self) -> HiveResult<()> {
         // Server configuration
@@ -186,161 +185,89 @@ impl HiveConfig {
             self.server.host = host;
         }
         if let Ok(port) = env::var("HIVE_PORT") {
-            self.server.port = port.parse()
-                .map_err(|_| HiveError::ConfigurationError { 
-                    reason: format!("Invalid port number: {}", port) 
-                })?;
+            self.server.port = port.parse().map_err(|_| HiveError::ConfigurationError {
+                reason: format!("Invalid port number: {}", port),
+            })?;
         }
-        
+
         // Agent configuration
         if let Ok(max_agents) = env::var("HIVE_MAX_AGENTS") {
-            self.agents.max_agents = max_agents.parse()
-                .map_err(|_| HiveError::ConfigurationError { 
-                    reason: format!("Invalid max_agents value: {}", max_agents) 
-                })?;
+            self.agents.max_agents =
+                max_agents
+                    .parse()
+                    .map_err(|_| HiveError::ConfigurationError {
+                        reason: format!("Invalid max_agents value: {}", max_agents),
+                    })?;
         }
-        
+
         // Resource configuration
         if let Ok(auto_scaling) = env::var("HIVE_AUTO_SCALING") {
             self.resources.auto_scaling_enabled = auto_scaling.to_lowercase() == "true";
         }
-        
+
         // Neural configuration
         if let Ok(neural_enabled) = env::var("HIVE_NEURAL_ENABLED") {
-            self.neural.enabled = neural_enabled.to_lowercase() == "true";
+            self.neural.enable_advanced_neural = neural_enabled.to_lowercase() == "true";
         }
-        
+
         Ok(())
     }
-    
+
     /// Validate configuration values
     pub fn validate(&self) -> HiveResult<()> {
         // Validate server configuration
         if self.server.port == 0 {
-            return Err(HiveError::ConfigurationError { 
-                reason: "Server port cannot be 0".to_string() 
+            return Err(HiveError::ConfigurationError {
+                reason: "Server port cannot be 0".to_string(),
             });
         }
-        
+
         if self.server.host.is_empty() {
-            return Err(HiveError::ConfigurationError { 
-                reason: "Server host cannot be empty".to_string() 
+            return Err(HiveError::ConfigurationError {
+                reason: "Server host cannot be empty".to_string(),
             });
         }
-        
+
         // Validate agent configuration
         if self.agents.max_agents == 0 {
-            return Err(HiveError::ConfigurationError { 
-                reason: "max_agents must be greater than 0".to_string() 
+            return Err(HiveError::ConfigurationError {
+                reason: "max_agents must be greater than 0".to_string(),
             });
         }
-        
+
         if self.agents.max_agents > 10000 {
-            return Err(HiveError::ConfigurationError { 
-                reason: "max_agents cannot exceed 10000".to_string() 
+            return Err(HiveError::ConfigurationError {
+                reason: "max_agents cannot exceed 10000".to_string(),
             });
         }
-        
+
         // Validate task configuration
-        if self.tasks.max_pending_tasks == 0 {
-            return Err(HiveError::ConfigurationError { 
-                reason: "max_pending_tasks must be greater than 0".to_string() 
+        if self.tasks.max_concurrent_tasks == 0 {
+            return Err(HiveError::ConfigurationError {
+                reason: "max_concurrent_tasks must be greater than 0".to_string(),
             });
         }
-        
+
         // Validate neural configuration
-        if self.neural.enabled && self.neural.learning_rate <= 0.0 {
-            return Err(HiveError::ConfigurationError { 
-                reason: "Neural learning rate must be positive".to_string() 
+        if self.neural.enable_advanced_neural && self.neural.learning_rate <= 0.0 {
+            return Err(HiveError::ConfigurationError {
+                reason: "Neural learning rate must be positive".to_string(),
             });
         }
-        
+
         Ok(())
     }
-    
+
     /// Save configuration to a TOML file
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> HiveResult<()> {
-        let content = toml::to_string_pretty(self)
-            .map_err(|e| HiveError::ConfigurationError { 
-                reason: format!("Failed to serialize config: {}", e) 
-            })?;
-            
-        fs::write(path.as_ref(), content)
-            .map_err(|e| HiveError::ConfigurationError { 
-                reason: format!("Failed to write config file: {}", e) 
-            })?;
-            
-        Ok(())
-    }
-        if let Ok(advanced_neural) = env::var("HIVE_ADVANCED_NEURAL") {
-            config.neural.enable_advanced_neural = advanced_neural.to_lowercase() == "true";
-        }
-        
-        // Logging configuration
-        if let Ok(log_level) = env::var("HIVE_LOG_LEVEL") {
-            config.logging.level = log_level;
-        }
-        if let Ok(log_file) = env::var("HIVE_LOG_FILE") {
-            config.logging.file_path = Some(log_file);
-        }
-        
-        // Performance configuration
-        if let Ok(cpu_warning) = env::var("HIVE_CPU_WARNING_THRESHOLD") {
-            if let Ok(threshold) = cpu_warning.parse::<f64>() {
-                config.performance.cpu_warning_threshold = Some(threshold);
-            }
-        }
-        if let Ok(cpu_critical) = env::var("HIVE_CPU_CRITICAL_THRESHOLD") {
-            if let Ok(threshold) = cpu_critical.parse::<f64>() {
-                config.performance.cpu_critical_threshold = Some(threshold);
-            }
-        }
-        if let Ok(memory_warning) = env::var("HIVE_MEMORY_WARNING_THRESHOLD") {
-            if let Ok(threshold) = memory_warning.parse::<f64>() {
-                config.performance.memory_warning_threshold = Some(threshold);
-            }
-        }
-        if let Ok(memory_critical) = env::var("HIVE_MEMORY_CRITICAL_THRESHOLD") {
-            if let Ok(threshold) = memory_critical.parse::<f64>() {
-                config.performance.memory_critical_threshold = Some(threshold);
-            }
-        }
-        if let Ok(interval) = env::var("HIVE_METRICS_INTERVAL") {
-            if let Ok(ms) = interval.parse::<u64>() {
-                config.performance.metrics_collection_interval_ms = ms;
-            }
-        }
-        if let Ok(threshold) = env::var("HIVE_CIRCUIT_BREAKER_THRESHOLD") {
-            if let Ok(t) = threshold.parse::<u64>() {
-                config.performance.circuit_breaker_failure_threshold = t;
-            }
-        }
-        
-        config
-    }
-    
-    /// Validate configuration values
-    pub fn validate(&self) -> Result<(), String> {
-        if self.server.port == 0 {
-            return Err("Server port cannot be 0".to_string());
-        }
-        
-        if self.agents.max_agents == 0 {
-            return Err("Maximum agents must be greater than 0".to_string());
-        }
-        
-        if self.agents.default_energy <= 0.0 {
-            return Err("Default energy must be positive".to_string());
-        }
-        
-        if self.resources.cpu_threshold < 0.0 || self.resources.cpu_threshold > 100.0 {
-            return Err("CPU threshold must be between 0 and 100".to_string());
-        }
-        
-        if self.resources.memory_threshold < 0.0 || self.resources.memory_threshold > 100.0 {
-            return Err("Memory threshold must be between 0 and 100".to_string());
-        }
-        
+        let content = toml::to_string_pretty(self).map_err(|e| HiveError::ConfigurationError {
+            reason: format!("Failed to serialize config: {}", e),
+        })?;
+
+        fs::write(path.as_ref(), content).map_err(|e| HiveError::ConfigurationError {
+            reason: format!("Failed to write config file: {}", e),
+        })?;
+
         Ok(())
     }
 }

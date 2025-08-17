@@ -4,21 +4,26 @@
 //! optimizes verification thresholds based on historical performance data.
 
 use anyhow::Result;
+use chrono::Utc;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
-use chrono::Utc;
 use tracing::info;
+use uuid::Uuid;
 
 use multiagent_hive::{
-    agents::{
-        Agent, AgentType, AgentState, AgentCapability,
-        simple_verification::SimpleVerificationSystem,
-        adaptive_verification::{AdaptiveVerificationSystem, AdaptationConfig, AdaptiveVerificationCapable},
-    },
     AgentMemory,
-    tasks::{Task, TaskPriority, TaskStatus, TaskResult},
-    neural::{NLPProcessor, adaptive_learning::{AdaptiveLearningSystem, AdaptiveLearningConfig}},
+    agents::{
+        Agent, AgentCapability, AgentState, AgentType,
+        adaptive_verification::{
+            AdaptationConfig, AdaptiveVerificationCapable, AdaptiveVerificationSystem,
+        },
+        simple_verification::SimpleVerificationSystem,
+    },
+    neural::{
+        NLPProcessor,
+        adaptive_learning::{AdaptiveLearningConfig, AdaptiveLearningSystem},
+    },
+    tasks::{Task, TaskPriority, TaskResult, TaskStatus},
 };
 
 #[tokio::main]
@@ -34,12 +39,12 @@ async fn main() -> Result<()> {
     // Initialize core systems
     let nlp_processor = Arc::new(NLPProcessor::new().await?);
     let learning_system = Arc::new(RwLock::new(
-        AdaptiveLearningSystem::new(AdaptiveLearningConfig::default()).await?
+        AdaptiveLearningSystem::new(AdaptiveLearningConfig::default()).await?,
     ));
 
     // Create base verification system
     let base_verification = SimpleVerificationSystem::new(nlp_processor.clone());
-    
+
     // Create adaptive verification system with custom configuration
     let adaptation_config = AdaptationConfig {
         learning_rate: 0.1,
@@ -48,12 +53,13 @@ async fn main() -> Result<()> {
         adaptation_frequency_hours: 1, // More frequent for demo
         ..Default::default()
     };
-    
+
     let mut adaptive_verification = AdaptiveVerificationSystem::new(
         base_verification,
         learning_system.clone(),
         adaptation_config,
-    ).await;
+    )
+    .await;
 
     info!("✅ Adaptive verification system initialized");
 
@@ -64,115 +70,166 @@ async fn main() -> Result<()> {
     // Demo 1: Initial verification without adaptation
     info!("\n📋 Demo 1: Initial Verification (No Adaptation)");
     info!("-----------------------------------------------");
-    
+
     let initial_tasks = create_demo_tasks();
     for (i, (task, result, expected_success)) in initial_tasks.iter().enumerate() {
         info!("Task {}: {}", i + 1, task.description);
-        
-        let verification_result = test_agent.adaptive_verify(
-            task,
-            result,
-            Some(&task.description),
-            &mut adaptive_verification,
-        ).await?;
-        
-        info!("  Verification: {:?} (confidence: {:.2}, overall: {:.2})",
-              verification_result.verification_status,
-              verification_result.confidence_score,
-              verification_result.overall_score);
-        
-        info!("  Expected success: {}, Actual result success: {}", 
-              expected_success, result.success);
+
+        let verification_result = test_agent
+            .adaptive_verify(
+                task,
+                result,
+                Some(&task.description),
+                &mut adaptive_verification,
+            )
+            .await?;
+
+        info!(
+            "  Verification: {:?} (confidence: {:.2}, overall: {:.2})",
+            verification_result.verification_status,
+            verification_result.confidence_score,
+            verification_result.overall_score
+        );
+
+        info!(
+            "  Expected success: {}, Actual result success: {}",
+            expected_success, result.success
+        );
     }
 
     // Demo 2: Show learning in progress
     info!("\n📋 Demo 2: Learning from Additional Samples");
     info!("--------------------------------------------");
-    
+
     // Generate more training data
     let training_tasks = generate_training_data();
     for (i, (task, result, expected_success)) in training_tasks.iter().enumerate() {
-        let verification_result = test_agent.adaptive_verify(
-            task,
-            result,
-            Some(&task.description),
-            &mut adaptive_verification,
-        ).await?;
-        
-        if i % 3 == 0 { // Show progress every few samples
-            info!("Training sample {}: verification={:?}, expected={}, actual={}",
-                  i + 1,
-                  verification_result.verification_status,
-                  expected_success,
-                  result.success);
+        let verification_result = test_agent
+            .adaptive_verify(
+                task,
+                result,
+                Some(&task.description),
+                &mut adaptive_verification,
+            )
+            .await?;
+
+        if i % 3 == 0 {
+            // Show progress every few samples
+            info!(
+                "Training sample {}: verification={:?}, expected={}, actual={}",
+                i + 1,
+                verification_result.verification_status,
+                expected_success,
+                result.success
+            );
         }
     }
 
     // Demo 3: Show adaptation insights
     info!("\n📋 Demo 3: Adaptation Insights");
     info!("------------------------------");
-    
+
     let insights = adaptive_verification.get_adaptation_insights().await;
     info!("📊 Adaptation Statistics:");
     info!("    Total adaptations: {}", insights.total_adaptations);
-    info!("    Current performance score: {:.3}", insights.current_performance_score);
+    info!(
+        "    Current performance score: {:.3}",
+        insights.current_performance_score
+    );
     info!("    Recent sample count: {}", insights.recent_sample_count);
     info!("    Accuracy metrics:");
-    info!("      - Precision: {:.3}", insights.accuracy_metrics.precision);
+    info!(
+        "      - Precision: {:.3}",
+        insights.accuracy_metrics.precision
+    );
     info!("      - Recall: {:.3}", insights.accuracy_metrics.recall);
-    info!("      - F1 Score: {:.3}", insights.accuracy_metrics.f1_score);
-    info!("    Next adaptation due: {}", insights.next_adaptation_due.format("%H:%M:%S"));
+    info!(
+        "      - F1 Score: {:.3}",
+        insights.accuracy_metrics.f1_score
+    );
+    info!(
+        "    Next adaptation due: {}",
+        insights.next_adaptation_due.format("%H:%M:%S")
+    );
 
     // Demo 4: Test with adapted thresholds
     info!("\n📋 Demo 4: Verification with Adapted Thresholds");
     info!("-----------------------------------------------");
-    
+
     let test_tasks = create_demo_tasks();
     for (i, (task, result, expected_success)) in test_tasks.iter().enumerate() {
         info!("Task {}: {}", i + 1, task.description);
-        
-        let verification_result = test_agent.adaptive_verify(
-            task,
-            result,
-            Some(&task.description),
-            &mut adaptive_verification,
-        ).await?;
-        
-        info!("  Verification: {:?} (confidence: {:.2}, overall: {:.2})",
-              verification_result.verification_status,
-              verification_result.confidence_score,
-              verification_result.overall_score);
-        
+
+        let verification_result = test_agent
+            .adaptive_verify(
+                task,
+                result,
+                Some(&task.description),
+                &mut adaptive_verification,
+            )
+            .await?;
+
+        info!(
+            "  Verification: {:?} (confidence: {:.2}, overall: {:.2})",
+            verification_result.verification_status,
+            verification_result.confidence_score,
+            verification_result.overall_score
+        );
+
         let correct_prediction = match verification_result.verification_status {
             multiagent_hive::agents::simple_verification::SimpleVerificationStatus::Passed |
             multiagent_hive::agents::simple_verification::SimpleVerificationStatus::PassedWithIssues => result.success,
             _ => !result.success,
         };
-        
-        info!("  Prediction accuracy: {} (expected: {}, got: {})",
-              if correct_prediction { "✅ Correct" } else { "❌ Incorrect" },
-              expected_success,
-              result.success);
+
+        info!(
+            "  Prediction accuracy: {} (expected: {}, got: {})",
+            if correct_prediction {
+                "✅ Correct"
+            } else {
+                "❌ Incorrect"
+            },
+            expected_success,
+            result.success
+        );
     }
 
     // Demo 5: Learning insights from the adaptive learning system
     info!("\n📋 Demo 5: Neural Learning Insights");
     info!("-----------------------------------");
-    
-    let learning_insights = learning_system.read().await
-        .get_learning_insights(test_agent.id).await;
-    
+
+    let learning_insights = learning_system
+        .read()
+        .await
+        .get_learning_insights(test_agent.id)
+        .await;
+
     info!("🧠 Learning System Statistics:");
-    info!("    Total patterns learned: {}", learning_insights.total_patterns);
-    info!("    High-confidence patterns: {}", learning_insights.high_confidence_patterns);
-    info!("    Average confidence: {:.3}", learning_insights.average_confidence);
-    info!("    Recent learning events: {}", learning_insights.recent_learning_events);
-    info!("    Learning velocity: {:.2} events/min", learning_insights.learning_velocity);
+    info!(
+        "    Total patterns learned: {}",
+        learning_insights.total_patterns
+    );
+    info!(
+        "    High-confidence patterns: {}",
+        learning_insights.high_confidence_patterns
+    );
+    info!(
+        "    Average confidence: {:.3}",
+        learning_insights.average_confidence
+    );
+    info!(
+        "    Recent learning events: {}",
+        learning_insights.recent_learning_events
+    );
+    info!(
+        "    Learning velocity: {:.2} events/min",
+        learning_insights.learning_velocity
+    );
 
     // Demo 6: Performance comparison
     info!("\n📋 Demo 6: Performance Comparison");
     info!("---------------------------------");
-    
+
     info!("💡 Adaptive Verification Benefits:");
     info!("   ✅ Automatic threshold optimization based on real performance");
     info!("   ✅ Continuous learning from verification outcomes");
@@ -180,14 +237,16 @@ async fn main() -> Result<()> {
     info!("   ✅ Reduced false positives and false negatives");
     info!("   ✅ Performance tracking and insights");
     info!("   ✅ Configurable adaptation parameters");
-    
+
     info!("\n🔄 Traditional vs Adaptive Verification:");
     info!("   Traditional: Fixed thresholds, manual tuning required");
     info!("   Adaptive:    Self-optimizing thresholds, automatic improvement");
 
     info!("\n🎉 Adaptive Verification Demo completed successfully!");
-    info!("💡 The system has learned from {} verification samples and adapted its thresholds for better performance.",
-          insights.recent_sample_count);
+    info!(
+        "💡 The system has learned from {} verification samples and adapted its thresholds for better performance.",
+        insights.recent_sample_count
+    );
 
     Ok(())
 }
@@ -318,7 +377,7 @@ fn create_demo_tasks() -> Vec<(Task, TaskResult, bool)> {
 
 fn generate_training_data() -> Vec<(Task, TaskResult, bool)> {
     let mut training_data = Vec::new();
-    
+
     // Generate 15 training samples with varied quality and outcomes
     for i in 0..15 {
         let (quality_score, output_quality, expected_success) = match i % 3 {
@@ -326,11 +385,19 @@ fn generate_training_data() -> Vec<(Task, TaskResult, bool)> {
             1 => (0.3, "low", false),   // Low quality
             _ => (0.7, "medium", true), // Medium quality
         };
-        
+
         let task = Task {
             id: Uuid::new_v4(),
-            title: format!("Training task {} - {} quality expected", i + 1, output_quality),
-            description: format!("Training task {} - {} quality expected", i + 1, output_quality),
+            title: format!(
+                "Training task {} - {} quality expected",
+                i + 1,
+                output_quality
+            ),
+            description: format!(
+                "Training task {} - {} quality expected",
+                i + 1,
+                output_quality
+            ),
             task_type: "training".to_string(),
             priority: TaskPriority::Medium,
             status: TaskStatus::Completed,
@@ -343,13 +410,19 @@ fn generate_training_data() -> Vec<(Task, TaskResult, bool)> {
             context: std::collections::HashMap::new(),
             dependencies: Vec::new(),
         };
-        
+
         let output = match output_quality {
-            "high" => format!("Comprehensive and detailed analysis for training task {}. This output demonstrates high quality with thorough coverage of the topic, clear structure, and actionable insights. The analysis includes multiple perspectives and well-reasoned conclusions.", i + 1),
+            "high" => format!(
+                "Comprehensive and detailed analysis for training task {}. This output demonstrates high quality with thorough coverage of the topic, clear structure, and actionable insights. The analysis includes multiple perspectives and well-reasoned conclusions.",
+                i + 1
+            ),
             "low" => format!("Task {} done. Short answer.", i + 1),
-            _ => format!("Training task {} completed with adequate detail. The analysis covers the main points and provides reasonable insights, though it could be more comprehensive.", i + 1),
+            _ => format!(
+                "Training task {} completed with adequate detail. The analysis covers the main points and provides reasonable insights, though it could be more comprehensive.",
+                i + 1
+            ),
         };
-        
+
         let result = TaskResult {
             task_id: task.id,
             success: true,
@@ -361,9 +434,9 @@ fn generate_training_data() -> Vec<(Task, TaskResult, bool)> {
             completed_at: Utc::now(),
             learned_insights: Vec::new(),
         };
-        
+
         training_data.push((task, result, expected_success));
     }
-    
+
     training_data
 }

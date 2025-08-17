@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{event, Level};
+use tracing::{Level, event};
 use uuid::Uuid;
 
 /// Structured logging utilities for better observability and debugging
@@ -65,7 +65,7 @@ impl StructuredLogger {
                     timestamp = %details.timestamp,
                     "Security event"
                 );
-            },
+            }
             SecurityEventType::UnauthorizedAccess | SecurityEventType::SuspiciousActivity => {
                 event!(
                     Level::ERROR,
@@ -77,7 +77,7 @@ impl StructuredLogger {
                     timestamp = %details.timestamp,
                     "Security event"
                 );
-            },
+            }
             SecurityEventType::AuthenticationSuccess => {
                 event!(
                     Level::INFO,
@@ -89,12 +89,18 @@ impl StructuredLogger {
                     timestamp = %details.timestamp,
                     "Security event"
                 );
-            },
+            }
         }
     }
 
     /// Log API request/response for debugging
-    pub fn log_api_request(method: &str, path: &str, status_code: u16, duration_ms: u64, client_id: &str) {
+    pub fn log_api_request(
+        method: &str,
+        path: &str,
+        status_code: u16,
+        duration_ms: u64,
+        client_id: &str,
+    ) {
         match status_code {
             200..=299 => {
                 event!(
@@ -106,7 +112,7 @@ impl StructuredLogger {
                     client_id = client_id,
                     "API request completed"
                 );
-            },
+            }
             400..=499 => {
                 event!(
                     Level::WARN,
@@ -117,7 +123,7 @@ impl StructuredLogger {
                     client_id = client_id,
                     "API request completed"
                 );
-            },
+            }
             500..=599 => {
                 event!(
                     Level::ERROR,
@@ -128,7 +134,7 @@ impl StructuredLogger {
                     client_id = client_id,
                     "API request completed"
                 );
-            },
+            }
             _ => {
                 event!(
                     Level::DEBUG,
@@ -139,7 +145,7 @@ impl StructuredLogger {
                     client_id = client_id,
                     "API request completed"
                 );
-            },
+            }
         }
     }
 
@@ -314,7 +320,8 @@ impl ErrorContext {
 
     /// Add additional data
     pub fn with_data(mut self, key: &str, value: &str) -> Self {
-        self.additional_data.insert(key.to_string(), value.to_string());
+        self.additional_data
+            .insert(key.to_string(), value.to_string());
         self
     }
 }
@@ -323,20 +330,31 @@ impl ErrorContext {
 #[macro_export]
 macro_rules! log_agent_event {
     ($event_type:expr, $agent_id:expr, $details:expr) => {
-        $crate::utils::structured_logging::StructuredLogger::log_agent_event($event_type, $agent_id, $details);
+        $crate::utils::structured_logging::StructuredLogger::log_agent_event(
+            $event_type,
+            $agent_id,
+            $details,
+        );
     };
 }
 
 #[macro_export]
 macro_rules! log_task_event {
     ($event_type:expr, $task_id:expr, $details:expr) => {
-        $crate::utils::structured_logging::StructuredLogger::log_task_event($event_type, $task_id, $details);
+        $crate::utils::structured_logging::StructuredLogger::log_task_event(
+            $event_type,
+            $task_id,
+            $details,
+        );
     };
 }
 
 #[macro_export]
 macro_rules! log_security_event {
     ($event_type:expr, $details:expr) => {
-        $crate::utils::structured_logging::StructuredLogger::log_security_event($event_type, $details);
+        $crate::utils::structured_logging::StructuredLogger::log_security_event(
+            $event_type,
+            $details,
+        );
     };
 }

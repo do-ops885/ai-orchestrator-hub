@@ -1,13 +1,13 @@
 //! # Agent Memory System
-//! 
+//!
 //! This module implements a sophisticated memory architecture for agents, featuring:
 //! - Short-term and long-term memory separation
 //! - Pattern recognition and learning
 //! - Social memory for inter-agent relationships
 //! - Memory consolidation and forgetting mechanisms
-//! 
+//!
 //! ## Architecture
-//! 
+//!
 //! ```text
 //! ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 //! │  Working Memory │───▶│  Short-term      │───▶│  Long-term      │
@@ -79,9 +79,18 @@ pub enum MemoryContent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskOutcome {
-    Success { efficiency: f64, quality: f64 },
-    Failure { reason: String, lessons: Vec<String> },
-    Partial { completion: f64, obstacles: Vec<String> },
+    Success {
+        efficiency: f64,
+        quality: f64,
+    },
+    Failure {
+        reason: String,
+        lessons: Vec<String>,
+    },
+    Partial {
+        completion: f64,
+        obstacles: Vec<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,10 +107,10 @@ pub struct LearnedPattern {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SocialMemory {
     pub agent_id: Uuid,
-    pub trust_level: f64,           // 0.0 to 1.0
+    pub trust_level: f64, // 0.0 to 1.0
     pub collaboration_history: Vec<CollaborationRecord>,
     pub communication_style: CommunicationStyle,
-    pub reliability_score: f64,     // Based on past interactions
+    pub reliability_score: f64, // Based on past interactions
     pub last_interaction: DateTime<Utc>,
 }
 
@@ -128,19 +137,19 @@ pub enum CommunicationStyle {
 pub struct AgentMemorySystem {
     /// Immediate working memory for current tasks and active goals
     pub working_memory: HashMap<String, serde_json::Value>,
-    
+
     /// Short-term memory for recent experiences (last 24-48 hours)
     pub short_term_memory: VecDeque<MemoryItem>,
-    
+
     /// Long-term memory for important patterns and experiences
     pub long_term_memory: Vec<MemoryItem>,
-    
+
     /// Learned patterns and strategies
     pub pattern_store: HashMap<String, LearnedPattern>,
-    
+
     /// Social relationships and interaction history
     pub social_memory: HashMap<Uuid, SocialMemory>,
-    
+
     /// Memory statistics for optimization
     pub memory_stats: MemoryStatistics,
 }
@@ -182,10 +191,15 @@ impl AgentMemorySystem {
     }
 
     /// Store a new memory item in short-term memory
-    pub fn store_memory(&mut self, content: MemoryContent, importance: f64, context_tags: Vec<String>) -> Uuid {
+    pub fn store_memory(
+        &mut self,
+        content: MemoryContent,
+        importance: f64,
+        context_tags: Vec<String>,
+    ) -> Uuid {
         let memory_id = Uuid::new_v4();
         let emotional_valence = self.calculate_emotional_valence(&content);
-        
+
         let memory_item = MemoryItem {
             id: memory_id,
             content,
@@ -229,12 +243,14 @@ impl AgentMemorySystem {
         relevant_memories.sort_by(|a, b| {
             let score_a = self.calculate_relevance_score(a, context);
             let score_b = self.calculate_relevance_score(b, context);
-            score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+            score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // Collect memory IDs for access count updates
         let memory_ids: Vec<Uuid> = relevant_memories.iter().map(|m| m.id).collect();
-        
+
         // Update access counts for retrieved memories
         for memory_id in memory_ids {
             self.increment_access_count(memory_id);
@@ -244,7 +260,12 @@ impl AgentMemorySystem {
     }
 
     /// Learn a new pattern from experiences
-    pub fn learn_pattern(&mut self, pattern_type: String, trigger_conditions: Vec<String>, expected_outcome: f64) -> Uuid {
+    pub fn learn_pattern(
+        &mut self,
+        pattern_type: String,
+        trigger_conditions: Vec<String>,
+        expected_outcome: f64,
+    ) -> Uuid {
         let pattern_id = Uuid::new_v4();
         let pattern = LearnedPattern {
             pattern_id,
@@ -263,7 +284,12 @@ impl AgentMemorySystem {
     }
 
     /// Update social memory based on interaction
-    pub fn update_social_memory(&mut self, agent_id: Uuid, interaction_success: bool, task_id: Option<Uuid>) {
+    pub fn update_social_memory(
+        &mut self,
+        agent_id: Uuid,
+        interaction_success: bool,
+        task_id: Option<Uuid>,
+    ) {
         // Create new collaboration record if task-related
         let new_collaboration = if let Some(task_id) = task_id {
             Some(CollaborationRecord {
@@ -283,11 +309,11 @@ impl AgentMemorySystem {
         } else {
             Vec::new()
         };
-        
+
         if let Some(collaboration) = &new_collaboration {
             updated_history.push(collaboration.clone());
         }
-        
+
         let reliability_score = self.calculate_reliability_score(&updated_history);
 
         let social_entry = self.social_memory.entry(agent_id).or_insert_with(|| {
@@ -323,7 +349,11 @@ impl AgentMemorySystem {
             trust_change: trust_adjustment,
         };
 
-        self.store_memory(memory_content, 0.6, vec!["social".to_string(), "collaboration".to_string()]);
+        self.store_memory(
+            memory_content,
+            0.6,
+            vec!["social".to_string(), "collaboration".to_string()],
+        );
     }
 
     /// Consolidate short-term memories to long-term storage
@@ -343,7 +373,9 @@ impl AgentMemorySystem {
         if self.long_term_memory.len() > LONG_TERM_CAPACITY {
             // Remove least important memories
             self.long_term_memory.sort_by(|a, b| {
-                b.importance.partial_cmp(&a.importance).unwrap_or(std::cmp::Ordering::Equal)
+                b.importance
+                    .partial_cmp(&a.importance)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             });
             self.long_term_memory.truncate(LONG_TERM_CAPACITY);
         }
@@ -352,7 +384,10 @@ impl AgentMemorySystem {
         self.memory_stats.last_consolidation = Utc::now();
         self.update_memory_statistics();
 
-        tracing::info!("Consolidated {} memories to long-term storage", consolidated_count);
+        tracing::info!(
+            "Consolidated {} memories to long-term storage",
+            consolidated_count
+        );
     }
 
     /// Get social trust level for another agent
@@ -368,9 +403,9 @@ impl AgentMemorySystem {
         self.pattern_store
             .values()
             .filter(|pattern| {
-                conditions.iter().any(|condition| {
-                    pattern.trigger_conditions.contains(condition)
-                })
+                conditions
+                    .iter()
+                    .any(|condition| pattern.trigger_conditions.contains(condition))
             })
             .collect()
     }
@@ -384,8 +419,12 @@ impl AgentMemorySystem {
                 TaskOutcome::Partial { completion, .. } => completion * 0.4 - 0.2,
             },
             MemoryContent::SocialInteraction { success, .. } => {
-                if *success { 0.6 } else { -0.4 }
-            },
+                if *success {
+                    0.6
+                } else {
+                    -0.4
+                }
+            }
             MemoryContent::PatternObservation { confidence, .. } => confidence * 0.5,
             MemoryContent::EnvironmentalChange { impact_level, .. } => -impact_level * 0.3,
         }
@@ -400,7 +439,9 @@ impl AgentMemorySystem {
         // Check content relevance
         match &memory.content {
             MemoryContent::TaskExperience { task_type, .. } => context.contains(task_type),
-            MemoryContent::PatternObservation { pattern_type, .. } => context.contains(pattern_type),
+            MemoryContent::PatternObservation { pattern_type, .. } => {
+                context.contains(pattern_type)
+            }
             _ => false,
         }
     }
@@ -478,30 +519,35 @@ impl AgentMemorySystem {
             return 0.5;
         }
 
-        let success_rate = recent_history.iter()
+        let success_rate = recent_history
+            .iter()
             .map(|record| if record.success { 1.0 } else { 0.0 })
-            .sum::<f64>() / recent_history.len() as f64;
+            .sum::<f64>()
+            / recent_history.len() as f64;
 
-        let avg_efficiency = recent_history.iter()
+        let avg_efficiency = recent_history
+            .iter()
             .map(|record| record.efficiency)
-            .sum::<f64>() / recent_history.len() as f64;
+            .sum::<f64>()
+            / recent_history.len() as f64;
 
         (success_rate * 0.7 + avg_efficiency * 0.3).clamp(0.0, 1.0)
     }
 
     fn update_memory_statistics(&mut self) {
-        self.memory_stats.total_memories = self.short_term_memory.len() + self.long_term_memory.len();
+        self.memory_stats.total_memories =
+            self.short_term_memory.len() + self.long_term_memory.len();
         self.memory_stats.social_connections = self.social_memory.len();
-        
-        let all_memories: Vec<_> = self.short_term_memory.iter()
+
+        let all_memories: Vec<_> = self
+            .short_term_memory
+            .iter()
             .chain(self.long_term_memory.iter())
             .collect();
-        
+
         if !all_memories.is_empty() {
-            self.memory_stats.average_memory_importance = all_memories
-                .iter()
-                .map(|m| m.importance)
-                .sum::<f64>() / all_memories.len() as f64;
+            self.memory_stats.average_memory_importance =
+                all_memories.iter().map(|m| m.importance).sum::<f64>() / all_memories.len() as f64;
         }
     }
 }
@@ -521,16 +567,23 @@ mod tests {
     #[test]
     fn test_memory_storage_and_recall() {
         let mut memory_system = AgentMemorySystem::new();
-        
+
         let content = MemoryContent::TaskExperience {
             task_id: Uuid::new_v4(),
             task_type: "analysis".to_string(),
-            outcome: TaskOutcome::Success { efficiency: 0.9, quality: 0.8 },
+            outcome: TaskOutcome::Success {
+                efficiency: 0.9,
+                quality: 0.8,
+            },
             learned_strategy: Some("focus on key patterns".to_string()),
         };
 
-        let memory_id = memory_system.store_memory(content, 0.8, vec!["task".to_string(), "analysis".to_string()]);
-        
+        let memory_id = memory_system.store_memory(
+            content,
+            0.8,
+            vec!["task".to_string(), "analysis".to_string()],
+        );
+
         let recalled = memory_system.recall_memories("analysis", 5);
         assert_eq!(recalled.len(), 1);
         assert_eq!(recalled[0].id, memory_id);
@@ -540,11 +593,11 @@ mod tests {
     fn test_social_memory_updates() {
         let mut memory_system = AgentMemorySystem::new();
         let agent_id = Uuid::new_v4();
-        
+
         // Initial interaction
         memory_system.update_social_memory(agent_id, true, Some(Uuid::new_v4()));
         assert!(memory_system.get_trust_level(agent_id) > 0.5);
-        
+
         // Failed interaction
         memory_system.update_social_memory(agent_id, false, Some(Uuid::new_v4()));
         let trust_after_failure = memory_system.get_trust_level(agent_id);
@@ -554,11 +607,11 @@ mod tests {
     #[test]
     fn test_pattern_learning() {
         let mut memory_system = AgentMemorySystem::new();
-        
+
         let pattern_id = memory_system.learn_pattern(
             "task_optimization".to_string(),
             vec!["high_workload".to_string(), "time_pressure".to_string()],
-            0.85
+            0.85,
         );
 
         let patterns = memory_system.get_matching_patterns(&["high_workload".to_string()]);

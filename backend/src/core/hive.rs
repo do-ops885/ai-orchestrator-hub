@@ -4,19 +4,22 @@
 //! The `HiveCoordinator` manages agent lifecycles, task distribution, neural processing,
 //! and real-time communication between system components.
 
+use chrono::{DateTime, Utc};
+use dashmap::DashMap;
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use dashmap::DashMap;
-use rand::Rng;
 
-use crate::agents::{Agent, AgentBehavior, AgentType, AgentCapability, SimpleVerificationSystem, SimpleVerificationResult};
-use crate::tasks::{Task, TaskQueue, TaskRequiredCapability};
-use crate::neural::{NLPProcessor, HybridNeuralProcessor};
-use crate::infrastructure::{ResourceManager};
+use crate::agents::{
+    Agent, AgentBehavior, AgentCapability, AgentType, SimpleVerificationResult,
+    SimpleVerificationSystem,
+};
+use crate::infrastructure::ResourceManager;
+use crate::neural::{HybridNeuralProcessor, NLPProcessor};
 use crate::tasks::WorkStealingQueue;
+use crate::tasks::{Task, TaskQueue, TaskRequiredCapability};
 
 /// Comprehensive metrics tracking swarm performance and behavior.
 ///
@@ -181,13 +184,14 @@ impl HiveCoordinator {
     /// ```
     pub async fn new() -> anyhow::Result<Self> {
         let (tx, rx) = mpsc::unbounded_channel();
-        
+
         // Phase 2: Initialize resource manager for intelligent optimization
         let resource_manager = Arc::new(ResourceManager::new().await?);
         tracing::info!("🚀 Phase 2: Resource manager initialized - CPU-native, GPU-optional");
-        
+
         let nlp_processor = Arc::new(NLPProcessor::new().await?);
-        let simple_verification = Arc::new(SimpleVerificationSystem::new(Arc::clone(&nlp_processor)));
+        let simple_verification =
+            Arc::new(SimpleVerificationSystem::new(Arc::clone(&nlp_processor)));
 
         let coordinator = Self {
             id: Uuid::new_v4(),
@@ -220,14 +224,14 @@ impl HiveCoordinator {
         tokio::spawn(async move {
             Self::start_background_processes(coordinator_clone).await;
         });
-        
+
         // Return the coordinator from the Arc
         let coordinator = coordinator_arc.read().await.clone();
         Ok(coordinator)
     }
 
     /// Starts all background processes for the hive system.
-    /// 
+    ///
     /// This includes work-stealing task distribution, learning processes,
     /// swarm coordination, and metrics collection.
     async fn start_background_processes(coordinator: Arc<RwLock<Self>>) {
@@ -258,10 +262,10 @@ impl HiveCoordinator {
                 // Get current resource profile for adaptive timing
                 let profile = resource_manager_ws.get_current_profile().await;
                 let mut interval = tokio::time::interval(
-                    tokio::time::Duration::from_millis(profile.update_frequency / 2) // More frequent for work-stealing
+                    tokio::time::Duration::from_millis(profile.update_frequency / 2), // More frequent for work-stealing
                 );
                 interval.tick().await;
-                
+
                 if let Err(e) = {
                     let coord = coordinator_ws.read().await;
                     coord.work_stealing_distribution(&agents_ws).await
@@ -277,10 +281,10 @@ impl HiveCoordinator {
             loop {
                 let profile = resource_manager_legacy.get_current_profile().await;
                 let mut interval = tokio::time::interval(
-                    tokio::time::Duration::from_millis(profile.update_frequency * 2) // Less frequent
+                    tokio::time::Duration::from_millis(profile.update_frequency * 2), // Less frequent
                 );
                 interval.tick().await;
-                
+
                 if let Err(e) = Self::distribute_tasks(&agents, &task_queue).await {
                     tracing::error!("Legacy task distribution error: {}", e);
                 }
@@ -296,10 +300,15 @@ impl HiveCoordinator {
                 if let Err(e) = resource_manager_monitor.update_system_metrics().await {
                     tracing::error!("Resource monitoring error: {}", e);
                 } else {
-                    let (resources, profile, _hardware_class) = resource_manager_monitor.get_system_info().await;
-                    tracing::debug!("📊 System: CPU {:.1}%, Memory {:.1}%, Profile: {} (max agents: {})", 
-                                   resources.cpu_usage, resources.memory_usage, 
-                                   profile.profile_name, profile.max_agents);
+                    let (resources, profile, _hardware_class) =
+                        resource_manager_monitor.get_system_info().await;
+                    tracing::debug!(
+                        "📊 System: CPU {:.1}%, Memory {:.1}%, Profile: {} (max agents: {})",
+                        resources.cpu_usage,
+                        resources.memory_usage,
+                        profile.profile_name,
+                        profile.max_agents
+                    );
                 }
             }
         });
@@ -324,7 +333,7 @@ impl HiveCoordinator {
                 if let Err(e) = Self::learning_cycle(&agents_learning, &nlp_learning).await {
                     tracing::error!("Learning cycle error: {}", e);
                 }
-                
+
                 // Additional neural learning cycle
                 let _neural_proc = neural_learning.read().await;
                 // Neural learning happens during agent interactions
@@ -339,16 +348,15 @@ impl HiveCoordinator {
         let coordinator_swarm = Arc::clone(&coordinator);
         let (agents_swarm, swarm_center_coord) = {
             let coord = coordinator_swarm.read().await;
-            (
-                Arc::clone(&coord.agents),
-                Arc::clone(&coord.swarm_center),
-            )
+            (Arc::clone(&coord.agents), Arc::clone(&coord.swarm_center))
         };
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
             loop {
                 interval.tick().await;
-                if let Err(e) = Self::update_swarm_positions(&agents_swarm, &swarm_center_coord).await {
+                if let Err(e) =
+                    Self::update_swarm_positions(&agents_swarm, &swarm_center_coord).await
+                {
                     tracing::error!("Swarm coordination error: {}", e);
                 }
             }
@@ -371,7 +379,10 @@ impl HiveCoordinator {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(15));
             loop {
                 interval.tick().await;
-                if let Err(e) = Self::update_metrics(&agents_metrics, &task_queue_metrics, &metrics_update).await {
+                if let Err(e) =
+                    Self::update_metrics(&agents_metrics, &task_queue_metrics, &metrics_update)
+                        .await
+                {
                     tracing::error!("Metrics update error: {}", e);
                 }
             }
@@ -379,20 +390,21 @@ impl HiveCoordinator {
     }
 
     /// Creates a new agent with the specified configuration.
-    /// 
+    ///
     /// # Arguments
     /// * `config` - JSON configuration containing agent parameters:
     ///   - `name`: Agent name (default: "Agent")
     ///   - `type`: Agent type ("coordinator", "learner", "specialist:domain", or "worker")
     ///   - `capabilities`: Array of capability objects with name and proficiency
-    /// 
+    ///
     /// # Returns
     /// Returns the UUID of the created agent on success.
-    /// 
+    ///
     /// # Errors
     /// Returns an error if agent creation fails or configuration is invalid.
     pub async fn create_agent(&self, config: serde_json::Value) -> anyhow::Result<Uuid> {
-        let name = config.get("name")
+        let name = config
+            .get("name")
             .and_then(|v| v.as_str())
             .unwrap_or("Agent")
             .to_string();
@@ -400,13 +412,12 @@ impl HiveCoordinator {
         let agent_type = match config.get("type").and_then(|v| v.as_str()) {
             Some("coordinator") => AgentType::Coordinator,
             Some("learner") => AgentType::Learner,
-            Some(specialist) if specialist.starts_with("specialist:") => {
-                AgentType::Specialist(
-                    specialist.strip_prefix("specialist:")
-                        .unwrap_or(specialist)
-                        .to_string()
-                )
-            }
+            Some(specialist) if specialist.starts_with("specialist:") => AgentType::Specialist(
+                specialist
+                    .strip_prefix("specialist:")
+                    .unwrap_or(specialist)
+                    .to_string(),
+            ),
             _ => AgentType::Worker,
         };
 
@@ -417,12 +428,15 @@ impl HiveCoordinator {
             for cap in capabilities {
                 if let (Some(cap_name), Some(proficiency)) = (
                     cap.get("name").and_then(|v| v.as_str()),
-                    cap.get("proficiency").and_then(serde_json::Value::as_f64)
+                    cap.get("proficiency").and_then(serde_json::Value::as_f64),
                 ) {
                     agent.add_capability(AgentCapability {
                         name: cap_name.to_string(),
                         proficiency: proficiency.clamp(0.0, 1.0),
-                        learning_rate: cap.get("learning_rate").and_then(|v| v.as_f64()).unwrap_or(0.1),
+                        learning_rate: cap
+                            .get("learning_rate")
+                            .and_then(serde_json::Value::as_f64)
+                            .unwrap_or(0.1),
                     });
                 }
             }
@@ -436,77 +450,100 @@ impl HiveCoordinator {
         }
 
         let agent_id = agent.id;
-        
+
         // Determine if this agent should use advanced neural capabilities
-        let use_advanced = config.get("use_advanced_neural")
-            .and_then(|v| v.as_bool())
+        let use_advanced = config
+            .get("use_advanced_neural")
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
-        
+
         // Create neural agent capabilities
         let specialization = match &agent_type {
             AgentType::Learner => "learning",
-            AgentType::Coordinator => "coordination", 
+            AgentType::Coordinator => "coordination",
             AgentType::Specialist(spec) => spec,
-            _ => "general",
-        }.to_string();
-        
+            AgentType::Worker => "general",
+        }
+        .to_string();
+
         // Register with neural processor
         let mut neural_processor = self.neural_processor.write().await;
-        if let Err(e) = neural_processor.create_neural_agent(agent_id, specialization, use_advanced).await {
+        if let Err(e) = neural_processor
+            .create_neural_agent(agent_id, specialization, use_advanced)
+            .await
+        {
             tracing::warn!("Failed to create neural agent capabilities: {}", e);
         }
-        
+
         // Register agent with work-stealing queue system
         if let Err(e) = self.work_stealing_queue.register_agent(agent_id).await {
-            tracing::warn!("Failed to register agent {} with work-stealing queue: {}", agent_id, e);
+            tracing::warn!(
+                "Failed to register agent {} with work-stealing queue: {}",
+                agent_id,
+                e
+            );
         }
 
         self.agents.insert(agent_id, agent);
 
-        tracing::info!("Created agent {} with ID {} (neural: {}, work-stealing: enabled)", name, agent_id, use_advanced);
+        tracing::info!(
+            "Created agent {} with ID {} (neural: {}, work-stealing: enabled)",
+            name,
+            agent_id,
+            use_advanced
+        );
         Ok(agent_id)
     }
 
     /// Creates a new task with the specified configuration.
-    /// 
+    ///
     /// # Arguments
     /// * `config` - JSON configuration containing task parameters:
     ///   - `description`: Task description (default: "Generic task")
     ///   - `type`: Task type (default: "general")
     ///   - `priority`: Priority level (0=Low, 1=Medium, 2=High, 3=Critical)
     ///   - `required_capabilities`: Array of required capability objects
-    /// 
+    ///
     /// # Returns
     /// Returns the UUID of the created task on success.
-    /// 
+    ///
     /// # Errors
     /// Returns an error if task creation fails or configuration is invalid.
     pub async fn create_task(&self, config: serde_json::Value) -> anyhow::Result<Uuid> {
-        let description = config.get("description")
+        let description = config
+            .get("description")
             .and_then(|v| v.as_str())
             .unwrap_or("Generic task")
             .to_string();
 
-        let task_type = config.get("type")
+        let task_type = config
+            .get("type")
             .and_then(|v| v.as_str())
             .unwrap_or("general")
             .to_string();
 
-        let priority = match config.get("priority").and_then(|v| v.as_u64()).unwrap_or(1) {
+        let priority = match config
+            .get("priority")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(1)
+        {
             0 => crate::tasks::TaskPriority::Low,
-            1 => crate::tasks::TaskPriority::Medium,
             2 => crate::tasks::TaskPriority::High,
             3 => crate::tasks::TaskPriority::Critical,
             _ => crate::tasks::TaskPriority::Medium,
         };
 
         let mut required_capabilities = None;
-        if let Some(caps) = config.get("required_capabilities").and_then(|v| v.as_array()) {
+        if let Some(caps) = config
+            .get("required_capabilities")
+            .and_then(|v| v.as_array())
+        {
             let mut req_caps = Vec::new();
             for cap in caps {
                 if let (Some(name), Some(min_prof)) = (
                     cap.get("name").and_then(|v| v.as_str()),
-                    cap.get("min_proficiency").and_then(|v| v.as_f64())
+                    cap.get("min_proficiency")
+                        .and_then(serde_json::Value::as_f64),
                 ) {
                     req_caps.push(TaskRequiredCapability {
                         name: name.to_string(),
@@ -519,18 +556,31 @@ impl HiveCoordinator {
             }
         }
 
-        let task = Task::new(description.clone(), description.clone(), task_type, priority, required_capabilities.unwrap_or_default());
+        let task = Task::new(
+            description.clone(),
+            description.clone(),
+            task_type,
+            priority,
+            required_capabilities.unwrap_or_default(),
+        );
         let task_id = task.id;
 
         // Submit to work-stealing queue for high-performance distribution
         if let Err(e) = self.work_stealing_queue.submit_task(task.clone()).await {
-            tracing::warn!("Failed to submit task to work-stealing queue: {}, falling back to legacy queue", e);
+            tracing::warn!(
+                "Failed to submit task to work-stealing queue: {}, falling back to legacy queue",
+                e
+            );
             // Fallback to legacy queue
             let mut queue = self.task_queue.write().await;
             queue.add_task(task);
         }
 
-        tracing::info!("Created task {} with ID {} (work-stealing: enabled)", description, task_id);
+        tracing::info!(
+            "Created task {} with ID {} (work-stealing: enabled)",
+            description,
+            task_id
+        );
         Ok(task_id)
     }
 
@@ -539,13 +589,13 @@ impl HiveCoordinator {
         task_queue: &RwLock<TaskQueue>,
     ) -> anyhow::Result<()> {
         let mut queue = task_queue.write().await;
-        
+
         while let Some(task) = queue.get_next_task() {
             // Find the best agent for this task
             let mut best_agent_id = None;
             let mut best_fitness = 0.0;
 
-            for agent_ref in agents.iter() {
+            for agent_ref in &agents {
                 let agent = agent_ref.value();
                 if agent.can_perform_task(&task) {
                     let fitness = agent.calculate_task_fitness(&task);
@@ -559,12 +609,12 @@ impl HiveCoordinator {
             if let Some(agent_id) = best_agent_id {
                 if let Some(mut agent_ref) = agents.get_mut(&agent_id) {
                     let agent = agent_ref.value_mut();
-                    
+
                     // Execute task asynchronously
                     let task_clone = task.clone();
                     let agent_clone = agent.clone();
                     let agents_map = agents.clone();
-                    
+
                     tokio::spawn(async move {
                         let mut agent_exec = agent_clone;
                         match agent_exec.execute_task(task_clone).await {
@@ -597,65 +647,78 @@ impl HiveCoordinator {
         agents: &DashMap<Uuid, Agent>,
     ) -> anyhow::Result<()> {
         // Process tasks for each agent using work-stealing
-        let agent_futures: Vec<_> = agents.iter().map(|entry| {
-            let agent_id = *entry.key();
-            let agent = entry.value().clone();
-            let queue = self.work_stealing_queue.clone();
-            
-            async move {
-                // Skip if agent is busy or low energy
-                if !matches!(agent.state, crate::agents::AgentState::Idle) || agent.energy < 10.0 {
-                    return Ok(());
-                }
+        let agent_futures: Vec<_> = agents
+            .iter()
+            .map(|entry| {
+                let agent_id = *entry.key();
+                let agent = entry.value().clone();
+                let queue = Arc::clone(&self.work_stealing_queue);
 
-                // Try to get a task (including work stealing)
-                if let Some(task) = queue.get_task_for_agent(agent_id).await {
-                    // Mark agent as busy in the work-stealing system
-                    if let Some(agent_queue) = queue.agent_queues.get(&agent_id) {
-                        agent_queue.set_busy(true).await;
+                async move {
+                    // Skip if agent is busy or low energy
+                    if !matches!(agent.state, crate::agents::AgentState::Idle)
+                        || agent.energy < 10.0
+                    {
+                        return Ok(());
                     }
 
-                    // Execute task asynchronously
-                    let agents_map2 = agents.clone();
-                    let queue_clone = self.work_stealing_queue.clone();
-                    tokio::spawn(async move {
-                        let mut agent_exec = agent;
-                        let start_time = std::time::Instant::now();
-                        
-                        match agent_exec.execute_task(task).await {
-                            Ok(result) => {
-                                // Update agent in the map
-                                if let Some(mut agent_ref) = agents_map2.get_mut(&agent_id) {
-                                    *agent_ref.value_mut() = agent_exec;
-                                }
-                                
-                                // Mark task completion and agent as available
-                                if let Some(agent_queue) = queue_clone.agent_queues.get(&agent_id) {
-                                    agent_queue.mark_task_completed().await;
-                                    agent_queue.set_busy(false).await;
-                                }
-                                
-                                let duration = start_time.elapsed();
-                                tracing::debug!("🚀 Work-stealing task completed in {:?}: {:?}", duration, result);
-                            }
-                            Err(e) => {
-                                // Mark agent as available even on failure
-                                if let Some(agent_queue) = queue_clone.agent_queues.get(&agent_id) {
-                                    agent_queue.set_busy(false).await;
-                                }
-                                tracing::error!("Work-stealing task execution failed: {}", e);
-                            }
+                    // Try to get a task (including work stealing)
+                    if let Some(task) = queue.get_task_for_agent(agent_id).await {
+                        // Mark agent as busy in the work-stealing system
+                        if let Some(agent_queue) = queue.agent_queues.get(&agent_id) {
+                            agent_queue.set_busy(true).await;
                         }
-                    });
+
+                        // Execute task asynchronously
+                        let agents_map2 = agents.clone();
+                        let queue_clone = self.work_stealing_queue.clone();
+                        tokio::spawn(async move {
+                            let mut agent_exec = agent;
+                            let start_time = std::time::Instant::now();
+
+                            match agent_exec.execute_task(task).await {
+                                Ok(result) => {
+                                    // Update agent in the map
+                                    if let Some(mut agent_ref) = agents_map2.get_mut(&agent_id) {
+                                        *agent_ref.value_mut() = agent_exec;
+                                    }
+
+                                    // Mark task completion and agent as available
+                                    if let Some(agent_queue) =
+                                        queue_clone.agent_queues.get(&agent_id)
+                                    {
+                                        agent_queue.mark_task_completed().await;
+                                        agent_queue.set_busy(false).await;
+                                    }
+
+                                    let duration = start_time.elapsed();
+                                    tracing::debug!(
+                                        "🚀 Work-stealing task completed in {:?}: {:?}",
+                                        duration,
+                                        result
+                                    );
+                                }
+                                Err(e) => {
+                                    // Mark agent as available even on failure
+                                    if let Some(agent_queue) =
+                                        queue_clone.agent_queues.get(&agent_id)
+                                    {
+                                        agent_queue.set_busy(false).await;
+                                    }
+                                    tracing::error!("Work-stealing task execution failed: {}", e);
+                                }
+                            }
+                        });
+                    }
+
+                    Ok::<(), anyhow::Error>(())
                 }
-                
-                Ok::<(), anyhow::Error>(())
-            }
-        }).collect();
+            })
+            .collect();
 
         // Execute all agent task processing concurrently
         let results = futures::future::join_all(agent_futures).await;
-        
+
         // Log any errors
         for result in results {
             if let Err(e) = result {
@@ -708,10 +771,13 @@ impl HiveCoordinator {
 
         // Update agent positions
         let agents_vec: Vec<Agent> = agents.iter().map(|r| r.value().clone()).collect();
-        
+
         for mut agent_ref in agents.iter_mut() {
             let agent = agent_ref.value_mut();
-            if let Err(e) = agent.update_position((center_x, center_y), &agents_vec).await {
+            if let Err(e) = agent
+                .update_position((center_x, center_y), &agents_vec)
+                .await
+            {
                 tracing::error!("Position update error for agent {}: {}", agent.id, e);
             }
         }
@@ -728,16 +794,21 @@ impl HiveCoordinator {
         let mut metrics_guard = metrics.write().await;
 
         metrics_guard.total_agents = agents.len();
-        metrics_guard.active_agents = agents.iter()
+        metrics_guard.active_agents = agents
+            .iter()
             .filter(|a| matches!(a.value().state, crate::agents::AgentState::Working))
             .count();
 
         // Calculate average performance
-        let total_performance: f64 = agents.iter()
+        let total_performance: f64 = agents
+            .iter()
             .map(|a| {
-                a.value().capabilities.iter()
+                a.value()
+                    .capabilities
+                    .iter()
                     .map(|c| c.proficiency)
-                    .sum::<f64>() / a.value().capabilities.len().max(1) as f64
+                    .sum::<f64>()
+                    / a.value().capabilities.len().max(1) as f64
             })
             .sum();
 
@@ -754,8 +825,9 @@ impl HiveCoordinator {
         for agent1 in agents.iter() {
             for agent2 in agents.iter() {
                 if agent1.key() != agent2.key() {
-                    let dist = ((agent1.value().position.0 - agent2.value().position.0).powi(2) +
-                               (agent1.value().position.1 - agent2.value().position.1).powi(2)).sqrt();
+                    let dist = ((agent1.value().position.0 - agent2.value().position.0).powi(2)
+                        + (agent1.value().position.1 - agent2.value().position.1).powi(2))
+                    .sqrt();
                     total_distance += dist;
                     distance_count += 1;
                 }
@@ -769,23 +841,27 @@ impl HiveCoordinator {
         };
 
         // Calculate learning progress
-        let total_experiences: usize = agents.iter()
+        let total_experiences: usize = agents
+            .iter()
             .map(|a| a.value().memory.experiences.len())
             .sum();
 
-        metrics_guard.learning_progress = (total_experiences as f64 / (agents.len().max(1) * 100) as f64).min(1.0);
+        metrics_guard.learning_progress =
+            (total_experiences as f64 / (agents.len().max(1) * 100) as f64).min(1.0);
 
         Ok(())
     }
 
     /// Retrieves information about all agents in the hive.
-    /// 
+    ///
     /// # Returns
     /// Returns a JSON object containing:
     /// - `agents`: Array of agent objects with their current state, capabilities, and metrics
     /// - `total_count`: Total number of agents in the hive
     pub async fn get_agents_info(&self) -> serde_json::Value {
-        let agents: Vec<serde_json::Value> = self.agents.iter()
+        let agents: Vec<serde_json::Value> = self
+            .agents
+            .iter()
             .map(|agent_ref| {
                 let agent = agent_ref.value();
                 serde_json::json!({
@@ -809,7 +885,7 @@ impl HiveCoordinator {
     }
 
     /// Retrieves information about all tasks in the hive.
-    /// 
+    ///
     /// # Returns
     /// Returns a JSON object containing:
     /// - `tasks`: Array of task objects with their status, priority, and requirements
@@ -817,7 +893,7 @@ impl HiveCoordinator {
     pub async fn get_tasks_info(&self) -> serde_json::Value {
         let queue = self.task_queue.read().await;
         let ws_metrics = self.work_stealing_queue.get_metrics().await;
-        
+
         serde_json::json!({
             "legacy_queue": {
                 "pending_tasks": queue.get_pending_count(),
@@ -836,7 +912,7 @@ impl HiveCoordinator {
     }
 
     /// Retrieves the current status and metrics of the hive system.
-    /// 
+    ///
     /// # Returns
     /// Returns a comprehensive JSON object containing:
     /// - `hive_id`: Unique identifier of this hive instance
@@ -859,7 +935,7 @@ impl HiveCoordinator {
     }
 
     /// Retrieves current resource utilization and system health information.
-    /// 
+    ///
     /// # Returns
     /// Returns a JSON object containing:
     /// - `cpu_usage`: Current CPU utilization percentage
@@ -867,8 +943,9 @@ impl HiveCoordinator {
     /// - `active_connections`: Number of active WebSocket connections
     /// - `system_health`: Overall system health status
     pub async fn get_resource_info(&self) -> serde_json::Value {
-        let (system_resources, resource_profile, hardware_class) = self.resource_manager.get_system_info().await;
-        
+        let (system_resources, resource_profile, hardware_class) =
+            self.resource_manager.get_system_info().await;
+
         serde_json::json!({
             "system_resources": system_resources,
             "resource_profile": resource_profile,
@@ -878,7 +955,6 @@ impl HiveCoordinator {
         })
     }
 
-
     /// Execute a task with simple verification (lightweight alternative to pair programming)
     pub async fn execute_task_with_simple_verification(
         &self,
@@ -887,11 +963,13 @@ impl HiveCoordinator {
     ) -> anyhow::Result<(crate::tasks::TaskResult, SimpleVerificationResult)> {
         // Find and execute the task
         let mut task_queue = self.task_queue.write().await;
-        let task = task_queue.pending_tasks.iter()
+        let task = task_queue
+            .pending_tasks
+            .iter()
             .find(|t| t.id == task_id)
             .ok_or_else(|| anyhow::anyhow!("Task {} not found", task_id))?
             .clone();
-        
+
         // Remove from pending queue
         task_queue.pending_tasks.retain(|t| t.id != task_id);
         drop(task_queue);
@@ -902,7 +980,9 @@ impl HiveCoordinator {
 
         for agent_ref in self.agents.iter() {
             let agent = agent_ref.value();
-            if agent.can_perform_task(&task) && matches!(agent.state, crate::agents::AgentState::Idle) {
+            if agent.can_perform_task(&task)
+                && matches!(agent.state, crate::agents::AgentState::Idle)
+            {
                 let fitness = agent.calculate_task_fitness(&task);
                 if fitness > best_fitness {
                     best_fitness = fitness;
@@ -911,17 +991,21 @@ impl HiveCoordinator {
             }
         }
 
-        let agent_id = best_agent_id.ok_or_else(|| anyhow::anyhow!("No suitable agent available for task"))?;
+        let agent_id =
+            best_agent_id.ok_or_else(|| anyhow::anyhow!("No suitable agent available for task"))?;
 
         // Execute task
-        let mut agent = self.agents.get_mut(&agent_id)
+        let mut agent = self
+            .agents
+            .get_mut(&agent_id)
             .ok_or_else(|| anyhow::anyhow!("Agent {} not found", agent_id))?
             .clone();
 
         let execution_result = agent.execute_task(task.clone()).await?;
 
         // Verify result using simple verification
-        let verification_result = self.simple_verification
+        let verification_result = self
+            .simple_verification
             .verify_task_result(&task, &execution_result, original_goal)
             .await?;
 
@@ -930,8 +1014,12 @@ impl HiveCoordinator {
             *agent_ref.value_mut() = agent;
         }
 
-        tracing::info!("Completed task {} with simple verification. Status: {:?}, Score: {:.2}", 
-                      task_id, verification_result.verification_status, verification_result.overall_score);
+        tracing::info!(
+            "Completed task {} with simple verification. Status: {:?}, Score: {:.2}",
+            task_id,
+            verification_result.verification_status,
+            verification_result.overall_score
+        );
 
         Ok((execution_result, verification_result))
     }
@@ -939,7 +1027,7 @@ impl HiveCoordinator {
     /// Get simple verification system metrics
     pub async fn get_simple_verification_stats(&self) -> serde_json::Value {
         let metrics = self.simple_verification.get_metrics().await;
-        
+
         serde_json::json!({
             "total_verifications": metrics.total_verifications,
             "passed_verifications": metrics.passed_verifications,
@@ -957,18 +1045,28 @@ impl HiveCoordinator {
     }
 
     /// Configure simple verification system
-    pub async fn configure_simple_verification(&self, config: serde_json::Value) -> anyhow::Result<()> {
+    pub async fn configure_simple_verification(
+        &self,
+        config: serde_json::Value,
+    ) -> anyhow::Result<()> {
         // Configure confidence threshold
         if let Some(threshold) = config.get("confidence_threshold").and_then(|v| v.as_f64()) {
             // Note: This would require making simple_verification mutable
             // For now, we'll log the configuration request
-            tracing::info!("Simple verification configuration requested: confidence_threshold = {}", threshold);
+            tracing::info!(
+                "Simple verification configuration requested: confidence_threshold = {}",
+                threshold
+            );
         }
 
         // Add task-specific rules
         if let Some(task_rules) = config.get("task_rules").and_then(|v| v.as_object()) {
             for (task_type, rules_config) in task_rules {
-                tracing::info!("Task-specific rules configuration for '{}': {:?}", task_type, rules_config);
+                tracing::info!(
+                    "Task-specific rules configuration for '{}': {:?}",
+                    task_type,
+                    rules_config
+                );
                 // In a real implementation, you would parse and apply these rules
             }
         }
