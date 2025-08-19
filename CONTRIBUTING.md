@@ -295,7 +295,7 @@ If you need help with your contribution:
 
 1. **Check the documentation** in the `docs/` directory
 2. **Review existing code** for similar patterns
-3. **Ask questions** in GitHub issues or discussions
+3. **Ask questions** in GitHub discussions
 4. **Join our community** for real-time help
 
 ## Recognition

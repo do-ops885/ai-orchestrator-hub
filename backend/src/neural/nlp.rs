@@ -38,6 +38,7 @@ pub enum PatternType {
     LearningCue,
 }
 
+#[derive(Debug)]
 pub struct NLPProcessor {
     pub learned_patterns: RwLock<HashMap<String, LanguagePattern>>,
     pub insights: RwLock<Vec<NLPInsight>>,

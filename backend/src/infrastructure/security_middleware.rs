@@ -62,7 +62,7 @@ pub async fn comprehensive_security_middleware(
 
     // Step 1: Advanced security validation
     let security_result = security_state
-        .security_manager
+        .auth_manager // Use auth_manager instead of removed security_manager
         .validate_request(source_ip, user_agent.clone(), endpoint, payload_size)
         .await
         .map_err(|e| {

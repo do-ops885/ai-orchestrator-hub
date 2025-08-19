@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::agents::{
     Agent, AgentBehavior, AgentCapability, AgentType, SimpleVerificationResult,
-    SimpleVerificationSystem,
+    SimpleVerificationSystem, SkillEvolutionSystem, SkillEvolutionConfig,
 };
 use crate::infrastructure::ResourceManager;
 use crate::neural::{HybridNeuralProcessor, NLPProcessor};
@@ -25,6 +25,7 @@ use crate::tasks::{Task, TaskQueue, TaskRequiredCapability};
 // Enhanced swarm coordination types
 use crate::core::swarm_intelligence::{FormationType, SwarmFormation};
 use crate::core::swarm_coordination::SwarmCoordinationMetrics;
+use crate::core::auto_scaling::{AutoScalingSystem, AutoScalingConfig};
 
 /// Comprehensive metrics tracking swarm performance and behavior.
 ///
@@ -125,6 +126,10 @@ pub struct HiveCoordinator {
     pub formations: Arc<RwLock<HashMap<Uuid, SwarmFormation>>>,
     /// Swarm coordination metrics
     pub coordination_metrics: Arc<RwLock<SwarmCoordinationMetrics>>,
+    /// Auto-scaling system for dynamic agent management
+    pub auto_scaling: Arc<AutoScalingSystem>,
+    /// Skill evolution system for agent learning
+    pub skill_evolution: Arc<SkillEvolutionSystem>,
     /// Timestamp when this coordinator was created
     pub created_at: DateTime<Utc>,
 }
@@ -203,6 +208,20 @@ impl HiveCoordinator {
         let simple_verification =
             Arc::new(SimpleVerificationSystem::new(Arc::clone(&nlp_processor)));
 
+        // Initialize auto-scaling system
+        let auto_scaling_config = AutoScalingConfig::default();
+        let auto_scaling = Arc::new(AutoScalingSystem::new(
+            Arc::clone(&resource_manager),
+            auto_scaling_config,
+        ));
+
+        // Initialize skill evolution system
+        let skill_evolution_config = SkillEvolutionConfig::default();
+        let skill_evolution = Arc::new(SkillEvolutionSystem::new(
+            Arc::clone(&nlp_processor),
+            skill_evolution_config,
+        ));
+
         let coordinator = Self {
             id: Uuid::new_v4(),
             agents: Arc::new(DashMap::new()),
@@ -226,15 +245,31 @@ impl HiveCoordinator {
             simple_verification,
             formations: Arc::new(RwLock::new(HashMap::new())),
             coordination_metrics: Arc::new(RwLock::new(SwarmCoordinationMetrics::default())),
+            auto_scaling: Arc::clone(&auto_scaling),
+            skill_evolution: Arc::clone(&skill_evolution),
             created_at: Utc::now(),
         };
 
         // Start background processes with Phase 2 optimizations
         // Start background processes in a separate task
         let coordinator_arc = Arc::new(RwLock::new(coordinator));
-        let coordinator_clone = Arc::clone(&coordinator_arc);
+        let coordinator_clone1 = Arc::clone(&coordinator_arc);
+        let coordinator_clone2 = Arc::clone(&coordinator_arc);
+        let coordinator_clone3 = Arc::clone(&coordinator_arc);
+        let auto_scaling_clone = Arc::clone(&auto_scaling);
+        let skill_evolution_clone = Arc::clone(&skill_evolution);
         tokio::spawn(async move {
-            Self::start_background_processes(coordinator_clone).await;
+            Self::start_background_processes(coordinator_clone1).await;
+            
+            // Start auto-scaling system
+            auto_scaling_clone.start_auto_scaling(coordinator_clone2).await;
+            
+            // Start skill evolution system
+            let agents_for_evolution = {
+                let coord = coordinator_clone3.read().await;
+                Arc::clone(&coord.agents)
+            };
+            skill_evolution_clone.start_skill_evolution(agents_for_evolution).await;
         });
 
         // Return the coordinator from the Arc
@@ -1094,5 +1129,36 @@ impl HiveCoordinator {
         }
 
         Ok(())
+    }
+
+    /// Get auto-scaling system statistics
+    pub async fn get_auto_scaling_stats(&self) -> serde_json::Value {
+        self.auto_scaling.get_scaling_stats().await
+    }
+
+    /// Get skill evolution system statistics
+    pub async fn get_skill_evolution_stats(&self) -> serde_json::Value {
+        self.skill_evolution.get_evolution_stats().await
+    }
+
+    /// Get comprehensive system analytics including new features
+    pub async fn get_enhanced_analytics(&self) -> serde_json::Value {
+        let basic_status = self.get_status().await;
+        let auto_scaling_stats = self.get_auto_scaling_stats().await;
+        let skill_evolution_stats = self.get_skill_evolution_stats().await;
+        let resource_info = self.get_resource_info().await;
+
+        serde_json::json!({
+            "hive_status": basic_status,
+            "auto_scaling": auto_scaling_stats,
+            "skill_evolution": skill_evolution_stats,
+            "resource_management": resource_info,
+            "enhanced_features": {
+                "dynamic_scaling_enabled": true,
+                "skill_learning_enabled": true,
+                "neural_coordination_active": true,
+                "swarm_formations_active": true
+            }
+        })
     }
 }

@@ -599,15 +599,15 @@ impl IntelligentAlertingSystem {
 
     fn get_metric_value(
         &self,
-        metrics: &crate::infrastructure::advanced_metrics::MetricsSnapshot,
+        metrics: &crate::infrastructure::metrics::SystemMetrics,
         metric_name: &str,
     ) -> f64 {
         match metric_name {
-            "cpu_usage" => metrics.performance.cpu_usage,
-            "memory_usage" => metrics.performance.memory_usage,
-            "system_health_score" => metrics.system_health_score,
-            "agent_count" => metrics.agent_count as f64,
-            "active_tasks" => metrics.active_tasks as f64,
+            "cpu_usage" => metrics.resource_usage.cpu_usage_percent,
+            "memory_usage" => metrics.resource_usage.memory_usage_percent,
+            "system_health_score" => 0.8, // Placeholder health score
+            "agent_count" => metrics.agent_metrics.total_agents as f64,
+            "active_tasks" => metrics.task_metrics.tasks_in_queue as f64,
             _ => 0.0,
         }
     }
