@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use uuid::Uuid;
@@ -20,6 +21,10 @@ use crate::infrastructure::ResourceManager;
 use crate::neural::{HybridNeuralProcessor, NLPProcessor};
 use crate::tasks::WorkStealingQueue;
 use crate::tasks::{Task, TaskQueue, TaskRequiredCapability};
+
+// Enhanced swarm coordination types
+use crate::core::swarm_intelligence::{FormationType, SwarmFormation};
+use crate::core::swarm_coordination::SwarmCoordinationMetrics;
 
 /// Comprehensive metrics tracking swarm performance and behavior.
 ///
@@ -63,11 +68,11 @@ pub struct HiveStatus {
     pub total_energy: f64,
 }
 
-/// Central coordinator for the multiagent hive system.
+/// Central coordinator for the multiagent hive system with enhanced swarm intelligence.
 ///
 /// The `HiveCoordinator` is the core component that manages all aspects of the
 /// multiagent system, including agent lifecycles, task distribution, neural
-/// processing, and inter-agent communication.
+/// processing, swarm formations, and inter-agent communication.
 ///
 /// # Architecture
 ///
@@ -75,6 +80,7 @@ pub struct HiveStatus {
 /// - Legacy `TaskQueue` for backward compatibility
 /// - High-performance `WorkStealingQueue` for optimal task distribution
 /// - Thread-safe `DashMap` for concurrent agent access
+/// - Enhanced swarm formations with neural coordination
 /// - Async communication channels for real-time coordination
 ///
 /// # Example
@@ -115,6 +121,10 @@ pub struct HiveCoordinator {
     pub resource_manager: Arc<ResourceManager>,
     /// Simple verification system for lightweight task validation
     pub simple_verification: Arc<SimpleVerificationSystem>,
+    /// Enhanced swarm formations with neural coordination
+    pub formations: Arc<RwLock<HashMap<Uuid, SwarmFormation>>>,
+    /// Swarm coordination metrics
+    pub coordination_metrics: Arc<RwLock<SwarmCoordinationMetrics>>,
     /// Timestamp when this coordinator was created
     pub created_at: DateTime<Utc>,
 }
@@ -214,6 +224,8 @@ impl HiveCoordinator {
             communication_receiver: Arc::new(RwLock::new(rx)),
             resource_manager,
             simple_verification,
+            formations: Arc::new(RwLock::new(HashMap::new())),
+            coordination_metrics: Arc::new(RwLock::new(SwarmCoordinationMetrics::default())),
             created_at: Utc::now(),
         };
 
@@ -595,7 +607,7 @@ impl HiveCoordinator {
             let mut best_agent_id = None;
             let mut best_fitness = 0.0;
 
-            for agent_ref in &agents {
+            for agent_ref in agents.iter() {
                 let agent = agent_ref.value();
                 if agent.can_perform_task(&task) {
                     let fitness = agent.calculate_task_fitness(&task);

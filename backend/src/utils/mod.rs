@@ -1,3 +1,5 @@
+/// Authentication and authorization system
+pub mod auth;
 /// Advanced configuration management with validation
 pub mod config;
 /// Enhanced error handling with structured errors and context
@@ -18,6 +20,7 @@ pub mod testing_framework;
 pub mod validation;
 
 // Export commonly used types and traits
+pub use auth::*;
 pub use config::*;
 pub use error::*;
 pub use security::*;

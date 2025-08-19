@@ -11,6 +11,10 @@ regex = "1.10"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1.0"
+
+# Authentication and security
+jsonwebtoken = "9.2"
+md5 = "0.7"
 thiserror = "1.0"
 toml = "0.8"
 tracing = "0.1"

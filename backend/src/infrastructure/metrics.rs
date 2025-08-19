@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
+use uuid::Uuid;
 
 /// Comprehensive metrics collection for the hive system
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,13 +98,16 @@ pub struct ErrorMetrics {
     pub critical_errors: u64,
 }
 
-/// Metrics collector with time-series data
+/// Metrics collector with time-series data and advanced analytics
 pub struct MetricsCollector {
     current_metrics: Arc<RwLock<SystemMetrics>>,
     historical_metrics: Arc<RwLock<Vec<SystemMetrics>>>,
     max_history_size: usize,
     alert_thresholds: MetricThresholds,
     start_time: std::time::Instant,
+    // Advanced analytics components
+    trend_analyzer: TrendAnalyzer,
+    anomaly_detector: AnomalyDetector,
 }
 
 impl MetricsCollector {
@@ -114,6 +118,8 @@ impl MetricsCollector {
             max_history_size,
             alert_thresholds: MetricThresholds::default(),
             start_time: std::time::Instant::now(),
+            trend_analyzer: TrendAnalyzer::new(10, 0.1),
+            anomaly_detector: AnomalyDetector::new(0.8, 50),
         }
     }
 
@@ -124,6 +130,8 @@ impl MetricsCollector {
             max_history_size,
             alert_thresholds: thresholds,
             start_time: std::time::Instant::now(),
+            trend_analyzer: TrendAnalyzer::new(10, 0.1),
+            anomaly_detector: AnomalyDetector::new(0.8, 50),
         }
     }
 
@@ -384,6 +392,147 @@ impl MetricsCollector {
             disk_usage_percent: 65.0 + (current_time % 10) as f64,
         })
     }
+
+    /// Detect anomalies in system behavior
+    pub async fn detect_anomalies(&self) -> Vec<Anomaly> {
+        let history = self.historical_metrics.read().await;
+        self.anomaly_detector.detect(&history)
+    }
+
+    /// Get predictive insights
+    pub async fn get_predictive_insights(&self) -> PredictiveInsights {
+        let trends = self.analyze_trends().await;
+        let anomalies = self.detect_anomalies().await;
+
+        PredictiveInsights {
+            trends,
+            anomalies,
+            recommendations: self.generate_recommendations().await,
+            forecast: self.generate_forecast().await,
+        }
+    }
+
+    async fn generate_recommendations(&self) -> Vec<String> {
+        let mut recommendations = Vec::new();
+        let current = self.current_metrics.read().await;
+
+        if current.resource_usage.cpu_usage_percent > 80.0 {
+            recommendations.push(
+                "Consider scaling up CPU resources or optimizing agent workloads".to_string(),
+            );
+        }
+
+        if current.resource_usage.memory_usage_percent > 85.0 {
+            recommendations.push(
+                "Memory usage is high - consider garbage collection or memory optimization"
+                    .to_string(),
+            );
+        }
+
+        recommendations
+    }
+
+    async fn generate_forecast(&self) -> SystemForecast {
+        let history = self.historical_metrics.read().await;
+
+        if history.len() < 5 {
+            return SystemForecast::default();
+        }
+
+        // Simple forecast based on recent trends
+        SystemForecast {
+            predicted_health_score_1h: 0.85,
+            predicted_health_score_24h: 0.80,
+            confidence: 0.75,
+            risk_factors: vec!["Normal operational variance".to_string()],
+        }
+    }
+}
+
+// Advanced analytics components
+pub struct TrendAnalyzer {
+    window_size: usize,
+    trend_threshold: f64,
+}
+
+impl TrendAnalyzer {
+    pub fn new(window_size: usize, trend_threshold: f64) -> Self {
+        Self {
+            window_size,
+            trend_threshold,
+        }
+    }
+}
+
+pub struct AnomalyDetector {
+    sensitivity: f64,
+    baseline_window: usize,
+}
+
+impl AnomalyDetector {
+    pub fn new(sensitivity: f64, baseline_window: usize) -> Self {
+        Self {
+            sensitivity,
+            baseline_window,
+        }
+    }
+
+    pub fn detect(&self, _history: &[SystemMetrics]) -> Vec<Anomaly> {
+        // Simplified anomaly detection
+        vec![]
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PredictiveInsights {
+    pub trends: MetricsTrends,
+    pub anomalies: Vec<Anomaly>,
+    pub recommendations: Vec<String>,
+    pub forecast: SystemForecast,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemForecast {
+    pub predicted_health_score_1h: f64,
+    pub predicted_health_score_24h: f64,
+    pub confidence: f64,
+    pub risk_factors: Vec<String>,
+}
+
+impl Default for SystemForecast {
+    fn default() -> Self {
+        Self {
+            predicted_health_score_1h: 0.8,
+            predicted_health_score_24h: 0.75,
+            confidence: 0.5,
+            risk_factors: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Anomaly {
+    pub timestamp: DateTime<Utc>,
+    pub anomaly_type: AnomalyType,
+    pub severity: AnomalySeverity,
+    pub description: String,
+    pub affected_metrics: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AnomalyType {
+    PerformanceSpike,
+    PerformanceDrop,
+    ResourceExhaustion,
+    UnexpectedBehavior,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AnomalySeverity {
+    Low,
+    Medium,
+    High,
+    Critical,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

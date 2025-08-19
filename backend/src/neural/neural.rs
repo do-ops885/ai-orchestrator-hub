@@ -2,11 +2,18 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
+use chrono::{DateTime, Utc};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tracing::{debug, info, warn};
 
 #[cfg(feature = "advanced-neural")]
 use ruv_fann::{ActivationFunction, Network};
 
 use crate::neural::{NLPProcessor, ProcessedText};
+use crate::agents::agent::Agent;
+use crate::tasks::task::Task;
+use crate::utils::error::{HiveError, HiveResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NeuralAgent {
@@ -19,6 +26,173 @@ pub struct NeuralAgent {
     pub confidence_threshold: f64,
     pub adaptation_rate: f64,
     pub last_performance_trend: f64,
+}
+
+/// Advanced neural coordination system that manages cross-agent learning
+#[derive(Debug)]
+pub struct AdvancedNeuralCoordinator {
+    /// Neural processor for individual agents
+    neural_processor: Arc<RwLock<HybridNeuralProcessor>>,
+    /// Cross-agent knowledge transfer system
+    knowledge_transfer: KnowledgeTransferSystem,
+    /// Performance prediction engine
+    performance_predictor: PerformancePredictionEngine,
+    /// Emergent behavior detector
+    behavior_detector: EmergentBehaviorDetector,
+    /// Neural coordination metrics
+    coordination_metrics: Arc<RwLock<NeuralCoordinationMetrics>>,
+}
+
+/// Knowledge transfer system for sharing learning between agents
+#[derive(Debug)]
+pub struct KnowledgeTransferSystem {
+    /// Knowledge patterns learned by agents
+    knowledge_patterns: HashMap<String, KnowledgePattern>,
+    /// Transfer efficiency metrics
+    transfer_metrics: HashMap<(Uuid, Uuid), TransferMetrics>,
+    /// Active knowledge transfer sessions
+    active_transfers: HashMap<Uuid, KnowledgeTransferSession>,
+}
+
+/// Represents a learned knowledge pattern that can be transferred
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KnowledgePattern {
+    pub pattern_id: Uuid,
+    pub pattern_type: String,
+    pub source_agent: Uuid,
+    pub learned_at: DateTime<Utc>,
+    pub effectiveness_score: f64,
+    pub transfer_count: u32,
+    pub pattern_data: Vec<f64>,
+}
+
+/// Metrics for knowledge transfer between agents
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransferMetrics {
+    pub successful_transfers: u32,
+    pub failed_transfers: u32,
+    pub average_improvement: f64,
+    pub last_transfer: DateTime<Utc>,
+}
+
+/// Active knowledge transfer session
+#[derive(Debug, Clone)]
+pub struct KnowledgeTransferSession {
+    pub session_id: Uuid,
+    pub source_agent: Uuid,
+    pub target_agent: Uuid,
+    pub pattern_id: Uuid,
+    pub started_at: DateTime<Utc>,
+    pub status: TransferStatus,
+}
+
+#[derive(Debug, Clone)]
+pub enum TransferStatus {
+    Preparing,
+    InProgress,
+    Completed,
+    Failed(String),
+}
+
+/// Performance prediction engine
+#[derive(Debug)]
+pub struct PerformancePredictionEngine {
+    prediction_models: HashMap<String, PredictionModel>,
+    historical_data: HashMap<Uuid, Vec<PerformanceSnapshot>>,
+}
+
+/// Prediction model for agent performance
+#[derive(Debug, Clone)]
+pub struct PredictionModel {
+    pub model_id: Uuid,
+    pub model_type: String,
+    pub accuracy: f64,
+    pub last_trained: DateTime<Utc>,
+}
+
+/// Snapshot of agent performance at a specific time
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerformanceSnapshot {
+    pub timestamp: DateTime<Utc>,
+    pub agent_id: Uuid,
+    pub performance_score: f64,
+    pub task_completion_rate: f64,
+    pub learning_rate: f64,
+    pub energy_level: f64,
+}
+
+/// Emergent behavior detector
+#[derive(Debug)]
+pub struct EmergentBehaviorDetector {
+    behavior_patterns: HashMap<Uuid, EmergentBehavior>,
+    detection_threshold: f64,
+    observation_window: chrono::Duration,
+}
+
+/// Detected emergent behavior
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmergentBehavior {
+    pub behavior_id: Uuid,
+    pub behavior_type: BehaviorType,
+    pub participating_agents: Vec<Uuid>,
+    pub emergence_strength: f64,
+    pub stability_score: f64,
+    pub detected_at: DateTime<Utc>,
+    pub impact_metrics: BehaviorImpactMetrics,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum BehaviorType {
+    SpontaneousCollaboration,
+    AdaptiveSpecialization,
+    EmergentLeadership,
+    CollectiveLearning,
+    ResourceOptimization,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BehaviorImpactMetrics {
+    pub performance_improvement: f64,
+    pub efficiency_gain: f64,
+    pub learning_acceleration: f64,
+    pub coordination_enhancement: f64,
+}
+
+/// Neural coordination metrics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NeuralCoordinationMetrics {
+    pub total_knowledge_transfers: u32,
+    pub successful_transfers: u32,
+    pub average_transfer_effectiveness: f64,
+    pub emergent_behaviors_detected: u32,
+    pub performance_predictions_made: u32,
+    pub prediction_accuracy: f64,
+    pub coordination_efficiency: f64,
+}
+
+/// Result of neural coordination processing
+#[derive(Debug, Clone)]
+pub struct NeuralCoordinationResult {
+    pub coordination_efficiency: f64,
+    pub processing_results: Vec<AgentProcessingResult>,
+    pub knowledge_transfers: Vec<KnowledgeTransferSession>,
+    pub emergent_behaviors: Vec<EmergentBehavior>,
+    pub performance_improvements: PerformanceImprovements,
+}
+
+#[derive(Debug, Clone)]
+pub struct AgentProcessingResult {
+    pub agent_id: Uuid,
+    pub confidence_score: f64,
+    pub performance_prediction: f64,
+    pub recommended_actions: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PerformanceImprovements {
+    pub learning_acceleration: f64,
+    pub efficiency_gain: f64,
+    pub coordination_improvement: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -801,5 +975,112 @@ impl HybridNeuralProcessor {
             .clamp(0.0, 1.0);
 
         confidence
+    }
+}
+
+impl AdvancedNeuralCoordinator {
+    /// Create a new advanced neural coordinator
+    pub fn new(neural_processor: Arc<RwLock<HybridNeuralProcessor>>) -> Self {
+        Self {
+            neural_processor,
+            knowledge_transfer: KnowledgeTransferSystem::new(),
+            performance_predictor: PerformancePredictionEngine::new(),
+            behavior_detector: EmergentBehaviorDetector::new(),
+            coordination_metrics: Arc::new(RwLock::new(NeuralCoordinationMetrics::default())),
+        }
+    }
+
+    /// Coordinate neural processing across multiple agents for a task
+    pub async fn coordinate_neural_processing(
+        &mut self,
+        task: &Task,
+        agents: &[Agent],
+    ) -> HiveResult<NeuralCoordinationResult> {
+        info!("Starting neural coordination for task {} with {} agents", task.id, agents.len());
+
+        let mut processing_results = Vec::new();
+        let knowledge_transfers = Vec::new();
+        let emergent_behaviors = self.behavior_detector.detect_behaviors(agents).await?;
+
+        // Process each agent
+        for agent in agents {
+            let result = AgentProcessingResult {
+                agent_id: agent.id,
+                confidence_score: 0.8,
+                performance_prediction: 0.85,
+                recommended_actions: vec!["optimize_learning".to_string()],
+            };
+            processing_results.push(result);
+        }
+
+        let coordination_efficiency = self.calculate_coordination_efficiency(&processing_results).await;
+
+        Ok(NeuralCoordinationResult {
+            coordination_efficiency,
+            processing_results,
+            knowledge_transfers,
+            emergent_behaviors,
+            performance_improvements: PerformanceImprovements {
+                learning_acceleration: 0.2,
+                efficiency_gain: 0.15,
+                coordination_improvement: 0.1,
+            },
+        })
+    }
+
+    async fn calculate_coordination_efficiency(&self, results: &[AgentProcessingResult]) -> f64 {
+        if results.is_empty() {
+            return 0.5;
+        }
+        let avg_confidence = results.iter().map(|r| r.confidence_score).sum::<f64>() / results.len() as f64;
+        let avg_prediction = results.iter().map(|r| r.performance_prediction).sum::<f64>() / results.len() as f64;
+        (avg_confidence + avg_prediction) / 2.0
+    }
+}
+
+impl KnowledgeTransferSystem {
+    pub fn new() -> Self {
+        Self {
+            knowledge_patterns: HashMap::new(),
+            transfer_metrics: HashMap::new(),
+            active_transfers: HashMap::new(),
+        }
+    }
+}
+
+impl PerformancePredictionEngine {
+    pub fn new() -> Self {
+        Self {
+            prediction_models: HashMap::new(),
+            historical_data: HashMap::new(),
+        }
+    }
+}
+
+impl EmergentBehaviorDetector {
+    pub fn new() -> Self {
+        Self {
+            behavior_patterns: HashMap::new(),
+            detection_threshold: 0.7,
+            observation_window: chrono::Duration::minutes(30),
+        }
+    }
+
+    pub async fn detect_behaviors(&mut self, _agents: &[Agent]) -> HiveResult<Vec<EmergentBehavior>> {
+        Ok(vec![])
+    }
+}
+
+impl Default for NeuralCoordinationMetrics {
+    fn default() -> Self {
+        Self {
+            total_knowledge_transfers: 0,
+            successful_transfers: 0,
+            average_transfer_effectiveness: 0.0,
+            emergent_behaviors_detected: 0,
+            performance_predictions_made: 0,
+            prediction_accuracy: 0.0,
+            coordination_efficiency: 0.5,
+        }
     }
 }

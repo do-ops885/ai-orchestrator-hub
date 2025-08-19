@@ -72,6 +72,16 @@ pub enum HiveError {
     /// Timeout errors
     #[error("Operation timed out: {operation} after {duration_ms}ms")]
     TimeoutError { operation: String, duration_ms: u64 },
+
+    /// Authentication and authorization errors
+    #[error("Authentication error: {reason}")]
+    AuthenticationError { reason: String },
+
+    #[error("Authorization error: {reason}")]
+    AuthorizationError { reason: String },
+
+    #[error("Security error: {reason}")]
+    SecurityError { reason: String },
 }
 
 // Note: anyhow already provides a blanket implementation for std::error::Error

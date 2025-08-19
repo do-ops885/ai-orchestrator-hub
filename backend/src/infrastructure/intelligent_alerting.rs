@@ -1,5 +1,5 @@
-use crate::infrastructure::advanced_metrics::{
-    AdvancedMetricsCollector, Anomaly, AnomalySeverity, PredictiveInsights,
+use crate::infrastructure::metrics::{
+    MetricsCollector, Anomaly, AnomalySeverity, PredictiveInsights,
 };
 use crate::infrastructure::metrics::{Alert, AlertLevel};
 use chrono::{DateTime, Duration, Utc};
@@ -17,7 +17,7 @@ pub struct IntelligentAlertingSystem {
     adaptive_thresholds: Arc<RwLock<AdaptiveThresholds>>,
     notification_channels: Arc<RwLock<Vec<NotificationChannel>>>,
     alert_suppression: Arc<RwLock<AlertSuppression>>,
-    metrics_collector: Arc<AdvancedMetricsCollector>,
+    metrics_collector: Arc<MetricsCollector>,
     config: IntelligentAlertConfig,
 }
 
@@ -146,7 +146,7 @@ pub struct IntelligentAlert {
 
 impl IntelligentAlertingSystem {
     pub fn new(
-        metrics_collector: Arc<AdvancedMetricsCollector>,
+        metrics_collector: Arc<MetricsCollector>,
         config: IntelligentAlertConfig,
     ) -> Self {
         Self {
@@ -244,7 +244,7 @@ impl IntelligentAlertingSystem {
 
         // Get current metrics and insights
         let insights = self.metrics_collector.get_predictive_insights().await;
-        let current_metrics = self.metrics_collector.collect_advanced_metrics().await?;
+        let current_metrics = self.metrics_collector.collect_system_metrics().await?;
 
         // Process traditional threshold-based alerts
         let threshold_alerts = self.check_threshold_alerts(&current_metrics).await?;
@@ -287,7 +287,7 @@ impl IntelligentAlertingSystem {
 
     async fn check_threshold_alerts(
         &self,
-        metrics: &crate::infrastructure::advanced_metrics::MetricsSnapshot,
+        metrics: &crate::infrastructure::metrics::SystemMetrics,
     ) -> anyhow::Result<Vec<IntelligentAlert>> {
         let mut alerts = Vec::new();
         let rules = self.alert_rules.read().await;
@@ -475,7 +475,7 @@ impl IntelligentAlertingSystem {
 
     async fn update_adaptive_thresholds(
         &self,
-        _metrics: &crate::infrastructure::advanced_metrics::MetricsSnapshot,
+        _metrics: &crate::infrastructure::metrics::SystemMetrics,
         alerts: &[IntelligentAlert],
     ) -> anyhow::Result<()> {
         let mut adaptive_thresholds = self.adaptive_thresholds.write().await;
@@ -640,11 +640,11 @@ impl IntelligentAlertingSystem {
 
     fn generate_anomaly_actions(&self, anomaly: &Anomaly) -> Vec<String> {
         match anomaly.anomaly_type {
-            crate::infrastructure::advanced_metrics::AnomalyType::PerformanceSpike => vec![
+            crate::infrastructure::metrics::AnomalyType::PerformanceSpike => vec![
                 "Investigate sudden performance increase".to_string(),
                 "Check for unusual workload patterns".to_string(),
             ],
-            crate::infrastructure::advanced_metrics::AnomalyType::PerformanceDrop => vec![
+            crate::infrastructure::metrics::AnomalyType::PerformanceDrop => vec![
                 "Investigate performance degradation".to_string(),
                 "Check system resources".to_string(),
                 "Review recent configuration changes".to_string(),
