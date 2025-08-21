@@ -63,6 +63,10 @@ pub mod tasks;
 /// Utility functions and configuration
 pub mod utils;
 
+/// Comprehensive unit and integration tests
+#[cfg(test)]
+pub mod tests;
+
 pub use agents::*;
 pub use communication::*;
 pub use core::*;

@@ -446,6 +446,49 @@ impl AuthManager {
     pub async fn get_session_info(&self, session_id: &str) -> Option<AuthSession> {
         self.sessions.read().await.get(session_id).cloned()
     }
+
+    /// Validate incoming request for security threats
+    pub async fn validate_request(
+        &self,
+        _source_ip: Option<String>,
+        user_agent: Option<String>,
+        endpoint: &str,
+        payload_size: usize,
+    ) -> crate::utils::error::HiveResult<crate::utils::security::SecurityResult> {
+        use crate::utils::security::{SecurityResult, ThreatLevel};
+        
+        // Basic security validation logic
+        let mut threat_level = ThreatLevel::Low;
+        let mut is_valid = true;
+        let mut reason = None;
+
+        // Check payload size
+        if payload_size > 10_000_000 { // 10MB limit
+            threat_level = ThreatLevel::High;
+            is_valid = false;
+            reason = Some("Payload too large".to_string());
+        }
+
+        // Check for suspicious user agents
+        if let Some(ref ua) = user_agent {
+            if ua.to_lowercase().contains("bot") || ua.to_lowercase().contains("crawler") {
+                threat_level = ThreatLevel::Medium;
+            }
+        }
+
+        // Check for admin endpoints
+        if endpoint.contains("/admin") || endpoint.contains("/system") {
+            if threat_level == ThreatLevel::Low {
+                threat_level = ThreatLevel::Medium;
+            }
+        }
+
+        Ok(SecurityResult {
+            threat_level,
+            is_valid,
+            reason,
+        })
+    }
 }
 
 /// Authentication middleware for Axum

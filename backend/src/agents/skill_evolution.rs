@@ -492,7 +492,7 @@ impl SkillEvolutionSystem {
                 } else if progress < 0.7 {
                     peak_rate
                 } else {
-                    *initial_rate * (1.0 - (progress - 0.7) / 0.3 * (1.0 - plateau_threshold))
+                    &(initial_rate * (1.0 - (progress - 0.7) / 0.3 * (1.0 - plateau_threshold)))
                 };
                 (template.base_proficiency + rate * learning_time).min(template.max_proficiency)
             }

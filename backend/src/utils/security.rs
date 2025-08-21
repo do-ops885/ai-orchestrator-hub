@@ -12,6 +12,23 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
+/// Threat level assessment for security validation
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ThreatLevel {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+/// Security validation result
+#[derive(Debug, Clone)]
+pub struct SecurityResult {
+    pub threat_level: ThreatLevel,
+    pub is_valid: bool,
+    pub reason: Option<String>,
+}
+
 /// Security audit logger for tracking security-related events
 #[derive(Debug, Clone)]
 pub struct SecurityAuditor {

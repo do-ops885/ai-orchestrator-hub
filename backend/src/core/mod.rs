@@ -7,7 +7,5 @@ pub mod swarm_intelligence;
 /// Enhanced swarm coordination with neural intelligence
 pub mod swarm_coordination;
 
-pub use auto_scaling::*;
 pub use hive::*;
 pub use swarm_intelligence::*;
-pub use swarm_coordination::*;

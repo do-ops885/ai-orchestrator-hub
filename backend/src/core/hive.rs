@@ -23,7 +23,7 @@ use crate::tasks::WorkStealingQueue;
 use crate::tasks::{Task, TaskQueue, TaskRequiredCapability};
 
 // Enhanced swarm coordination types
-use crate::core::swarm_intelligence::{FormationType, SwarmFormation};
+use crate::core::swarm_intelligence::SwarmFormation;
 use crate::core::swarm_coordination::SwarmCoordinationMetrics;
 use crate::core::auto_scaling::{AutoScalingSystem, AutoScalingConfig};
 

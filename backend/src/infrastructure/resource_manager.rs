@@ -30,6 +30,7 @@ pub enum HardwareClass {
     Cloud,      // Cloud instance
 }
 
+#[derive(Debug)]
 pub struct ResourceManager {
     pub system_resources: Arc<RwLock<SystemResources>>,
     pub current_profile: Arc<RwLock<ResourceProfile>>,

@@ -55,7 +55,7 @@ pub struct AppState {
     /// Enhanced metrics collection system with alerting and trend analysis
     pub metrics: Arc<MetricsCollector>,
     /// Advanced metrics collector with predictive analytics
-    pub advanced_metrics: Arc<crate::infrastructure::AdvancedMetricsCollector>,
+    pub advanced_metrics: Arc<crate::infrastructure::MetricsCollector>,
     /// Intelligent alerting system with adaptive thresholds
     pub intelligent_alerting: Arc<crate::infrastructure::IntelligentAlertingSystem>,
     /// Circuit breaker for resilience
@@ -124,7 +124,7 @@ async fn main() -> anyhow::Result<()> {
     info!("✅ Enhanced metrics collector initialized with custom thresholds");
 
     // Initialize advanced metrics collector with predictive analytics
-    let advanced_metrics = Arc::new(crate::infrastructure::AdvancedMetricsCollector::new(2000));
+    let advanced_metrics = Arc::new(crate::infrastructure::MetricsCollector::new(2000));
     info!("🔮 Advanced metrics collector initialized with predictive analytics");
 
     // Initialize intelligent alerting system
@@ -336,7 +336,7 @@ async fn start_background_tasks(app_state: AppState) {
             // Collect advanced metrics with predictive analytics
             if let Err(e) = metrics_state
                 .advanced_metrics
-                .collect_advanced_metrics()
+                .collect_system_metrics()
                 .await
             {
                 error!("Failed to collect advanced metrics: {}", e);

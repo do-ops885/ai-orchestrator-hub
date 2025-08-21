@@ -8,6 +8,7 @@
 
 // Advanced security functionality consolidated into security_middleware
 use crate::utils::auth::{AuthManager, Claims, Permission};
+use crate::utils::security::ThreatLevel;
 use axum::{
     extract::{Request, State},
     http::{HeaderMap, StatusCode},
@@ -63,19 +64,19 @@ pub async fn comprehensive_security_middleware(
     // Step 1: Advanced security validation
     let security_result = security_state
         .auth_manager // Use auth_manager instead of removed security_manager
-        .validate_request(source_ip, user_agent.clone(), endpoint, payload_size)
+        .validate_request(source_ip.map(|ip| ip.to_string()), user_agent.clone(), endpoint, payload_size.unwrap_or(0) as usize)
         .await
         .map_err(|e| {
             error!("Security validation failed: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    if !security_result.allowed {
+    if !security_result.is_valid {
         warn!(
             endpoint = %endpoint,
             source_ip = ?source_ip,
             threat_level = ?security_result.threat_level,
-            warnings = ?security_result.warnings,
+            reason = ?security_result.reason,
             "Request blocked by security validation"
         );
         

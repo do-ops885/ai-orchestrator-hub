@@ -20,7 +20,7 @@ pub mod testing_framework;
 pub mod validation;
 
 // Export commonly used types and traits
-pub use auth::*;
+// pub use auth::*; // Commented out to avoid unused import warnings
 pub use config::*;
 pub use error::*;
 pub use security::*;

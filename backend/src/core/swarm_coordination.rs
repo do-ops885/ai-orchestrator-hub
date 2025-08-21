@@ -4,18 +4,12 @@
 //! in conjunction with the neural coordinator to create intelligent,
 //! adaptive agent formations and behaviors.
 
-use crate::agents::agent::Agent;
-use crate::core::swarm_intelligence::{FormationType, SwarmFormation};
-use crate::tasks::task::{Task, TaskPriority};
-use crate::utils::error::{HiveError, HiveResult};
-use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
 use uuid::Uuid;
+use crate::core::swarm_intelligence::FormationType;
+use crate::utils::error::HiveResult;
 
 /// Enhanced swarm formation with neural capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]

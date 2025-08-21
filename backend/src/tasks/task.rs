@@ -11,7 +11,7 @@ pub enum TaskPriority {
     Critical,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TaskStatus {
     Pending,
     Assigned,

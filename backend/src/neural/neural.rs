@@ -5,7 +5,7 @@ use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::info;
 
 #[cfg(feature = "advanced-neural")]
 use ruv_fann::{ActivationFunction, Network};
@@ -13,7 +13,7 @@ use ruv_fann::{ActivationFunction, Network};
 use crate::neural::{NLPProcessor, ProcessedText};
 use crate::agents::agent::Agent;
 use crate::tasks::task::Task;
-use crate::utils::error::{HiveError, HiveResult};
+use crate::utils::error::HiveResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NeuralAgent {
@@ -230,6 +230,7 @@ pub struct LSTMConfig {
     pub sequence_length: usize,
 }
 
+#[derive(Debug)]
 pub struct HybridNeuralProcessor {
     pub nlp_processor: NLPProcessor,
     #[cfg(feature = "advanced-neural")]
