@@ -276,6 +276,7 @@ impl AdaptiveLearningSystem {
         format!("pattern_{:x}", hasher.finish())
     }
 
+    #[allow(dead_code)]
     fn calculate_learning_factor(&self, frequency: u32) -> f64 {
         // Higher frequency patterns should have lower learning rates (more stable)
         let base_rate = self.config.learning_rate;

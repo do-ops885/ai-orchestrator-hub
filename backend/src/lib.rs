@@ -67,11 +67,12 @@ pub mod utils;
 #[cfg(test)]
 pub mod tests;
 
-pub use agents::*;
-pub use communication::*;
-pub use core::*;
-pub use infrastructure::*;
-pub use neural::*;
+// Re-export core types with specific imports to avoid ambiguity
+pub use agents::{Agent, AgentType, AgentState, AgentCapability, AgentMemory};
+pub use communication::{WebSocketMessage, mcp};
+pub use core::{HiveCoordinator, SwarmMetrics};
+pub use infrastructure::{MetricsCollector, ResourceManager};
+pub use neural::{NLPProcessor, HybridNeuralProcessor};
 pub use tasks::*;
 pub use utils::*;
 

@@ -165,6 +165,7 @@ pub struct AuthManager {
     /// Session timeout
     session_timeout: Duration,
     /// Refresh token timeout
+    #[allow(dead_code)]
     refresh_timeout: Duration,
 }
 

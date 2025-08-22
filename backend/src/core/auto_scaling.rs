@@ -352,7 +352,6 @@ impl AutoScalingSystem {
                 ScalingTrigger::TimeBasedScaling { .. } => {
                     // Time-based scaling logic would go here
                     // For now, skip this trigger type
-                    continue;
                 }
             }
         }

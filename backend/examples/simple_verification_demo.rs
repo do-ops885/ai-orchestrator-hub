@@ -11,7 +11,7 @@
 //!
 //! Run with: `cargo run --example simple_verification_demo`
 
-use multiagent_hive::{HiveCoordinator, RuleType, VerificationRule};
+use multiagent_hive::{HiveCoordinator, agents::{RuleType, VerificationRule}};
 use serde_json::json;
 use tokio;
 use tracing::{info, warn};

@@ -327,6 +327,7 @@ impl StandardHealthChecks {
 /// Circuit breaker pattern implementation for fault tolerance
 #[derive(Debug, Clone)]
 pub struct CircuitBreaker {
+    #[allow(dead_code)]
     name: String,
     failure_threshold: u32,
     recovery_timeout: Duration,

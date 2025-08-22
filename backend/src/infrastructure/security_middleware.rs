@@ -190,9 +190,8 @@ async fn handle_authentication(
                                 client_type: crate::utils::auth::ClientType::Service,
                             };
                             return Ok(Some(claims));
-                        } else {
-                            return Err(StatusCode::FORBIDDEN);
                         }
+                        return Err(StatusCode::FORBIDDEN);
                     }
                     // API key is valid and no specific permission required
                     let claims = Claims {
