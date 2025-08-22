@@ -13,10 +13,10 @@ use std::sync::Arc;
 use tracing::{debug, info};
 use uuid::Uuid;
 
-use crate::agents::Agent;
 use crate::agents::simple_verification::{
     SimpleVerificationResult, SimpleVerificationStatus, SimpleVerificationSystem,
 };
+use crate::agents::Agent;
 use crate::neural::adaptive_learning::AdaptiveLearningSystem;
 use crate::tasks::{Task, TaskResult};
 
@@ -460,9 +460,8 @@ impl AdaptiveVerificationSystem {
 
         // Recalculate derived metrics
         let tp = f64::from(tracker.accuracy_metrics.true_positives);
-        let _tn = tracker.accuracy_metrics.true_negatives as f64;
-        let fp = tracker.accuracy_metrics.false_positives as f64;
-        let fn_count = tracker.accuracy_metrics.false_negatives as f64;
+        let fp = f64::from(tracker.accuracy_metrics.false_positives);
+        let fn_count = f64::from(tracker.accuracy_metrics.false_negatives);
 
         tracker.accuracy_metrics.precision = if tp + fp > 0.0 { tp / (tp + fp) } else { 0.0 };
         tracker.accuracy_metrics.recall = if tp + fn_count > 0.0 {
@@ -487,7 +486,7 @@ impl AdaptiveVerificationSystem {
         let time_since_last_adaptation = now - history.last_adaptation;
 
         time_since_last_adaptation
-            >= Duration::hours(self.adaptation_config.adaptation_frequency_hours as i64)
+            >= Duration::hours(i64::from(self.adaptation_config.adaptation_frequency_hours))
     }
 
     /// Perform threshold adaptation
@@ -593,7 +592,7 @@ impl AdaptiveVerificationSystem {
         let sample_confidence = (sample_count as f64 / 100.0).min(1.0);
         let improvement_confidence = (performance_improvement * 10.0).min(1.0);
 
-        (sample_confidence + improvement_confidence) / 2.0
+        f64::midpoint(sample_confidence, improvement_confidence)
     }
 
     fn calculate_outcome_score(
@@ -619,7 +618,7 @@ impl AdaptiveVerificationSystem {
 
     async fn get_recent_sample_count(&self) -> usize {
         let performance = self.performance_tracker.read().await;
-        let window = Duration::hours(self.adaptation_config.adaptation_window_hours as i64);
+        let window = Duration::hours(i64::from(self.adaptation_config.adaptation_window_hours));
         self.get_recent_outcomes(&performance, window).len()
     }
 
@@ -639,7 +638,7 @@ impl AdaptiveVerificationSystem {
             accuracy_metrics: performance.accuracy_metrics.clone(),
             efficiency_metrics: performance.efficiency_metrics.clone(),
             next_adaptation_due: history.last_adaptation
-                + Duration::hours(self.adaptation_config.adaptation_frequency_hours as i64),
+                + Duration::hours(i64::from(self.adaptation_config.adaptation_frequency_hours)),
         }
     }
 }

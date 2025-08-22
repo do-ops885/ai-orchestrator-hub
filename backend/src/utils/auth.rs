@@ -20,36 +20,36 @@ use uuid::Uuid;
 /// JWT claims structure
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
-    pub sub: String,           // Subject (user ID)
-    pub exp: usize,           // Expiration time
-    pub iat: usize,           // Issued at
-    pub iss: String,          // Issuer
-    pub aud: String,          // Audience
-    pub roles: Vec<String>,   // User roles
+    pub sub: String,              // Subject (user ID)
+    pub exp: usize,               // Expiration time
+    pub iat: usize,               // Issued at
+    pub iss: String,              // Issuer
+    pub aud: String,              // Audience
+    pub roles: Vec<String>,       // User roles
     pub permissions: Vec<String>, // Specific permissions
-    pub session_id: String,   // Session identifier
-    pub client_type: ClientType, // Client type (human, agent, service)
+    pub session_id: String,       // Session identifier
+    pub client_type: ClientType,  // Client type (human, agent, service)
 }
 
 /// Client types for different authentication scenarios
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum ClientType {
-    Human,      // Human user
-    Agent,      // AI agent
-    Service,    // Service-to-service
-    Admin,      // Administrative access
+    Human,   // Human user
+    Agent,   // AI agent
+    Service, // Service-to-service
+    Admin,   // Administrative access
 }
 
 /// User roles with hierarchical permissions
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum Role {
-    SuperAdmin,     // Full system access
-    Admin,          // Administrative access
-    Operator,       // Operational access
-    Developer,      // Development and debugging
-    Viewer,         // Read-only access
-    Agent,          // AI agent access
-    Service,        // Service account
+    SuperAdmin, // Full system access
+    Admin,      // Administrative access
+    Operator,   // Operational access
+    Developer,  // Development and debugging
+    Viewer,     // Read-only access
+    Agent,      // AI agent access
+    Service,    // Service account
 }
 
 impl Role {
@@ -86,13 +86,8 @@ impl Role {
                 Permission::MetricsRead,
                 Permission::ConfigRead,
             ],
-            Role::Viewer => vec![
-                Permission::MetricsRead,
-            ],
-            Role::Agent => vec![
-                Permission::TaskManagement,
-                Permission::MetricsRead,
-            ],
+            Role::Viewer => vec![Permission::MetricsRead],
+            Role::Agent => vec![Permission::TaskManagement, Permission::MetricsRead],
             Role::Service => vec![
                 Permission::TaskManagement,
                 Permission::MetricsRead,
@@ -105,15 +100,15 @@ impl Role {
 /// Granular permissions system
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub enum Permission {
-    SystemAdmin,        // Full system administration
-    UserManagement,     // Create, update, delete users
-    AgentManagement,    // Create, update, delete agents
-    TaskManagement,     // Create, update, delete tasks
-    MetricsRead,        // Read system metrics
-    MetricsWrite,       // Write system metrics
-    ConfigRead,         // Read system configuration
-    ConfigWrite,        // Write system configuration
-    SecurityAudit,      // Access security audit logs
+    SystemAdmin,     // Full system administration
+    UserManagement,  // Create, update, delete users
+    AgentManagement, // Create, update, delete agents
+    TaskManagement,  // Create, update, delete tasks
+    MetricsRead,     // Read system metrics
+    MetricsWrite,    // Write system metrics
+    ConfigRead,      // Read system configuration
+    ConfigWrite,     // Write system configuration
+    SecurityAudit,   // Access security audit logs
 }
 
 /// Authentication session
@@ -204,7 +199,7 @@ impl AuthManager {
     ) -> HiveResult<(String, String)> {
         let session_id = Uuid::new_v4().to_string();
         let now = Utc::now();
-        
+
         // Collect all permissions from roles
         let mut permissions = HashSet::new();
         for role in &roles {
@@ -240,23 +235,19 @@ impl AuthManager {
         };
 
         // Generate JWT token
-        let token = encode(&Header::default(), &claims, &self.encoding_key)
-            .map_err(|e| HiveError::AuthenticationError {
+        let token = encode(&Header::default(), &claims, &self.encoding_key).map_err(|e| {
+            HiveError::AuthenticationError {
                 reason: format!("Failed to generate JWT: {}", e),
-            })?;
+            }
+        })?;
 
         // Store session
         let mut sessions = self.sessions.write().await;
         sessions.insert(session_id.clone(), session);
 
         // Log authentication success
-        self.security_auditor.log_authentication_attempt(
-            user_id,
-            ip_address,
-            user_agent,
-            true,
-            None,
-        );
+        self.security_auditor
+            .log_authentication_attempt(user_id, ip_address, user_agent, true, None);
 
         Ok((token, session_id))
     }
@@ -267,10 +258,11 @@ impl AuthManager {
         validation.set_issuer(&[&self.issuer]);
         validation.set_audience(&[&self.audience]);
 
-        let token_data = decode::<Claims>(token, &self.decoding_key, &validation)
-            .map_err(|e| HiveError::AuthenticationError {
+        let token_data = decode::<Claims>(token, &self.decoding_key, &validation).map_err(|e| {
+            HiveError::AuthenticationError {
                 reason: format!("Invalid JWT token: {}", e),
-            })?;
+            }
+        })?;
 
         let claims = token_data.claims;
 
@@ -310,9 +302,10 @@ impl AuthManager {
     /// Refresh JWT token
     pub async fn refresh_token(&self, refresh_token: &str) -> HiveResult<String> {
         let mut sessions = self.sessions.write().await;
-        
+
         // Find session by refresh token
-        let session = sessions.values_mut()
+        let session = sessions
+            .values_mut()
             .find(|s| s.refresh_token.as_ref() == Some(&refresh_token.to_string()))
             .ok_or_else(|| HiveError::AuthenticationError {
                 reason: "Invalid refresh token".to_string(),
@@ -326,7 +319,7 @@ impl AuthManager {
         }
 
         let now = Utc::now();
-        
+
         // Update session
         session.last_activity = now;
         session.expires_at = now + self.session_timeout;
@@ -339,16 +332,21 @@ impl AuthManager {
             iss: self.issuer.clone(),
             aud: self.audience.clone(),
             roles: session.roles.iter().map(|r| format!("{:?}", r)).collect(),
-            permissions: session.permissions.iter().map(|p| format!("{:?}", p)).collect(),
+            permissions: session
+                .permissions
+                .iter()
+                .map(|p| format!("{:?}", p))
+                .collect(),
             session_id: session.session_id.clone(),
             client_type: session.client_type.clone(),
         };
 
         // Generate new JWT token
-        let token = encode(&Header::default(), &claims, &self.encoding_key)
-            .map_err(|e| HiveError::AuthenticationError {
+        let token = encode(&Header::default(), &claims, &self.encoding_key).map_err(|e| {
+            HiveError::AuthenticationError {
                 reason: format!("Failed to generate JWT: {}", e),
-            })?;
+            }
+        })?;
 
         Ok(token)
     }
@@ -457,14 +455,15 @@ impl AuthManager {
         payload_size: usize,
     ) -> crate::utils::error::HiveResult<crate::utils::security::SecurityResult> {
         use crate::utils::security::{SecurityResult, ThreatLevel};
-        
+
         // Basic security validation logic
         let mut threat_level = ThreatLevel::Low;
         let mut is_valid = true;
         let mut reason = None;
 
         // Check payload size
-        if payload_size > 10_000_000 { // 10MB limit
+        if payload_size > 10_000_000 {
+            // 10MB limit
             threat_level = ThreatLevel::High;
             is_valid = false;
             reason = Some("Payload too large".to_string());
@@ -496,14 +495,23 @@ impl AuthManager {
 pub async fn auth_middleware(
     auth_manager: Arc<AuthManager>,
     required_permission: Option<Permission>,
-) -> impl Fn(axum::extract::Request, axum::middleware::Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<axum::response::Response, axum::http::StatusCode>> + Send>> + Clone {
+) -> impl Fn(
+    axum::extract::Request,
+    axum::middleware::Next,
+) -> std::pin::Pin<
+    Box<
+        dyn std::future::Future<Output = Result<axum::response::Response, axum::http::StatusCode>>
+            + Send,
+    >,
+> + Clone {
     move |req: axum::extract::Request, next: axum::middleware::Next| {
         let auth_manager = auth_manager.clone();
         let required_permission = required_permission.clone();
-        
+
         Box::pin(async move {
             // Extract Authorization header
-            let auth_header = req.headers()
+            let auth_header = req
+                .headers()
                 .get("Authorization")
                 .and_then(|h| h.to_str().ok())
                 .and_then(|h| h.strip_prefix("Bearer "));
@@ -512,7 +520,9 @@ pub async fn auth_middleware(
                 Some(token) => token,
                 None => {
                     // Check for API key
-                    if let Some(api_key) = req.headers().get("X-API-Key").and_then(|h| h.to_str().ok()) {
+                    if let Some(api_key) =
+                        req.headers().get("X-API-Key").and_then(|h| h.to_str().ok())
+                    {
                         match auth_manager.validate_api_key(api_key).await {
                             Ok(permissions) => {
                                 if let Some(required) = &required_permission {
@@ -534,13 +544,16 @@ pub async fn auth_middleware(
                 Ok(claims) => {
                     // Check permission if required
                     if let Some(required) = &required_permission {
-                        match auth_manager.check_permission(&claims.session_id, required.clone()).await {
-                            Ok(true) => {},
+                        match auth_manager
+                            .check_permission(&claims.session_id, required.clone())
+                            .await
+                        {
+                            Ok(true) => {}
                             Ok(false) => return Err(axum::http::StatusCode::FORBIDDEN),
                             Err(_) => return Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
                         }
                     }
-                    
+
                     // Add claims to request extensions for use in handlers
                     let mut req = req;
                     req.extensions_mut().insert(claims);
@@ -595,7 +608,7 @@ mod tests {
 
         // Test logout
         auth_manager.logout(&session_id).await.unwrap();
-        
+
         // Session should be gone
         assert!(auth_manager.get_session_info(&session_id).await.is_none());
     }

@@ -86,7 +86,7 @@ pub enum AgentState {
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentCapability {
-    /// Name of the capability (e.g., "data_processing", "communication")
+    /// Name of the capability (e.g., "`data_processing`", "`communication`")
     pub name: String,
     /// Current proficiency level from 0.0 (novice) to 1.0 (expert)
     pub proficiency: f64,
@@ -101,11 +101,18 @@ pub struct AgentMemory {
     pub experiences: Vec<Experience>,
     /// Learned patterns with confidence scores
     pub learned_patterns: HashMap<String, f64>,
-    /// Social connections with trust scores (agent_id -> trust_score)
+    /// Social connections with trust scores (`agent_id` -> `trust_score`)
     pub social_connections: HashMap<Uuid, f64>,
 }
 
+impl Default for AgentMemory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AgentMemory {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             experiences: Vec::new(),
@@ -145,6 +152,7 @@ pub struct Agent {
 }
 
 impl Agent {
+    #[must_use]
     pub fn new(name: String, agent_type: AgentType) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -168,12 +176,12 @@ impl Agent {
         self.capabilities.push(capability);
     }
 
+    #[must_use]
     pub fn get_capability_score(&self, capability_name: &str) -> f64 {
         self.capabilities
             .iter()
             .find(|c| c.name == capability_name)
-            .map(|c| c.proficiency)
-            .unwrap_or(0.0)
+            .map_or(0.0, |c| c.proficiency)
     }
 
     pub fn learn_from_experience(&mut self, experience: Experience) {
@@ -211,6 +219,7 @@ impl Agent {
         self.memory.social_connections.insert(agent_id, new_trust);
     }
 
+    #[must_use]
     pub fn can_perform_task(&self, task: &Task) -> bool {
         if !task.required_capabilities.is_empty() {
             let required = &task.required_capabilities;

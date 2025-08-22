@@ -1,9 +1,16 @@
+//! MCP Server for Multiagent Hive System
+//! 
+//! Standalone Model Context Protocol server implementation
+
 use anyhow::Result;
-use multiagent_hive::{HiveCoordinator, communication::mcp::{HiveMCPServer, MCPRequest, MCPResponse, MCPError}};
+use multiagent_hive::{
+    communication::mcp::{HiveMCPServer, MCPError, MCPRequest, MCPResponse},
+    HiveCoordinator,
+};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::RwLock;
-use tracing::{Level, error, info};
+use tracing::{error, info, Level};
 
 /// Standalone MCP Server for Multiagent Hive Systemcon
 #[tokio::main]
