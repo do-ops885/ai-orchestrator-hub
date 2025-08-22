@@ -35,6 +35,7 @@ pub struct SecurityAuditor {
     /// Enable audit logging
     enabled: bool,
     /// Audit log retention period in days
+    #[allow(dead_code)]
     retention_days: u32,
 }
 

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{Level, event};
+use tracing::{event, Level};
 use uuid::Uuid;
 
 /// Structured logging utilities for better observability and debugging

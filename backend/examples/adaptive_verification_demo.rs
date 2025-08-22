@@ -1,3 +1,8 @@
+#![allow(unused_imports)]
+
+#![allow(missing_docs)]
+#![allow(clippy::all)]
+
 //! # Adaptive Verification System Demo
 //!
 //! Demonstrates the machine learning-enhanced verification system that automatically
@@ -11,19 +16,19 @@ use tracing::info;
 use uuid::Uuid;
 
 use multiagent_hive::{
-    AgentMemory,
     agents::{
-        Agent, AgentCapability, AgentState, AgentType,
         adaptive_verification::{
             AdaptationConfig, AdaptiveVerificationCapable, AdaptiveVerificationSystem,
         },
         simple_verification::SimpleVerificationSystem,
+        Agent, AgentCapability, AgentState, AgentType,
     },
     neural::{
-        NLPProcessor,
         adaptive_learning::{AdaptiveLearningConfig, AdaptiveLearningSystem},
+        NLPProcessor,
     },
     tasks::{Task, TaskPriority, TaskResult, TaskStatus},
+    AgentMemory,
 };
 
 #[tokio::main]

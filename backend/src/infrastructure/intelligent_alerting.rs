@@ -1,7 +1,7 @@
-use crate::infrastructure::metrics::{
-    MetricsCollector, Anomaly, AnomalySeverity, PredictiveInsights,
-};
 use crate::infrastructure::metrics::{Alert, AlertLevel};
+use crate::infrastructure::metrics::{
+    Anomaly, AnomalySeverity, MetricsCollector, PredictiveInsights,
+};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -145,10 +145,7 @@ pub struct IntelligentAlert {
 }
 
 impl IntelligentAlertingSystem {
-    pub fn new(
-        metrics_collector: Arc<MetricsCollector>,
-        config: IntelligentAlertConfig,
-    ) -> Self {
+    pub fn new(metrics_collector: Arc<MetricsCollector>, config: IntelligentAlertConfig) -> Self {
         Self {
             alert_rules: Arc::new(RwLock::new(Vec::new())),
             alert_history: Arc::new(RwLock::new(Vec::new())),

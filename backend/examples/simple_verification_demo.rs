@@ -1,3 +1,8 @@
+#![allow(unused_imports)]
+
+#![allow(missing_docs)]
+#![allow(clippy::all)]
+
 //! # Simple Verification System Demo
 //!
 //! This example demonstrates the lightweight verification system as an alternative
@@ -11,7 +16,10 @@
 //!
 //! Run with: `cargo run --example simple_verification_demo`
 
-use multiagent_hive::{HiveCoordinator, RuleType, VerificationRule};
+use multiagent_hive::{
+    agents::{RuleType, VerificationRule},
+    HiveCoordinator,
+};
 use serde_json::json;
 use tokio;
 use tracing::{info, warn};

@@ -35,6 +35,7 @@ pub struct FormationMetrics {
 pub struct SwarmIntelligenceEngine {
     formations: HashMap<Uuid, SwarmFormation>,
     agent_performance_history: HashMap<Uuid, Vec<f64>>,
+    #[allow(dead_code)]
     formation_metrics: HashMap<Uuid, FormationMetrics>,
     optimization_config: SwarmOptimizationConfig,
 }

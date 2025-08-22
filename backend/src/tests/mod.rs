@@ -5,9 +5,9 @@
 
 pub mod agent_tests;
 pub mod hive_tests;
-pub mod task_tests;
-pub mod neural_tests;
 pub mod integration_tests;
+pub mod neural_tests;
+pub mod task_tests;
 
 // Test utilities and common fixtures
 pub mod test_utils;

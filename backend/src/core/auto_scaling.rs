@@ -46,15 +46,24 @@ pub struct ScalingPolicy {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ScalingTrigger {
     /// Queue depth exceeds threshold
-    QueueDepthThreshold { threshold: usize, duration_minutes: u32 },
+    QueueDepthThreshold {
+        threshold: usize,
+        duration_minutes: u32,
+    },
     /// Agent utilization above/below threshold
-    AgentUtilization { min_threshold: f64, max_threshold: f64 },
+    AgentUtilization {
+        min_threshold: f64,
+        max_threshold: f64,
+    },
     /// Task failure rate exceeds threshold
     TaskFailureRate { threshold: f64, window_minutes: u32 },
     /// Response time exceeds threshold
     ResponseTimeThreshold { threshold_ms: u64, percentile: u8 },
     /// Resource utilization constraints
-    ResourceConstraints { cpu_threshold: f64, memory_threshold: f64 },
+    ResourceConstraints {
+        cpu_threshold: f64,
+        memory_threshold: f64,
+    },
     /// Time-based scaling (e.g., business hours)
     TimeBasedScaling { schedule: ScalingSchedule },
 }
@@ -63,13 +72,13 @@ pub enum ScalingTrigger {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ScalingAction {
     /// Scale up by adding agents
-    ScaleUp { 
-        agent_count: usize, 
+    ScaleUp {
+        agent_count: usize,
         agent_type: AgentType,
         capabilities: Vec<String>,
     },
     /// Scale down by removing agents
-    ScaleDown { 
+    ScaleDown {
         agent_count: usize,
         selection_strategy: AgentSelectionStrategy,
     },
@@ -195,9 +204,9 @@ impl AutoScalingSystem {
         let interval_seconds = config.evaluation_interval_seconds;
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(
-                tokio::time::Duration::from_secs(config.evaluation_interval_seconds)
-            );
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(
+                config.evaluation_interval_seconds,
+            ));
 
             loop {
                 interval.tick().await;
@@ -209,13 +218,18 @@ impl AutoScalingSystem {
                     &resource_manager,
                     &config,
                     Arc::clone(&hive),
-                ).await {
+                )
+                .await
+                {
                     warn!("Auto-scaling evaluation failed: {}", e);
                 }
             }
         });
 
-        info!("Auto-scaling system started with {} second intervals", interval_seconds);
+        info!(
+            "Auto-scaling system started with {} second intervals",
+            interval_seconds
+        );
     }
 
     /// Evaluate all scaling policies and take action if needed
@@ -228,7 +242,7 @@ impl AutoScalingSystem {
         hive: Arc<RwLock<HiveCoordinator>>,
     ) -> Result<()> {
         let mut scaling_state = state.write().await;
-        
+
         // Skip if scaling is already in progress
         if scaling_state.scaling_in_progress {
             debug!("Scaling evaluation skipped - scaling in progress");
@@ -242,12 +256,14 @@ impl AutoScalingSystem {
 
         // Clean up expired cooldowns
         let now = Utc::now();
-        scaling_state.active_cooldowns.retain(|_, cooldown_end| *cooldown_end > now);
+        scaling_state
+            .active_cooldowns
+            .retain(|_, cooldown_end| *cooldown_end > now);
 
         // Evaluate each policy
         let policies_guard = policies.read().await;
         let mut triggered_policy = None;
-        
+
         for policy in policies_guard.iter() {
             if !policy.enabled {
                 continue;
@@ -274,12 +290,9 @@ impl AutoScalingSystem {
             scaling_state.scaling_in_progress = true;
             drop(scaling_state);
 
-            let scaling_result = Self::execute_scaling_action(
-                &policy,
-                &current_metrics,
-                Arc::clone(&hive),
-                config,
-            ).await;
+            let scaling_result =
+                Self::execute_scaling_action(&policy, &current_metrics, Arc::clone(&hive), config)
+                    .await;
 
             // Record scaling event
             let mut history_guard = history.write().await;
@@ -291,7 +304,10 @@ impl AutoScalingSystem {
                 policy_id: policy.policy_id,
                 trigger_reason: format!("Policy '{}' conditions met", policy.name),
                 action_taken: policy.scaling_action.clone(),
-                agents_affected: scaling_result.as_ref().map(|r| r.clone()).unwrap_or_default(),
+                agents_affected: scaling_result
+                    .as_ref()
+                    .map(|r| r.clone())
+                    .unwrap_or_default(),
                 success: scaling_result.is_ok(),
                 error_message: scaling_result.as_ref().err().map(|e| e.to_string()),
                 metrics_before: current_metrics.clone(),
@@ -304,7 +320,9 @@ impl AutoScalingSystem {
 
             // Set cooldown
             let cooldown_end = now + policy.cooldown_period;
-            state_guard.active_cooldowns.insert(policy.policy_id, cooldown_end);
+            state_guard
+                .active_cooldowns
+                .insert(policy.policy_id, cooldown_end);
 
             if let Err(e) = scaling_result {
                 warn!("Scaling action failed: {}", e);
@@ -329,8 +347,13 @@ impl AutoScalingSystem {
                         return Ok(true);
                     }
                 }
-                ScalingTrigger::AgentUtilization { min_threshold, max_threshold } => {
-                    if metrics.agent_utilization < *min_threshold || metrics.agent_utilization > *max_threshold {
+                ScalingTrigger::AgentUtilization {
+                    min_threshold,
+                    max_threshold,
+                } => {
+                    if metrics.agent_utilization < *min_threshold
+                        || metrics.agent_utilization > *max_threshold
+                    {
                         return Ok(true);
                     }
                 }
@@ -344,15 +367,19 @@ impl AutoScalingSystem {
                         return Ok(true);
                     }
                 }
-                ScalingTrigger::ResourceConstraints { cpu_threshold, memory_threshold } => {
-                    if metrics.cpu_usage > *cpu_threshold || metrics.memory_usage > *memory_threshold {
+                ScalingTrigger::ResourceConstraints {
+                    cpu_threshold,
+                    memory_threshold,
+                } => {
+                    if metrics.cpu_usage > *cpu_threshold
+                        || metrics.memory_usage > *memory_threshold
+                    {
                         return Ok(true);
                     }
                 }
                 ScalingTrigger::TimeBasedScaling { .. } => {
                     // Time-based scaling logic would go here
                     // For now, skip this trigger type
-                    continue;
                 }
             }
         }
@@ -369,14 +396,21 @@ impl AutoScalingSystem {
         let mut affected_agents = Vec::new();
 
         match &policy.scaling_action {
-            ScalingAction::ScaleUp { agent_count, agent_type, capabilities } => {
+            ScalingAction::ScaleUp {
+                agent_count,
+                agent_type,
+                capabilities,
+            } => {
                 let hive_guard = hive.read().await;
-                
+
                 for i in 0..*agent_count {
                     // Check if we're within limits
                     let current_count = hive_guard.agents.len();
                     if current_count >= config.max_agents {
-                        warn!("Cannot scale up: maximum agent limit ({}) reached", config.max_agents);
+                        warn!(
+                            "Cannot scale up: maximum agent limit ({}) reached",
+                            config.max_agents
+                        );
                         break;
                     }
 
@@ -405,21 +439,25 @@ impl AutoScalingSystem {
                     }
                 }
             }
-            ScalingAction::ScaleDown { agent_count, selection_strategy } => {
+            ScalingAction::ScaleDown {
+                agent_count,
+                selection_strategy,
+            } => {
                 let hive_guard = hive.read().await;
                 let current_count = hive_guard.agents.len();
-                
+
                 if current_count <= config.min_agents {
-                    warn!("Cannot scale down: minimum agent limit ({}) reached", config.min_agents);
+                    warn!(
+                        "Cannot scale down: minimum agent limit ({}) reached",
+                        config.min_agents
+                    );
                     return Ok(affected_agents);
                 }
 
                 // Select agents to remove based on strategy
-                let agents_to_remove = Self::select_agents_for_removal(
-                    &hive_guard,
-                    *agent_count,
-                    selection_strategy,
-                ).await?;
+                let agents_to_remove =
+                    Self::select_agents_for_removal(&hive_guard, *agent_count, selection_strategy)
+                        .await?;
 
                 for agent_id in agents_to_remove {
                     if hive_guard.agents.remove(&agent_id).is_some() {
@@ -428,14 +466,15 @@ impl AutoScalingSystem {
                     }
                 }
             }
-            ScalingAction::ReplaceAgents { performance_threshold, replacement_type } => {
+            ScalingAction::ReplaceAgents {
+                performance_threshold,
+                replacement_type,
+            } => {
                 let hive_guard = hive.read().await;
-                
+
                 // Find underperforming agents
-                let underperforming_agents = Self::find_underperforming_agents(
-                    &hive_guard,
-                    *performance_threshold,
-                ).await?;
+                let underperforming_agents =
+                    Self::find_underperforming_agents(&hive_guard, *performance_threshold).await?;
 
                 for agent_id in underperforming_agents {
                     // Remove underperforming agent
@@ -457,7 +496,10 @@ impl AutoScalingSystem {
 
                         match hive_guard.create_agent(replacement_config).await {
                             Ok(new_agent_id) => {
-                                info!("Replaced underperforming agent {} with {}", old_agent.0, new_agent_id);
+                                info!(
+                                    "Replaced underperforming agent {} with {}",
+                                    old_agent.0, new_agent_id
+                                );
                             }
                             Err(e) => {
                                 warn!("Failed to create replacement agent: {}", e);
@@ -482,10 +524,14 @@ impl AutoScalingSystem {
 
         // Calculate metrics
         let agent_count = hive_guard.agents.len();
-        let queue_depth = task_info["work_stealing_queue"]["total_queue_depth"].as_u64().unwrap_or(0) as usize;
-        
+        let queue_depth = task_info["work_stealing_queue"]["total_queue_depth"]
+            .as_u64()
+            .unwrap_or(0) as usize;
+
         // Calculate agent utilization
-        let active_agents = hive_guard.agents.iter()
+        let active_agents = hive_guard
+            .agents
+            .iter()
             .filter(|entry| !matches!(entry.value().state, crate::agents::AgentState::Idle))
             .count();
         let agent_utilization = if agent_count > 0 {
@@ -512,10 +558,14 @@ impl AutoScalingSystem {
         count: usize,
         strategy: &AgentSelectionStrategy,
     ) -> Result<Vec<Uuid>> {
-        let mut candidates: Vec<_> = hive.agents.iter().map(|entry| {
-            let agent = entry.value();
-            (agent.id, agent.clone())
-        }).collect();
+        let mut candidates: Vec<_> = hive
+            .agents
+            .iter()
+            .map(|entry| {
+                let agent = entry.value();
+                (agent.id, agent.clone())
+            })
+            .collect();
 
         // Sort based on strategy
         match strategy {
@@ -527,12 +577,16 @@ impl AutoScalingSystem {
                 candidates.sort_by(|(_, a), (_, b)| {
                     let a_perf = a.capabilities.iter().map(|c| c.proficiency).sum::<f64>();
                     let b_perf = b.capabilities.iter().map(|c| c.proficiency).sum::<f64>();
-                    a_perf.partial_cmp(&b_perf).unwrap_or(std::cmp::Ordering::Equal)
+                    a_perf
+                        .partial_cmp(&b_perf)
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 });
             }
             AgentSelectionStrategy::HighestEnergyConsumption => {
                 candidates.sort_by(|(_, a), (_, b)| {
-                    b.energy.partial_cmp(&a.energy).unwrap_or(std::cmp::Ordering::Equal)
+                    b.energy
+                        .partial_cmp(&a.energy)
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 });
             }
             AgentSelectionStrategy::FewestCapabilities => {
@@ -540,7 +594,11 @@ impl AutoScalingSystem {
             }
         }
 
-        Ok(candidates.into_iter().take(count).map(|(id, _)| id).collect())
+        Ok(candidates
+            .into_iter()
+            .take(count)
+            .map(|(id, _)| id)
+            .collect())
     }
 
     /// Find agents performing below threshold
@@ -548,15 +606,22 @@ impl AutoScalingSystem {
         hive: &HiveCoordinator,
         threshold: f64,
     ) -> Result<Vec<Uuid>> {
-        let underperforming: Vec<Uuid> = hive.agents.iter()
+        let underperforming: Vec<Uuid> = hive
+            .agents
+            .iter()
             .filter_map(|entry| {
                 let agent = entry.value();
                 let avg_performance = if agent.capabilities.is_empty() {
                     0.0
                 } else {
-                    agent.capabilities.iter().map(|c| c.proficiency).sum::<f64>() / agent.capabilities.len() as f64
+                    agent
+                        .capabilities
+                        .iter()
+                        .map(|c| c.proficiency)
+                        .sum::<f64>()
+                        / agent.capabilities.len() as f64
                 };
-                
+
                 if avg_performance < threshold {
                     Some(agent.id)
                 } else {
@@ -575,9 +640,10 @@ impl AutoScalingSystem {
             ScalingPolicy {
                 policy_id: Uuid::new_v4(),
                 name: "High Queue Depth Scale Up".to_string(),
-                trigger_conditions: vec![
-                    ScalingTrigger::QueueDepthThreshold { threshold: 10, duration_minutes: 2 }
-                ],
+                trigger_conditions: vec![ScalingTrigger::QueueDepthThreshold {
+                    threshold: 10,
+                    duration_minutes: 2,
+                }],
                 scaling_action: ScalingAction::ScaleUp {
                     agent_count: 2,
                     agent_type: AgentType::Worker,
@@ -591,9 +657,10 @@ impl AutoScalingSystem {
             ScalingPolicy {
                 policy_id: Uuid::new_v4(),
                 name: "Low Utilization Scale Down".to_string(),
-                trigger_conditions: vec![
-                    ScalingTrigger::AgentUtilization { min_threshold: 0.0, max_threshold: 0.3 }
-                ],
+                trigger_conditions: vec![ScalingTrigger::AgentUtilization {
+                    min_threshold: 0.0,
+                    max_threshold: 0.3,
+                }],
                 scaling_action: ScalingAction::ScaleDown {
                     agent_count: 1,
                     selection_strategy: AgentSelectionStrategy::LeastRecentlyUsed,
@@ -612,12 +679,14 @@ impl AutoScalingSystem {
 
         let total_events = history.len();
         let successful_events = history.iter().filter(|e| e.success).count();
-        let scale_up_events = history.iter().filter(|e| {
-            matches!(e.action_taken, ScalingAction::ScaleUp { .. })
-        }).count();
-        let scale_down_events = history.iter().filter(|e| {
-            matches!(e.action_taken, ScalingAction::ScaleDown { .. })
-        }).count();
+        let scale_up_events = history
+            .iter()
+            .filter(|e| matches!(e.action_taken, ScalingAction::ScaleUp { .. }))
+            .count();
+        let scale_down_events = history
+            .iter()
+            .filter(|e| matches!(e.action_taken, ScalingAction::ScaleDown { .. }))
+            .count();
 
         serde_json::json!({
             "total_scaling_events": total_events,

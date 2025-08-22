@@ -1,3 +1,8 @@
+#![allow(unused_imports)]
+
+#![allow(missing_docs)]
+#![allow(clippy::all)]
+
 use multiagent_hive::neural::HybridNeuralProcessor;
 use uuid::Uuid;
 

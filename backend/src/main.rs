@@ -18,16 +18,16 @@ mod tasks;
 mod utils;
 
 use axum::{
-    Router,
-    extract::{State, ws::WebSocketUpgrade},
+    extract::{ws::WebSocketUpgrade, State},
     http::StatusCode,
     response::Response,
     routing::get,
+    Router,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
-use tracing::{Level, debug, error, info, warn};
+use tracing::{debug, error, info, warn, Level};
 use tracing_subscriber;
 
 // Import enhanced error handling and configuration
@@ -746,17 +746,33 @@ async fn health_check(
     let hive_status = state.hive.read().await.get_status().await;
     let metrics_health = state.metrics.get_current_metrics().await;
     let resource_info = state.hive.read().await.get_resource_info().await;
-    
+
     // Extract metrics from hive status JSON
-    let hive_metrics = hive_status.get("metrics").unwrap_or(&serde_json::Value::Null);
-    let total_agents = hive_metrics.get("total_agents").and_then(|v| v.as_u64()).unwrap_or(0);
-    let completed_tasks = hive_metrics.get("completed_tasks").and_then(|v| v.as_u64()).unwrap_or(0);
-    
+    let hive_metrics = hive_status
+        .get("metrics")
+        .unwrap_or(&serde_json::Value::Null);
+    let total_agents = hive_metrics
+        .get("total_agents")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let completed_tasks = hive_metrics
+        .get("completed_tasks")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+
     // Extract resource info from JSON
-    let system_resources = resource_info.get("system_resources").unwrap_or(&serde_json::Value::Null);
-    let memory_usage = system_resources.get("memory_usage").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    let cpu_usage = system_resources.get("cpu_usage").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    
+    let system_resources = resource_info
+        .get("system_resources")
+        .unwrap_or(&serde_json::Value::Null);
+    let memory_usage = system_resources
+        .get("memory_usage")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let cpu_usage = system_resources
+        .get("cpu_usage")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+
     // Check component health
     let hive_healthy = total_agents > 0 || completed_tasks >= 0;
     let resources_healthy = memory_usage < 90.0 && cpu_usage < 95.0;

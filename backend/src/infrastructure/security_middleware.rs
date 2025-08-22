@@ -17,7 +17,7 @@ use axum::{
 };
 use std::net::IpAddr;
 use std::sync::Arc;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Enhanced security middleware state
 #[derive(Clone)]
@@ -34,19 +34,19 @@ pub async fn comprehensive_security_middleware(
     next: Next,
 ) -> Result<Response, StatusCode> {
     let start_time = std::time::Instant::now();
-    
+
     // Extract request information
     let method = request.method().clone();
     let uri = request.uri().clone();
     let endpoint = uri.path();
-    
+
     // Extract client information
     let source_ip = extract_client_ip(&headers);
     let user_agent = headers
         .get("user-agent")
         .and_then(|h| h.to_str().ok())
         .map(|s| s.to_string());
-    
+
     // Get payload size if available
     let payload_size = headers
         .get("content-length")
@@ -64,7 +64,12 @@ pub async fn comprehensive_security_middleware(
     // Step 1: Advanced security validation
     let security_result = security_state
         .auth_manager // Use auth_manager instead of removed security_manager
-        .validate_request(source_ip.map(|ip| ip.to_string()), user_agent.clone(), endpoint, payload_size.unwrap_or(0) as usize)
+        .validate_request(
+            source_ip.map(|ip| ip.to_string()),
+            user_agent.clone(),
+            endpoint,
+            payload_size.unwrap_or(0) as usize,
+        )
         .await
         .map_err(|e| {
             error!("Security validation failed: {}", e);
@@ -79,7 +84,7 @@ pub async fn comprehensive_security_middleware(
             reason = ?security_result.reason,
             "Request blocked by security validation"
         );
-        
+
         return match security_result.threat_level {
             ThreatLevel::Critical => Err(StatusCode::FORBIDDEN),
             ThreatLevel::High => Err(StatusCode::TOO_MANY_REQUESTS),
@@ -90,12 +95,12 @@ pub async fn comprehensive_security_middleware(
 
     // Step 2: Authentication and authorization
     let auth_result = handle_authentication(&security_state.auth_manager, &headers, endpoint).await;
-    
+
     match auth_result {
         Ok(Some(claims)) => {
             // Add authenticated user claims to request
             request.extensions_mut().insert(claims.clone());
-            
+
             info!(
                 user_id = %claims.sub,
                 roles = ?claims.roles,
@@ -120,7 +125,7 @@ pub async fn comprehensive_security_middleware(
     // Step 3: Process request
     let response = next.run(request).await;
     let duration = start_time.elapsed();
-    
+
     // Step 4: Log security metrics
     let success = response.status().is_success();
     info!(
@@ -155,7 +160,10 @@ async fn handle_authentication(
                         // Check if user has permission for this endpoint
                         let required_permission = get_required_permission(endpoint);
                         if let Some(permission) = required_permission {
-                            match auth_manager.check_permission(&claims.session_id, permission).await {
+                            match auth_manager
+                                .check_permission(&claims.session_id, permission)
+                                .await
+                            {
                                 Ok(true) => return Ok(Some(claims)),
                                 Ok(false) => return Err(StatusCode::FORBIDDEN),
                                 Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -180,19 +188,22 @@ async fn handle_authentication(
                             // Create pseudo-claims for API key
                             let claims = Claims {
                                 sub: "api_key".to_string(),
-                                exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp() as usize,
+                                exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp()
+                                    as usize,
                                 iat: chrono::Utc::now().timestamp() as usize,
                                 iss: "hive_system".to_string(),
                                 aud: "api".to_string(),
                                 roles: vec!["Service".to_string()],
-                                permissions: permissions.iter().map(|p| format!("{:?}", p)).collect(),
+                                permissions: permissions
+                                    .iter()
+                                    .map(|p| format!("{:?}", p))
+                                    .collect(),
                                 session_id: "api_key_session".to_string(),
                                 client_type: crate::utils::auth::ClientType::Service,
                             };
                             return Ok(Some(claims));
-                        } else {
-                            return Err(StatusCode::FORBIDDEN);
                         }
+                        return Err(StatusCode::FORBIDDEN);
                     }
                     // API key is valid and no specific permission required
                     let claims = Claims {
@@ -219,13 +230,9 @@ async fn handle_authentication(
 
 /// Check if endpoint is public (doesn't require authentication)
 fn is_public_endpoint(endpoint: &str) -> bool {
-    matches!(endpoint, 
-        "/health" | 
-        "/metrics" | 
-        "/api/status" |
-        "/" |
-        "/favicon.ico" |
-        "/robots.txt"
+    matches!(
+        endpoint,
+        "/health" | "/metrics" | "/api/status" | "/" | "/favicon.ico" | "/robots.txt"
     )
 }
 
@@ -319,10 +326,7 @@ pub async fn api_rate_limiting_middleware(
 }
 
 /// Security headers middleware with enhanced protection
-pub async fn enhanced_security_headers_middleware(
-    request: Request,
-    next: Next,
-) -> Response {
+pub async fn enhanced_security_headers_middleware(request: Request, next: Next) -> Response {
     let mut response = next.run(request).await;
     let headers = response.headers_mut();
 
@@ -330,10 +334,13 @@ pub async fn enhanced_security_headers_middleware(
     headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
     headers.insert("X-Frame-Options", "DENY".parse().unwrap());
     headers.insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
-    headers.insert("Referrer-Policy", "strict-origin-when-cross-origin".parse().unwrap());
+    headers.insert(
+        "Referrer-Policy",
+        "strict-origin-when-cross-origin".parse().unwrap(),
+    );
     headers.insert("X-Permitted-Cross-Domain-Policies", "none".parse().unwrap());
     headers.insert("X-Download-Options", "noopen".parse().unwrap());
-    
+
     // Content Security Policy
     headers.insert(
         "Content-Security-Policy",
@@ -345,7 +352,9 @@ pub async fn enhanced_security_headers_middleware(
     // Strict Transport Security (HSTS)
     headers.insert(
         "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains; preload".parse().unwrap(),
+        "max-age=31536000; includeSubDomains; preload"
+            .parse()
+            .unwrap(),
     );
 
     // Feature Policy / Permissions Policy
@@ -373,8 +382,14 @@ mod tests {
 
     #[test]
     fn test_permission_mapping() {
-        assert_eq!(get_required_permission("/api/agents"), Some(Permission::MetricsRead));
-        assert_eq!(get_required_permission("/api/admin/users"), Some(Permission::SystemAdmin));
+        assert_eq!(
+            get_required_permission("/api/agents"),
+            Some(Permission::MetricsRead)
+        );
+        assert_eq!(
+            get_required_permission("/api/admin/users"),
+            Some(Permission::SystemAdmin)
+        );
         assert_eq!(get_required_permission("/health"), None);
     }
 }

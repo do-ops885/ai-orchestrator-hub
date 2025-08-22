@@ -1,3 +1,8 @@
+#![allow(unused_imports)]
+
+#![allow(missing_docs)]
+#![allow(clippy::all)]
+
 // External crate imports for example
 use anyhow::Result;
 use uuid::Uuid;

@@ -1,26 +1,25 @@
 //! Test utilities and common fixtures for the multiagent hive system tests
 
-
 use crate::agents::{Agent, AgentCapability, AgentType};
 use crate::tasks::{Task, TaskPriority, TaskRequiredCapability};
 
 /// Creates a test agent with default configuration
 pub fn create_test_agent(name: &str, agent_type: AgentType) -> Agent {
     let mut agent = Agent::new(name.to_string(), agent_type);
-    
+
     // Add some basic capabilities
     agent.add_capability(AgentCapability {
         name: "general".to_string(),
         proficiency: 0.7,
         learning_rate: 0.1,
     });
-    
+
     agent.add_capability(AgentCapability {
         name: "communication".to_string(),
         proficiency: 0.6,
         learning_rate: 0.15,
     });
-    
+
     agent
 }
 
@@ -31,11 +30,11 @@ pub fn create_test_agent_with_capabilities(
     capabilities: Vec<AgentCapability>,
 ) -> Agent {
     let mut agent = Agent::new(name.to_string(), agent_type);
-    
+
     for capability in capabilities {
         agent.add_capability(capability);
     }
-    
+
     agent
 }
 
@@ -104,7 +103,7 @@ pub fn create_agent_config(
         "name": name,
         "type": agent_type
     });
-    
+
     if let Some(caps) = capabilities {
         let capabilities_json: Vec<serde_json::Value> = caps
             .into_iter()
@@ -116,10 +115,10 @@ pub fn create_agent_config(
                 })
             })
             .collect();
-        
+
         config["capabilities"] = serde_json::Value::Array(capabilities_json);
     }
-    
+
     config
 }
 
@@ -135,7 +134,7 @@ pub fn create_task_config(
         "type": task_type,
         "priority": priority
     });
-    
+
     if let Some(req_caps) = required_capabilities {
         let capabilities_json: Vec<serde_json::Value> = req_caps
             .into_iter()
@@ -146,9 +145,9 @@ pub fn create_task_config(
                 })
             })
             .collect();
-        
+
         config["required_capabilities"] = serde_json::Value::Array(capabilities_json);
     }
-    
+
     config
 }

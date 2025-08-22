@@ -10,12 +10,12 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{RwLock, mpsc};
+use tokio::sync::{mpsc, RwLock};
 use uuid::Uuid;
 
 use crate::agents::{
     Agent, AgentBehavior, AgentCapability, AgentType, SimpleVerificationResult,
-    SimpleVerificationSystem, SkillEvolutionSystem, SkillEvolutionConfig,
+    SimpleVerificationSystem, SkillEvolutionConfig, SkillEvolutionSystem,
 };
 use crate::infrastructure::ResourceManager;
 use crate::neural::{HybridNeuralProcessor, NLPProcessor};
@@ -23,9 +23,9 @@ use crate::tasks::WorkStealingQueue;
 use crate::tasks::{Task, TaskQueue, TaskRequiredCapability};
 
 // Enhanced swarm coordination types
-use crate::core::swarm_intelligence::SwarmFormation;
+use crate::core::auto_scaling::{AutoScalingConfig, AutoScalingSystem};
 use crate::core::swarm_coordination::SwarmCoordinationMetrics;
-use crate::core::auto_scaling::{AutoScalingSystem, AutoScalingConfig};
+use crate::core::swarm_intelligence::SwarmFormation;
 
 /// Comprehensive metrics tracking swarm performance and behavior.
 ///
@@ -260,16 +260,20 @@ impl HiveCoordinator {
         let skill_evolution_clone = Arc::clone(&skill_evolution);
         tokio::spawn(async move {
             Self::start_background_processes(coordinator_clone1).await;
-            
+
             // Start auto-scaling system
-            auto_scaling_clone.start_auto_scaling(coordinator_clone2).await;
-            
+            auto_scaling_clone
+                .start_auto_scaling(coordinator_clone2)
+                .await;
+
             // Start skill evolution system
             let agents_for_evolution = {
                 let coord = coordinator_clone3.read().await;
                 Arc::clone(&coord.agents)
             };
-            skill_evolution_clone.start_skill_evolution(agents_for_evolution).await;
+            skill_evolution_clone
+                .start_skill_evolution(agents_for_evolution)
+                .await;
         });
 
         // Return the coordinator from the Arc

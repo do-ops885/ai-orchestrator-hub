@@ -1,3 +1,8 @@
+#![allow(unused_imports)]
+
+#![allow(missing_docs)]
+#![allow(clippy::all)]
+
 //! # Pair Programming Verification Demo
 //!
 //! Demonstrates the pair programming verification system where every task

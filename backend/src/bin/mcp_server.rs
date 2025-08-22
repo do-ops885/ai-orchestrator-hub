@@ -1,9 +1,16 @@
+//! MCP Server for Multiagent Hive System
+//! 
+//! Standalone Model Context Protocol server implementation
+
 use anyhow::Result;
-use multiagent_hive::{HiveCoordinator, mcp::HiveMCPServer};
+use multiagent_hive::{
+    communication::mcp::{HiveMCPServer, MCPError, MCPRequest, MCPResponse},
+    HiveCoordinator,
+};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::RwLock;
-use tracing::{Level, error, info};
+use tracing::{error, info, Level};
 
 /// Standalone MCP Server for Multiagent Hive Systemcon
 #[tokio::main]
@@ -33,7 +40,7 @@ async fn main() -> Result<()> {
             continue;
         }
 
-        match serde_json::from_str::<multiagent_hive::mcp::MCPRequest>(&line) {
+        match serde_json::from_str::<MCPRequest>(&line) {
             Ok(request) => {
                 let response = mcp_server.handle_request(request).await;
                 let response_json = serde_json::to_string(&response)?;
@@ -43,11 +50,11 @@ async fn main() -> Result<()> {
             }
             Err(e) => {
                 error!("Invalid JSON-RPC request: {}", e);
-                let error_response = multiagent_hive::mcp::MCPResponse {
+                let error_response = MCPResponse {
                     jsonrpc: "2.0".to_string(),
                     id: None,
                     result: None,
-                    error: Some(multiagent_hive::mcp::MCPError {
+                    error: Some(MCPError {
                         code: -32700,
                         message: "Parse error".to_string(),
                         data: Some(serde_json::json!({"details": e.to_string()})),

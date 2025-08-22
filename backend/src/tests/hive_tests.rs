@@ -18,7 +18,7 @@ mod tests {
 
         let coordinator = hive.unwrap();
         assert_eq!(coordinator.agents.len(), 0);
-        
+
         // Check initial metrics
         let metrics = coordinator.metrics.read().await;
         assert_eq!(metrics.total_agents, 0);
@@ -53,10 +53,7 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         // Test creating an agent with capabilities
-        let capabilities = vec![
-            ("data_processing", 0.8, 0.1),
-            ("analysis", 0.6, 0.15),
-        ];
+        let capabilities = vec![("data_processing", 0.8, 0.1), ("analysis", 0.6, 0.15)];
         let agent_config = create_agent_config("SkillfulAgent", "worker", Some(capabilities));
         let agent_id = hive.create_agent(agent_config).await.unwrap();
 
@@ -114,10 +111,7 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         // Test creating a task with capability requirements
-        let requirements = vec![
-            ("data_processing", 0.7),
-            ("analysis", 0.5),
-        ];
+        let requirements = vec![("data_processing", 0.7), ("analysis", 0.5)];
         let task_config = create_task_config(
             "Complex task",
             "analysis",
@@ -200,10 +194,12 @@ mod tests {
         // Check updated task info
         let updated_info = hive.get_tasks_info().await;
         let ws_queue_info = &updated_info["work_stealing_queue"];
-        
+
         // Should have some tasks in the system
-        assert!(ws_queue_info["total_queue_depth"].as_u64().unwrap_or(0) > 0 ||
-                ws_queue_info["global_queue_depth"].as_u64().unwrap_or(0) > 0);
+        assert!(
+            ws_queue_info["total_queue_depth"].as_u64().unwrap_or(0) > 0
+                || ws_queue_info["global_queue_depth"].as_u64().unwrap_or(0) > 0
+        );
     }
 
     #[tokio::test]
@@ -211,7 +207,7 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         let status = hive.get_status().await;
-        
+
         // Verify status structure
         assert!(status["hive_id"].is_string());
         assert!(status["created_at"].is_string());
@@ -242,7 +238,7 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         let resource_info = hive.get_resource_info().await;
-        
+
         // Verify resource info structure
         assert!(resource_info["system_resources"].is_object());
         assert!(resource_info["resource_profile"].is_object());
@@ -266,7 +262,7 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         let verification_stats = hive.get_simple_verification_stats().await;
-        
+
         // Verify verification stats structure
         assert!(verification_stats["total_verifications"].is_number());
         assert!(verification_stats["passed_verifications"].is_number());
@@ -307,7 +303,7 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         let auto_scaling_stats = hive.get_auto_scaling_stats().await;
-        
+
         // Should return a valid JSON object
         assert!(auto_scaling_stats.is_object());
     }
@@ -317,7 +313,7 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         let skill_evolution_stats = hive.get_skill_evolution_stats().await;
-        
+
         // Should return a valid JSON object
         assert!(skill_evolution_stats.is_object());
     }
@@ -327,7 +323,7 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         let analytics = hive.get_enhanced_analytics().await;
-        
+
         // Verify enhanced analytics structure
         assert!(analytics["hive_status"].is_object());
         assert!(analytics["auto_scaling"].is_object());
@@ -348,11 +344,8 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         // Create an agent capable of performing tasks
-        let agent_config = create_agent_config(
-            "TestAgent",
-            "worker",
-            Some(vec![("general", 0.8, 0.1)]),
-        );
+        let agent_config =
+            create_agent_config("TestAgent", "worker", Some(vec![("general", 0.8, 0.1)]));
         let _agent_id = hive.create_agent(agent_config).await.unwrap();
 
         // Create a task
@@ -406,7 +399,7 @@ mod tests {
         // Verify all agents were created with unique IDs
         assert_eq!(agent_ids.len(), 5);
         assert_eq!(hive.agents.len(), 5);
-        
+
         // Check that all IDs are unique
         for i in 0..agent_ids.len() {
             for j in (i + 1)..agent_ids.len() {
@@ -440,7 +433,7 @@ mod tests {
 
         // Verify all tasks were created with unique IDs
         assert_eq!(task_ids.len(), 5);
-        
+
         // Check that all IDs are unique
         for i in 0..task_ids.len() {
             for j in (i + 1)..task_ids.len() {
@@ -455,7 +448,11 @@ mod tests {
 
         // Add some agents
         for i in 0..3 {
-            let config = create_agent_config(&format!("Agent{}", i), "worker", Some(vec![("general", 0.7, 0.1)]));
+            let config = create_agent_config(
+                &format!("Agent{}", i),
+                "worker",
+                Some(vec![("general", 0.7, 0.1)]),
+            );
             let _agent_id = hive.create_agent(config).await.unwrap();
         }
 
@@ -464,7 +461,7 @@ mod tests {
 
         let status = hive.get_status().await;
         let metrics = &status["metrics"];
-        
+
         // Should reflect the added agents
         assert_eq!(metrics["total_agents"], 3);
         assert!(metrics["average_performance"].as_f64().unwrap() > 0.0);
@@ -494,6 +491,10 @@ mod tests {
         let restored_metrics = deserialized.unwrap();
         assert_eq!(restored_metrics.total_agents, metrics.total_agents);
         assert_eq!(restored_metrics.active_agents, metrics.active_agents);
-        assert_approx_eq(restored_metrics.average_performance, metrics.average_performance, 0.001);
+        assert_approx_eq(
+            restored_metrics.average_performance,
+            metrics.average_performance,
+            0.001,
+        );
     }
 }

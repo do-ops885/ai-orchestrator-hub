@@ -4,12 +4,12 @@
 //! in conjunction with the neural coordinator to create intelligent,
 //! adaptive agent formations and behaviors.
 
+use crate::core::swarm_intelligence::FormationType;
+use crate::utils::error::HiveResult;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use uuid::Uuid;
-use crate::core::swarm_intelligence::FormationType;
-use crate::utils::error::HiveResult;
 
 /// Enhanced swarm formation with neural capabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,8 +83,10 @@ pub struct FormationOptimizationEngine {
     /// Optimization strategies
     strategies: Vec<OptimizationStrategy>,
     /// Historical optimization results
+    #[allow(dead_code)]
     optimization_history: HashMap<Uuid, Vec<OptimizationResult>>,
     /// Current optimization parameters
+    #[allow(dead_code)]
     parameters: OptimizationParameters,
 }
 
@@ -248,8 +250,10 @@ impl AdaptiveBehaviorSystem {
 
     pub async fn learn_from_patterns(&mut self, patterns: &[BehavioralPattern]) -> HiveResult<()> {
         for pattern in patterns {
-            self.learned_patterns.insert(pattern.pattern_id, pattern.clone());
-            self.pattern_effectiveness.insert(pattern.pattern_id, pattern.strength);
+            self.learned_patterns
+                .insert(pattern.pattern_id, pattern.clone());
+            self.pattern_effectiveness
+                .insert(pattern.pattern_id, pattern.strength);
         }
         Ok(())
     }

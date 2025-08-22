@@ -1,9 +1,9 @@
 //! Unit tests for the task system
 
-use chrono::{Duration, Utc};
-use uuid::Uuid;
 use crate::tasks::{Task, TaskPriority, TaskQueue, TaskRequiredCapability, TaskResult, TaskStatus};
 use crate::tests::test_utils::*;
+use chrono::{Duration, Utc};
+use uuid::Uuid;
 
 #[cfg(test)]
 mod tests {
@@ -49,9 +49,17 @@ mod tests {
 
         assert_eq!(task.required_capabilities.len(), 2);
         assert_eq!(task.required_capabilities[0].name, "data_processing");
-        assert_approx_eq(task.required_capabilities[0].minimum_proficiency, 0.8, 0.001);
+        assert_approx_eq(
+            task.required_capabilities[0].minimum_proficiency,
+            0.8,
+            0.001,
+        );
         assert_eq!(task.required_capabilities[1].name, "analysis");
-        assert_approx_eq(task.required_capabilities[1].minimum_proficiency, 0.6, 0.001);
+        assert_approx_eq(
+            task.required_capabilities[1].minimum_proficiency,
+            0.6,
+            0.001,
+        );
     }
 
     #[test]
@@ -77,7 +85,10 @@ mod tests {
         assert_eq!(task.estimated_duration, Some(3600));
         assert_eq!(task.context.len(), 2);
         assert_eq!(task.context.get("environment"), Some(&"test".to_string()));
-        assert_eq!(task.context.get("priority_level"), Some(&"normal".to_string()));
+        assert_eq!(
+            task.context.get("priority_level"),
+            Some(&"normal".to_string())
+        );
         assert_eq!(task.dependencies.len(), 1);
         assert_eq!(task.dependencies[0], dependency_id);
     }
@@ -179,17 +190,12 @@ mod tests {
         let task_id = Uuid::new_v4();
         let agent_id = Uuid::new_v4();
 
-        let result = TaskResult::success(
-            task_id,
-            agent_id,
-            "Great work!".to_string(),
-            1500,
-        )
-        .with_quality_score(0.95)
-        .with_insights(vec![
-            "Learned efficient algorithm".to_string(),
-            "Improved error handling".to_string(),
-        ]);
+        let result = TaskResult::success(task_id, agent_id, "Great work!".to_string(), 1500)
+            .with_quality_score(0.95)
+            .with_insights(vec![
+                "Learned efficient algorithm".to_string(),
+                "Improved error handling".to_string(),
+            ]);
 
         assert_approx_eq(result.quality_score.unwrap(), 0.95, 0.001);
         assert_eq!(result.learned_insights.len(), 2);
@@ -309,12 +315,7 @@ mod tests {
         queue.assign_task(task, agent_id);
 
         // Then fail it
-        let failure_result = TaskResult::failure(
-            task_id,
-            agent_id,
-            "Task failed".to_string(),
-            500,
-        );
+        let failure_result = TaskResult::failure(task_id, agent_id, "Task failed".to_string(), 500);
 
         queue.complete_task(failure_result);
 
@@ -345,14 +346,14 @@ mod tests {
 
         // Add tasks with different requirements
         let easy_task = create_test_task("Easy Task", "general", TaskPriority::Low);
-        
+
         let medium_task = create_test_task_with_requirements(
             "Medium Task",
             "analysis",
             TaskPriority::Medium,
             vec![create_test_required_capability("data_processing", 0.5)],
         );
-        
+
         let hard_task = create_test_task_with_requirements(
             "Hard Task",
             "expert",
@@ -374,11 +375,11 @@ mod tests {
         ];
 
         let suitable_tasks = queue.find_suitable_tasks(&agent_capabilities);
-        
+
         // Should find easy task (no requirements) and medium task (requirements met)
         // Should NOT find hard task (analysis requirement too high: 0.8 > 0.6)
         assert_eq!(suitable_tasks.len(), 2);
-        
+
         let task_titles: Vec<&str> = suitable_tasks.iter().map(|t| t.title.as_str()).collect();
         assert!(task_titles.contains(&"Easy Task"));
         assert!(task_titles.contains(&"Medium Task"));
@@ -399,7 +400,7 @@ mod tests {
         // Test that status enum variants exist and can be compared
         assert_eq!(TaskStatus::Pending, TaskStatus::Pending);
         assert_ne!(TaskStatus::Pending, TaskStatus::Assigned);
-        
+
         let _pending = TaskStatus::Pending;
         let _assigned = TaskStatus::Assigned;
         let _in_progress = TaskStatus::InProgress;
@@ -461,7 +462,7 @@ mod tests {
         assert_approx_eq(
             restored_result.quality_score.unwrap(),
             result.quality_score.unwrap(),
-            0.001
+            0.001,
         );
     }
 
@@ -482,7 +483,7 @@ mod tests {
         let now = Utc::now();
         let created_diff = (now - task.created_at).num_seconds();
         let updated_diff = (now - task.updated_at).num_seconds();
-        
+
         assert!(created_diff < 5); // Should be created within last 5 seconds
         assert!(updated_diff < 5); // Should be updated within last 5 seconds
         assert_eq!(task.created_at, task.updated_at); // Should be equal initially

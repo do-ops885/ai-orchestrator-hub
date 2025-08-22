@@ -246,7 +246,7 @@ mod tests {
             }],
             position: (1.0, 2.0),
             energy: 0.0,
-            memory: crate::AgentMemory::new(),
+            memory: AgentMemory::new(),
             created_at: chrono::Utc::now(),
             last_active: chrono::Utc::now(),
         }

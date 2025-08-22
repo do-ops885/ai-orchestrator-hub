@@ -1,3 +1,8 @@
+#![allow(unused_imports)]
+
+#![allow(missing_docs)]
+#![allow(clippy::all)]
+
 use anyhow::Result;
 use uuid::Uuid;
 
@@ -226,9 +231,9 @@ async fn main() -> Result<()> {
         count += 1;
     }
 
-    let basic_avg = basic_total / count as f64;
-    let fann_avg = fann_total / count as f64;
-    let lstm_avg = lstm_total / count as f64;
+    let basic_avg = basic_total / f64::from(count);
+    let fann_avg = fann_total / f64::from(count);
+    let lstm_avg = lstm_total / f64::from(count);
 
     println!("  Average Performance:");
     println!("    Basic NLP: {:.3}", basic_avg);

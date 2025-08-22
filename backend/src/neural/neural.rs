@@ -1,17 +1,17 @@
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
+use uuid::Uuid;
 
 #[cfg(feature = "advanced-neural")]
 use ruv_fann::{ActivationFunction, Network};
 
-use crate::neural::{NLPProcessor, ProcessedText};
 use crate::agents::agent::Agent;
+use crate::neural::{NLPProcessor, ProcessedText};
 use crate::tasks::task::Task;
 use crate::utils::error::HiveResult;
 
@@ -32,14 +32,18 @@ pub struct NeuralAgent {
 #[derive(Debug)]
 pub struct AdvancedNeuralCoordinator {
     /// Neural processor for individual agents
+    #[allow(dead_code)]
     neural_processor: Arc<RwLock<HybridNeuralProcessor>>,
     /// Cross-agent knowledge transfer system
+    #[allow(dead_code)]
     knowledge_transfer: KnowledgeTransferSystem,
     /// Performance prediction engine
+    #[allow(dead_code)]
     performance_predictor: PerformancePredictionEngine,
     /// Emergent behavior detector
     behavior_detector: EmergentBehaviorDetector,
     /// Neural coordination metrics
+    #[allow(dead_code)]
     coordination_metrics: Arc<RwLock<NeuralCoordinationMetrics>>,
 }
 
@@ -47,10 +51,13 @@ pub struct AdvancedNeuralCoordinator {
 #[derive(Debug)]
 pub struct KnowledgeTransferSystem {
     /// Knowledge patterns learned by agents
+    #[allow(dead_code)]
     knowledge_patterns: HashMap<String, KnowledgePattern>,
     /// Transfer efficiency metrics
+    #[allow(dead_code)]
     transfer_metrics: HashMap<(Uuid, Uuid), TransferMetrics>,
     /// Active knowledge transfer sessions
+    #[allow(dead_code)]
     active_transfers: HashMap<Uuid, KnowledgeTransferSession>,
 }
 
@@ -97,7 +104,9 @@ pub enum TransferStatus {
 /// Performance prediction engine
 #[derive(Debug)]
 pub struct PerformancePredictionEngine {
+    #[allow(dead_code)]
     prediction_models: HashMap<String, PredictionModel>,
+    #[allow(dead_code)]
     historical_data: HashMap<Uuid, Vec<PerformanceSnapshot>>,
 }
 
@@ -124,8 +133,11 @@ pub struct PerformanceSnapshot {
 /// Emergent behavior detector
 #[derive(Debug)]
 pub struct EmergentBehaviorDetector {
+    #[allow(dead_code)]
     behavior_patterns: HashMap<Uuid, EmergentBehavior>,
+    #[allow(dead_code)]
     detection_threshold: f64,
+    #[allow(dead_code)]
     observation_window: chrono::Duration,
 }
 
@@ -997,7 +1009,11 @@ impl AdvancedNeuralCoordinator {
         task: &Task,
         agents: &[Agent],
     ) -> HiveResult<NeuralCoordinationResult> {
-        info!("Starting neural coordination for task {} with {} agents", task.id, agents.len());
+        info!(
+            "Starting neural coordination for task {} with {} agents",
+            task.id,
+            agents.len()
+        );
 
         let mut processing_results = Vec::new();
         let knowledge_transfers = Vec::new();
@@ -1014,7 +1030,9 @@ impl AdvancedNeuralCoordinator {
             processing_results.push(result);
         }
 
-        let coordination_efficiency = self.calculate_coordination_efficiency(&processing_results).await;
+        let coordination_efficiency = self
+            .calculate_coordination_efficiency(&processing_results)
+            .await;
 
         Ok(NeuralCoordinationResult {
             coordination_efficiency,
@@ -1033,8 +1051,13 @@ impl AdvancedNeuralCoordinator {
         if results.is_empty() {
             return 0.5;
         }
-        let avg_confidence = results.iter().map(|r| r.confidence_score).sum::<f64>() / results.len() as f64;
-        let avg_prediction = results.iter().map(|r| r.performance_prediction).sum::<f64>() / results.len() as f64;
+        let avg_confidence =
+            results.iter().map(|r| r.confidence_score).sum::<f64>() / results.len() as f64;
+        let avg_prediction = results
+            .iter()
+            .map(|r| r.performance_prediction)
+            .sum::<f64>()
+            / results.len() as f64;
         (avg_confidence + avg_prediction) / 2.0
     }
 }
@@ -1067,7 +1090,10 @@ impl EmergentBehaviorDetector {
         }
     }
 
-    pub async fn detect_behaviors(&mut self, _agents: &[Agent]) -> HiveResult<Vec<EmergentBehavior>> {
+    pub async fn detect_behaviors(
+        &mut self,
+        _agents: &[Agent],
+    ) -> HiveResult<Vec<EmergentBehavior>> {
         Ok(vec![])
     }
 }
