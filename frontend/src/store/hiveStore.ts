@@ -39,6 +39,7 @@ interface HiveStore {
   // Connection state
   isConnected: boolean;
   socket: WebSocket | null;
+  connectionAttempts: number
   
   // Data
   agents: Agent[];
@@ -57,16 +58,25 @@ interface HiveStore {
 export const useHiveStore = create<HiveStore>((set, get) => ({
   isConnected: false,
   socket: null,
+  connectionAttempts: 0,
   agents: [],
   hiveStatus: null,
   tasks: [],
 
   connectWebSocket: (url: string) => {
+    // Prevent multiple connection attempts
+    const currentSocket = get().socket
+    if (currentSocket !== null && currentSocket.readyState === WebSocket.OPEN) {
+      console.warn('WebSocket already connected')
+      return
+    }
+    
+    console.warn('🔌 Attempting WebSocket connection to:', url)
     const socket = new WebSocket(url)
     
     socket.onopen = () => {
-      console.warn('WebSocket connected')
-      set({ isConnected: true, socket })
+      console.warn('✅ WebSocket connected successfully')
+      set({ isConnected: true, socket, connectionAttempts: 0 })
     }
     
     socket.onmessage = (event) => {
@@ -109,14 +119,34 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       }
     }
     
-    socket.onclose = () => {
-      console.warn('WebSocket disconnected')
+    socket.onclose = (event) => {
+      const attempts = get().connectionAttempts
+      console.warn(`🔌 WebSocket disconnected (code: ${event.code}, reason: ${event.reason !== '' ? event.reason : 'Unknown'})`)
       set({ isConnected: false, socket: null })
+      
+      // Auto-retry with exponential backoff (max 5 attempts)
+      if (attempts < 5 && event.code !== 1000) { // Don't retry on normal closure
+        const retryDelay = Math.min(1000 * Math.pow(2, attempts), 10000) // Max 10 seconds
+        console.warn(`🔄 Retrying WebSocket connection in ${retryDelay}ms... (attempt ${attempts + 1}/5)`)
+        setTimeout(() => {
+          set({ connectionAttempts: attempts + 1 })
+          get().connectWebSocket(url)
+        }, retryDelay)
+      } else if (attempts >= 5) {
+        console.error('❌ Max WebSocket connection attempts reached. Please refresh the page.')
+      }
     }
     
     socket.onerror = (error) => {
-      console.error('WebSocket error:', error)
+      console.warn('WebSocket connection error - this is normal during development. Retrying...', error)
       set({ isConnected: false })
+      // Auto-retry connection after 3 seconds
+      setTimeout(() => {
+        if (get().socket?.readyState !== WebSocket.OPEN) {
+          console.warn('Attempting to reconnect WebSocket...')
+          get().connectWebSocket(url)
+        }
+      }, 3000)
     }
   },
 

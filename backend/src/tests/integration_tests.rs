@@ -99,8 +99,8 @@ mod tests {
         assert_eq!(task_ids.len(), 3);
 
         // Check work-stealing queue has processed tasks
-        let ws_metrics = hive.work_stealing_queue.get_metrics().await;
-        assert!(ws_metrics.total_queue_depth >= 0); // Tasks may have been processed
+        let _ws_metrics = hive.work_stealing_queue.get_metrics().await;
+        // Queue depth is always non-negative by type definition
     }
 
     #[tokio::test]
@@ -237,12 +237,19 @@ mod tests {
 
         // Check tasks info
         let tasks_info = hive.get_tasks_info().await;
+<<<<<<< HEAD
         assert!(
             tasks_info["work_stealing_queue"]["total_queue_depth"]
                 .as_u64()
                 .unwrap_or(0)
                 >= 0
         );
+=======
+        // Queue depth is always non-negative by type definition
+        let _queue_depth = tasks_info["work_stealing_queue"]["total_queue_depth"]
+            .as_u64()
+            .unwrap_or(0);
+>>>>>>> 8b3a402 (wip)
 
         // Check resource info
         let resource_info = hive.get_resource_info().await;
@@ -252,9 +259,17 @@ mod tests {
         // Check enhanced analytics
         let analytics = hive.get_enhanced_analytics().await;
         assert!(analytics["hive_status"].is_object());
+<<<<<<< HEAD
         assert!(analytics["enhanced_features"]["dynamic_scaling_enabled"]
             .as_bool()
             .unwrap());
+=======
+        assert!(
+            analytics["enhanced_features"]["dynamic_scaling_enabled"]
+                .as_bool()
+                .unwrap()
+        );
+>>>>>>> 8b3a402 (wip)
     }
 
     #[tokio::test]
@@ -274,7 +289,11 @@ mod tests {
         let test_text = "successful task completion with excellent results";
         let tokens: Vec<String> = test_text
             .split_whitespace()
+<<<<<<< HEAD
             .map(|s| s.to_string())
+=======
+            .map(std::string::ToString::to_string)
+>>>>>>> 8b3a402 (wip)
             .collect();
         let sentiment = nlp_processor.analyze_sentiment(&tokens);
         let keywords = if sentiment > 0.0 {
@@ -324,8 +343,7 @@ mod tests {
         assert_eq!(ws_metrics.active_agents, 3);
 
         // Tasks should be distributed or completed
-        assert!(ws_metrics.total_queue_depth >= 0);
-        assert!(ws_metrics.global_queue_depth >= 0);
+        // Queue depths are always non-negative by type definition
     }
 
     #[tokio::test]
@@ -369,15 +387,19 @@ mod tests {
 
         let agent_handle = tokio::spawn(async move {
             for i in 0..3 {
-                let config = create_agent_config(&format!("ConcurrentAgent{}", i), "worker", None);
+                let config = create_agent_config(&format!("ConcurrentAgent{i}"), "worker", None);
                 let _result = hive1.create_agent(config).await;
             }
         });
 
         let task_handle = tokio::spawn(async move {
             for i in 0..3 {
+<<<<<<< HEAD
                 let config =
                     create_task_config(&format!("ConcurrentTask{}", i), "general", 1, None);
+=======
+                let config = create_task_config(&format!("ConcurrentTask{i}"), "general", 1, None);
+>>>>>>> 8b3a402 (wip)
                 let _result = hive2.create_task(config).await;
             }
         });
@@ -446,7 +468,7 @@ mod tests {
         // Create agents
         for i in 0..num_agents {
             let config = create_agent_config(
-                &format!("ScaleAgent{}", i),
+                &format!("ScaleAgent{i}"),
                 if i % 3 == 0 { "coordinator" } else { "worker" },
                 Some(vec![("general", 0.6 + (i as f64 * 0.02), 0.1)]),
             );
@@ -461,7 +483,11 @@ mod tests {
                 2 => 2, // High
                 _ => 3, // Critical
             };
+<<<<<<< HEAD
             let config = create_task_config(&format!("ScaleTask{}", i), "general", priority, None);
+=======
+            let config = create_task_config(&format!("ScaleTask{i}"), "general", priority, None);
+>>>>>>> 8b3a402 (wip)
             let _task_id = hive.create_task(config).await.unwrap();
         }
 

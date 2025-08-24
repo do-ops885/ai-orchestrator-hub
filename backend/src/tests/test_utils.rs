@@ -4,6 +4,7 @@ use crate::agents::{Agent, AgentCapability, AgentType};
 use crate::tasks::{Task, TaskPriority, TaskRequiredCapability};
 
 /// Creates a test agent with default configuration
+#[must_use]
 pub fn create_test_agent(name: &str, agent_type: AgentType) -> Agent {
     let mut agent = Agent::new(name.to_string(), agent_type);
 
@@ -24,6 +25,7 @@ pub fn create_test_agent(name: &str, agent_type: AgentType) -> Agent {
 }
 
 /// Creates a test agent with specific capabilities
+#[must_use]
 pub fn create_test_agent_with_capabilities(
     name: &str,
     agent_type: AgentType,
@@ -39,6 +41,7 @@ pub fn create_test_agent_with_capabilities(
 }
 
 /// Creates a test task with default configuration
+#[must_use]
 pub fn create_test_task(description: &str, task_type: &str, priority: TaskPriority) -> Task {
     Task::new(
         description.to_string(),
@@ -50,6 +53,7 @@ pub fn create_test_task(description: &str, task_type: &str, priority: TaskPriori
 }
 
 /// Creates a test task with required capabilities
+#[must_use]
 pub fn create_test_task_with_requirements(
     description: &str,
     task_type: &str,
@@ -66,6 +70,7 @@ pub fn create_test_task_with_requirements(
 }
 
 /// Creates a test capability
+#[must_use]
 pub fn create_test_capability(name: &str, proficiency: f64, learning_rate: f64) -> AgentCapability {
     AgentCapability {
         name: name.to_string(),
@@ -75,6 +80,7 @@ pub fn create_test_capability(name: &str, proficiency: f64, learning_rate: f64) 
 }
 
 /// Creates a test required capability
+#[must_use]
 pub fn create_test_required_capability(name: &str, min_proficiency: f64) -> TaskRequiredCapability {
     TaskRequiredCapability {
         name: name.to_string(),
@@ -86,14 +92,12 @@ pub fn create_test_required_capability(name: &str, min_proficiency: f64) -> Task
 pub fn assert_approx_eq(a: f64, b: f64, tolerance: f64) {
     assert!(
         (a - b).abs() < tolerance,
-        "Values not approximately equal: {} vs {} (tolerance: {})",
-        a,
-        b,
-        tolerance
+        "Values not approximately equal: {a} vs {b} (tolerance: {tolerance})"
     );
 }
 
 /// Creates a mock JSON configuration for agent creation
+#[must_use]
 pub fn create_agent_config(
     name: &str,
     agent_type: &str,
@@ -123,6 +127,7 @@ pub fn create_agent_config(
 }
 
 /// Creates a mock JSON configuration for task creation
+#[must_use]
 pub fn create_task_config(
     description: &str,
     task_type: &str,

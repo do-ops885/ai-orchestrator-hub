@@ -18,7 +18,7 @@ pub async fn request_id_middleware(mut request: Request, next: Next) -> Response
         "x-request-id",
         request_id
             .parse()
-            .unwrap_or_else(|_| "unknown".parse().unwrap()),
+            .unwrap_or_else(|_| "unknown".parse().expect("Static string should parse")),
     );
 
     let response = next.run(request).await;
@@ -97,18 +97,18 @@ pub async fn security_headers_middleware(request: Request, next: Next) -> Respon
     let mut response = next.run(request).await;
 
     let headers = response.headers_mut();
-    headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
-    headers.insert("X-Frame-Options", "DENY".parse().unwrap());
-    headers.insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
+    headers.insert("X-Content-Type-Options", "nosniff".parse().expect("Static string should parse"));
+    headers.insert("X-Frame-Options", "DENY".parse().expect("Static string should parse"));
+    headers.insert("X-XSS-Protection", "1; mode=block".parse().expect("Static string should parse"));
     headers.insert(
         "Referrer-Policy",
-        "strict-origin-when-cross-origin".parse().unwrap(),
+        "strict-origin-when-cross-origin".parse().expect("Static string should parse"),
     );
     headers.insert(
         "Content-Security-Policy",
         "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
             .parse()
-            .unwrap(),
+            .expect("Static string should parse"),
     );
 
     response

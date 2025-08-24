@@ -87,6 +87,7 @@ pub struct ConnectionStats {
 
 impl ConnectionPool {
     /// Create a new connection pool
+    #[must_use]
     pub fn new(max_connections: usize, timeout: Duration) -> Self {
         Self {
             max_connections,
@@ -99,7 +100,7 @@ impl ConnectionPool {
 
     /// Acquire a connection from the pool
     pub async fn acquire_connection(&self) -> HiveResult<ConnectionHandle> {
-        let permit = self.semaphore.clone().acquire_owned().await.map_err(|_| {
+        let permit = Arc::clone(&self.semaphore).acquire_owned().await.map_err(|_| {
             HiveError::ResourceExhausted {
                 resource: "Connection pool exhausted".to_string(),
             }
@@ -143,10 +144,10 @@ impl Clone for ConnectionPool {
     fn clone(&self) -> Self {
         Self {
             max_connections: self.max_connections,
-            semaphore: self.semaphore.clone(),
+            semaphore: Arc::clone(&self.semaphore),
             timeout: self.timeout,
-            active_connections: self.active_connections.clone(),
-            stats: self.stats.clone(),
+            active_connections: Arc::clone(&self.active_connections),
+            stats: Arc::clone(&self.stats),
         }
     }
 }
@@ -195,6 +196,7 @@ pub struct MemoryStats {
 
 impl MemoryOptimizer {
     /// Create a new memory optimizer
+    #[must_use]
     pub fn new(config: PerformanceConfig) -> Self {
         Self {
             cleanup_interval: Duration::from_secs(config.memory_cleanup_interval_secs),
@@ -209,14 +211,14 @@ impl MemoryOptimizer {
             return;
         }
 
-        let stats = self.stats.clone();
+        let stats = Arc::clone(&self.stats);
         let interval = self.cleanup_interval;
 
         tokio::spawn(async move {
             let mut interval_timer = tokio::time::interval(interval);
             loop {
                 interval_timer.tick().await;
-                Self::perform_cleanup(stats.clone()).await;
+                Self::perform_cleanup(Arc::clone(&stats)).await;
             }
         });
     }
@@ -246,7 +248,7 @@ impl MemoryOptimizer {
     fn get_memory_usage() -> u64 {
         // In a real implementation, this would use system calls to get actual memory usage
         // For now, we'll return a placeholder value
-        std::process::id() as u64 * 1024 * 1024 // Placeholder
+        u64::from(std::process::id()) * 1024 * 1024 // Placeholder
     }
 
     /// Get memory statistics
@@ -282,6 +284,7 @@ pub struct CpuStats {
 
 impl CpuOptimizer {
     /// Create a new CPU optimizer
+    #[must_use]
     pub fn new(config: PerformanceConfig) -> Self {
         Self {
             config,
@@ -301,11 +304,11 @@ impl CpuOptimizer {
         }
 
         let start_time = Instant::now();
-        let stats = self.stats.clone();
+        let stats = Arc::clone(&self.stats);
 
         let result = self.thread_pool.spawn_blocking(task).await.map_err(|e| {
             HiveError::OperationFailed {
-                reason: format!("Task execution failed: {}", e),
+                reason: format!("Task execution failed: {e}"),
             }
         })?;
 
@@ -315,7 +318,7 @@ impl CpuOptimizer {
         let mut stats_guard = stats.write().await;
         stats_guard.tasks_processed += 1;
         let duration_ms = duration.as_millis() as f64;
-        stats_guard.avg_task_time_ms = (stats_guard.avg_task_time_ms + duration_ms) / 2.0;
+        stats_guard.avg_task_time_ms = f64::midpoint(stats_guard.avg_task_time_ms, duration_ms);
 
         Ok(result)
     }
@@ -361,6 +364,7 @@ pub struct CacheStats {
 
 impl CacheManager {
     /// Create a new cache manager
+    #[must_use]
     pub fn new(config: PerformanceConfig) -> Self {
         let cache_manager = Self {
             config,
@@ -465,15 +469,15 @@ impl CacheManager {
 
     /// Start background cache cleanup
     fn start_cleanup(&self) {
-        let cache = self.cache.clone();
-        let stats = self.stats.clone();
+        let cache = Arc::clone(&self.cache);
+        let stats = Arc::clone(&self.stats);
         let ttl = Duration::from_secs(self.config.cache_ttl_secs);
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(300)); // 5 minutes
             loop {
                 interval.tick().await;
-                Self::cleanup_expired_entries(cache.clone(), stats.clone(), ttl).await;
+                Self::cleanup_expired_entries(Arc::clone(&cache), Arc::clone(&stats), ttl).await;
             }
         });
     }
@@ -529,6 +533,7 @@ pub struct PerformanceOptimizer {
 
 impl PerformanceOptimizer {
     /// Create a new performance optimizer
+    #[must_use]
     pub fn new(config: PerformanceConfig) -> Self {
         let connection_pool = ConnectionPool::new(
             config.max_connections,
@@ -565,11 +570,13 @@ impl PerformanceOptimizer {
     }
 
     /// Get connection pool
+    #[must_use]
     pub fn get_connection_pool(&self) -> &ConnectionPool {
         &self.connection_pool
     }
 
     /// Get cache manager
+    #[must_use]
     pub fn get_cache_manager(&self) -> &CacheManager {
         &self.cache_manager
     }

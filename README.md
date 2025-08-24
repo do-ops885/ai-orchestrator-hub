@@ -402,7 +402,7 @@ node --version  # Should be 18+
 
 ### Getting Help
 
-- Check the [Issues](https://github.com/your-repo/issues) page
+- Check the [Issues](https://github.com/do-ops885/ai-orchestrator-hub/issues) page
 - Review the [Documentation](docs/)
 - Join our community discussions
 
@@ -442,10 +442,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Built with [Rust](https://www.rust-lang.org/) and [Tokio](https://tokio.rs/)
 - Frontend powered by [Next.js](https://nextjs.org/) and [React](https://reactjs.org/)
-- Neural processing with [ruv-FANN](https://github.com/rust-unofficial/ruv-fann)
+- Neural processing with ruv-FANN
 - Real-time communication via WebSockets
 - MCP integration for external tool support
-
----
-
-**CPU-native, GPU-optional - built for the GPU-poor.** 🚀
