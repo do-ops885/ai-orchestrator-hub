@@ -110,12 +110,12 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
               console.warn('Created:', message.data)
               break
             case 'error':
-              console.error('Hive error:', message.data?.error)
+              console.warn('Hive error:', message.data?.error)
               break
           }
         }
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error)
+        console.warn('Failed to parse WebSocket message:', error)
       }
     }
     
@@ -133,7 +133,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
           get().connectWebSocket(url)
         }, retryDelay)
       } else if (attempts >= 5) {
-        console.error('❌ Max WebSocket connection attempts reached. Please refresh the page.')
+        console.warn('❌ Max WebSocket connection attempts reached. Please refresh the page.')
       }
     }
     

@@ -36,7 +36,7 @@ export function ResourceMonitor() {
           setHardwareClass(data.hardware_class)
         }
       } catch (error) {
-        console.error('Failed to fetch resource info:', error)
+        console.warn('Failed to fetch resource info:', error)
       }
     }
 

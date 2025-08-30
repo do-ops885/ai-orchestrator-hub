@@ -237,19 +237,10 @@ mod tests {
 
         // Check tasks info
         let tasks_info = hive.get_tasks_info().await;
-<<<<<<< HEAD
-        assert!(
-            tasks_info["work_stealing_queue"]["total_queue_depth"]
-                .as_u64()
-                .unwrap_or(0)
-                >= 0
-        );
-=======
         // Queue depth is always non-negative by type definition
         let _queue_depth = tasks_info["work_stealing_queue"]["total_queue_depth"]
             .as_u64()
             .unwrap_or(0);
->>>>>>> 8b3a402 (wip)
 
         // Check resource info
         let resource_info = hive.get_resource_info().await;
@@ -259,17 +250,11 @@ mod tests {
         // Check enhanced analytics
         let analytics = hive.get_enhanced_analytics().await;
         assert!(analytics["hive_status"].is_object());
-<<<<<<< HEAD
-        assert!(analytics["enhanced_features"]["dynamic_scaling_enabled"]
-            .as_bool()
-            .unwrap());
-=======
         assert!(
             analytics["enhanced_features"]["dynamic_scaling_enabled"]
                 .as_bool()
                 .unwrap()
         );
->>>>>>> 8b3a402 (wip)
     }
 
     #[tokio::test]
@@ -289,11 +274,7 @@ mod tests {
         let test_text = "successful task completion with excellent results";
         let tokens: Vec<String> = test_text
             .split_whitespace()
-<<<<<<< HEAD
-            .map(|s| s.to_string())
-=======
             .map(std::string::ToString::to_string)
->>>>>>> 8b3a402 (wip)
             .collect();
         let sentiment = nlp_processor.analyze_sentiment(&tokens);
         let keywords = if sentiment > 0.0 {
@@ -394,12 +375,7 @@ mod tests {
 
         let task_handle = tokio::spawn(async move {
             for i in 0..3 {
-<<<<<<< HEAD
-                let config =
-                    create_task_config(&format!("ConcurrentTask{}", i), "general", 1, None);
-=======
                 let config = create_task_config(&format!("ConcurrentTask{i}"), "general", 1, None);
->>>>>>> 8b3a402 (wip)
                 let _result = hive2.create_task(config).await;
             }
         });
@@ -483,11 +459,7 @@ mod tests {
                 2 => 2, // High
                 _ => 3, // Critical
             };
-<<<<<<< HEAD
-            let config = create_task_config(&format!("ScaleTask{}", i), "general", priority, None);
-=======
             let config = create_task_config(&format!("ScaleTask{i}"), "general", priority, None);
->>>>>>> 8b3a402 (wip)
             let _task_id = hive.create_task(config).await.unwrap();
         }
 

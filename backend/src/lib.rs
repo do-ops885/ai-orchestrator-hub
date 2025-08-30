@@ -81,16 +81,6 @@ pub mod utils;
 /// Comprehensive unit and integration tests
 pub mod tests;
 
-<<<<<<< HEAD
-// Re-export core types with specific imports to avoid ambiguity
-pub use agents::{Agent, AgentCapability, AgentMemory, AgentState, AgentType};
-pub use communication::{mcp, WebSocketMessage};
-pub use core::{HiveCoordinator, SwarmMetrics};
-pub use infrastructure::{MetricsCollector, ResourceManager};
-pub use neural::{HybridNeuralProcessor, NLPProcessor};
-pub use tasks::*;
-pub use utils::*;
-=======
 // Re-export core types with explicit imports to avoid ambiguous glob re-exports
 pub use agents::{Agent, AgentBehavior, AgentCapability, AgentMemory, AgentState, AgentType};
 pub use communication::communication::handle_websocket;
@@ -100,7 +90,6 @@ pub use infrastructure::{MetricsCollector, ResourceManager, TelemetryCollector};
 pub use neural::{AdaptiveLearningSystem, HybridNeuralProcessor, NLPProcessor};
 pub use tasks::{Task, TaskPriority, TaskQueue, TaskStatus, WorkStealingQueue};
 pub use utils::{HiveConfig, HiveError, HiveResult, InputValidator};
->>>>>>> 8b3a402 (wip)
 
 /// Application state shared across the system
 #[derive(Clone)]
