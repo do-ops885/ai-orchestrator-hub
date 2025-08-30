@@ -42,5 +42,3 @@ coverage/
 # Misc
 *.tgz
 *.bak
-
-backend/target/.rustc_info.json
