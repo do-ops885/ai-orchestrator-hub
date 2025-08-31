@@ -15,7 +15,7 @@ pub use benchmarks::*;
 pub use cache::*;
 pub use circuit_breaker::*;
 pub use intelligent_alerting::*;
-pub use metrics::*;
+pub use metrics::{MetricsCollector, PerformanceMetrics, SystemMetrics};
 pub use persistence::*;
 pub use resource_manager::*;
 pub use telemetry::*;

@@ -1,5 +1,5 @@
 //! Comprehensive Performance Benchmarking System
-//! 
+//!
 //! Provides detailed performance metrics, memory leak detection,
 //! and system benchmarking capabilities for the multiagent hive.
 
@@ -218,14 +218,17 @@ impl PerformanceMonitor {
 
             loop {
                 interval.tick().await;
-                
+
                 if let Err(e) = monitor.collect_performance_snapshot().await {
                     warn!("Failed to collect performance snapshot: {}", e);
                 }
             }
         });
 
-        info!("Performance monitoring started (interval: {}ms)", interval_ms);
+        info!(
+            "Performance monitoring started (interval: {}ms)",
+            interval_ms
+        );
     }
 
     /// Collect a performance snapshot
@@ -237,9 +240,9 @@ impl PerformanceMonitor {
             timestamp: Utc::now(),
             memory: memory_metrics,
             cpu: cpu_metrics,
-            active_agents: 0, // TODO: Get from hive
-            pending_tasks: 0, // TODO: Get from hive
-            network_connections: 0, // TODO: Get from network monitor
+            active_agents: 0,              // TODO: Get from hive
+            pending_tasks: 0,              // TODO: Get from hive
+            network_connections: 0,        // TODO: Get from network monitor
             response_times_ms: Vec::new(), // TODO: Collect response times
         };
 
@@ -247,7 +250,7 @@ impl PerformanceMonitor {
         {
             let mut history = self.metrics_history.write().await;
             history.push(snapshot.clone());
-            
+
             // Keep only last 1000 snapshots
             if history.len() > 1000 {
                 history.remove(0);
@@ -266,7 +269,10 @@ impl PerformanceMonitor {
     }
 
     /// Run a benchmark suite
-    pub async fn run_benchmark_suite(&self, suite: &BenchmarkSuite) -> HiveResult<Vec<BenchmarkResult>> {
+    pub async fn run_benchmark_suite(
+        &self,
+        suite: &BenchmarkSuite,
+    ) -> HiveResult<Vec<BenchmarkResult>> {
         info!("Running benchmark suite: {}", suite.name);
         let mut results = Vec::new();
 
@@ -288,7 +294,7 @@ impl PerformanceMonitor {
     /// Run a single benchmark test
     async fn run_single_benchmark(&self, test: &BenchmarkTest) -> HiveResult<BenchmarkResult> {
         info!("Running benchmark: {}", test.name);
-        
+
         let start_time = Instant::now();
         let start_memory = self.get_current_memory_usage();
         let execution_id = uuid::Uuid::new_v4();
@@ -348,10 +354,10 @@ impl PerformanceMonitor {
                 peak_memory_mb: end_memory,
                 average_memory_mb: (start_memory + end_memory) / 2.0,
                 memory_growth_mb: memory_growth,
-                allocations: 0, // TODO: Track allocations
-                deallocations: 0, // TODO: Track deallocations
+                allocations: 0,                              // TODO: Track allocations
+                deallocations: 0,                            // TODO: Track deallocations
                 memory_leaks_detected: memory_growth > 10.0, // Simple heuristic
-                gc_collections: 0, // Not applicable for Rust
+                gc_collections: 0,                           // Not applicable for Rust
             },
             cpu_usage: CpuMetrics {
                 peak_cpu_percent: 0.0, // TODO: Measure CPU usage
@@ -390,7 +396,7 @@ impl PerformanceMonitor {
     /// Benchmark memory usage patterns
     async fn benchmark_memory_usage(&self, iterations: u32) -> HashMap<String, f64> {
         let start_memory = self.get_current_memory_usage();
-        
+
         // Allocate and deallocate memory
         let mut data = Vec::new();
         for i in 0..iterations {
@@ -399,36 +405,41 @@ impl PerformanceMonitor {
                 data.clear(); // Periodic cleanup
             }
         }
-        
+
         let end_memory = self.get_current_memory_usage();
-        
+
         let mut metrics = HashMap::new();
         metrics.insert("start_memory_mb".to_string(), start_memory);
         metrics.insert("end_memory_mb".to_string(), end_memory);
         metrics.insert("memory_delta_mb".to_string(), end_memory - start_memory);
-        
+
         metrics
     }
 
     /// Benchmark CPU utilization
     async fn benchmark_cpu_utilization(&self, iterations: u32) -> HashMap<String, f64> {
         let start_time = Instant::now();
-        
+
         // CPU-intensive work
         let mut sum = 0u64;
         for i in 0..iterations * 1000 {
             sum = sum.wrapping_add(i as u64);
             sum = sum.wrapping_mul(17);
         }
-        
+
         let duration = start_time.elapsed();
-        
+
         let mut metrics = HashMap::new();
-        metrics.insert("cpu_work_duration_ms".to_string(), duration.as_millis() as f64);
-        metrics.insert("operations_per_second".to_string(), 
-                      (iterations as f64 * 1000.0) / duration.as_secs_f64());
+        metrics.insert(
+            "cpu_work_duration_ms".to_string(),
+            duration.as_millis() as f64,
+        );
+        metrics.insert(
+            "operations_per_second".to_string(),
+            (iterations as f64 * 1000.0) / duration.as_secs_f64(),
+        );
         metrics.insert("dummy_result".to_string(), sum as f64); // Prevent optimization
-        
+
         metrics
     }
 
@@ -458,12 +469,16 @@ impl PerformanceMonitor {
             total_snapshots: history.len(),
             total_benchmarks: benchmark_results.len(),
             active_alerts: active_alerts.len(),
-            average_memory_usage: history.iter()
+            average_memory_usage: history
+                .iter()
                 .map(|s| s.memory.average_memory_mb)
-                .sum::<f64>() / history.len() as f64,
-            average_cpu_usage: history.iter()
+                .sum::<f64>()
+                / history.len() as f64,
+            average_cpu_usage: history
+                .iter()
                 .map(|s| s.cpu.average_cpu_percent)
-                .sum::<f64>() / history.len() as f64,
+                .sum::<f64>()
+                / history.len() as f64,
             memory_leak_detected: self.memory_tracker.has_memory_leak().await,
             uptime_hours: 0.0, // TODO: Calculate actual uptime
         }
@@ -553,10 +568,13 @@ impl AlertManager {
             self.create_alert(
                 AlertType::HighMemoryUsage,
                 AlertSeverity::Warning,
-                format!("Memory usage {} MB exceeds threshold {} MB", 
-                       snapshot.memory.peak_memory_mb, self.thresholds.memory_usage_mb),
+                format!(
+                    "Memory usage {} MB exceeds threshold {} MB",
+                    snapshot.memory.peak_memory_mb, self.thresholds.memory_usage_mb
+                ),
                 HashMap::from([("memory_mb".to_string(), snapshot.memory.peak_memory_mb)]),
-            ).await;
+            )
+            .await;
         }
 
         // Check CPU usage
@@ -564,10 +582,13 @@ impl AlertManager {
             self.create_alert(
                 AlertType::HighCpuUsage,
                 AlertSeverity::Warning,
-                format!("CPU usage {:.1}% exceeds threshold {:.1}%", 
-                       snapshot.cpu.peak_cpu_percent, self.thresholds.cpu_usage_percent),
+                format!(
+                    "CPU usage {:.1}% exceeds threshold {:.1}%",
+                    snapshot.cpu.peak_cpu_percent, self.thresholds.cpu_usage_percent
+                ),
                 HashMap::from([("cpu_percent".to_string(), snapshot.cpu.peak_cpu_percent)]),
-            ).await;
+            )
+            .await;
         }
     }
 
@@ -644,7 +665,8 @@ pub fn create_default_benchmark_suite() -> BenchmarkSuite {
     BenchmarkSuite {
         suite_id: uuid::Uuid::new_v4(),
         name: "Hive System Performance Suite".to_string(),
-        description: "Comprehensive performance benchmarks for the multiagent hive system".to_string(),
+        description: "Comprehensive performance benchmarks for the multiagent hive system"
+            .to_string(),
         benchmarks: vec![
             BenchmarkTest {
                 test_id: uuid::Uuid::new_v4(),
@@ -700,7 +722,7 @@ mod tests {
     async fn test_performance_monitor_creation() {
         let config = PerformanceConfig::default();
         let monitor = PerformanceMonitor::new(config);
-        
+
         let stats = monitor.get_performance_stats().await;
         assert_eq!(stats.total_snapshots, 0);
         assert_eq!(stats.total_benchmarks, 0);

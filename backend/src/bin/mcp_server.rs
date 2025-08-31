@@ -1,5 +1,5 @@
 //! MCP Server for Multiagent Hive System
-//! 
+//!
 //! Standalone Model Context Protocol server implementation
 
 use anyhow::Result;

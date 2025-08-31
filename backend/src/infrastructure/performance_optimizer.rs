@@ -100,11 +100,12 @@ impl ConnectionPool {
 
     /// Acquire a connection from the pool
     pub async fn acquire_connection(&self) -> HiveResult<ConnectionHandle> {
-        let permit = Arc::clone(&self.semaphore).acquire_owned().await.map_err(|_| {
-            HiveError::ResourceExhausted {
+        let permit = Arc::clone(&self.semaphore)
+            .acquire_owned()
+            .await
+            .map_err(|_| HiveError::ResourceExhausted {
                 resource: "Connection pool exhausted".to_string(),
-            }
-        })?;
+            })?;
 
         let mut active = self.active_connections.write().await;
         *active += 1;

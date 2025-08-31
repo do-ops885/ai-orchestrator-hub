@@ -10,7 +10,7 @@
 use crate::utils::error::{HiveError, HiveResult};
 use crate::utils::security::SecurityAuditor;
 use chrono::{DateTime, Duration, Utc};
-use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

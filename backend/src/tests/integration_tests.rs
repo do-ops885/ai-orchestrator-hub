@@ -250,11 +250,9 @@ mod tests {
         // Check enhanced analytics
         let analytics = hive.get_enhanced_analytics().await;
         assert!(analytics["hive_status"].is_object());
-        assert!(
-            analytics["enhanced_features"]["dynamic_scaling_enabled"]
-                .as_bool()
-                .unwrap()
-        );
+        assert!(analytics["enhanced_features"]["dynamic_scaling_enabled"]
+            .as_bool()
+            .unwrap());
     }
 
     #[tokio::test]

@@ -4,7 +4,7 @@
 //! and provides organized test execution with proper setup and teardown.
 
 use multiagent_hive::tests::test_utils::*;
-use multiagent_hive::{Agent, AgentType, HiveCoordinator, Task, TaskPriority};
+use multiagent_hive::{AgentType, HiveCoordinator};
 
 /// Test suite configuration
 struct TestConfig {

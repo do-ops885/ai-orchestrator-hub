@@ -36,6 +36,20 @@ num_cpus = "1.16"
 # Optional: Add ruv-FANN for advanced neural capabilities
 ruv-fann = { version = "0.1.6", optional = true, features = ["std", "serde", "parallel"] }
 
+# Database and persistence
+rusqlite = { version = "0.31", features = ["bundled", "chrono", "serde_json"] }
+
+# Encryption and compression
+aes-gcm = "0.10"
+flate2 = "1.0"
+base64 = "0.21"
+ring = "0.17"
+hex = "0.4"
+
+# Development dependencies
+[dev-dependencies]
+tempfile = "3.8"
+
 [features]
 default = ["basic-nlp"]
 basic-nlp = []

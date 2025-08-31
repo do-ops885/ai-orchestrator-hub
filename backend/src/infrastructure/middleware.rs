@@ -14,12 +14,9 @@ use crate::utils::HiveConfig;
 /// Request ID middleware for tracing
 pub async fn request_id_middleware(mut request: Request, next: Next) -> Response {
     let request_id = Uuid::new_v4().to_string();
-    request.headers_mut().insert(
-        "x-request-id",
-        request_id
-            .parse()
-            .unwrap_or_else(|_| "unknown".parse().expect("Static string should parse")),
-    );
+    if let Ok(header_value) = request_id.parse() {
+        request.headers_mut().insert("x-request-id", header_value);
+    }
 
     let response = next.run(request).await;
     response
@@ -97,19 +94,26 @@ pub async fn security_headers_middleware(request: Request, next: Next) -> Respon
     let mut response = next.run(request).await;
 
     let headers = response.headers_mut();
-    headers.insert("X-Content-Type-Options", "nosniff".parse().expect("Static string should parse"));
-    headers.insert("X-Frame-Options", "DENY".parse().expect("Static string should parse"));
-    headers.insert("X-XSS-Protection", "1; mode=block".parse().expect("Static string should parse"));
-    headers.insert(
-        "Referrer-Policy",
-        "strict-origin-when-cross-origin".parse().expect("Static string should parse"),
-    );
-    headers.insert(
-        "Content-Security-Policy",
+
+    // These are static strings that should always parse correctly
+    if let Ok(value) = "nosniff".parse() {
+        headers.insert("X-Content-Type-Options", value);
+    }
+    if let Ok(value) = "DENY".parse() {
+        headers.insert("X-Frame-Options", value);
+    }
+    if let Ok(value) = "1; mode=block".parse() {
+        headers.insert("X-XSS-Protection", value);
+    }
+    if let Ok(value) = "strict-origin-when-cross-origin".parse() {
+        headers.insert("Referrer-Policy", value);
+    }
+    if let Ok(value) =
         "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
             .parse()
-            .expect("Static string should parse"),
-    );
+    {
+        headers.insert("Content-Security-Policy", value);
+    }
 
     response
 }

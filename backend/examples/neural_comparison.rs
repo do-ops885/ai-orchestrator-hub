@@ -1,5 +1,4 @@
 #![allow(unused_imports)]
-
 #![allow(missing_docs)]
 #![allow(clippy::all)]
 

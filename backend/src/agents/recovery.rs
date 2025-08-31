@@ -1,4 +1,4 @@
-use crate::agents::agent::{Agent, AgentState};
+use crate::agents::agent::{Agent, AgentMemory, AgentState};
 use crate::utils::error::{HiveError, HiveResult};
 use std::time::Duration;
 use tokio::time::sleep;
