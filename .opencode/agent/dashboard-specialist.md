@@ -1,6 +1,18 @@
 ---
 description: Dashboard and data visualization specialist
-model: claude-3-5-sonnet-20241022
+mode: subagent
+tools:
+  write: true
+  edit: true
+  bash: true
+  read: true
+  grep: true
+  glob: true
+  list: true
+  patch: true
+  todowrite: true
+  todoread: true
+  webfetch: true
 ---
 
 # Dashboard Specialist Agent

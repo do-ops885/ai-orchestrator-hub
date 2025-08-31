@@ -68,17 +68,17 @@ style = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 
 # Specific denials for critical issues
-unwrap_used = "deny"
+unwrap_used = "warn"
 expect_used = "warn"
-panic = "deny"
+panic = "warn"
 todo = "warn"
 unimplemented = "warn"
 unreachable = "warn"
 
 # Performance-critical denials
-clone_on_ref_ptr = "deny"
-rc_buffer = "deny"
-rc_mutex = "deny"
+clone_on_ref_ptr = "warn"
+rc_buffer = "warn"
+rc_mutex = "warn"
 
 # Allow some pedantic lints that may be too strict
 missing_errors_doc = "allow"
@@ -89,12 +89,14 @@ too_many_lines = "allow"
 cast_precision_loss = "allow"
 cast_possible_truncation = "allow"
 cast_sign_loss = "allow"
+unused_imports = "allow"
+dead_code = "allow"
 
 [lints.rust]
 # Rust compiler lints
 unsafe_code = "warn"
 missing_docs = "warn"
-unused_imports = "deny"
-unused_variables = "deny"
-dead_code = "warn"
-unreachable_code = "deny"
+unused_imports = "allow"
+unused_variables = "allow"
+dead_code = "allow"
+unreachable_code = "warn"

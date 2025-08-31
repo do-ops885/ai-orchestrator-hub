@@ -1,6 +1,6 @@
 ---
 description: Rust backend development specialist for AI Orchestrator Hub
-model: claude-3-5-sonnet-20241022
+mode: subagent
 ---
 
 # Rust Developer Agent

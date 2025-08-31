@@ -1,6 +1,18 @@
 ---
 description: Swarm intelligence and multi-agent system architect
 mode: subagent
+tools:
+  write: true
+  edit: true
+  bash: true
+  read: true
+  grep: true
+  glob: true
+  list: true
+  patch: true
+  todowrite: true
+  todoread: true
+  webfetch: true
 ---
 
 # Swarm Architect Agent

@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     agents::AgentType,
     core::HiveCoordinator,
-    infrastructure::{CacheManager, MetricsCollector, TelemetryCollector},
+    infrastructure::{cache::CacheManager, MetricsCollector, TelemetryCollector},
     tasks::TaskPriority,
     utils::HiveConfig,
 };

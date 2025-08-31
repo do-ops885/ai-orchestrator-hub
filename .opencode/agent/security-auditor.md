@@ -1,6 +1,6 @@
 ---
 description: Security auditing and vulnerability assessment specialist
-model: claude-3-5-sonnet-20241022
+mode: subagent
 ---
 
 # Security Auditor Agent
