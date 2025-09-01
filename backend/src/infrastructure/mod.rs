@@ -18,7 +18,7 @@ pub use intelligent_alerting::*;
 pub use memory_pool::*;
 pub use metrics::{MetricsCollector, PerformanceMetrics, SystemMetrics};
 pub use middleware::*;
-pub use performance_optimizer::{PerformanceOptimizer};
+pub use performance_optimizer::PerformanceOptimizer;
 pub use persistence::*;
 pub use resource_manager::*;
 pub use security_middleware::*;
