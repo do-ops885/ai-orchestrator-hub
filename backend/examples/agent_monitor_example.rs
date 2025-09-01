@@ -3,10 +3,11 @@
 //! This example demonstrates how to use the comprehensive AgentMonitor system
 //! for monitoring and analyzing the AI Orchestrator Hub.
 
-use ai_orchestrator_hub::infrastructure::{
+use multiagent_hive::infrastructure::{
     monitoring::*, metrics::MetricsCollector, telemetry::TelemetryCollector,
 };
-use ai_orchestrator_hub::utils::config::MonitoringConfig;
+use multiagent_hive::utils::config::{MonitoringConfig, DiagnosticsConfig};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -34,6 +35,51 @@ async fn main() -> anyhow::Result<()> {
         enable_reporting: true,
         enable_automation: true,
         enable_external_integration: true,
+        diagnostics: DiagnosticsConfig {
+            component_health_scores: {
+                let mut scores = HashMap::new();
+                scores.insert("database".to_string(), 0.95);
+                scores.insert("cache".to_string(), 0.88);
+                scores.insert("network".to_string(), 0.92);
+                scores
+            },
+            component_issues: {
+                let mut issues = HashMap::new();
+                issues.insert("database".to_string(), vec!["Slow query performance".to_string()]);
+                issues.insert("cache".to_string(), vec!["High cache miss rate".to_string()]);
+                issues.insert("network".to_string(), vec!["Intermittent connectivity".to_string()]);
+                issues
+            },
+            component_recommendations: {
+                let mut recommendations = HashMap::new();
+                recommendations.insert("database".to_string(), vec![
+                    "Add database indexes".to_string(),
+                    "Optimize query patterns".to_string()
+                ]);
+                recommendations.insert("cache".to_string(), vec![
+                    "Increase cache size".to_string(),
+                    "Implement cache warming".to_string()
+                ]);
+                recommendations.insert("network".to_string(), vec![
+                    "Implement retry logic".to_string(),
+                    "Monitor network latency".to_string()
+                ]);
+                recommendations
+            },
+            network_components: vec![
+                "internal_api".to_string(),
+                "external_services".to_string(),
+                "database".to_string()
+            ],
+            default_health_score: 0.85,
+            performance_bottlenecks: vec![
+                "Database query optimization needed".to_string(),
+            ],
+            optimization_opportunities: vec![
+                "Implement caching layer".to_string(),
+                "Optimize resource allocation".to_string(),
+            ],
+        },
     };
 
     // Create agent monitor

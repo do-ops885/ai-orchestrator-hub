@@ -3,7 +3,7 @@
 //! Entry point for the multiagent hive system backend server.
 //!
 //! This server implements a sophisticated multiagent hive system with:
-//! - RESTful API for agent and task management
+//! - `RESTful` API for agent and task management
 //! - WebSocket support for real-time communication
 //! - Advanced neural processing capabilities
 //! - Comprehensive monitoring and observability

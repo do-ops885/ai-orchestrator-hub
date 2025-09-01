@@ -49,6 +49,11 @@ async fn demo_memory_storage() -> anyhow::Result<()> {
         encryption_enabled: false,
         backup_enabled: false,
         storage_path: PathBuf::from("/tmp"),
+        encryption_key: None,
+        compression_level: 6,
+        backup_retention_days: 30,
+        backup_location: None,
+        incremental_backup: false,
     };
 
     let persistence = PersistenceManager::new(config).await?;
@@ -83,6 +88,11 @@ async fn demo_filesystem_storage() -> anyhow::Result<()> {
         encryption_enabled: false,
         backup_enabled: true,
         storage_path: temp_dir.path().to_path_buf(),
+        encryption_key: None,
+        compression_level: 6,
+        backup_retention_days: 30,
+        backup_location: None,
+        incremental_backup: false,
     };
 
     let persistence = PersistenceManager::new(config).await?;
@@ -136,6 +146,11 @@ async fn demo_sqlite_storage() -> anyhow::Result<()> {
         encryption_enabled: false,
         backup_enabled: true,
         storage_path: temp_dir.path().to_path_buf(),
+        encryption_key: None,
+        compression_level: 6,
+        backup_retention_days: 30,
+        backup_location: None,
+        incremental_backup: false,
     };
 
     let persistence = PersistenceManager::new(config).await?;
@@ -196,6 +211,11 @@ async fn demo_automatic_checkpointing() -> anyhow::Result<()> {
         encryption_enabled: false,
         backup_enabled: false,
         storage_path: temp_dir.path().to_path_buf(),
+        encryption_key: None,
+        compression_level: 6,
+        backup_retention_days: 30,
+        backup_location: None,
+        incremental_backup: false,
     };
 
     let persistence = PersistenceManager::new(config).await?;

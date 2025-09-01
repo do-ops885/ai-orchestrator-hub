@@ -421,10 +421,10 @@ impl AgentBehavior for Agent {
 
         if neighbor_count > 0 {
             // Normalize forces
-            alignment.0 /= neighbor_count as f64;
-            alignment.1 /= neighbor_count as f64;
-            cohesion.0 /= neighbor_count as f64;
-            cohesion.1 /= neighbor_count as f64;
+            alignment.0 /= f64::from(neighbor_count);
+            alignment.1 /= f64::from(neighbor_count);
+            cohesion.0 /= f64::from(neighbor_count);
+            cohesion.1 /= f64::from(neighbor_count);
         }
 
         // Apply forces with weights

@@ -12,19 +12,19 @@ use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct AgentMonitor {
-    config: Arc<MonitoringConfig>,
-    metrics_collector: Arc<MetricsCollector>,
-    telemetry_collector: Arc<TelemetryCollector>,
-    alerting_system: Arc<IntelligentAlertingSystem>,
-    agent_discovery: Arc<AgentDiscovery>,
-    health_monitor: Arc<HealthMonitor>,
-    performance_monitor: Arc<PerformanceMonitor>,
-    behavior_analyzer: Arc<BehaviorAnalyzer>,
-    dashboard: Arc<Dashboard>,
-    diagnostics: Arc<Diagnostics>,
-    reporting: Arc<Reporting>,
-    automation: Arc<Automation>,
-    integration: Arc<Integration>,
+    pub config: Arc<MonitoringConfig>,
+    pub metrics_collector: Arc<MetricsCollector>,
+    pub telemetry_collector: Arc<TelemetryCollector>,
+    pub alerting_system: Arc<IntelligentAlertingSystem>,
+    pub agent_discovery: Arc<AgentDiscovery>,
+    pub health_monitor: Arc<HealthMonitor>,
+    pub performance_monitor: Arc<PerformanceMonitor>,
+    pub behavior_analyzer: Arc<BehaviorAnalyzer>,
+    pub dashboard: Arc<Dashboard>,
+    pub diagnostics: Arc<Diagnostics>,
+    pub reporting: Arc<Reporting>,
+    pub automation: Arc<Automation>,
+    pub integration: Arc<Integration>,
 }
 
 #[derive(Clone)]
@@ -693,8 +693,77 @@ impl AgentMonitor {
         match self.alerting_system.process_intelligent_alerts().await {
             Ok(intelligent_alerts) => Ok(intelligent_alerts.into_iter().map(|ia| ia.base_alert).collect()),
             Err(_) => Ok(Vec::new()), // Return empty vec on error for now
+        }
     }
-}
+
+    /// Get monitoring status summary
+    pub async fn get_monitoring_status(&self) -> HiveResult<MonitoringStatus> {
+        let mut overall_health = 0.0;
+        let mut health_count = 0;
+
+        let health_status = if self.config.enable_health_monitoring {
+            match self.health_monitor.get_health_status().await {
+                Ok(status) => {
+                    overall_health += status.overall_score;
+                    health_count += 1;
+                    Some(status)
+                }
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+
+        let performance_status = if self.config.enable_performance_monitoring {
+            match self.performance_monitor.get_performance_status().await {
+                Ok(status) => {
+                    overall_health += status.overall_score;
+                    health_count += 1;
+                    Some(status)
+                }
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+
+        let behavior_status = if self.config.enable_behavior_analysis {
+            match self.behavior_analyzer.get_behavior_status().await {
+                Ok(status) => {
+                    overall_health += status.communication_efficiency + status.decision_quality_score + status.adaptation_rate + status.collaboration_score;
+                    health_count += 4;
+                    Some(status)
+                }
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+
+        if health_count > 0 {
+            overall_health /= health_count as f64;
+        } else {
+            overall_health = 1.0; // Default if no monitoring enabled
+        }
+
+        // For active_alerts, use placeholder with correct fields
+        let active_alerts = crate::infrastructure::intelligent_alerting::AlertStatistics {
+            total_alerts: 0,
+            alerts_last_24h: 0,
+            alerts_last_hour: 0,
+            critical_alerts_24h: 0,
+            most_frequent_alert: None,
+        };
+
+        Ok(MonitoringStatus {
+            overall_health,
+            health_status,
+            performance_status,
+            behavior_status,
+            active_alerts,
+            last_updated: Utc::now(),
+        })
+    }
 }
 
 /// System metrics data

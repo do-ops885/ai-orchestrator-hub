@@ -69,7 +69,7 @@ impl NLPProcessor {
         let tokens = self.tokenize(text);
         let semantic_vector = self.generate_semantic_vector(&tokens).await;
         let sentiment = self.analyze_sentiment(&tokens);
-        let keywords = self.extract_keywords(&tokens).await;
+        let keywords = self.extract_keywords(text, 5).await;
         let patterns = self.identify_patterns(&tokens).await;
 
         Ok(ProcessedText {
@@ -245,7 +245,8 @@ impl NLPProcessor {
         }
     }
 
-    async fn extract_keywords(&self, tokens: &[String]) -> Vec<String> {
+    pub async fn extract_keywords(&self, text: &str, limit: usize) -> Vec<String> {
+        let tokens: Vec<String> = text.split_whitespace().map(|s| s.to_string()).collect();
         let vocabulary = self.vocabulary.read().await;
         let mut keyword_scores: Vec<(String, f64)> = tokens
             .iter()
@@ -258,7 +259,7 @@ impl NLPProcessor {
         keyword_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         keyword_scores
             .into_iter()
-            .take(5)
+            .take(limit)
             .map(|(word, _)| word)
             .collect()
     }

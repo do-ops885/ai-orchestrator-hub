@@ -124,37 +124,34 @@ pub struct VerificationMetrics {
 impl SimpleVerificationSystem {
     /// Create a new verification system
     pub fn new(nlp_processor: Arc<NLPProcessor>) -> Self {
-        let mut global_rules = Vec::new();
-
-        // Default global rules
-        global_rules.push(VerificationRule {
-            rule_id: "goal_alignment".to_string(),
-            rule_type: RuleType::SemanticSimilarity,
-            threshold: 0.7,
-            weight: 0.5,
-            enabled: true,
-        });
-
-        global_rules.push(VerificationRule {
-            rule_id: "basic_length".to_string(),
-            rule_type: RuleType::LengthCheck {
-                min: 10,
-                max: 10000,
+        let global_rules = vec![
+            VerificationRule {
+                rule_id: "goal_alignment".to_string(),
+                rule_type: RuleType::SemanticSimilarity,
+                threshold: 0.7,
+                weight: 0.5,
+                enabled: true,
             },
-            threshold: 1.0,
-            weight: 0.1,
-            enabled: true,
-        });
-
-        global_rules.push(VerificationRule {
-            rule_id: "positive_sentiment".to_string(),
-            rule_type: RuleType::SentimentCheck {
-                min_sentiment: -0.5,
+            VerificationRule {
+                rule_id: "basic_length".to_string(),
+                rule_type: RuleType::LengthCheck {
+                    min: 10,
+                    max: 10000,
+                },
+                threshold: 1.0,
+                weight: 0.1,
+                enabled: true,
             },
-            threshold: 1.0,
-            weight: 0.1,
-            enabled: true,
-        });
+            VerificationRule {
+                rule_id: "positive_sentiment".to_string(),
+                rule_type: RuleType::SentimentCheck {
+                    min_sentiment: -0.5,
+                },
+                threshold: 1.0,
+                weight: 0.1,
+                enabled: true,
+            },
+        ];
 
         Self {
             nlp_processor,
@@ -432,13 +429,13 @@ impl SimpleVerificationSystem {
         let output_words: std::collections::HashSet<String> = output
             .to_lowercase()
             .split_whitespace()
-            .map(|s| s.to_string())
+            .map(str::to_string)
             .collect();
 
         let goal_words: std::collections::HashSet<String> = goal
             .to_lowercase()
             .split_whitespace()
-            .map(|s| s.to_string())
+            .map(str::to_string)
             .collect();
 
         let intersection = output_words.intersection(&goal_words).count();
@@ -467,7 +464,7 @@ impl SimpleVerificationSystem {
                 // Fallback to basic processing if NLP fails
                 crate::neural::nlp::ProcessedText {
                     original_text: output.to_string(),
-                    tokens: output.split_whitespace().map(|s| s.to_string()).collect(),
+                    tokens: output.split_whitespace().map(str::to_string).collect(),
                     semantic_vector: crate::neural::nlp::SemanticVector {
                         dimensions: vec![0.0; 100],
                         magnitude: 0.0,
@@ -484,7 +481,7 @@ impl SimpleVerificationSystem {
             .await
             .unwrap_or_else(|_| crate::neural::nlp::ProcessedText {
                 original_text: goal.to_string(),
-                tokens: goal.split_whitespace().map(|s| s.to_string()).collect(),
+                tokens: goal.split_whitespace().map(str::to_string).collect(),
                 semantic_vector: crate::neural::nlp::SemanticVector {
                     dimensions: vec![0.0; 100],
                     magnitude: 0.0,
@@ -522,7 +519,7 @@ impl SimpleVerificationSystem {
                 } else {
                     IssueSeverity::Minor
                 },
-                description: format!("Low semantic similarity to goal: {:.2}", similarity),
+                 description: format!("Low semantic similarity to goal: {similarity:.2}"),
                 suggestion: Some(
                     "Consider aligning output more closely with the original goal".to_string(),
                 ),
@@ -539,16 +536,15 @@ impl SimpleVerificationSystem {
         min_sentiment: f64,
         issues: &mut Vec<VerificationIssue>,
     ) -> f64 {
-        let tokens: Vec<String> = output.split_whitespace().map(|s| s.to_string()).collect();
+        let tokens: Vec<String> = output.split_whitespace().map(str::to_string).collect();
         let sentiment = self.nlp_processor.analyze_sentiment(&tokens);
 
         if sentiment < min_sentiment {
             issues.push(VerificationIssue {
                 issue_type: IssueType::QualityIssue,
                 severity: IssueSeverity::Minor,
-                description: format!(
-                    "Sentiment score {:.2} below threshold {:.2}",
-                    sentiment, min_sentiment
+                 description: format!(
+                    "Sentiment score {sentiment:.2} below threshold {min_sentiment:.2}"
                 ),
                 suggestion: Some("Consider using more positive language".to_string()),
             });
@@ -590,7 +586,7 @@ impl SimpleVerificationSystem {
                 } else {
                     IssueSeverity::Minor
                 },
-                description: format!("Missing expected sections: {}", missing_sections.join(", ")),
+                 description: format!("Missing expected sections: {}", missing_sections.join(", ")),
                 suggestion: Some("Include all required sections in the output".to_string()),
             });
         }
@@ -612,7 +608,7 @@ impl SimpleVerificationSystem {
             issues.push(VerificationIssue {
                 issue_type: IssueType::LengthIssue,
                 severity: IssueSeverity::Major,
-                description: format!("Output too short: {} chars (min: {})", length, min),
+                 description: format!("Output too short: {length} chars (min: {min})"),
                 suggestion: Some("Provide more detailed output".to_string()),
             });
             0.0
@@ -620,7 +616,7 @@ impl SimpleVerificationSystem {
             issues.push(VerificationIssue {
                 issue_type: IssueType::LengthIssue,
                 severity: IssueSeverity::Minor,
-                description: format!("Output too long: {} chars (max: {})", length, max),
+                 description: format!("Output too long: {length} chars (max: {max})"),
                 suggestion: Some("Consider making output more concise".to_string()),
             });
             0.7
@@ -644,14 +640,14 @@ impl SimpleVerificationSystem {
                     issues.push(VerificationIssue {
                         issue_type: IssueType::FormatError,
                         severity: IssueSeverity::Major,
-                        description: format!("Output does not match required pattern: {}", pattern),
+                         description: format!("Output does not match required pattern: {pattern}"),
                         suggestion: Some("Ensure output follows the required format".to_string()),
                     });
                     0.0
                 }
             }
             Err(_) => {
-                warn!("Invalid regex pattern: {}", pattern);
+                warn!("Invalid regex pattern: {pattern}");
                 1.0 // Don't penalize for invalid patterns
             }
         }
@@ -689,7 +685,7 @@ impl SimpleVerificationSystem {
                 } else {
                     IssueSeverity::Minor
                 },
-                description: format!("Missing required keywords: {}", missing_keywords.join(", ")),
+                 description: format!("Missing required keywords: {}", missing_keywords.join(", ")),
                 suggestion: Some("Include all required keywords in the output".to_string()),
             });
         }
@@ -717,7 +713,7 @@ impl SimpleVerificationSystem {
             issues.push(VerificationIssue {
                 issue_type: IssueType::QualityIssue,
                 severity: IssueSeverity::Major,
-                description: format!("Contains forbidden words: {}", found_forbidden.join(", ")),
+                 description: format!("Contains forbidden words: {}", found_forbidden.join(", ")),
                 suggestion: Some("Remove inappropriate or forbidden content".to_string()),
             });
             0.0

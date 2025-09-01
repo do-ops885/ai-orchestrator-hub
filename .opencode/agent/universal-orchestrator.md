@@ -1,6 +1,6 @@
 ---
 description: Master orchestrator that coordinates and utilizes all other agents in the system, delegating tasks based on specialties, managing complex multi-agent workflows with emphasis on parallel task execution and swarm coordination to maximize performance and reduce completion time, and optimizing resource allocation across the agent network
-mode: all
+mode: primary
 tools:
   write: false
   edit: false
@@ -87,7 +87,7 @@ Task: Perform comprehensive code review of new feature
 Orchestration:
 1. Delegate initial code analysis to @security-auditor
 2. Send performance assessment to @performance-optimizer
-3. Route documentation review to @docs-writer
+3. Route documentation review to @github-documentation-architect
 4. Coordinate final synthesis with @code-reviewer
 5. Present consolidated findings to user
 ```

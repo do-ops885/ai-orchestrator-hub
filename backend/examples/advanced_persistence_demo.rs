@@ -131,7 +131,7 @@ async fn demo_backup_management() -> anyhow::Result<()> {
         add_test_agents(&mut hive).await?;
 
         let checkpoint_id = persistence
-            .create_checkpoint(&hive, Some(format!("Backup demo checkpoint {}", i)))
+            .create_checkpoint(&hive, Some(format!("Backup demo checkpoint {i}")))
             .await?;
         info!("Created checkpoint {} with backup: {}", i, checkpoint_id);
 
@@ -185,7 +185,7 @@ async fn demo_advanced_statistics() -> anyhow::Result<()> {
     let mut hive = create_test_hive().await?;
 
     // Create checkpoints with varying data sizes
-    let checkpoint_sizes = vec![2, 5, 10, 15, 20]; // Number of agent batches
+    let checkpoint_sizes = [2, 5, 10, 15, 20]; // Number of agent batches
     let mut checkpoint_ids = Vec::new();
 
     for (i, size) in checkpoint_sizes.iter().enumerate() {
@@ -323,7 +323,7 @@ async fn demo_performance_comparison() -> anyhow::Result<()> {
         // Measure checkpoint creation time
         let start = std::time::Instant::now();
         let checkpoint_id = persistence
-            .create_checkpoint(&hive, Some(format!("Performance test: {}", name)))
+            .create_checkpoint(&hive, Some(format!("Performance test: {name}")))
             .await?;
         let duration = start.elapsed();
 
