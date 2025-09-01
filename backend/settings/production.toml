@@ -1,0 +1,30 @@
+# Production configuration overrides
+# This file contains settings optimized for production environment
+
+[server]
+port = 8080
+max_connections = 10000
+
+[agents]
+max_agents = 1000
+
+[tasks]
+max_concurrent_tasks = 500
+
+[logging]
+level = "warn"
+file_path = "/var/log/ai-orchestrator.log"
+
+[monitoring]
+monitoring_interval_secs = 10
+metrics_retention_days = 30
+enable_automation = true
+enable_external_integration = true
+
+[monitoring.diagnostics]
+default_health_score = 0.95
+
+[monitoring.diagnostics.component_health_scores]
+database = 0.98
+cache = 0.95
+network = 0.96

@@ -69,6 +69,10 @@ pub enum HiveError {
     #[error("Invalid input: {field} - {reason}")]
     ValidationError { field: String, reason: String },
 
+    /// Not found errors
+    #[error("Resource not found: {resource}")]
+    NotFound { resource: String },
+
     /// Timeout errors
     #[error("Operation timed out: {operation} after {duration_ms}ms")]
     TimeoutError { operation: String, duration_ms: u64 },

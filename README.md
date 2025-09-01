@@ -1,6 +1,6 @@
-# Multiagent Hive System
+# AI Orchestrator Hub
 
-A sophisticated **hybrid neural multiagent hive system** implementing swarm intelligence with NLP self-learning capabilities. **CPU-native, GPU-optional - built for the GPU-poor.**
+A sophisticated **hybrid neural multiagent orchestration system** implementing advanced swarm intelligence with AI integration, adaptive learning, and comprehensive monitoring. **CPU-native, GPU-optional - built for the GPU-poor.**
 
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![TypeScript](https://img.shields.io/badge/typescript-5.6+-blue.svg)](https://www.typescriptlang.org)
@@ -24,82 +24,137 @@ A sophisticated **hybrid neural multiagent hive system** implementing swarm inte
 
 ## Overview
 
-The Multiagent Hive System is a cutting-edge implementation of swarm intelligence that combines neural processing, real-time communication, and adaptive learning. Designed with a "CPU-native, GPU-optional" philosophy, it delivers maximum intelligence on minimal hardware while scaling to utilize advanced resources when available.
+The AI Orchestrator Hub is a cutting-edge implementation of swarm intelligence that combines neural processing, real-time communication, adaptive learning, and AI integration. Designed with a "CPU-native, GPU-optional" philosophy, it delivers maximum intelligence on minimal hardware while scaling to utilize advanced resources when available.
+
+**Key Capabilities:**
+- 🤖 **Multiagent Swarm Intelligence** with adaptive coordination
+- 🧠 **Hybrid Neural Processing** (basic NLP + optional FANN networks)
+- 📊 **Advanced Monitoring & Alerting** with predictive analytics
+- 🔄 **Real-time Communication** via WebSocket with MCP protocol support
+- 💾 **Intelligent Persistence** with state recovery and checkpointing
+- 🛡️ **Enterprise Security** with rate limiting, auditing, and validation
+- 🚀 **AI Integration** with OpenAI, Anthropic, and custom models
+- ⚡ **Performance Optimization** with circuit breakers and auto-scaling
 
 ## System Architecture
 
 ### Core Components
 
 #### Backend (Rust)
-- **Main Entry**: `backend/src/main.rs` - Axum web server with WebSocket support
-- **Hive Coordinator**: `backend/src/hive.rs` - Central orchestration system managing agent swarms
-- **Agent System**: `backend/src/agent.rs` - Individual agent implementations with capabilities and behaviors
-- **Task Management**: `backend/src/task.rs` - Task queue, distribution, and execution system
-- **Communication**: `backend/src/communication.rs` - WebSocket handlers for real-time coordination
-- **NLP Processing**: `backend/src/nlp.rs` - Lightweight natural language processing for agent communication
-- **Neural Networks**: `backend/src/neural.rs` - Hybrid neural architecture with optional ruv-FANN integration
+- **Main Entry**: `backend/src/main.rs` - Enhanced Axum web server with advanced middleware
+- **Hive Coordinator**: `backend/src/core/hive.rs` - Central orchestration with swarm intelligence
+- **Agent System**: `backend/src/agents/` - Modular agent implementations with evolution and recovery
+- **Task Management**: `backend/src/tasks/` - Advanced task scheduling with work stealing
+- **Communication**: `backend/src/communication/` - WebSocket + MCP protocol support
+- **Neural Processing**: `backend/src/neural/` - Adaptive learning with optional FANN networks
+- **Infrastructure**: `backend/src/infrastructure/` - Monitoring, persistence, security, and optimization
+- **MCP Server**: `backend/src/bin/mcp_server.rs` - Standalone Model Context Protocol server
 
 #### Frontend (TypeScript/React/Next.js)
-- **Dashboard**: `frontend/src/components/HiveDashboard.tsx` - Main monitoring interface
-- **Visualization**: `frontend/src/components/SwarmVisualization.tsx` - Real-time agent swarm display
-- **Metrics**: `frontend/src/components/MetricsPanel.tsx` & `NeuralMetrics.tsx` - Performance monitoring
-- **State Management**: `frontend/src/store/hiveStore.ts` - Zustand store for WebSocket communication
-- **Agent Management**: `frontend/src/components/AgentManager.tsx` - Agent creation and configuration
-- **Task Management**: `frontend/src/components/TaskManager.tsx` - Task creation and monitoring
+- **Dashboard**: `frontend/src/components/HiveDashboard.tsx` - Comprehensive monitoring interface
+- **Visualization**: `frontend/src/components/SwarmVisualization.tsx` - Real-time 3D swarm display
+- **Metrics**: `frontend/src/components/MetricsPanel.tsx` & `NeuralMetrics.tsx` - Advanced analytics
+- **Resource Monitor**: `frontend/src/components/ResourceMonitor.tsx` - System resource tracking
+- **State Management**: `frontend/src/store/hiveStore.ts` - Zustand store with real-time updates
+- **Agent/Task Managers**: `frontend/src/components/AgentManager.tsx`, `TaskManager.tsx` - Full lifecycle management
+- **AI Integration**: OpenAI, Anthropic SDK integration for enhanced capabilities
 
 ## Key Features
 
 ### Hybrid Neural Architecture - CPU-native, GPU-optional
 - **Basic NLP** (default): Lightweight CPU processing for real-time swarm coordination
 - **Advanced Neural** (optional): ruv-FANN integration for complex pattern recognition
+- **AI Integration**: OpenAI, Anthropic SDK support for enhanced intelligence
 - **Philosophy**: Built for the GPU-poor - maximum intelligence on minimal hardware
 - **Feature Flags**: `basic-nlp`, `advanced-neural`, `gpu-acceleration`
 
-### Agent Types & Capabilities
-- **Worker**: General task execution
-- **Coordinator**: Swarm coordination and task distribution
-- **Specialist**: Domain-specific expertise
-- **Learner**: Continuous learning and adaptation
+### Advanced Agent System
+- **Agent Types**: Worker, Coordinator, Specialist, Learner with evolution capabilities
+- **Adaptive Learning**: Continuous improvement through experience and neural networks
+- **Recovery System**: Automatic agent recovery and fault tolerance
+- **Social Intelligence**: Agent relationships and collaborative learning
+- **Capability Evolution**: Dynamic skill assessment and enhancement
 
-### Communication System
-- **WebSocket**: Real-time bidirectional communication
-- **REST API**: Standard CRUD operations for agents/tasks
-- **Message Types**: `hive_status`, `agents_update`, `metrics_update`, `agent_created`, `task_created`
+### Intelligent Communication & Coordination
+- **WebSocket**: Real-time bidirectional communication with heartbeat monitoring
+- **MCP Protocol**: Model Context Protocol for external AI tool integration
+- **Message Types**: Enhanced event system with structured logging
+- **Rate Limiting**: API protection with configurable limits
+- **Circuit Breaker**: Fault tolerance and graceful degradation
 
-### Task Management
-- **Priority Levels**: Low, Medium, High, Critical
-- **Status Tracking**: Pending, Assigned, InProgress, Completed, Failed, Cancelled
-- **Capability Matching**: Automatic agent assignment based on required capabilities
+### Advanced Task Management
+- **Priority Levels**: Low, Medium, High, Critical with dynamic adjustment
+- **Work Stealing**: Efficient load balancing across agent pools
+- **Status Tracking**: Comprehensive lifecycle monitoring with failure recovery
+- **Capability Matching**: ML-enhanced agent assignment with performance prediction
+- **Batch Processing**: Efficient handling of large task queues
+
+### Enterprise Monitoring & Observability
+- **Intelligent Alerting**: Predictive analytics with adaptive thresholds
+- **Advanced Metrics**: Multi-dimensional performance tracking
+- **Structured Logging**: JSON logging with security event tracking
+- **Health Checks**: Comprehensive system health monitoring
+- **Performance Optimization**: Auto-tuning with resource management
+
+### Security & Compliance
+- **Input Validation**: Comprehensive payload validation and sanitization
+- **Security Auditing**: Detailed audit trails and compliance logging
+- **Rate Limiting**: Configurable API protection
+- **CORS Configuration**: Secure cross-origin resource sharing
+- **JWT Authentication**: Optional authentication with role-based access
+
+### Persistence & Reliability
+- **Intelligent Persistence**: SQLite/PostgreSQL with compression and encryption
+- **State Recovery**: Automatic checkpointing and crash recovery
+- **Backup System**: Incremental backups with retention policies
+- **Data Integrity**: Validation and consistency checks
 
 ## Quick Start
 
 ### Basic Setup (Recommended)
 ```bash
+# Clone the repository
+git clone https://github.com/do-ops885/ai-orchestrator-hub.git
+cd ai-orchestrator-hub
+
 # Backend with basic NLP
 cd backend
 cargo run
 
-# Frontend
-cd frontend
+# Frontend (in new terminal)
+cd ../frontend
 npm install
 npm run dev
 ```
 
-### Advanced Neural Features (Optional)
+### Advanced Features (Optional)
 ```bash
-# Backend with ruv-FANN integration
+# Backend with advanced neural processing
 cd backend
 cargo run --features advanced-neural
 
 # Run neural comparison demo
 cargo run --features advanced-neural --example neural_comparison
+
+# Run MCP server for external integrations
+cargo run --bin mcp_server
 ```
 
 ## Ports & Endpoints
-- **Backend**: `http://localhost:3001`
-- **Frontend**: `http://localhost:3000`
+- **Backend API**: `http://localhost:3001`
+- **Frontend Dashboard**: `http://localhost:3000`
 - **WebSocket**: `ws://localhost:3001/ws`
-- **API**: `/api/agents`, `/api/tasks`, `/api/hive/status`
+- **MCP Server**: `http://localhost:3002` (when running standalone)
+- **Health Check**: `http://localhost:3001/health`
+- **Metrics**: `http://localhost:3001/metrics`
+
+## API Endpoints
+- **Agents**: `GET/POST /api/agents`, `GET/PUT/DELETE /api/agents/{id}`
+- **Tasks**: `GET/POST /api/tasks`, `GET/PUT/DELETE /api/tasks/{id}`
+- **Hive Status**: `GET /api/hive/status`, `GET /api/hive/metrics`
+- **Resources**: `GET /api/resources` (system resource information)
+- **Health**: `GET /health` (comprehensive health check)
+- **Metrics**: `GET /metrics` (performance metrics)
 
 ## Data Structures
 
@@ -129,18 +184,21 @@ cargo run --features advanced-neural --example neural_comparison
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd multiagent-hive
+git clone https://github.com/do-ops885/ai-orchestrator-hub.git
+cd ai-orchestrator-hub
 
-# Install Rust dependencies
+# Install Rust dependencies and build
 cd backend
 cargo build
 
 # Run with basic NLP (recommended for development)
 cargo run
 
-# Run with advanced neural features (requires more resources)
+# Run with advanced neural features
 cargo run --features advanced-neural
+
+# Run MCP server for external integrations
+cargo run --bin mcp_server
 ```
 
 ### Frontend Setup
@@ -174,24 +232,46 @@ Create a `.env` file in the backend directory:
 ```env
 # Server Configuration
 HIVE_PORT=3001
-HIVE_HOST=localhost
+HIVE_HOST=0.0.0.0
+CORS_ORIGINS=http://localhost:3000
 
-# Logging
+# Logging & Monitoring
 LOG_LEVEL=info
 LOG_FORMAT=json
+METRICS_COLLECTION_INTERVAL_MS=5000
+ALERT_CHECK_INTERVAL_MS=30000
 
 # Neural Processing
-NEURAL_MODE=basic  # or "advanced"
+NEURAL_MODE=basic
 MAX_AGENTS=1000
 TASK_QUEUE_SIZE=10000
+LEARNING_RATE=0.01
 
-# WebSocket
+# WebSocket & Communication
 WS_MAX_CONNECTIONS=100
 WS_HEARTBEAT_INTERVAL=30
+WS_TIMEOUT_SECS=300
 
 # Resource Management
 MEMORY_LIMIT_MB=1024
-CPU_CORES=auto  # or specific number
+CPU_CORES=auto
+CPU_WARNING_THRESHOLD=70.0
+MEMORY_WARNING_THRESHOLD=80.0
+
+# Persistence
+DATABASE_URL=./data/hive_persistence.db
+PERSISTENCE_CHECKPOINT_INTERVAL_MINUTES=5
+BACKUP_ENABLED=true
+
+# Security
+RATE_LIMIT_REQUESTS_PER_MINUTE=1000
+JWT_SECRET=your-secret-key-here
+AUDIT_LOGGING_ENABLED=true
+
+# Performance
+CIRCUIT_BREAKER_FAILURE_THRESHOLD=5
+CIRCUIT_BREAKER_RECOVERY_TIMEOUT_MS=30000
+PERFORMANCE_OPTIMIZATION_ENABLED=true
 ```
 
 ### Feature Flags
@@ -206,57 +286,73 @@ The system supports multiple build configurations:
 
 ### REST Endpoints
 
-#### Agents
+#### Agents Management
+- `GET /api/agents` - List all agents with filtering and pagination
+- `POST /api/agents` - Create a new agent with validation
+- `GET /api/agents/{id}` - Get detailed agent information
+- `PUT /api/agents/{id}` - Update agent configuration
+- `DELETE /api/agents/{id}` - Remove agent with cleanup
 
-- `GET /api/agents` - List all agents
-- `POST /api/agents` - Create a new agent
-- `GET /api/agents/{id}` - Get agent details
-- `PUT /api/agents/{id}` - Update agent
-- `DELETE /api/agents/{id}` - Remove agent
+#### Tasks Management
+- `GET /api/tasks` - List tasks with status filtering
+- `POST /api/tasks` - Create task with capability matching
+- `GET /api/tasks/{id}` - Get task details and execution history
+- `PUT /api/tasks/{id}` - Update task priority or cancel
+- `DELETE /api/tasks/{id}` - Cancel and cleanup task
 
-#### Tasks
-
-- `GET /api/tasks` - List all tasks
-- `POST /api/tasks` - Create a new task
-- `GET /api/tasks/{id}` - Get task details
-- `PUT /api/tasks/{id}` - Update task
-- `DELETE /api/tasks/{id}` - Cancel task
-
-#### Hive Status
-
-- `GET /api/hive/status` - Get current hive status and metrics
-- `GET /api/hive/metrics` - Get detailed performance metrics
+#### Hive Operations
+- `GET /api/hive/status` - Comprehensive hive status and metrics
+- `GET /api/hive/metrics` - Detailed performance metrics and trends
+- `GET /api/resources` - System resource utilization
 - `POST /api/hive/reset` - Reset hive state (development only)
+
+#### System Management
+- `GET /health` - Comprehensive health check with component status
+- `GET /metrics` - Prometheus-compatible metrics endpoint
 
 ### WebSocket Events
 
 Connect to `ws://localhost:3001/ws` for real-time updates:
 
-- `hive_status`: Complete hive state and metrics
-- `agents_update`: Agent list with current states
-- `metrics_update`: Performance metrics updates
-- `agent_created`: New agent creation notifications
-- `task_created`: New task creation notifications
-- `task_completed`: Task completion notifications
-- `error`: Error notifications
+- `hive_status`: Complete hive state, metrics, and swarm intelligence
+- `agents_update`: Agent list with states, capabilities, and performance
+- `metrics_update`: Real-time performance metrics and alerts
+- `agent_created`: New agent creation with configuration details
+- `agent_failed`: Agent failure notifications with recovery status
+- `task_created`: New task creation with assignment details
+- `task_completed`: Task completion with results and metrics
+- `task_failed`: Task failure with error details and retry status
+- `alert_triggered`: Intelligent alerting with predictive insights
+- `resource_update`: System resource utilization updates
+- `error`: Structured error notifications with context
 
-### MCP Integration
+### MCP (Model Context Protocol) Integration
 
-The system implements Model Context Protocol (MCP) 1.0 for external tool integration:
+The system implements MCP 1.0 for seamless AI tool integration:
 
 #### Available Tools
-
-- `create_swarm_agent`: Create new agents with specified capabilities
-- `assign_swarm_task`: Assign tasks to the swarm
-- `get_swarm_status`: Retrieve current hive status
-- `analyze_with_nlp`: Perform NLP analysis on text
-- `coordinate_agents`: Coordinate agent behaviors
+- `create_swarm_agent`: Create agents with custom capabilities and behaviors
+- `assign_swarm_task`: Distribute tasks with intelligent agent matching
+- `get_swarm_status`: Retrieve comprehensive hive status and metrics
+- `analyze_with_nlp`: Perform advanced NLP analysis using neural networks
+- `coordinate_agents`: Trigger swarm coordination and formation optimization
+- `get_performance_metrics`: Access detailed performance analytics
+- `manage_resources`: Monitor and optimize system resource usage
 
 #### Resources
+- `hive://status`: Live system status with real-time updates
+- `hive://agents`: Agent information with capability profiles
+- `hive://tasks`: Task queue with execution status and history
+- `hive://metrics`: Performance metrics and alerting data
+- `hive://resources`: System resource utilization and optimization
 
-- `hive://status`: Live system status
-- `hive://agents`: Agent information
-- `hive://tasks`: Task information
+#### Standalone MCP Server
+Run the dedicated MCP server for external integrations:
+```bash
+cd backend
+cargo run --bin mcp_server
+```
+Access at `http://localhost:3002` with WebSocket support at `ws://localhost:3002/ws`
 
 ## Development
 
@@ -273,29 +369,44 @@ The system implements Model Context Protocol (MCP) 1.0 for external tool integra
 ```bash
 # Backend tests
 cd backend
-cargo test
-cargo test --features advanced-neural
+cargo test                    # Basic tests
+cargo test --features advanced-neural  # With neural features
+cargo test --all-features     # All features enabled
 
 # Frontend tests
 cd frontend
-npm test
+npm test                      # Unit tests
+npm run lint                  # ESLint checks
+npm run build                 # Build verification
 
-# Linting
-cargo clippy
-npm run lint
+# Integration tests
+cd backend
+cargo test --test integration_tests
+
+# Linting and formatting
+cargo clippy --all-features   # Comprehensive linting
+cargo fmt --all               # Code formatting
 ```
 
 ### Examples and Demos
 
 ```bash
-# Compare basic vs advanced neural processing
+# Neural processing demos
 cargo run --features advanced-neural --example neural_comparison
-
-# Test advanced neural capabilities
 cargo run --features advanced-neural --example advanced_neural_test
-
-# LSTM network demonstration
 cargo run --features advanced-neural --example lstm_demo
+
+# Agent system demos
+cargo run --example adaptive_verification_demo
+cargo run --example agent_monitor_example
+cargo run --example pair_programming_demo
+
+# Persistence and recovery
+cargo run --example persistence_demo
+cargo run --example advanced_persistence_demo
+
+# Swarm intelligence
+cargo run --example swarm_coordination_demo
 ```
 
 ## Deployment
@@ -402,37 +513,72 @@ node --version  # Should be 18+
 
 ### Getting Help
 
-- Check the [Issues](https://github.com/do-ops885/ai-orchestrator-hub/issues) page
-- Review the [Documentation](docs/)
-- Join our community discussions
+- **GitHub Issues**: [Report bugs and request features](https://github.com/do-ops885/ai-orchestrator-hub/issues)
+- **Documentation**: Comprehensive guides in [docs/](docs/) directory
+- **Health Checks**: Use `/health` endpoint for system diagnostics
+- **Logs**: Enable debug logging with `RUST_LOG=debug`
+- **Community**: Join discussions and get help from the community
 
 ## Testing & Examples
 
 ### Available Examples
 
-- **Neural Comparison**: `backend/examples/neural_comparison.rs` - Compare basic vs advanced processing
-- **Advanced Neural Test**: `backend/examples/advanced_neural_test.rs` - Test FANN integration
-- **LSTM Demo**: `backend/examples/lstm_demo.rs` - Time series forecasting demonstration
+- **Neural Processing**:
+  - `neural_comparison.rs` - Compare basic vs advanced neural processing
+  - `advanced_neural_test.rs` - Test FANN neural network integration
+  - `lstm_demo.rs` - Time series forecasting with LSTM networks
+
+- **Agent System**:
+  - `adaptive_verification_demo.rs` - Adaptive verification capabilities
+  - `agent_monitor_example.rs` - Agent monitoring and metrics
+  - `pair_programming_demo.rs` - Collaborative agent programming
+
+- **Persistence & Recovery**:
+  - `persistence_demo.rs` - Basic persistence functionality
+  - `advanced_persistence_demo.rs` - Advanced state management
+
+- **Swarm Intelligence**:
+  - `swarm_coordination_demo.rs` - Swarm formation and coordination
+  - `simple_verification_demo.rs` - Basic verification workflows
 
 ### Running Examples
 
 ```bash
-# Basic neural comparison
-cargo run --example neural_comparison
-
-# Advanced features (requires advanced-neural feature)
+# Neural processing examples
+cargo run --features advanced-neural --example neural_comparison
 cargo run --features advanced-neural --example advanced_neural_test
 cargo run --features advanced-neural --example lstm_demo
+
+# Agent system examples
+cargo run --example adaptive_verification_demo
+cargo run --example agent_monitor_example
+cargo run --example pair_programming_demo
+
+# Persistence examples
+cargo run --example persistence_demo
+cargo run --example advanced_persistence_demo
+
+# Swarm intelligence
+cargo run --example swarm_coordination_demo
+cargo run --example simple_verification_demo
 ```
 
 ## Performance Benchmarks
 
-| Configuration | Agents | Tasks/sec | Memory Usage | CPU Usage |
-|---------------|--------|-----------|--------------|-----------|
-| Basic NLP     | 100    | 50        | 256MB        | 15%       |
-| Basic NLP     | 500    | 200       | 512MB        | 35%       |
-| Advanced      | 100    | 75        | 384MB        | 25%       |
-| Advanced      | 500    | 350       | 768MB        | 55%       |
+| Configuration | Agents | Tasks/sec | Memory Usage | CPU Usage | Features |
+|---------------|--------|-----------|--------------|-----------|----------|
+| Basic NLP     | 100    | 50-75     | 256MB        | 15%       | Core swarm intelligence |
+| Basic NLP     | 500    | 200-300   | 512MB        | 35%       | + Adaptive learning |
+| Advanced Neural| 100   | 75-100    | 384MB        | 25%       | + FANN networks |
+| Advanced Neural| 500   | 350-500   | 768MB        | 55%       | + Neural optimization |
+| Full Featured | 1000   | 500-750   | 1.2GB        | 70%       | + Persistence, monitoring |
+| High Performance| 5000  | 1000+     | 2.5GB        | 85%       | + GPU acceleration |
+
+**System Requirements:**
+- **Minimum**: 2GB RAM, 2 CPU cores, 1GB storage
+- **Recommended**: 4GB RAM, 4+ CPU cores, 5GB storage
+- **High Performance**: 8GB+ RAM, 8+ CPU cores, 10GB+ storage
+- **GPU Optional**: CUDA-compatible GPU for neural acceleration
 
 ## License
 
@@ -440,8 +586,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- Built with [Rust](https://www.rust-lang.org/) and [Tokio](https://tokio.rs/)
-- Frontend powered by [Next.js](https://nextjs.org/) and [React](https://reactjs.org/)
-- Neural processing with ruv-FANN
-- Real-time communication via WebSockets
-- MCP integration for external tool support
+- **Core Technologies**: [Rust](https://www.rust-lang.org/) for performance and safety, [Tokio](https://tokio.rs/) for async runtime
+- **Web Framework**: [Axum](https://github.com/tokio-rs/axum) for robust HTTP/WebSocket server
+- **Frontend**: [Next.js](https://nextjs.org/) and [React](https://reactjs.org/) with [TypeScript](https://www.typescriptlang.org/)
+- **Neural Processing**: ruv-FANN for advanced neural networks, custom NLP implementation
+- **AI Integration**: [OpenAI SDK](https://github.com/openai/openai-node) and [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-typescript)
+- **Data Processing**: [Serde](https://serde.rs/) for serialization, [Petgraph](https://github.com/petgraph/petgraph) for graph algorithms
+- **Database**: [rusqlite](https://github.com/rusqlite/rusqlite) for embedded persistence
+- **Security**: [Ring](https://github.com/briansmith/ring) for cryptography, [jsonwebtoken](https://github.com/Keats/jsonwebtoken) for auth
+- **Monitoring**: Custom metrics collection with [tracing](https://tracing.rs/) for observability
+- **MCP Protocol**: [Model Context Protocol](https://modelcontextprotocol.io/) for AI tool integration
