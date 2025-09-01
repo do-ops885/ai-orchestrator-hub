@@ -89,8 +89,6 @@ too_many_lines = "allow"
 cast_precision_loss = "allow"
 cast_possible_truncation = "allow"
 cast_sign_loss = "allow"
-unused_imports = "allow"
-dead_code = "allow"
 
 [lints.rust]
 # Rust compiler lints

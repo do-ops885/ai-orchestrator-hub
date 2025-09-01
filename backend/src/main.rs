@@ -28,7 +28,6 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 use tracing::{debug, error, info, warn, Level};
-use tracing_subscriber;
 
 // Import enhanced error handling and configuration
 use crate::agents::AgentRecoveryManager;
@@ -774,7 +773,7 @@ async fn health_check(
         .unwrap_or(0.0);
 
     // Check component health
-    let hive_healthy = total_agents > 0 || completed_tasks >= 0;
+    let hive_healthy = total_agents > 0 || completed_tasks > 0;
     let resources_healthy = memory_usage < 90.0 && cpu_usage < 95.0;
     let metrics_healthy = metrics_health.performance.average_response_time_ms < 5000.0;
     let alerting_healthy = true; // Simplified for now - alerting system is operational

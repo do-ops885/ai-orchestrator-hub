@@ -16,8 +16,8 @@ pub mod skill_evolution;
 // pub mod agent_evolution;
 /// Collaborative learning between agents (temporarily disabled)
 // pub mod collaborative_learning;
-/// Pair programming verification system (temporarily disabled)
-// pub mod verification;
+/// Pair programming verification system
+pub mod verification;
 // Verification engine and coordination (temporarily disabled)
 // pub mod verification_engine;
 // Concrete verification strategies (temporarily disabled)
@@ -27,6 +27,6 @@ pub use recovery::*;
 pub use simple_verification::*;
 pub use skill_evolution::*;
 // pub use adaptive_verification::*;  // Currently unused
-// pub use verification::*;
+pub use verification::*;
 // pub use verification_engine::*;
 // pub use verification_strategies::*;
