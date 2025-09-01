@@ -1,0 +1,20 @@
+# Development configuration overrides
+# This file contains settings specific to development environment
+
+[server]
+port = 3002
+
+[logging]
+level = "debug"
+
+[monitoring]
+enable_automation = true
+enable_external_integration = true
+
+[monitoring.diagnostics]
+default_health_score = 0.90
+
+[monitoring.diagnostics.component_health_scores]
+database = 0.92
+cache = 0.85
+network = 0.89

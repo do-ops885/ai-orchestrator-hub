@@ -82,13 +82,13 @@ pub mod utils;
 pub mod tests;
 
 // Re-export core types with explicit imports to avoid ambiguous glob re-exports
-pub use agents::{Agent, AgentBehavior, AgentCapability, AgentMemory, AgentState, AgentType};
+pub use agents::{Agent, AgentBehavior, AgentCapability, AgentMemory, AgentState, AgentType, VerificationLevel, OverallTaskStatus, VerifiedTaskResult, Discrepancy, DiscrepancySeverity, VerificationDetails, VerificationMethod, VerificationResult, VerificationStatus};
 pub use communication::communication::handle_websocket;
 pub use communication::mcp::{HiveMCPServer, MCPToolHandler};
 pub use core::{HiveCoordinator, SwarmIntelligenceEngine};
 pub use infrastructure::{MetricsCollector, ResourceManager, TelemetryCollector};
 pub use neural::{AdaptiveLearningSystem, HybridNeuralProcessor, NLPProcessor};
-pub use tasks::{Task, TaskPriority, TaskQueue, TaskStatus, WorkStealingQueue};
+pub use tasks::{Task, TaskPriority, TaskQueue, TaskResult, TaskStatus, WorkStealingQueue};
 pub use utils::{HiveConfig, HiveError, HiveResult, InputValidator};
 
 /// Application state shared across the system

@@ -593,7 +593,7 @@ impl PersistenceManager {
         let snapshot = self.storage.load_snapshot(snapshot_id).await?;
 
         // Restore hive state
-        self.restore_hive_state(hive, &snapshot.hive_state).await?;
+        self.restore_hive_state(hive, &snapshot).await?;
 
         // Restore agents
         self.restore_agents(hive, &snapshot.agents).await?;
@@ -653,10 +653,11 @@ impl PersistenceManager {
         let tasks: Vec<Task> = Vec::new(); // For now, we'll collect basic task info
 
         let hive_status = hive.get_status().await;
+        let default_map = serde_json::Map::new();
         let tasks_metrics = tasks_info
             .get("legacy_queue")
             .and_then(|q| q.as_object())
-            .unwrap_or(&serde_json::Map::new());
+            .unwrap_or(&default_map);
 
         let metrics = SystemMetrics {
             total_agents: agents.len(),
@@ -713,7 +714,7 @@ impl PersistenceManager {
                         if arr.len() >= 2 {
                             Some((
                                 arr[0].as_f64().unwrap_or(0.0),
-                                arr[1].as_f64().unwrap_or(0.0)
+                                arr[1].as_f64().unwrap_or(0.0),
                             ))
                         } else {
                             None
@@ -739,36 +740,49 @@ impl PersistenceManager {
     async fn restore_hive_state(
         &self,
         hive: &mut HiveCoordinator,
-        state: &HiveState,
+        snapshot: &SystemSnapshot,
     ) -> HiveResult<()> {
-        info!("Restoring hive state for hive {}", state.hive_id);
+        info!(
+            "Restoring hive state for hive {}",
+            snapshot.hive_state.hive_id
+        );
 
         // Restore agents
-        for agent in &state.agents {
-            if let Err(e) = hive.create_agent(serde_json::json!({
-                "name": agent.name,
-                "type": agent.agent_type,
-                "capabilities": agent.capabilities,
-                "initial_energy": agent.energy
-            })).await {
+        for agent in &snapshot.agents {
+            if let Err(e) = hive
+                .create_agent(serde_json::json!({
+                    "name": agent.name,
+                    "type": agent.agent_type,
+                    "capabilities": agent.capabilities,
+                    "initial_energy": agent.energy
+                }))
+                .await
+            {
                 warn!("Failed to restore agent {}: {}", agent.id, e);
             }
         }
 
         // Restore tasks
-        for task in &state.tasks {
-            if let Err(e) = hive.create_task(serde_json::json!({
-                "title": task.title,
-                "description": task.description,
-                "task_type": task.task_type,
-                "priority": task.priority,
-                "required_capabilities": task.required_capabilities
-            })).await {
+        for task in &snapshot.tasks {
+            if let Err(e) = hive
+                .create_task(serde_json::json!({
+                    "title": task.description, // Use description as title for now
+                    "description": task.description,
+                    "task_type": "General", // Default task type
+                    "priority": task.priority,
+                    "required_capabilities": task.required_capabilities
+                }))
+                .await
+            {
                 warn!("Failed to restore task {}: {}", task.id, e);
             }
         }
 
-        info!("Successfully restored {} agents and {} tasks", state.agents.len(), state.tasks.len());
+        info!(
+            "Successfully restored {} agents and {} tasks",
+            snapshot.agents.len(),
+            snapshot.tasks.len()
+        );
         Ok(())
     }
 

@@ -1,0 +1,101 @@
+# Default configuration for the AI Orchestrator Hub
+# This file contains all default settings that can be overridden by environment variables
+
+[server]
+host = "0.0.0.0"
+port = 3001
+cors_origins = ["http://localhost:3000"]
+websocket_timeout_secs = 300
+max_connections = 1000
+
+[agents]
+max_agents = 100
+default_energy = 100.0
+energy_decay_rate = 0.1
+learning_rate = 0.01
+max_memory_size = 1000
+
+[tasks]
+max_concurrent_tasks = 50
+task_timeout_secs = 300
+retry_attempts = 3
+priority_levels = 4
+
+[resources]
+cpu_threshold = 80.0
+memory_threshold = 85.0
+auto_scaling_enabled = true
+monitoring_interval_secs = 30
+
+[neural]
+enable_advanced_neural = false
+batch_size = 32
+learning_rate = 0.001
+max_iterations = 1000
+
+[logging]
+level = "info"
+format = "json"
+# file_path = "/var/log/ai-orchestrator.log"
+max_file_size_mb = 100
+
+[performance]
+cpu_warning_threshold = 70.0
+cpu_critical_threshold = 90.0
+memory_warning_threshold = 80.0
+memory_critical_threshold = 95.0
+metrics_collection_interval_ms = 5000
+alert_check_interval_ms = 30000
+circuit_breaker_failure_threshold = 5
+circuit_breaker_recovery_timeout_ms = 30000
+
+[monitoring]
+monitoring_interval_secs = 5
+metrics_retention_days = 7
+alert_threshold = 0.8
+metrics_endpoint = "http://localhost:8000/metrics"
+health_endpoint = "http://localhost:8000/health"
+enable_agent_discovery = true
+enable_health_monitoring = true
+enable_performance_monitoring = true
+enable_behavior_analysis = true
+enable_dashboards = true
+enable_alerting = true
+enable_diagnostics = true
+enable_reporting = true
+enable_automation = false
+enable_external_integration = false
+
+[monitoring.diagnostics]
+default_health_score = 0.85
+
+[monitoring.diagnostics.component_health_scores]
+database = 0.95
+cache = 0.88
+network = 0.92
+
+[monitoring.diagnostics.component_issues]
+database = ["Slow query performance"]
+cache = ["High cache miss rate"]
+network = ["Intermittent connectivity"]
+
+[monitoring.diagnostics.component_recommendations]
+database = ["Add database indexes", "Optimize query patterns"]
+cache = ["Increase cache size", "Implement cache warming"]
+network = ["Implement retry logic", "Monitor network latency"]
+
+[monitoring.diagnostics.network_components]
+internal_api = "internal_api"
+external_services = "external_services"
+database = "database"
+
+[monitoring.diagnostics.performance_bottlenecks]
+bottleneck1 = "Database query optimization needed"
+bottleneck2 = "Memory usage spikes during peak hours"
+bottleneck3 = "Network latency affecting response times"
+
+[monitoring.diagnostics.optimization_opportunities]
+opt1 = "Implement database query caching"
+opt2 = "Add memory pooling for frequent allocations"
+opt3 = "Use CDN for static assets"
+opt4 = "Implement horizontal scaling"

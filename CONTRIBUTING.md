@@ -22,10 +22,10 @@ We are committed to providing a welcoming and inclusive environment for all cont
 
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
-   ```bash
-   git clone https://github.com/d-oit/multiagent-hive.git
-   cd multiagent-hive
-   ```
+    ```bash
+    git clone https://github.com/your-username/ai-orchestrator-hub.git
+    cd ai-orchestrator-hub
+    ```
 3. **Set up the development environment** (see below)
 4. **Create a feature branch** for your changes:
    ```bash
@@ -44,28 +44,53 @@ We are committed to providing a welcoming and inclusive environment for all cont
 
 ```bash
 cd backend
-cargo build
-cargo test
+cargo build                    # Build with default features
+cargo test                     # Run basic tests
+cargo test --all-features      # Test all feature combinations
+cargo clippy --all-features    # Comprehensive linting
+cargo fmt --all                # Format code
 ```
 
 ### Frontend Setup
 
 ```bash
 cd frontend
-npm install
-npm run dev
+npm install                    # Install dependencies
+npm run dev                    # Start development server
+npm test                       # Run tests
+npm run lint                   # ESLint checks
+npm run build                  # Production build
 ```
 
 ### Running the Full System
 
 ```bash
-# Terminal 1: Backend
+# Terminal 1: Backend (basic features)
 cd backend
 cargo run
 
-# Terminal 2: Frontend
+# Terminal 2: Backend (advanced features)
+cd backend
+cargo run --features advanced-neural
+
+# Terminal 3: MCP Server (optional)
+cd backend
+cargo run --bin mcp_server
+
+# Terminal 4: Frontend
 cd frontend
 npm run dev
+```
+
+### Feature Development Setup
+
+```bash
+# Enable all features for comprehensive testing
+cd backend
+cargo run --all-features
+
+# Run specific feature combinations
+cargo run --features advanced-neural,gpu-acceleration
 ```
 
 ## Contribution Guidelines
@@ -93,19 +118,27 @@ We welcome the following types of contributions:
 ### Rust Code Standards
 
 - Follow the official [Rust Style Guide](https://doc.rust-lang.org/1.0.0/style/)
-- Use `cargo fmt` for formatting
-- Pass all `cargo clippy` lints (see `clippy.toml` for configuration)
+- Use `cargo fmt` for formatting (configured in `rustfmt.toml`)
+- Pass all `cargo clippy` lints (strict configuration in `clippy.toml`)
 - Write comprehensive documentation with `///` for public APIs
-- Use `anyhow::Result` for error handling
-- Avoid `unwrap()` and `panic!()` in production code
+- Use `anyhow::Result` for error handling with proper error context
+- Avoid `unwrap()`, `expect()`, and `panic!()` in production code
+- Use structured logging with the `tracing` crate
+- Implement proper async error handling with `ResultExt`
+- Follow the module structure in `backend/src/`
+- Use dependency injection patterns for testability
 
 ### TypeScript Code Standards
 
-- Follow the ESLint configuration in `eslint.config.js`
-- Use TypeScript strict mode
-- Write JSDoc comments for complex functions
-- Use consistent naming conventions
-- Prefer functional components with hooks
+- Follow the ESLint flat configuration in `eslint.config.js`
+- Use TypeScript strict mode with no implicit any
+- Write JSDoc comments for complex functions and components
+- Use consistent naming: camelCase for variables/functions, PascalCase for components/types
+- Prefer functional components with hooks over class components
+- Use proper TypeScript generics and utility types
+- Implement proper error boundaries for React components
+- Follow the component structure in `frontend/src/components/`
+- Use Zustand for state management with proper typing
 
 ### Documentation Standards
 
@@ -120,23 +153,32 @@ We welcome the following types of contributions:
 ### Backend Testing
 
 ```bash
-# Run all tests
+# Basic test suite
 cargo test
 
-# Run tests with advanced features
+# Test with advanced neural features
 cargo test --features advanced-neural
+
+# Test all feature combinations
+cargo test --all-features
 
 # Run specific test
 cargo test test_name
 
-# Run with coverage (requires cargo-tarpaulin)
-cargo tarpaulin --out Html
+# Run integration tests
+cargo test --test integration_tests
+
+# Run examples as tests
+cargo test --examples
+
+# Generate coverage report (requires cargo-tarpaulin)
+cargo tarpaulin --out Html --all-features
 ```
 
 ### Frontend Testing
 
 ```bash
-# Run tests
+# Run unit tests
 npm test
 
 # Run tests in watch mode
@@ -144,6 +186,29 @@ npm test -- --watch
 
 # Run with coverage
 npm test -- --coverage
+
+# Run e2e tests (if configured)
+npm run test:e2e
+```
+
+### Comprehensive Testing Workflow
+
+```bash
+# Backend comprehensive testing
+cd backend
+cargo test --all-features          # All unit tests
+cargo test --test integration_tests # Integration tests
+cargo clippy --all-features        # Linting
+cargo fmt --all --check            # Format check
+
+# Frontend comprehensive testing
+cd frontend
+npm test                           # Unit tests
+npm run lint:check                 # Linting
+npm run build                      # Build verification
+
+# End-to-end testing
+# Start backend and frontend, then run e2e tests
 ```
 
 ### Test Requirements
@@ -200,21 +265,42 @@ pub fn function_name(param1: &str, param2: i32) -> Result<ReturnType> {
 
 ### Before Submitting
 
-1. **Run the full test suite**:
-   ```bash
-   cargo test --all-features
-   cd frontend && npm test
-   ```
+1. **Run the comprehensive test suite**:
+    ```bash
+    # Backend tests
+    cd backend
+    cargo test --all-features
+    cargo test --test integration_tests
+    cargo clippy --all-features
+    cargo fmt --all --check
 
-2. **Run linting**:
-   ```bash
-   cargo clippy --all-features
-   cd frontend && npm run lint
-   ```
+    # Frontend tests
+    cd frontend
+    npm test
+    npm run lint:check
+    npm run build
+    ```
 
-3. **Update documentation** for any new features or changes
+2. **Update documentation** for any new features or changes:
+    - Update relevant docs in `docs/` directory
+    - Update API documentation if endpoints changed
+    - Update configuration docs if settings changed
+    - Update README.md for new features
 
-4. **Add tests** for new functionality
+3. **Add comprehensive tests** for new functionality:
+    - Unit tests for all new functions
+    - Integration tests for new features
+    - Update existing tests if behavior changed
+
+4. **Security review**:
+    - Ensure no secrets or sensitive data in code
+    - Validate input sanitization for new endpoints
+    - Check for proper authentication/authorization
+
+5. **Performance validation**:
+    - Run performance benchmarks if applicable
+    - Ensure no performance regressions
+    - Test with various configurations
 
 ### Pull Request Template
 
@@ -271,15 +357,29 @@ We use the following labels to categorize issues:
 
 ### Debugging
 
-- Use `tracing::debug!()` for debug logging in Rust
-- Use browser dev tools for frontend debugging
-- Enable verbose logging with `RUST_LOG=debug`
+- **Backend**: Use structured logging with `tracing::debug!()` and `RUST_LOG=debug`
+- **Frontend**: Use browser dev tools and React Developer Tools
+- **WebSocket**: Monitor connections with browser Network tab
+- **Database**: Check SQLite files in `./data/` directory
+- **Health Checks**: Use `/health` endpoint for system diagnostics
+- **Metrics**: Access `/metrics` endpoint for performance data
 
 ### Performance Testing
 
-- Use the built-in metrics system to monitor performance
+- Use the built-in metrics system: `GET /api/hive/metrics`
 - Test with various agent counts and task loads
 - Profile with `cargo flamegraph` for performance bottlenecks
+- Monitor resource usage with the ResourceMonitor component
+- Use the performance optimizer for automatic tuning
+- Check circuit breaker status for resilience testing
+
+### Feature Development
+
+- **Neural Features**: Test with `--features advanced-neural`
+- **MCP Integration**: Run standalone MCP server for testing
+- **Persistence**: Check `./data/` directory for database files
+- **Security**: Test rate limiting and authentication
+- **Monitoring**: Use intelligent alerting for anomaly detection
 
 ### Architecture Guidelines
 

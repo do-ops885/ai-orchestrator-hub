@@ -707,6 +707,73 @@ impl IntelligentAlertingSystem {
             .max_by_key(|(_, count)| *count)
             .map(|(title, _)| title)
     }
+
+    /// Test the alerting system with sample alerts
+    pub async fn test_alert_system(&self) -> anyhow::Result<()> {
+        info!("Testing intelligent alerting system...");
+
+        // Create test metrics that will trigger alerts
+        let test_metrics = crate::infrastructure::metrics::SystemMetrics {
+            timestamp: Utc::now(),
+            performance: crate::infrastructure::metrics::PerformanceMetrics {
+                requests_per_second: 100.0,
+                average_response_time_ms: 150.0,
+                p95_response_time_ms: 200.0,
+                p99_response_time_ms: 300.0,
+                throughput_tasks_per_second: 50.0,
+            },
+            resource_usage: crate::infrastructure::metrics::ResourceUsageMetrics {
+                cpu_usage_percent: 95.0, // Will trigger CPU alert
+                memory_usage_percent: 90.0, // Will trigger memory alert
+                memory_usage_bytes: 1024 * 1024 * 1024, // 1GB
+                network_bytes_in: 1024 * 1024,
+                network_bytes_out: 512 * 1024,
+                disk_usage_bytes: 512 * 1024 * 1024, // 512MB
+                network_io: crate::infrastructure::metrics::NetworkMetrics::default(),
+                disk_io: crate::infrastructure::metrics::DiskMetrics::default(),
+            },
+            agent_metrics: crate::infrastructure::metrics::AgentMetrics {
+                total_agents: 10,
+                active_agents: 8,
+                idle_agents: 1,
+                failed_agents: 1,
+                average_agent_performance: 0.85,
+                agent_utilization_percent: 80.0,
+                individual_agent_metrics: HashMap::new(),
+            },
+            task_metrics: crate::infrastructure::metrics::TaskMetrics {
+                total_tasks_submitted: 1000,
+                total_tasks_completed: 850,
+                total_tasks_failed: 50,
+                tasks_in_queue: 100,
+                average_task_duration_ms: 200.0,
+                task_success_rate: 0.85,
+            },
+            error_metrics: crate::infrastructure::metrics::ErrorMetrics {
+                total_errors: 10,
+                error_rate_per_minute: 0.5,
+                errors_by_type: HashMap::new(),
+                critical_errors: 2,
+            },
+        };
+
+        // Update the metrics collector with test data
+        self.metrics_collector.update_performance_metrics(test_metrics.performance.clone()).await;
+        self.metrics_collector.update_resource_metrics(test_metrics.resource_usage.clone()).await;
+        self.metrics_collector.update_agent_metrics(test_metrics.agent_metrics.clone()).await;
+        self.metrics_collector.update_task_metrics(test_metrics.task_metrics.clone()).await;
+
+        // Process alerts with test metrics
+        let alerts = self.process_intelligent_alerts().await?;
+        info!("Alert system test completed. Generated {} alerts", alerts.len());
+
+        // Log test results
+        for alert in &alerts {
+            info!("Test Alert: {} - {}", alert.base_alert.title, alert.base_alert.description);
+        }
+
+        Ok(())
+    }
 }
 
 impl AdaptiveThresholds {

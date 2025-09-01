@@ -41,7 +41,12 @@
 - **Naming**: camelCase for variables/functions, PascalCase for components/types
 
 ### General
-- **Comments**: No unnecessary comments, focus on clarity
-- **Async**: Use `async/await` throughout
-- **Security**: Never expose secrets, validate all inputs
-- **Performance**: Follow clippy performance lints, avoid memory leaks
+- **Configuration**: No hard-coded setting strings.  
+  - Rust backend → load from `settings/*.toml` with layered overrides (default, development, production).  
+  - React frontend → use Vite `import.meta.env` for build-time and a `settings.json` file for runtime values.  
+  - Secrets → never stored in config files, always injected via environment variables or a secret manager.  
+  - All settings must be validated (Rust: serde + validator; React: Zod).  
+- **Comments**: Only add when necessary for clarity, avoid redundancy.  
+- **Async**: Always use `async/await` for asynchronous operations.  
+- **Security**: Never expose secrets. Validate and sanitize all inputs.  
+- **Performance**: Follow `clippy` performance lints, prevent memory leaks, prefer efficient data structures.

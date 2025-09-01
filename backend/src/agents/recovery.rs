@@ -61,7 +61,7 @@ impl AgentRecoveryManager {
                             agent.id, attempts
                         );
                         return Err(HiveError::AgentExecutionFailed {
-                            reason: format!("Recovery failed after {} attempts: {}", attempts, e),
+                            reason: format!("Recovery failed after {attempts} attempts: {e}"),
                         });
                     }
 
@@ -86,7 +86,7 @@ impl AgentRecoveryManager {
         }
 
         // Reset capabilities if they've been corrupted
-        self.validate_and_repair_capabilities(agent)?;
+        Self::validate_and_repair_capabilities(agent)?;
 
         // Validate agent can perform basic operations
         self.validate_agent_health(agent).await?;
@@ -95,7 +95,7 @@ impl AgentRecoveryManager {
         Ok(())
     }
 
-    fn validate_and_repair_capabilities(&self, agent: &mut Agent) -> HiveResult<()> {
+    fn validate_and_repair_capabilities(agent: &mut Agent) -> HiveResult<()> {
         // Remove any capabilities with invalid proficiency
         agent.capabilities.retain(|cap| {
             cap.proficiency >= 0.0 && cap.proficiency <= 1.0 && cap.learning_rate >= 0.0
@@ -148,6 +148,7 @@ impl AgentRecoveryManager {
     }
 
     pub async fn emergency_reset(&self, agent: &mut Agent) -> HiveResult<()> {
+        use crate::agents::agent::AgentCapability;
         warn!("Performing emergency reset for agent {}", agent.id);
 
         // Reset to safe defaults
@@ -157,7 +158,6 @@ impl AgentRecoveryManager {
 
         // Clear and rebuild capabilities
         agent.capabilities.clear();
-        use crate::agents::agent::AgentCapability;
         agent.capabilities.push(AgentCapability {
             name: "basic_processing".to_string(),
             proficiency: 0.3,

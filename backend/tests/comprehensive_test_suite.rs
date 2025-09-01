@@ -194,7 +194,7 @@ async fn test_neural_integration() {
     // Test NLP processor
     let nlp = &hive.nlp_processor;
     let test_text = "successful task completion with excellent results";
-    let keywords = nlp.extract_keywords(test_text, 3);
+    let keywords = nlp.extract_keywords(test_text, 3).await;
     assert!(!keywords.is_empty(), "Should extract keywords");
 
     let sentiment_tokens = vec!["excellent".to_string(), "successful".to_string()];

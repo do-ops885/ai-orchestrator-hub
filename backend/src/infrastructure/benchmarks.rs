@@ -236,6 +236,18 @@ impl PerformanceMonitor {
         let memory_metrics = self.memory_tracker.get_current_metrics().await;
         let cpu_metrics = self.cpu_tracker.get_current_metrics().await;
 
+        // Create placeholder data for hive status and tasks info
+        let hive_status = serde_json::json!({
+            "metrics": {
+                "active_agents": 0
+            }
+        });
+        let tasks_info = serde_json::json!({
+            "legacy_queue": {
+                "pending_tasks": 0
+            }
+        });
+
         let snapshot = PerformanceSnapshot {
             timestamp: Utc::now(),
             memory: memory_metrics,
@@ -250,8 +262,8 @@ impl PerformanceMonitor {
                 .and_then(|q| q.get("pending_tasks"))
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0) as usize,
-            network_connections: 0,        // TODO: Get from network monitor - WebSocket connections
-            response_times_ms: vec![50.0, 75.0, 100.0, 125.0, 150.0], // Sample response times
+            network_connections: 0, // TODO: Get from network monitor - WebSocket connections
+            response_times_ms: vec![50, 75, 100, 125, 150], // Sample response times in milliseconds
         };
 
         // Store snapshot

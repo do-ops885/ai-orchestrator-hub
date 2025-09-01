@@ -3,7 +3,7 @@
 //! Entry point for the multiagent hive system backend server.
 //!
 //! This server implements a sophisticated multiagent hive system with:
-//! - RESTful API for agent and task management
+//! - `RESTful` API for agent and task management
 //! - WebSocket support for real-time communication
 //! - Advanced neural processing capabilities
 //! - Comprehensive monitoring and observability
@@ -28,7 +28,6 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 use tracing::{debug, error, info, warn, Level};
-use tracing_subscriber;
 
 // Import enhanced error handling and configuration
 use crate::agents::AgentRecoveryManager;
@@ -36,7 +35,8 @@ use crate::core::{HiveCoordinator, SwarmIntelligenceEngine};
 use crate::infrastructure::metrics::{AgentMetrics, AlertLevel, MetricThresholds, TaskMetrics};
 use crate::infrastructure::middleware::security_headers_middleware;
 use crate::infrastructure::performance_optimizer::{PerformanceConfig, PerformanceOptimizer};
-use crate::infrastructure::{CircuitBreaker, MetricsCollector};
+use crate::infrastructure::{CircuitBreaker, MetricsCollector, PersistenceManager, StorageBackend};
+use crate::infrastructure::persistence::PersistenceConfig;
 use crate::neural::AdaptiveLearningSystem;
 use crate::utils::config::HiveConfig;
 use crate::utils::error::ResultExt;
@@ -64,6 +64,8 @@ pub struct AppState {
     pub recovery_manager: Arc<AgentRecoveryManager>,
     /// Swarm intelligence engine for formation optimization
     pub swarm_intelligence: Arc<RwLock<SwarmIntelligenceEngine>>,
+    /// Persistence manager for state recovery and checkpointing
+    pub persistence_manager: Arc<PersistenceManager>,
     /// Adaptive learning system for continuous improvement
     pub adaptive_learning: Arc<RwLock<AdaptiveLearningSystem>>,
     /// Rate limiter for API protection
@@ -171,6 +173,39 @@ async fn main() -> anyhow::Result<()> {
     let swarm_intelligence = Arc::new(RwLock::new(SwarmIntelligenceEngine::new()));
     info!("✅ Swarm intelligence engine initialized");
 
+    // Initialize persistence system
+    let persistence_config = PersistenceConfig {
+        storage_backend: StorageBackend::SQLite {
+            database_path: std::path::PathBuf::from("./data/hive_persistence.db"),
+        },
+        checkpoint_interval_minutes: 5, // Checkpoint every 5 minutes
+        max_snapshots: 20,
+        compression_enabled: true,
+        encryption_enabled: false, // Disable for demo, enable for production
+        backup_enabled: true,
+        storage_path: std::path::PathBuf::from("./data"),
+        encryption_key: None,
+        compression_level: 6,
+        backup_retention_days: 7,
+        backup_location: Some(std::path::PathBuf::from("./data/backups")),
+        incremental_backup: true,
+    };
+
+    // Create data directory if it doesn't exist
+    if let Err(e) = std::fs::create_dir_all("./data") {
+        warn!("Failed to create data directory: {}", e);
+    }
+    if let Err(e) = std::fs::create_dir_all("./data/backups") {
+        warn!("Failed to create backup directory: {}", e);
+    }
+
+    let persistence_manager = Arc::new(
+        PersistenceManager::new(persistence_config)
+            .await
+            .expect("Failed to initialize persistence manager")
+    );
+    info!("✅ Persistence manager initialized with SQLite backend");
+
     // Initialize adaptive learning system
     let adaptive_learning_config = crate::neural::AdaptiveLearningConfig {
         learning_rate: 0.01,
@@ -246,6 +281,7 @@ async fn main() -> anyhow::Result<()> {
         circuit_breaker,
         recovery_manager,
         swarm_intelligence,
+        persistence_manager,
         adaptive_learning,
         rate_limiter,
         performance_optimizer,
@@ -774,7 +810,7 @@ async fn health_check(
         .unwrap_or(0.0);
 
     // Check component health
-    let hive_healthy = total_agents > 0 || completed_tasks >= 0;
+    let hive_healthy = total_agents > 0 || completed_tasks > 0;
     let resources_healthy = memory_usage < 90.0 && cpu_usage < 95.0;
     let metrics_healthy = metrics_health.performance.average_response_time_ms < 5000.0;
     let alerting_healthy = true; // Simplified for now - alerting system is operational

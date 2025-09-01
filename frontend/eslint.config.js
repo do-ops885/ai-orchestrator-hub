@@ -4,6 +4,7 @@ import tseslint from '@typescript-eslint/eslint-plugin'
 import tsparser from '@typescript-eslint/parser'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import nextPlugin from 'eslint-config-next'
 
 export default [
   // Base recommended configurations
@@ -67,6 +68,19 @@ export default [
       'react-refresh/only-export-components': ['warn', { 
         allowConstantExport: true, 
       }],
+    },
+  },
+
+  // Next.js configuration
+  {
+    name: 'nextjs-setup',
+    files: ['**/*.{js,jsx,ts,tsx}'],
+    plugins: {
+      'next': nextPlugin,
+    },
+    rules: {
+      // Next.js recommended rules
+      ...nextPlugin.configs.recommended.rules,
     },
   },
 
