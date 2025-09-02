@@ -40,14 +40,14 @@
 //! async fn main() -> anyhow::Result<()> {
 //!     // Initialize the hive coordinator
 //!     let mut hive = HiveCoordinator::new().await?;
-//!     
+//!
 //!     // Create a worker agent
 //!     let agent = Agent::new("Worker-1".to_string(), AgentType::Worker);
 //!     hive.add_agent(agent).await?;
-//!     
+//!
 //!     // Start the hive
 //!     hive.start().await?;
-//!     
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -82,8 +82,12 @@ pub mod utils;
 pub mod tests;
 
 // Re-export core types with explicit imports to avoid ambiguous glob re-exports
-pub use agents::{Agent, AgentBehavior, AgentCapability, AgentMemory, AgentState, AgentType, VerificationLevel, OverallTaskStatus, VerifiedTaskResult, Discrepancy, DiscrepancySeverity, VerificationDetails, VerificationMethod, VerificationResult, VerificationStatus};
-pub use communication::communication::handle_websocket;
+pub use agents::{
+    Agent, AgentBehavior, AgentCapability, AgentMemory, AgentState, AgentType, Discrepancy,
+    DiscrepancySeverity, OverallTaskStatus, VerificationDetails, VerificationLevel,
+    VerificationMethod, VerificationResult, VerificationStatus, VerifiedTaskResult,
+};
+pub use communication::handle_websocket;
 pub use communication::mcp::{HiveMCPServer, MCPToolHandler};
 pub use core::{HiveCoordinator, SwarmIntelligenceEngine};
 pub use infrastructure::{MetricsCollector, ResourceManager, TelemetryCollector};

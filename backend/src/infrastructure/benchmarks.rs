@@ -92,6 +92,7 @@ pub struct CpuMetrics {
 
 /// Performance monitoring configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct PerformanceConfig {
     pub monitoring_enabled: bool,
     pub sampling_interval_ms: u64,
@@ -255,12 +256,12 @@ impl PerformanceMonitor {
             active_agents: hive_status
                 .get("metrics")
                 .and_then(|m| m.get("active_agents"))
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(0) as usize,
             pending_tasks: tasks_info
                 .get("legacy_queue")
                 .and_then(|q| q.get("pending_tasks"))
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(0) as usize,
             network_connections: 0, // TODO: Get from network monitor - WebSocket connections
             response_times_ms: vec![50, 75, 100, 125, 150], // Sample response times in milliseconds
@@ -360,7 +361,7 @@ impl PerformanceMonitor {
         let memory_growth = end_memory - start_memory;
 
         let throughput = if duration.as_millis() > 0 {
-            (test.iterations as f64 * 1000.0) / duration.as_millis() as f64
+            (f64::from(test.iterations) * 1000.0) / duration.as_millis() as f64
         } else {
             0.0
         };
@@ -372,7 +373,7 @@ impl PerformanceMonitor {
             duration_ms: duration.as_millis() as u64,
             memory_usage: MemoryMetrics {
                 peak_memory_mb: end_memory,
-                average_memory_mb: (start_memory + end_memory) / 2.0,
+                average_memory_mb: f64::midpoint(start_memory, end_memory),
                 memory_growth_mb: memory_growth,
                 allocations: 0,                              // TODO: Track allocations
                 deallocations: 0,                            // TODO: Track deallocations
@@ -399,7 +400,7 @@ impl PerformanceMonitor {
     async fn benchmark_agent_creation(&self, iterations: u32) -> HiveResult<()> {
         for i in 0..iterations {
             // Simulate agent creation overhead
-            let agent_data = format!("agent_{}", i);
+            let agent_data = format!("agent_{i}");
             let _agent_json = serde_json::json!({
                 "name": agent_data,
                 "type": "Worker",
@@ -415,7 +416,7 @@ impl PerformanceMonitor {
     async fn benchmark_task_execution(&self, iterations: u32) -> HiveResult<()> {
         for i in 0..iterations {
             // Simulate task processing
-            let task_data = format!("task_{}", i);
+            let task_data = format!("task_{i}");
             let _task_json = serde_json::json!({
                 "title": task_data,
                 "description": "Benchmark task",
@@ -458,7 +459,7 @@ impl PerformanceMonitor {
         // CPU-intensive work
         let mut sum = 0u64;
         for i in 0..iterations * 1000 {
-            sum = sum.wrapping_add(i as u64);
+            sum = sum.wrapping_add(u64::from(i));
             sum = sum.wrapping_mul(17);
         }
 
@@ -471,7 +472,7 @@ impl PerformanceMonitor {
         );
         metrics.insert(
             "operations_per_second".to_string(),
-            (iterations as f64 * 1000.0) / duration.as_secs_f64(),
+            (f64::from(iterations) * 1000.0) / duration.as_secs_f64(),
         );
         metrics.insert("dummy_result".to_string(), sum as f64); // Prevent optimization
 
@@ -488,6 +489,7 @@ impl PerformanceMonitor {
     }
 
     /// Get current memory usage in MB
+    #[allow(clippy::unused_self)]
     fn get_current_memory_usage(&self) -> f64 {
         // TODO: Implement actual memory usage measurement
         // This is a placeholder that would use system APIs
@@ -661,8 +663,8 @@ impl Clone for PerformanceMonitor {
     fn clone(&self) -> Self {
         Self {
             config: self.config.clone(),
-            metrics_history: self.metrics_history.clone(),
-            benchmark_results: self.benchmark_results.clone(),
+            metrics_history: Arc::clone(&self.metrics_history),
+            benchmark_results: Arc::clone(&self.benchmark_results),
             memory_tracker: MemoryTracker::new(
                 self.memory_tracker.leak_threshold_mb,
                 self.memory_tracker.sample_window_minutes,

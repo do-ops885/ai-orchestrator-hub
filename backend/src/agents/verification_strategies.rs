@@ -91,7 +91,7 @@ impl GoalAlignmentVerifier {
     /// Parse original goal into measurable components
     async fn parse_goal_components(&self, original_goal: &str) -> Result<Vec<GoalComponent>> {
         let mut components = Vec::new();
-        
+
         // Tokenize and analyze the goal
         let tokens: Vec<String> = original_goal.split_whitespace()
             .map(|s| s.to_lowercase())
@@ -209,21 +209,21 @@ impl VerificationStrategy for GoalAlignmentVerifier {
 
         // Parse goal into components
         let goal_components = self.parse_goal_components(original_goal).await?;
-        
+
         // Evaluate each component
         let component_scores = self.evaluate_goal_components(&goal_components, result).await?;
-        
+
         // Calculate overall alignment score
         let mut total_score = 0.0;
         let mut total_weight = 0.0;
-        
+
         for component in &goal_components {
             if let Some(score) = component_scores.get(&component.description) {
                 total_score += score * component.weight;
                 total_weight += component.weight;
             }
         }
-        
+
         let alignment_score = if total_weight > 0.0 {
             total_score / total_weight
         } else {
@@ -245,7 +245,7 @@ impl VerificationStrategy for GoalAlignmentVerifier {
             if let Some(score) = component_scores.get(&component.description) {
                 if *score < 0.5 {
                     discrepancies.push(Discrepancy {
-                        discrepancy_id: Uuid::new_v4(),
+                        id: Uuid::new_v4(),
                         criterion_id: Uuid::new_v4(), // Would map to actual criterion
                         expected: component.measurable_criteria.clone(),
                         actual: format!("Score: {:.2}", score),
@@ -267,9 +267,9 @@ impl VerificationStrategy for GoalAlignmentVerifier {
                 .collect(),
             method_specific_data: {
                 let mut data = HashMap::new();
-                data.insert("goal_components".to_string(), 
+                data.insert("goal_components".to_string(),
                            serde_json::to_value(&goal_components)?);
-                data.insert("alignment_threshold".to_string(), 
+                data.insert("alignment_threshold".to_string(),
                            serde_json::to_value(self.alignment_threshold)?);
                 data
             },
@@ -414,7 +414,7 @@ impl VerificationStrategy for QualityAssessmentVerifier {
             if let Some(threshold) = self.quality_thresholds.get(metric) {
                 if score < threshold {
                     discrepancies.push(Discrepancy {
-                        discrepancy_id: Uuid::new_v4(),
+                        id: Uuid::new_v4(),
                         criterion_id: Uuid::new_v4(),
                         expected: format!("{} score >= {:.2}", metric, threshold),
                         actual: format!("{} score = {:.2}", metric, score),
@@ -435,9 +435,9 @@ impl VerificationStrategy for QualityAssessmentVerifier {
                 .collect(),
             method_specific_data: {
                 let mut data = HashMap::new();
-                data.insert("quality_thresholds".to_string(), 
+                data.insert("quality_thresholds".to_string(),
                            serde_json::to_value(&self.quality_thresholds)?);
-                data.insert("individual_scores".to_string(), 
+                data.insert("individual_scores".to_string(),
                            serde_json::to_value(&quality_scores)?);
                 data
             },
@@ -505,18 +505,18 @@ impl QualityAssessmentVerifier {
         let task_description_words: std::collections::HashSet<_> = task_description_lower
             .split_whitespace()
             .collect();
-        
+
         let output_lower = result.output.to_lowercase();
         let output_words: std::collections::HashSet<_> = output_lower
             .split_whitespace()
             .collect();
 
-        let coverage = task_description_words.intersection(&output_words).count() as f64 
+        let coverage = task_description_words.intersection(&output_words).count() as f64
                       / task_description_words.len() as f64;
 
         // Also consider output length relative to task complexity
         let length_factor = (result.output.len() as f64 / 100.0).min(1.0);
-        
+
         Ok((coverage * 0.7 + length_factor * 0.3).clamp(0.0, 1.0))
     }
 
@@ -524,13 +524,13 @@ impl QualityAssessmentVerifier {
         // Use the task result's success flag and quality score
         let base_accuracy = if result.success { 0.8 } else { 0.2 };
         let quality_bonus = result.quality_score.unwrap_or(0.0) * 0.2;
-        
+
         Ok((base_accuracy + quality_bonus).min(1.0))
     }
 
     async fn assess_clarity(&self, result: &TaskResult) -> Result<f64> {
         let output = &result.output;
-        
+
         // Check for structure indicators
         let has_paragraphs = output.contains('\n');
         let has_sentences = output.contains('.');
@@ -559,7 +559,7 @@ impl QualityAssessmentVerifier {
         if let Some(estimated_duration) = task.base_task.estimated_duration {
             let actual_seconds = result.execution_time / 1000;
             let efficiency_ratio = estimated_duration as f64 / actual_seconds as f64;
-            
+
             // Efficiency is good if actual time is close to or better than estimated
             if efficiency_ratio >= 1.0 {
                 Ok(1.0) // Faster than expected
@@ -586,16 +586,16 @@ impl OutputAnalysisVerifier {
             OutputCriterion {
                 name: "Content Check".to_string(),
                 description: "Output contains expected elements".to_string(),
-                validator: OutputValidator::ContentCheck { 
-                    required_elements: vec!["result".to_string(), "completed".to_string()] 
+                validator: OutputValidator::ContentCheck {
+                    required_elements: vec!["result".to_string(), "completed".to_string()]
                 },
                 weight: 0.4,
             },
             OutputCriterion {
                 name: "Structure Check".to_string(),
                 description: "Output has proper structure".to_string(),
-                validator: OutputValidator::StructureCheck { 
-                    expected_structure: "text_with_content".to_string() 
+                validator: OutputValidator::StructureCheck {
+                    expected_structure: "text_with_content".to_string()
                 },
                 weight: 0.4,
             },
@@ -700,14 +700,14 @@ impl OutputAnalysisVerifier {
                 let found_elements = required_elements.iter()
                     .filter(|element| output_lower.contains(&element.to_lowercase()))
                     .count();
-                
+
                 Ok(found_elements as f64 / required_elements.len() as f64)
             }
             OutputValidator::StructureCheck { expected_structure: _ } => {
                 // Simple structure check
                 let has_content = !result.output.trim().is_empty();
                 let has_structure = result.output.contains('\n') || result.output.len() > 50;
-                
+
                 if has_content && has_structure {
                     Ok(1.0)
                 } else if has_content {
@@ -762,7 +762,7 @@ impl VerificationStrategy for ProcessValidationVerifier {
         // Simple process validation based on available information
         let execution_time_ok = result.execution_time < 300000; // Less than 5 minutes
         let error_handling_ok = result.error_message.is_none() || result.success;
-        
+
         let process_score = if execution_time_ok && error_handling_ok {
             0.9
         } else if execution_time_ok || error_handling_ok {

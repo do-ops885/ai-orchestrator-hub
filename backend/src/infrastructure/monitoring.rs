@@ -1,9 +1,11 @@
-use crate::infrastructure::intelligent_alerting::{IntelligentAlertingSystem, IntelligentAlertConfig};
+use crate::infrastructure::intelligent_alerting::{
+    IntelligentAlertConfig, IntelligentAlertingSystem,
+};
 use crate::infrastructure::metrics::{MetricsCollector, SystemMetrics};
-use crate::infrastructure::telemetry::{TelemetryCollector, TelemetryEvent, EventType, Severity};
+use crate::infrastructure::telemetry::{EventType, Severity, TelemetryCollector, TelemetryEvent};
 use crate::utils::config::MonitoringConfig;
 use crate::utils::error::{HiveError, HiveResult};
-use chrono::{DateTime, Utc, Timelike, Datelike, Weekday};
+use chrono::{DateTime, Datelike, Timelike, Utc, Weekday};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -158,6 +160,7 @@ pub struct ConnectivityStatus {
 
 /// Resource health metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_field_names)]
 pub struct ResourceHealth {
     pub cpu_usage_percent: f64,
     pub memory_usage_percent: f64,
@@ -214,6 +217,7 @@ pub struct SystemPerformance {
 
 /// System resource utilization
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_field_names)]
 pub struct SystemResourceUtilization {
     pub cpu_usage_percent: f64,
     pub memory_usage_percent: f64,
@@ -610,7 +614,8 @@ impl AgentMonitor {
             crate::infrastructure::intelligent_alerting::AlertCondition::GreaterThan,
             0.1,
             crate::infrastructure::metrics::AlertLevel::Warning,
-        ).await?;
+        )
+        .await?;
 
         // Health monitoring alerts
         self.add_monitoring_alert_rule(
@@ -621,7 +626,8 @@ impl AgentMonitor {
             crate::infrastructure::intelligent_alerting::AlertCondition::GreaterThan,
             0.05,
             crate::infrastructure::metrics::AlertLevel::Critical,
-        ).await?;
+        )
+        .await?;
 
         // Performance monitoring alerts
         self.add_monitoring_alert_rule(
@@ -632,7 +638,8 @@ impl AgentMonitor {
             crate::infrastructure::intelligent_alerting::AlertCondition::LessThan,
             0.7,
             crate::infrastructure::metrics::AlertLevel::Warning,
-        ).await?;
+        )
+        .await?;
 
         // Behavior analysis alerts
         self.add_monitoring_alert_rule(
@@ -643,7 +650,8 @@ impl AgentMonitor {
             crate::infrastructure::intelligent_alerting::AlertCondition::GreaterThan,
             0.8,
             crate::infrastructure::metrics::AlertLevel::Info,
-        ).await?;
+        )
+        .await?;
 
         Ok(())
     }
@@ -673,7 +681,11 @@ impl AgentMonitor {
             });
         }
 
-        tracing::info!("Would add monitoring alert rule: {} - {}", name, description);
+        tracing::info!(
+            "Would add monitoring alert rule: {} - {}",
+            name,
+            description
+        );
         Ok(())
     }
 
@@ -689,9 +701,14 @@ impl AgentMonitor {
     }
 
     /// Get active alerts
-    pub async fn get_active_alerts(&self) -> HiveResult<Vec<crate::infrastructure::metrics::Alert>> {
+    pub async fn get_active_alerts(
+        &self,
+    ) -> HiveResult<Vec<crate::infrastructure::metrics::Alert>> {
         match self.alerting_system.process_intelligent_alerts().await {
-            Ok(intelligent_alerts) => Ok(intelligent_alerts.into_iter().map(|ia| ia.base_alert).collect()),
+            Ok(intelligent_alerts) => Ok(intelligent_alerts
+                .into_iter()
+                .map(|ia| ia.base_alert)
+                .collect()),
             Err(_) => Ok(Vec::new()), // Return empty vec on error for now
         }
     }
@@ -730,7 +747,10 @@ impl AgentMonitor {
         let behavior_status = if self.config.enable_behavior_analysis {
             match self.behavior_analyzer.get_behavior_status().await {
                 Ok(status) => {
-                    overall_health += status.communication_efficiency + status.decision_quality_score + status.adaptation_rate + status.collaboration_score;
+                    overall_health += status.communication_efficiency
+                        + status.decision_quality_score
+                        + status.adaptation_rate
+                        + status.collaboration_score;
                     health_count += 4;
                     Some(status)
                 }
@@ -922,7 +942,10 @@ impl AgentDiscovery {
                 id: Uuid::new_v4(),
                 name: "TaskCoordinator".to_string(),
                 agent_type: "Coordinator".to_string(),
-                capabilities: vec!["task_distribution".to_string(), "load_balancing".to_string()],
+                capabilities: vec![
+                    "task_distribution".to_string(),
+                    "load_balancing".to_string(),
+                ],
                 status: AgentStatus::Active,
                 created_at: now - chrono::Duration::hours(24),
                 last_seen: now,
@@ -931,7 +954,10 @@ impl AgentDiscovery {
                 id: Uuid::new_v4(),
                 name: "NeuralProcessor".to_string(),
                 agent_type: "Processor".to_string(),
-                capabilities: vec!["neural_processing".to_string(), "pattern_recognition".to_string()],
+                capabilities: vec![
+                    "neural_processing".to_string(),
+                    "pattern_recognition".to_string(),
+                ],
                 status: AgentStatus::Active,
                 created_at: now - chrono::Duration::hours(12),
                 last_seen: now,
@@ -940,7 +966,10 @@ impl AgentDiscovery {
                 id: Uuid::new_v4(),
                 name: "ResourceManager".to_string(),
                 agent_type: "Manager".to_string(),
-                capabilities: vec!["resource_allocation".to_string(), "optimization".to_string()],
+                capabilities: vec![
+                    "resource_allocation".to_string(),
+                    "optimization".to_string(),
+                ],
                 status: AgentStatus::Idle,
                 created_at: now - chrono::Duration::hours(6),
                 last_seen: now - chrono::Duration::minutes(30),
@@ -1025,7 +1054,8 @@ impl AgentDiscovery {
 
     pub async fn remove_inactive_agents(&self, timeout_minutes: u32) -> HiveResult<usize> {
         // Validate timeout to prevent excessive retention
-        if timeout_minutes == 0 || timeout_minutes > 10080 { // Max 1 week
+        if timeout_minutes == 0 || timeout_minutes > 10080 {
+            // Max 1 week
             return Err(HiveError::ValidationError {
                 field: "timeout_minutes".to_string(),
                 reason: "Timeout must be between 1 and 10080 minutes".to_string(),
@@ -1037,9 +1067,7 @@ impl AgentDiscovery {
         let timeout_duration = chrono::Duration::minutes(timeout_minutes as i64);
 
         let initial_count = agents.len();
-        agents.retain(|_, agent| {
-            now.signed_duration_since(agent.last_seen) < timeout_duration
-        });
+        agents.retain(|_, agent| now.signed_duration_since(agent.last_seen) < timeout_duration);
 
         let removed_count = initial_count - agents.len();
         Ok(removed_count)
@@ -1056,7 +1084,9 @@ impl AgentDiscovery {
 
         for agent in agents.values() {
             *agent_types.entry(agent.agent_type.clone()).or_insert(0) += 1;
-            *status_counts.entry(format!("{:?}", agent.status)).or_insert(0) += 1;
+            *status_counts
+                .entry(format!("{:?}", agent.status))
+                .or_insert(0) += 1;
         }
 
         Ok(DiscoveryStats {
@@ -1107,7 +1137,9 @@ impl HealthMonitor {
                     Arc::clone(&agent_health),
                     Arc::clone(&system_health),
                     Arc::clone(&health_history),
-                ).await {
+                )
+                .await
+                {
                     tracing::error!("Health check failed: {}", e);
                 }
             }
@@ -1168,10 +1200,16 @@ impl HealthMonitor {
 
     /// Determine health status based on metrics
     fn determine_health_status(health: &AgentHealth) -> HealthStatus {
-        let connectivity_score = if health.connectivity.network_connectivity { 1.0 } else { 0.0 };
-        let resource_score = 1.0 - (health.resource_health.cpu_usage_percent +
-                                   health.resource_health.memory_usage_percent +
-                                   health.resource_health.disk_usage_percent) / 300.0;
+        let connectivity_score = if health.connectivity.network_connectivity {
+            1.0
+        } else {
+            0.0
+        };
+        let resource_score = 1.0
+            - (health.resource_health.cpu_usage_percent
+                + health.resource_health.memory_usage_percent
+                + health.resource_health.disk_usage_percent)
+                / 300.0;
         let error_score = 1.0 - health.error_rate;
 
         let overall_score = (connectivity_score + resource_score + error_score) / 3.0;
@@ -1223,7 +1261,8 @@ impl HealthMonitor {
             return 1.0;
         }
 
-        let total_score: f64 = agent_health.values()
+        let total_score: f64 = agent_health
+            .values()
             .map(|health| match health.status {
                 HealthStatus::Healthy => 1.0,
                 HealthStatus::Warning => 0.7,
@@ -1255,15 +1294,24 @@ impl HealthMonitor {
             }
 
             if !health.connectivity.network_connectivity {
-                issues.push(format!("Agent {} has network connectivity issues", agent_id));
+                issues.push(format!(
+                    "Agent {} has network connectivity issues",
+                    agent_id
+                ));
             }
 
             if health.resource_health.cpu_usage_percent > 90.0 {
-                issues.push(format!("Agent {} has high CPU usage: {:.1}%", agent_id, health.resource_health.cpu_usage_percent));
+                issues.push(format!(
+                    "Agent {} has high CPU usage: {:.1}%",
+                    agent_id, health.resource_health.cpu_usage_percent
+                ));
             }
 
             if health.resource_health.memory_usage_percent > 95.0 {
-                issues.push(format!("Agent {} has high memory usage: {:.1}%", agent_id, health.resource_health.memory_usage_percent));
+                issues.push(format!(
+                    "Agent {} has high memory usage: {:.1}%",
+                    agent_id, health.resource_health.memory_usage_percent
+                ));
             }
         }
 
@@ -1271,7 +1319,9 @@ impl HealthMonitor {
     }
 
     /// Summarize agent health
-    async fn summarize_agent_health(agent_health: &HashMap<Uuid, AgentHealth>) -> HashMap<HealthStatus, usize> {
+    async fn summarize_agent_health(
+        agent_health: &HashMap<Uuid, AgentHealth>,
+    ) -> HashMap<HealthStatus, usize> {
         let mut summary = HashMap::new();
         summary.insert(HealthStatus::Healthy, 0);
         summary.insert(HealthStatus::Warning, 0);
@@ -1318,7 +1368,10 @@ impl HealthMonitor {
     }
 
     /// Get health history
-    pub async fn get_health_history(&self, limit: Option<usize>) -> HiveResult<Vec<HealthSnapshot>> {
+    pub async fn get_health_history(
+        &self,
+        limit: Option<usize>,
+    ) -> HiveResult<Vec<HealthSnapshot>> {
         let history = self.health_history.read().await;
         match limit {
             Some(n) => Ok(history.iter().rev().take(n).cloned().collect()),
@@ -1327,36 +1380,47 @@ impl HealthMonitor {
     }
 
     /// Check agent responsiveness
-    pub async fn check_agent_responsiveness(&self, agent_id: Uuid, timeout_secs: u64) -> HiveResult<bool> {
+    pub async fn check_agent_responsiveness(
+        &self,
+        agent_id: Uuid,
+        timeout_secs: u64,
+    ) -> HiveResult<bool> {
         // Simulate responsiveness check
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         Ok(rand::random::<f64>() > 0.1) // 90% success rate
     }
 
     /// Monitor agent lifecycle
-    pub async fn monitor_agent_lifecycle(&self, agent_id: Uuid, event: LifecycleEvent) -> HiveResult<()> {
+    pub async fn monitor_agent_lifecycle(
+        &self,
+        agent_id: Uuid,
+        event: LifecycleEvent,
+    ) -> HiveResult<()> {
         // Record lifecycle event
         match event {
             LifecycleEvent::Started => {
                 // Initialize health tracking for new agent
                 let mut agent_health = self.agent_health.write().await;
-                agent_health.insert(agent_id, AgentHealth {
+                agent_health.insert(
                     agent_id,
-                    status: HealthStatus::Healthy,
-                    connectivity: ConnectivityStatus {
-                        network_connectivity: true,
-                        communication_health: 1.0,
-                        response_time_ms: 50,
+                    AgentHealth {
+                        agent_id,
+                        status: HealthStatus::Healthy,
+                        connectivity: ConnectivityStatus {
+                            network_connectivity: true,
+                            communication_health: 1.0,
+                            response_time_ms: 50,
+                        },
+                        resource_health: ResourceHealth {
+                            cpu_usage_percent: 10.0,
+                            memory_usage_percent: 20.0,
+                            disk_usage_percent: 5.0,
+                        },
+                        error_rate: 0.0,
+                        recovery_time: None,
+                        last_check: Utc::now(),
                     },
-                    resource_health: ResourceHealth {
-                        cpu_usage_percent: 10.0,
-                        memory_usage_percent: 20.0,
-                        disk_usage_percent: 5.0,
-                    },
-                    error_rate: 0.0,
-                    recovery_time: None,
-                    last_check: Utc::now(),
-                });
+                );
             }
             LifecycleEvent::Stopped => {
                 // Update agent status
@@ -1423,7 +1487,9 @@ impl PerformanceMonitor {
                     Arc::clone(&agent_performance),
                     Arc::clone(&system_performance),
                     Arc::clone(&baselines),
-                ).await {
+                )
+                .await
+                {
                     tracing::error!("Performance monitoring failed: {}", e);
                 }
             }
@@ -1521,24 +1587,38 @@ impl PerformanceMonitor {
     }
 
     /// Analyze performance bottlenecks
-    async fn analyze_bottlenecks(agent_performance: &HashMap<Uuid, AgentPerformance>) -> Vec<String> {
+    async fn analyze_bottlenecks(
+        agent_performance: &HashMap<Uuid, AgentPerformance>,
+    ) -> Vec<String> {
         let mut bottlenecks = Vec::new();
 
         for (agent_id, performance) in agent_performance {
             if performance.response_time_ms > 500.0 {
-                bottlenecks.push(format!("Agent {} has high response time: {:.1}ms", agent_id, performance.response_time_ms));
+                bottlenecks.push(format!(
+                    "Agent {} has high response time: {:.1}ms",
+                    agent_id, performance.response_time_ms
+                ));
             }
 
             if performance.resource_utilization.cpu_percent > 80.0 {
-                bottlenecks.push(format!("Agent {} has high CPU usage: {:.1}%", agent_id, performance.resource_utilization.cpu_percent));
+                bottlenecks.push(format!(
+                    "Agent {} has high CPU usage: {:.1}%",
+                    agent_id, performance.resource_utilization.cpu_percent
+                ));
             }
 
             if performance.resource_utilization.memory_percent > 85.0 {
-                bottlenecks.push(format!("Agent {} has high memory usage: {:.1}%", agent_id, performance.resource_utilization.memory_percent));
+                bottlenecks.push(format!(
+                    "Agent {} has high memory usage: {:.1}%",
+                    agent_id, performance.resource_utilization.memory_percent
+                ));
             }
 
             if performance.queue_length > 25 {
-                bottlenecks.push(format!("Agent {} has long queue: {} tasks", agent_id, performance.queue_length));
+                bottlenecks.push(format!(
+                    "Agent {} has long queue: {} tasks",
+                    agent_id, performance.queue_length
+                ));
             }
         }
 
@@ -1593,12 +1673,14 @@ impl PerformanceMonitor {
         current_value: f64,
         timestamp: DateTime<Utc>,
     ) {
-        let entry = baselines.entry(metric_name.clone()).or_insert_with(|| PerformanceBaseline {
-            metric_name: metric_name.clone(),
-            baseline_value: current_value,
-            threshold_percent: 20.0, // 20% deviation threshold
-            last_updated: timestamp,
-        });
+        let entry = baselines
+            .entry(metric_name.clone())
+            .or_insert_with(|| PerformanceBaseline {
+                metric_name: metric_name.clone(),
+                baseline_value: current_value,
+                threshold_percent: 20.0, // 20% deviation threshold
+                last_updated: timestamp,
+            });
 
         // Update baseline using exponential moving average
         let alpha = 0.1; // Smoothing factor
@@ -1614,18 +1696,24 @@ impl PerformanceMonitor {
             overall_score: Self::calculate_performance_score(&system_performance).await,
             average_response_time_ms: system_performance.average_response_time_ms,
             throughput_tasks_per_second: system_performance.throughput_tasks_per_second,
-            resource_utilization_percent: (system_performance.resource_utilization.cpu_usage_percent +
-                                         system_performance.resource_utilization.memory_usage_percent) / 2.0,
+            resource_utilization_percent: (system_performance
+                .resource_utilization
+                .cpu_usage_percent
+                + system_performance.resource_utilization.memory_usage_percent)
+                / 2.0,
         })
     }
 
     /// Calculate performance score
     async fn calculate_performance_score(system_performance: &SystemPerformance) -> f64 {
         // Calculate score based on various metrics (0.0 to 1.0)
-        let response_time_score = (500.0 - system_performance.average_response_time_ms).max(0.0) / 500.0;
+        let response_time_score =
+            (500.0 - system_performance.average_response_time_ms).max(0.0) / 500.0;
         let throughput_score = system_performance.throughput_tasks_per_second.min(500.0) / 500.0;
-        let resource_score = 1.0 - (system_performance.resource_utilization.cpu_usage_percent +
-                                   system_performance.resource_utilization.memory_usage_percent) / 200.0;
+        let resource_score = 1.0
+            - (system_performance.resource_utilization.cpu_usage_percent
+                + system_performance.resource_utilization.memory_usage_percent)
+                / 200.0;
 
         (response_time_score + throughput_score + resource_score) / 3.0
     }
@@ -1637,7 +1725,10 @@ impl PerformanceMonitor {
     }
 
     /// Get agent performance by ID
-    pub async fn get_agent_performance(&self, agent_id: Uuid) -> HiveResult<Option<AgentPerformance>> {
+    pub async fn get_agent_performance(
+        &self,
+        agent_id: Uuid,
+    ) -> HiveResult<Option<AgentPerformance>> {
         let agent_performance = self.agent_performance.read().await;
         Ok(agent_performance.get(&agent_id).cloned())
     }
@@ -1649,19 +1740,28 @@ impl PerformanceMonitor {
     }
 
     /// Get performance baselines
-    pub async fn get_performance_baselines(&self) -> HiveResult<HashMap<String, PerformanceBaseline>> {
+    pub async fn get_performance_baselines(
+        &self,
+    ) -> HiveResult<HashMap<String, PerformanceBaseline>> {
         let baselines = self.baselines.read().await;
         Ok(baselines.clone())
     }
 
     /// Monitor task performance
-    pub async fn monitor_task_performance(&self, task_id: Uuid, agent_id: Uuid, duration_ms: u64, success: bool) -> HiveResult<()> {
+    pub async fn monitor_task_performance(
+        &self,
+        task_id: Uuid,
+        agent_id: Uuid,
+        duration_ms: u64,
+        success: bool,
+    ) -> HiveResult<()> {
         let mut agent_performance = self.agent_performance.write().await;
 
         if let Some(performance) = agent_performance.get_mut(&agent_id) {
             // Update response time with moving average
             let alpha = 0.1;
-            performance.response_time_ms = alpha * duration_ms as f64 + (1.0 - alpha) * performance.response_time_ms;
+            performance.response_time_ms =
+                alpha * duration_ms as f64 + (1.0 - alpha) * performance.response_time_ms;
 
             // Update success rate
             if success {
@@ -1677,15 +1777,25 @@ impl PerformanceMonitor {
     }
 
     /// Get performance trends
-    pub async fn get_performance_trends(&self, metric_name: &str, hours: u32) -> HiveResult<PerformanceTrend> {
+    pub async fn get_performance_trends(
+        &self,
+        metric_name: &str,
+        hours: u32,
+    ) -> HiveResult<PerformanceTrend> {
         // In a real implementation, this would analyze historical data
         // For now, return simulated trend data
         Ok(PerformanceTrend {
             metric_name: metric_name.to_string(),
-            trend_direction: if rand::random::<bool>() { TrendDirection::Increasing } else { TrendDirection::Decreasing },
+            trend_direction: if rand::random::<bool>() {
+                TrendDirection::Increasing
+            } else {
+                TrendDirection::Decreasing
+            },
             change_percent: -10.0 + rand::random::<f64>() * 20.0,
             period_hours: hours,
-            data_points: (0..24).map(|i| (i as f64, 100.0 + rand::random::<f64>() * 50.0)).collect(),
+            data_points: (0..24)
+                .map(|i| (i as f64, 100.0 + rand::random::<f64>() * 50.0))
+                .collect(),
         })
     }
 }
@@ -1732,7 +1842,9 @@ impl BehaviorAnalyzer {
                     Arc::clone(&communication_patterns),
                     Arc::clone(&decision_patterns),
                     Arc::clone(&adaptation_metrics),
-                ).await {
+                )
+                .await
+                {
                     tracing::error!("Behavior analysis failed: {}", e);
                 }
             }
@@ -1755,7 +1867,8 @@ impl BehaviorAnalyzer {
             // Simulate communication analysis
             pattern.messages_sent += (rand::random::<u64>() % 10) + 1;
             pattern.messages_received += (rand::random::<u64>() % 8) + 1;
-            pattern.communication_frequency = Self::calculate_communication_frequency(*agent_id).await;
+            pattern.communication_frequency =
+                Self::calculate_communication_frequency(*agent_id).await;
             pattern.average_response_time = Self::calculate_average_response_time(*agent_id).await;
 
             // Update communication partners
@@ -1802,11 +1915,7 @@ impl BehaviorAnalyzer {
     /// Identify communication partners for an agent
     async fn identify_communication_partners(agent_id: Uuid) -> Vec<Uuid> {
         // Simulate partner identification
-        vec![
-            Uuid::new_v4(),
-            Uuid::new_v4(),
-            Uuid::new_v4(),
-        ]
+        vec![Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()]
     }
 
     /// Calculate decision quality for an agent
@@ -1824,9 +1933,18 @@ impl BehaviorAnalyzer {
     /// Analyze decision types for an agent
     async fn analyze_decision_types(agent_id: Uuid) -> HashMap<String, u64> {
         let mut decision_types = HashMap::new();
-        decision_types.insert("task_assignment".to_string(), 10 + rand::random::<u64>() % 20);
-        decision_types.insert("resource_allocation".to_string(), 5 + rand::random::<u64>() % 15);
-        decision_types.insert("conflict_resolution".to_string(), 2 + rand::random::<u64>() % 8);
+        decision_types.insert(
+            "task_assignment".to_string(),
+            10 + rand::random::<u64>() % 20,
+        );
+        decision_types.insert(
+            "resource_allocation".to_string(),
+            5 + rand::random::<u64>() % 15,
+        );
+        decision_types.insert(
+            "conflict_resolution".to_string(),
+            2 + rand::random::<u64>() % 8,
+        );
         decision_types.insert("optimization".to_string(), 3 + rand::random::<u64>() % 12);
         decision_types
     }
@@ -1852,10 +1970,13 @@ impl BehaviorAnalyzer {
         let decision_patterns = self.decision_patterns.read().await;
         let adaptation_metrics = self.adaptation_metrics.read().await;
 
-        let communication_efficiency = Self::calculate_communication_efficiency(&communication_patterns).await;
-        let decision_quality_score = Self::calculate_overall_decision_quality(&decision_patterns).await;
+        let communication_efficiency =
+            Self::calculate_communication_efficiency(&communication_patterns).await;
+        let decision_quality_score =
+            Self::calculate_overall_decision_quality(&decision_patterns).await;
         let adaptation_rate = Self::calculate_adaptation_rate(&adaptation_metrics).await;
-        let collaboration_score = Self::calculate_collaboration_score(&communication_patterns).await;
+        let collaboration_score =
+            Self::calculate_collaboration_score(&communication_patterns).await;
 
         Ok(BehaviorStatusSummary {
             communication_efficiency,
@@ -1866,12 +1987,15 @@ impl BehaviorAnalyzer {
     }
 
     /// Calculate communication efficiency
-    async fn calculate_communication_efficiency(communication_patterns: &HashMap<Uuid, CommunicationPattern>) -> f64 {
+    async fn calculate_communication_efficiency(
+        communication_patterns: &HashMap<Uuid, CommunicationPattern>,
+    ) -> f64 {
         if communication_patterns.is_empty() {
             return 1.0;
         }
 
-        let total_efficiency: f64 = communication_patterns.values()
+        let total_efficiency: f64 = communication_patterns
+            .values()
             .map(|pattern| {
                 // Efficiency based on response time and frequency balance
                 let response_time_score = (300.0 - pattern.average_response_time).max(0.0) / 300.0;
@@ -1884,12 +2008,15 @@ impl BehaviorAnalyzer {
     }
 
     /// Calculate overall decision quality
-    async fn calculate_overall_decision_quality(decision_patterns: &HashMap<Uuid, DecisionPattern>) -> f64 {
+    async fn calculate_overall_decision_quality(
+        decision_patterns: &HashMap<Uuid, DecisionPattern>,
+    ) -> f64 {
         if decision_patterns.is_empty() {
             return 1.0;
         }
 
-        let total_quality: f64 = decision_patterns.values()
+        let total_quality: f64 = decision_patterns
+            .values()
             .map(|pattern| pattern.decision_quality_score)
             .sum();
 
@@ -1897,12 +2024,15 @@ impl BehaviorAnalyzer {
     }
 
     /// Calculate adaptation rate
-    async fn calculate_adaptation_rate(adaptation_metrics: &HashMap<Uuid, AdaptationMetrics>) -> f64 {
+    async fn calculate_adaptation_rate(
+        adaptation_metrics: &HashMap<Uuid, AdaptationMetrics>,
+    ) -> f64 {
         if adaptation_metrics.is_empty() {
             return 1.0;
         }
 
-        let total_adaptation: f64 = adaptation_metrics.values()
+        let total_adaptation: f64 = adaptation_metrics
+            .values()
             .map(|metrics| metrics.learning_progress)
             .sum();
 
@@ -1910,12 +2040,15 @@ impl BehaviorAnalyzer {
     }
 
     /// Calculate collaboration score
-    async fn calculate_collaboration_score(communication_patterns: &HashMap<Uuid, CommunicationPattern>) -> f64 {
+    async fn calculate_collaboration_score(
+        communication_patterns: &HashMap<Uuid, CommunicationPattern>,
+    ) -> f64 {
         if communication_patterns.is_empty() {
             return 1.0;
         }
 
-        let total_collaboration: f64 = communication_patterns.values()
+        let total_collaboration: f64 = communication_patterns
+            .values()
             .map(|pattern| {
                 // Collaboration score based on number of partners and communication balance
                 let partner_score = pattern.communication_partners.len().min(10) as f64 / 10.0;
@@ -1933,7 +2066,9 @@ impl BehaviorAnalyzer {
     }
 
     /// Analyze communication patterns
-    pub async fn analyze_communication_patterns(&self) -> HiveResult<HashMap<Uuid, CommunicationPattern>> {
+    pub async fn analyze_communication_patterns(
+        &self,
+    ) -> HiveResult<HashMap<Uuid, CommunicationPattern>> {
         let communication_patterns = self.communication_patterns.read().await;
         Ok(communication_patterns.clone())
     }
@@ -1945,13 +2080,20 @@ impl BehaviorAnalyzer {
     }
 
     /// Monitor adaptation behavior
-    pub async fn monitor_adaptation_behavior(&self) -> HiveResult<HashMap<Uuid, AdaptationMetrics>> {
+    pub async fn monitor_adaptation_behavior(
+        &self,
+    ) -> HiveResult<HashMap<Uuid, AdaptationMetrics>> {
         let adaptation_metrics = self.adaptation_metrics.read().await;
         Ok(adaptation_metrics.clone())
     }
 
     /// Record communication event
-    pub async fn record_communication_event(&self, from_agent: Uuid, to_agent: Uuid, message_type: String) -> HiveResult<()> {
+    pub async fn record_communication_event(
+        &self,
+        from_agent: Uuid,
+        to_agent: Uuid,
+        message_type: String,
+    ) -> HiveResult<()> {
         let mut communication_patterns = self.communication_patterns.write().await;
 
         // Update sender's communication pattern
@@ -1974,7 +2116,13 @@ impl BehaviorAnalyzer {
     }
 
     /// Record decision event
-    pub async fn record_decision_event(&self, agent_id: Uuid, decision_type: String, quality_score: f64, duration_ms: u64) -> HiveResult<()> {
+    pub async fn record_decision_event(
+        &self,
+        agent_id: Uuid,
+        decision_type: String,
+        quality_score: f64,
+        duration_ms: u64,
+    ) -> HiveResult<()> {
         let mut decision_patterns = self.decision_patterns.write().await;
 
         if let Some(pattern) = decision_patterns.get_mut(&agent_id) {
@@ -1983,17 +2131,23 @@ impl BehaviorAnalyzer {
 
             // Update quality score with moving average
             let alpha = 0.1;
-            pattern.decision_quality_score = alpha * quality_score + (1.0 - alpha) * pattern.decision_quality_score;
+            pattern.decision_quality_score =
+                alpha * quality_score + (1.0 - alpha) * pattern.decision_quality_score;
 
             // Update speed with moving average
-            pattern.decision_speed_ms = alpha * duration_ms as f64 + (1.0 - alpha) * pattern.decision_speed_ms;
+            pattern.decision_speed_ms =
+                alpha * duration_ms as f64 + (1.0 - alpha) * pattern.decision_speed_ms;
         }
 
         Ok(())
     }
 
     /// Record adaptation event
-    pub async fn record_adaptation_event(&self, agent_id: Uuid, improvement: String) -> HiveResult<()> {
+    pub async fn record_adaptation_event(
+        &self,
+        agent_id: Uuid,
+        improvement: String,
+    ) -> HiveResult<()> {
         let mut adaptation_metrics = self.adaptation_metrics.write().await;
 
         if let Some(metrics) = adaptation_metrics.get_mut(&agent_id) {
@@ -2033,7 +2187,12 @@ impl Dashboard {
             title: "System Health".to_string(),
             data_source: "health_monitor".to_string(),
             refresh_interval_secs: 30,
-            position: WidgetPosition { x: 0, y: 0, width: 4, height: 3 },
+            position: WidgetPosition {
+                x: 0,
+                y: 0,
+                width: 4,
+                height: 3,
+            },
         });
 
         // Performance chart widget
@@ -2043,7 +2202,12 @@ impl Dashboard {
             title: "Performance Metrics".to_string(),
             data_source: "performance_monitor".to_string(),
             refresh_interval_secs: 60,
-            position: WidgetPosition { x: 4, y: 0, width: 8, height: 4 },
+            position: WidgetPosition {
+                x: 4,
+                y: 0,
+                width: 8,
+                height: 4,
+            },
         });
 
         // Resource monitor widget
@@ -2053,7 +2217,12 @@ impl Dashboard {
             title: "Resource Usage".to_string(),
             data_source: "performance_monitor".to_string(),
             refresh_interval_secs: 30,
-            position: WidgetPosition { x: 0, y: 3, width: 6, height: 3 },
+            position: WidgetPosition {
+                x: 0,
+                y: 3,
+                width: 6,
+                height: 3,
+            },
         });
 
         // Alert summary widget
@@ -2063,7 +2232,12 @@ impl Dashboard {
             title: "Active Alerts".to_string(),
             data_source: "alerting_system".to_string(),
             refresh_interval_secs: 60,
-            position: WidgetPosition { x: 6, y: 3, width: 6, height: 3 },
+            position: WidgetPosition {
+                x: 6,
+                y: 3,
+                width: 6,
+                height: 3,
+            },
         });
 
         // Behavior analysis widget
@@ -2073,7 +2247,12 @@ impl Dashboard {
             title: "Agent Behavior".to_string(),
             data_source: "behavior_analyzer".to_string(),
             refresh_interval_secs: 120,
-            position: WidgetPosition { x: 0, y: 6, width: 8, height: 4 },
+            position: WidgetPosition {
+                x: 0,
+                y: 6,
+                width: 8,
+                height: 4,
+            },
         });
 
         // Trend analysis widget
@@ -2083,7 +2262,12 @@ impl Dashboard {
             title: "Performance Trends".to_string(),
             data_source: "performance_monitor".to_string(),
             refresh_interval_secs: 300,
-            position: WidgetPosition { x: 8, y: 6, width: 4, height: 4 },
+            position: WidgetPosition {
+                x: 8,
+                y: 6,
+                width: 4,
+                height: 4,
+            },
         });
 
         Ok(())
@@ -2104,7 +2288,11 @@ impl Dashboard {
     }
 
     /// Update widget position
-    pub async fn update_widget_position(&self, widget_id: &str, position: WidgetPosition) -> HiveResult<()> {
+    pub async fn update_widget_position(
+        &self,
+        widget_id: &str,
+        position: WidgetPosition,
+    ) -> HiveResult<()> {
         let mut widgets = self.widgets.write().await;
         if let Some(widget) = widgets.iter_mut().find(|w| w.id == widget_id) {
             widget.position = position;
@@ -2136,12 +2324,19 @@ impl Dashboard {
     }
 
     /// Generate dashboard data for a specific widget
-    pub async fn generate_widget_data(&self, widget_id: &str, agent_monitor: &AgentMonitor) -> HiveResult<serde_json::Value> {
+    pub async fn generate_widget_data(
+        &self,
+        widget_id: &str,
+        agent_monitor: &AgentMonitor,
+    ) -> HiveResult<serde_json::Value> {
         let widgets = self.widgets.read().await;
-        let widget = widgets.iter().find(|w| w.id == widget_id)
-            .ok_or_else(|| HiveError::NotFound {
-                resource: format!("Widget {}", widget_id),
-            })?;
+        let widget =
+            widgets
+                .iter()
+                .find(|w| w.id == widget_id)
+                .ok_or_else(|| HiveError::NotFound {
+                    resource: format!("Widget {}", widget_id),
+                })?;
 
         match widget.widget_type {
             WidgetType::HealthStatus => {
@@ -2155,7 +2350,10 @@ impl Dashboard {
                 }))
             }
             WidgetType::PerformanceChart => {
-                let performance_status = agent_monitor.performance_monitor.get_performance_status().await?;
+                let performance_status = agent_monitor
+                    .performance_monitor
+                    .get_performance_status()
+                    .await?;
                 Ok(serde_json::json!({
                     "overall_score": performance_status.overall_score,
                     "average_response_time_ms": performance_status.average_response_time_ms,
@@ -2164,7 +2362,10 @@ impl Dashboard {
                 }))
             }
             WidgetType::ResourceMonitor => {
-                let system_performance = agent_monitor.performance_monitor.get_system_performance().await?;
+                let system_performance = agent_monitor
+                    .performance_monitor
+                    .get_system_performance()
+                    .await?;
                 Ok(serde_json::json!({
                     "cpu_usage_percent": system_performance.resource_utilization.cpu_usage_percent,
                     "memory_usage_percent": system_performance.resource_utilization.memory_usage_percent,
@@ -2183,7 +2384,10 @@ impl Dashboard {
                 }))
             }
             WidgetType::BehaviorAnalysis => {
-                let behavior_status = agent_monitor.behavior_analyzer.get_behavior_status().await?;
+                let behavior_status = agent_monitor
+                    .behavior_analyzer
+                    .get_behavior_status()
+                    .await?;
                 Ok(serde_json::json!({
                     "communication_efficiency": behavior_status.communication_efficiency,
                     "decision_quality_score": behavior_status.decision_quality_score,
@@ -2193,9 +2397,18 @@ impl Dashboard {
             }
             WidgetType::TrendAnalysis => {
                 // Generate trend data for key metrics
-                let cpu_trend = agent_monitor.performance_monitor.get_performance_trends("cpu_usage", 24).await?;
-                let memory_trend = agent_monitor.performance_monitor.get_performance_trends("memory_usage", 24).await?;
-                let response_time_trend = agent_monitor.performance_monitor.get_performance_trends("response_time", 24).await?;
+                let cpu_trend = agent_monitor
+                    .performance_monitor
+                    .get_performance_trends("cpu_usage", 24)
+                    .await?;
+                let memory_trend = agent_monitor
+                    .performance_monitor
+                    .get_performance_trends("memory_usage", 24)
+                    .await?;
+                let response_time_trend = agent_monitor
+                    .performance_monitor
+                    .get_performance_trends("response_time", 24)
+                    .await?;
 
                 Ok(serde_json::json!({
                     "cpu_trend": {
@@ -2219,7 +2432,10 @@ impl Dashboard {
     }
 
     /// Generate complete dashboard data
-    pub async fn generate_dashboard_data(&self, agent_monitor: &AgentMonitor) -> HiveResult<serde_json::Value> {
+    pub async fn generate_dashboard_data(
+        &self,
+        agent_monitor: &AgentMonitor,
+    ) -> HiveResult<serde_json::Value> {
         let widgets = self.widgets.read().await;
         let config = self.config.read().await;
 
@@ -2244,14 +2460,20 @@ impl Dashboard {
     }
 
     /// Configure dashboard widgets
-    pub async fn configure_dashboard_widgets(&self, widget_configs: Vec<DashboardWidget>) -> HiveResult<()> {
+    pub async fn configure_dashboard_widgets(
+        &self,
+        widget_configs: Vec<DashboardWidget>,
+    ) -> HiveResult<()> {
         let mut widgets = self.widgets.write().await;
         *widgets = widget_configs;
         Ok(())
     }
 
     /// Set up alerts for dashboard
-    pub async fn setup_dashboard_alerts(&self, alert_rules: Vec<DashboardAlertRule>) -> HiveResult<()> {
+    pub async fn setup_dashboard_alerts(
+        &self,
+        alert_rules: Vec<DashboardAlertRule>,
+    ) -> HiveResult<()> {
         // Implementation for setting up dashboard-specific alerts
         // This would integrate with the alerting system
         Ok(())
@@ -2272,13 +2494,17 @@ impl Dashboard {
     /// Import dashboard configuration
     pub async fn import_dashboard_config(&self, config_data: serde_json::Value) -> HiveResult<()> {
         if let Some(widgets_data) = config_data.get("widgets") {
-            if let Ok(widget_configs) = serde_json::from_value::<Vec<DashboardWidget>>(widgets_data.clone()) {
+            if let Ok(widget_configs) =
+                serde_json::from_value::<Vec<DashboardWidget>>(widgets_data.clone())
+            {
                 self.configure_dashboard_widgets(widget_configs).await?;
             }
         }
 
         if let Some(config_data) = config_data.get("config") {
-            if let Ok(dashboard_config) = serde_json::from_value::<DashboardConfig>(config_data.clone()) {
+            if let Ok(dashboard_config) =
+                serde_json::from_value::<DashboardConfig>(config_data.clone())
+            {
                 self.update_config(dashboard_config).await?;
             }
         }
@@ -2349,7 +2575,11 @@ impl Diagnostics {
         for i in 0..10 {
             logs.push(DiagnosticLog {
                 timestamp: now - chrono::Duration::minutes(i * 5),
-                level: if i % 3 == 0 { "ERROR".to_string() } else { "INFO".to_string() },
+                level: if i % 3 == 0 {
+                    "ERROR".to_string()
+                } else {
+                    "INFO".to_string()
+                },
                 message: format!("Agent {} log message {}", agent_id, i),
                 source: "agent_core".to_string(),
             });
@@ -2359,7 +2589,10 @@ impl Diagnostics {
     }
 
     /// Analyze agent configuration
-    async fn analyze_agent_configuration(&self, agent_id: Uuid) -> HiveResult<HashMap<String, String>> {
+    async fn analyze_agent_configuration(
+        &self,
+        agent_id: Uuid,
+    ) -> HiveResult<HashMap<String, String>> {
         // Simulate configuration analysis
         let mut config = HashMap::new();
         config.insert("max_memory".to_string(), "1024MB".to_string());
@@ -2429,22 +2662,27 @@ impl Diagnostics {
     }
 
     /// Diagnose system components
-    async fn diagnose_system_components(&self) -> HiveResult<HashMap<String, ComponentDiagnostics>> {
+    async fn diagnose_system_components(
+        &self,
+    ) -> HiveResult<HashMap<String, ComponentDiagnostics>> {
         let mut diagnostics = HashMap::new();
 
         // Use environment variables or defaults for component diagnostics
         let components = vec!["database", "cache", "network"];
 
         for component_name in components {
-            let health_score = std::env::var(&format!("MONITORING_{}_HEALTH_SCORE", component_name.to_uppercase()))
-                .unwrap_or_else(|_| match component_name {
-                    "database" => "0.95".to_string(),
-                    "cache" => "0.88".to_string(),
-                    "network" => "0.92".to_string(),
-                    _ => "0.85".to_string(),
-                })
-                .parse::<f64>()
-                .unwrap_or(0.85);
+            let health_score = std::env::var(&format!(
+                "MONITORING_{}_HEALTH_SCORE",
+                component_name.to_uppercase()
+            ))
+            .unwrap_or_else(|_| match component_name {
+                "database" => "0.95".to_string(),
+                "cache" => "0.88".to_string(),
+                "network" => "0.92".to_string(),
+                _ => "0.85".to_string(),
+            })
+            .parse::<f64>()
+            .unwrap_or(0.85);
 
             let issues = match component_name {
                 "database" => vec!["Slow query performance".to_string()],
@@ -2454,18 +2692,30 @@ impl Diagnostics {
             };
 
             let recommendations = match component_name {
-                "database" => vec!["Add database indexes".to_string(), "Optimize query patterns".to_string()],
-                "cache" => vec!["Increase cache size".to_string(), "Implement cache warming".to_string()],
-                "network" => vec!["Implement retry logic".to_string(), "Monitor network latency".to_string()],
+                "database" => vec![
+                    "Add database indexes".to_string(),
+                    "Optimize query patterns".to_string(),
+                ],
+                "cache" => vec![
+                    "Increase cache size".to_string(),
+                    "Implement cache warming".to_string(),
+                ],
+                "network" => vec![
+                    "Implement retry logic".to_string(),
+                    "Monitor network latency".to_string(),
+                ],
                 _ => vec![],
             };
 
-            diagnostics.insert(component_name.to_string(), ComponentDiagnostics {
-                component_name: component_name.to_string(),
-                health_score,
-                issues,
-                recommendations,
-            });
+            diagnostics.insert(
+                component_name.to_string(),
+                ComponentDiagnostics {
+                    component_name: component_name.to_string(),
+                    health_score,
+                    issues,
+                    recommendations,
+                },
+            );
         }
 
         Ok(diagnostics)
@@ -2540,7 +2790,10 @@ impl Diagnostics {
     }
 
     /// Get agent diagnostics
-    pub async fn get_agent_diagnostics(&self, agent_id: Uuid) -> HiveResult<Option<AgentDiagnostics>> {
+    pub async fn get_agent_diagnostics(
+        &self,
+        agent_id: Uuid,
+    ) -> HiveResult<Option<AgentDiagnostics>> {
         let agent_diagnostics = self.agent_diagnostics.read().await;
         Ok(agent_diagnostics.get(&agent_id).cloned())
     }
@@ -2552,7 +2805,11 @@ impl Diagnostics {
     }
 
     /// Analyze log patterns
-    pub async fn analyze_log_patterns(&self, agent_id: Option<Uuid>, time_range_hours: u32) -> HiveResult<LogAnalysis> {
+    pub async fn analyze_log_patterns(
+        &self,
+        agent_id: Option<Uuid>,
+        time_range_hours: u32,
+    ) -> HiveResult<LogAnalysis> {
         // Simulate log analysis
         let now = Utc::now();
         let start_time = now - chrono::Duration::hours(time_range_hours as i64);
@@ -2581,16 +2838,31 @@ impl Diagnostics {
     }
 
     /// Generate diagnostic report
-    pub async fn generate_diagnostic_report(&self, include_agents: bool, include_system: bool) -> HiveResult<DiagnosticReport> {
+    pub async fn generate_diagnostic_report(
+        &self,
+        include_agents: bool,
+        include_system: bool,
+    ) -> HiveResult<DiagnosticReport> {
         let mut sections = Vec::new();
 
         if include_system {
             let system_diagnostics = self.run_system_diagnostics().await?;
             sections.push(DiagnosticSection {
                 title: "System Diagnostics".to_string(),
-                content: format!("Overall system health score: {:.2}", system_diagnostics.system_performance_profile.overall_performance_score),
-                findings: system_diagnostics.system_performance_profile.performance_bottlenecks.clone(),
-                recommendations: system_diagnostics.system_performance_profile.optimization_opportunities.clone(),
+                content: format!(
+                    "Overall system health score: {:.2}",
+                    system_diagnostics
+                        .system_performance_profile
+                        .overall_performance_score
+                ),
+                findings: system_diagnostics
+                    .system_performance_profile
+                    .performance_bottlenecks
+                    .clone(),
+                recommendations: system_diagnostics
+                    .system_performance_profile
+                    .optimization_opportunities
+                    .clone(),
             });
         }
 
@@ -2599,9 +2871,15 @@ impl Diagnostics {
             for (agent_id, diagnostics) in agent_diagnostics.iter() {
                 sections.push(DiagnosticSection {
                     title: format!("Agent {} Diagnostics", agent_id),
-                    content: format!("Performance bottlenecks: {}", diagnostics.performance_profile.bottlenecks.len()),
+                    content: format!(
+                        "Performance bottlenecks: {}",
+                        diagnostics.performance_profile.bottlenecks.len()
+                    ),
                     findings: diagnostics.performance_profile.bottlenecks.clone(),
-                    recommendations: diagnostics.performance_profile.optimization_suggestions.clone(),
+                    recommendations: diagnostics
+                        .performance_profile
+                        .optimization_suggestions
+                        .clone(),
                 });
             }
         }
@@ -2614,7 +2892,10 @@ impl Diagnostics {
     }
 
     /// Check agent configuration validity
-    pub async fn validate_agent_configuration(&self, agent_id: Uuid) -> HiveResult<ConfigurationValidation> {
+    pub async fn validate_agent_configuration(
+        &self,
+        agent_id: Uuid,
+    ) -> HiveResult<ConfigurationValidation> {
         // Simulate configuration validation
         Ok(ConfigurationValidation {
             is_valid: true,
@@ -2625,7 +2906,11 @@ impl Diagnostics {
     }
 
     /// Monitor agent lifecycle events
-    pub async fn monitor_lifecycle_events(&self, agent_id: Uuid, event: LifecycleEvent) -> HiveResult<()> {
+    pub async fn monitor_lifecycle_events(
+        &self,
+        agent_id: Uuid,
+        event: LifecycleEvent,
+    ) -> HiveResult<()> {
         // Record lifecycle event for diagnostics
         let log = DiagnosticLog {
             timestamp: Utc::now(),
@@ -2702,7 +2987,7 @@ impl Reporting {
                 "Resource utilization shows normal patterns".to_string(),
             ],
             critical_issues: vec![
-                "Two agents experienced temporary connectivity issues".to_string(),
+                "Two agents experienced temporary connectivity issues".to_string()
             ],
             recommendations: vec![
                 "Monitor agent connectivity during peak hours".to_string(),
@@ -2713,7 +2998,8 @@ impl Reporting {
         let sections = vec![
             ReportSection {
                 title: "System Health Overview".to_string(),
-                content: "Overall system health remained stable throughout the reporting period.".to_string(),
+                content: "Overall system health remained stable throughout the reporting period."
+                    .to_string(),
                 charts: vec!["health_trend.png".to_string()],
                 metrics: {
                     let mut metrics = HashMap::new();
@@ -2725,7 +3011,9 @@ impl Reporting {
             },
             ReportSection {
                 title: "Agent Health Analysis".to_string(),
-                content: "Agent health metrics show normal operation with minor connectivity issues.".to_string(),
+                content:
+                    "Agent health metrics show normal operation with minor connectivity issues."
+                        .to_string(),
                 charts: vec!["agent_health_distribution.png".to_string()],
                 metrics: {
                     let mut metrics = HashMap::new();
@@ -2756,7 +3044,10 @@ impl Reporting {
     }
 
     /// Generate performance report
-    pub async fn generate_performance_report(&self, period_hours: u32) -> HiveResult<MonitoringReport> {
+    pub async fn generate_performance_report(
+        &self,
+        period_hours: u32,
+    ) -> HiveResult<MonitoringReport> {
         let report_id = Uuid::new_v4();
         let now = Utc::now();
         let period_start = now - chrono::Duration::hours(period_hours as i64);
@@ -2768,9 +3059,7 @@ impl Reporting {
                 "Response times show consistent performance".to_string(),
                 "Resource utilization is optimal".to_string(),
             ],
-            critical_issues: vec![
-                "Occasional performance spikes during peak hours".to_string(),
-            ],
+            critical_issues: vec!["Occasional performance spikes during peak hours".to_string()],
             recommendations: vec![
                 "Implement performance optimization for peak hours".to_string(),
                 "Consider scaling resources based on usage patterns".to_string(),
@@ -2781,7 +3070,10 @@ impl Reporting {
             ReportSection {
                 title: "Performance Overview".to_string(),
                 content: "System performance metrics indicate stable operation.".to_string(),
-                charts: vec!["performance_trend.png".to_string(), "response_time_chart.png".to_string()],
+                charts: vec![
+                    "performance_trend.png".to_string(),
+                    "response_time_chart.png".to_string(),
+                ],
                 metrics: {
                     let mut metrics = HashMap::new();
                     metrics.insert("average_response_time_ms".to_string(), 145.0);
@@ -2823,7 +3115,10 @@ impl Reporting {
     }
 
     /// Generate behavior report
-    pub async fn generate_behavior_report(&self, period_hours: u32) -> HiveResult<MonitoringReport> {
+    pub async fn generate_behavior_report(
+        &self,
+        period_hours: u32,
+    ) -> HiveResult<MonitoringReport> {
         let report_id = Uuid::new_v4();
         let now = Utc::now();
         let period_start = now - chrono::Duration::hours(period_hours as i64);
@@ -2835,9 +3130,7 @@ impl Reporting {
                 "Decision making quality is improving".to_string(),
                 "Adaptation capabilities are functioning well".to_string(),
             ],
-            critical_issues: vec![
-                "Some agents show slower adaptation rates".to_string(),
-            ],
+            critical_issues: vec!["Some agents show slower adaptation rates".to_string()],
             recommendations: vec![
                 "Enhance adaptation algorithms for slower agents".to_string(),
                 "Monitor communication efficiency during high load".to_string(),
@@ -2901,7 +3194,10 @@ impl Reporting {
     }
 
     /// Generate comprehensive monitoring report
-    pub async fn generate_comprehensive_report(&self, period_hours: u32) -> HiveResult<MonitoringReport> {
+    pub async fn generate_comprehensive_report(
+        &self,
+        period_hours: u32,
+    ) -> HiveResult<MonitoringReport> {
         let report_id = Uuid::new_v4();
         let now = Utc::now();
         let period_start = now - chrono::Duration::hours(period_hours as i64);
@@ -2927,7 +3223,8 @@ impl Reporting {
         let sections = vec![
             ReportSection {
                 title: "Executive Summary".to_string(),
-                content: "This comprehensive report covers all aspects of system monitoring.".to_string(),
+                content: "This comprehensive report covers all aspects of system monitoring."
+                    .to_string(),
                 charts: vec!["system_overview.png".to_string()],
                 metrics: {
                     let mut metrics = HashMap::new();
@@ -2979,7 +3276,10 @@ impl Reporting {
         let report = MonitoringReport {
             id: report_id,
             report_type: ReportType::Compliance,
-            title: format!("Comprehensive Monitoring Report - Last {} Hours", period_hours),
+            title: format!(
+                "Comprehensive Monitoring Report - Last {} Hours",
+                period_hours
+            ),
             generated_at: now,
             period_start,
             period_end: now,
@@ -3006,9 +3306,13 @@ impl Reporting {
     }
 
     /// Get reports by type
-    pub async fn get_reports_by_type(&self, report_type: ReportType) -> HiveResult<Vec<MonitoringReport>> {
+    pub async fn get_reports_by_type(
+        &self,
+        report_type: ReportType,
+    ) -> HiveResult<Vec<MonitoringReport>> {
         let reports = self.reports.read().await;
-        let filtered_reports = reports.iter()
+        let filtered_reports = reports
+            .iter()
             .filter(|r| r.report_type == report_type)
             .cloned()
             .collect();
@@ -3034,15 +3338,23 @@ impl Reporting {
     }
 
     /// Get report template
-    pub async fn get_report_template(&self, template_name: &str) -> HiveResult<Option<ReportTemplate>> {
+    pub async fn get_report_template(
+        &self,
+        template_name: &str,
+    ) -> HiveResult<Option<ReportTemplate>> {
         let templates = self.templates.read().await;
         Ok(templates.get(template_name).cloned())
     }
 
     /// Generate report from template
-    pub async fn generate_report_from_template(&self, template_name: &str, period_hours: u32) -> HiveResult<MonitoringReport> {
+    pub async fn generate_report_from_template(
+        &self,
+        template_name: &str,
+        period_hours: u32,
+    ) -> HiveResult<MonitoringReport> {
         let templates = self.templates.read().await;
-        let template = templates.get(template_name)
+        let template = templates
+            .get(template_name)
             .ok_or_else(|| HiveError::NotFound {
                 resource: format!("Report template {}", template_name),
             })?;
@@ -3057,8 +3369,14 @@ impl Reporting {
     }
 
     /// Export report
-    pub async fn export_report(&self, report_id: Uuid, format: ExportFormat) -> HiveResult<serde_json::Value> {
-        let report = self.get_report(report_id).await?
+    pub async fn export_report(
+        &self,
+        report_id: Uuid,
+        format: ExportFormat,
+    ) -> HiveResult<serde_json::Value> {
+        let report = self
+            .get_report(report_id)
+            .await?
             .ok_or_else(|| HiveError::NotFound {
                 resource: format!("Report {}", report_id),
             })?;
@@ -3075,7 +3393,11 @@ impl Reporting {
     /// Schedule automated report generation
     pub async fn schedule_report(&self, schedule: ReportSchedule) -> HiveResult<()> {
         // Implementation for scheduling reports
-        tracing::info!("Scheduled report: {:?} for {}", schedule.report_type, schedule.schedule);
+        tracing::info!(
+            "Scheduled report: {:?} for {}",
+            schedule.report_type,
+            schedule.schedule
+        );
         Ok(())
     }
 
@@ -3085,11 +3407,10 @@ impl Reporting {
         let templates = self.templates.read().await;
 
         let total_reports = reports.len();
-        let reports_by_type = reports.iter()
-            .fold(HashMap::new(), |mut acc, report| {
-                *acc.entry(format!("{:?}", report.report_type)).or_insert(0) += 1;
-                acc
-            });
+        let reports_by_type = reports.iter().fold(HashMap::new(), |mut acc, report| {
+            *acc.entry(format!("{:?}", report.report_type)).or_insert(0) += 1;
+            acc
+        });
 
         Ok(ReportingStats {
             total_reports,
@@ -3138,7 +3459,9 @@ impl Automation {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
             loop {
                 interval.tick().await;
-                if let Err(e) = Self::process_automated_tasks(Arc::clone(&tasks), Arc::clone(&schedules)).await {
+                if let Err(e) =
+                    Self::process_automated_tasks(Arc::clone(&tasks), Arc::clone(&schedules)).await
+                {
                     tracing::error!("Automation task processing failed: {}", e);
                 }
             }
@@ -3169,7 +3492,10 @@ impl Automation {
         {
             let mut tasks_write = tasks.write().await;
             for task_id in tasks_to_execute {
-                if let Some(task) = tasks_write.iter_mut().find(|t| t.id == task_id && t.enabled) {
+                if let Some(task) = tasks_write
+                    .iter_mut()
+                    .find(|t| t.id == task_id && t.enabled)
+                {
                     if Self::should_execute_task(task, now) {
                         // Execute task
                         if let Err(e) = Self::execute_automated_task(task).await {
@@ -3255,7 +3581,11 @@ impl Automation {
     }
 
     /// Update automated task
-    pub async fn update_automated_task(&self, task_id: Uuid, updates: AutomatedTaskUpdate) -> HiveResult<()> {
+    pub async fn update_automated_task(
+        &self,
+        task_id: Uuid,
+        updates: AutomatedTaskUpdate,
+    ) -> HiveResult<()> {
         let mut tasks = self.tasks.write().await;
         if let Some(task) = tasks.iter_mut().find(|t| t.id == task_id) {
             if let Some(name) = updates.name {
@@ -3293,7 +3623,9 @@ impl Automation {
     }
 
     /// Get automation schedules
-    pub async fn get_automation_schedules(&self) -> HiveResult<HashMap<String, AutomationSchedule>> {
+    pub async fn get_automation_schedules(
+        &self,
+    ) -> HiveResult<HashMap<String, AutomationSchedule>> {
         let schedules = self.schedules.read().await;
         Ok(schedules.clone())
     }
@@ -3352,19 +3684,19 @@ impl Automation {
             AutomationSchedule {
                 name: "health_monitoring".to_string(),
                 cron_expression: "*/5 * * * *".to_string(), // Every 5 minutes
-                tasks: vec![], // Would be populated with task IDs
+                tasks: vec![],                              // Would be populated with task IDs
                 enabled: true,
             },
             AutomationSchedule {
                 name: "performance_monitoring".to_string(),
                 cron_expression: "0 * * * *".to_string(), // Every hour
-                tasks: vec![], // Would be populated with task IDs
+                tasks: vec![],                            // Would be populated with task IDs
                 enabled: true,
             },
             AutomationSchedule {
                 name: "reporting".to_string(),
                 cron_expression: "0 9 * * 1".to_string(), // Every Monday at 9 AM
-                tasks: vec![], // Would be populated with task IDs
+                tasks: vec![],                            // Would be populated with task IDs
                 enabled: true,
             },
         ];
@@ -3397,11 +3729,10 @@ impl Automation {
         let enabled_tasks = tasks.iter().filter(|t| t.enabled).count();
         let completed_runs = tasks.iter().filter(|t| t.last_run.is_some()).count();
 
-        let tasks_by_type = tasks.iter()
-            .fold(HashMap::new(), |mut acc, task| {
-                *acc.entry(format!("{:?}", task.task_type)).or_insert(0) += 1;
-                acc
-            });
+        let tasks_by_type = tasks.iter().fold(HashMap::new(), |mut acc, task| {
+            *acc.entry(format!("{:?}", task.task_type)).or_insert(0) += 1;
+            acc
+        });
 
         Ok(AutomationStats {
             total_tasks,
@@ -3526,7 +3857,10 @@ impl Integration {
             config: {
                 let mut config = HashMap::new();
                 config.insert("api_key".to_string(), api_key.to_string());
-                config.insert("dashboard_folder".to_string(), "AI Orchestrator".to_string());
+                config.insert(
+                    "dashboard_folder".to_string(),
+                    "AI Orchestrator".to_string(),
+                );
                 config.insert("datasource_name".to_string(), "Prometheus".to_string());
                 config
             },
@@ -3539,7 +3873,11 @@ impl Integration {
     }
 
     /// Set up ELK stack integration
-    pub async fn setup_elk_integration(&self, elasticsearch_endpoint: &str, kibana_endpoint: &str) -> HiveResult<()> {
+    pub async fn setup_elk_integration(
+        &self,
+        elasticsearch_endpoint: &str,
+        kibana_endpoint: &str,
+    ) -> HiveResult<()> {
         // Elasticsearch integration
         let es_integration = ExternalIntegration {
             name: "elasticsearch".to_string(),
@@ -3558,13 +3896,20 @@ impl Integration {
         self.add_integration(es_integration).await?;
 
         // Could also set up Kibana integration if needed
-        tracing::info!("ELK stack integration configured - Elasticsearch: {}, Kibana: {}",
-                      elasticsearch_endpoint, kibana_endpoint);
+        tracing::info!(
+            "ELK stack integration configured - Elasticsearch: {}, Kibana: {}",
+            elasticsearch_endpoint,
+            kibana_endpoint
+        );
         Ok(())
     }
 
     /// Set up Slack integration
-    pub async fn setup_slack_integration(&self, webhook_url: &str, channel: &str) -> HiveResult<()> {
+    pub async fn setup_slack_integration(
+        &self,
+        webhook_url: &str,
+        channel: &str,
+    ) -> HiveResult<()> {
         let integration = ExternalIntegration {
             name: "slack".to_string(),
             integration_type: IntegrationType::Slack,
@@ -3572,7 +3917,10 @@ impl Integration {
             config: {
                 let mut config = HashMap::new();
                 config.insert("channel".to_string(), channel.to_string());
-                config.insert("username".to_string(), "AI Orchestrator Monitor".to_string());
+                config.insert(
+                    "username".to_string(),
+                    "AI Orchestrator Monitor".to_string(),
+                );
                 config.insert("icon_emoji".to_string(), ":robot:".to_string());
                 config
             },
@@ -3585,7 +3933,13 @@ impl Integration {
     }
 
     /// Set up email integration
-    pub async fn setup_email_integration(&self, smtp_server: &str, smtp_port: u16, username: &str, password: &str) -> HiveResult<()> {
+    pub async fn setup_email_integration(
+        &self,
+        smtp_server: &str,
+        smtp_port: u16,
+        username: &str,
+        password: &str,
+    ) -> HiveResult<()> {
         let integration = ExternalIntegration {
             name: "email".to_string(),
             integration_type: IntegrationType::Email,
@@ -3594,7 +3948,10 @@ impl Integration {
                 let mut config = HashMap::new();
                 config.insert("username".to_string(), username.to_string());
                 config.insert("password".to_string(), password.to_string());
-                config.insert("from_address".to_string(), "monitor@ai-orchestrator.com".to_string());
+                config.insert(
+                    "from_address".to_string(),
+                    "monitor@ai-orchestrator.com".to_string(),
+                );
                 config.insert("use_tls".to_string(), "true".to_string());
                 config
             },
@@ -3602,54 +3959,80 @@ impl Integration {
         };
 
         self.add_integration(integration).await?;
-        tracing::info!("Email integration configured with SMTP server {}", smtp_server);
+        tracing::info!(
+            "Email integration configured with SMTP server {}",
+            smtp_server
+        );
         Ok(())
     }
 
     /// Export metrics to Prometheus format
-    pub async fn export_prometheus_metrics(&self, agent_monitor: &AgentMonitor) -> HiveResult<String> {
+    pub async fn export_prometheus_metrics(
+        &self,
+        agent_monitor: &AgentMonitor,
+    ) -> HiveResult<String> {
         let mut prometheus_output = String::new();
 
         // System metrics
-        let system_metrics = match agent_monitor.metrics_collector.collect_system_metrics().await {
+        let system_metrics = match agent_monitor
+            .metrics_collector
+            .collect_system_metrics()
+            .await
+        {
             Ok(metrics) => metrics,
             Err(_) => {
                 println!("📊 Failed to collect system metrics");
                 return Ok(String::new());
             }
         };
-        prometheus_output.push_str("# HELP ai_orchestrator_system_health Overall system health score\n");
+        prometheus_output
+            .push_str("# HELP ai_orchestrator_system_health Overall system health score\n");
         prometheus_output.push_str("# TYPE ai_orchestrator_system_health gauge\n");
         // Use a default health score since SystemMetrics doesn't have health_status
         prometheus_output.push_str(&format!("ai_orchestrator_system_health {}\n", 0.85));
 
         prometheus_output.push_str("# HELP ai_orchestrator_agent_count Total number of agents\n");
         prometheus_output.push_str("# TYPE ai_orchestrator_agent_count gauge\n");
-        prometheus_output.push_str(&format!("ai_orchestrator_agent_count {}\n",
-                                          system_metrics.agent_metrics.total_agents));
+        prometheus_output.push_str(&format!(
+            "ai_orchestrator_agent_count {}\n",
+            system_metrics.agent_metrics.total_agents
+        ));
 
         // Performance metrics
-        prometheus_output.push_str("# HELP ai_orchestrator_response_time_ms Average response time in milliseconds\n");
+        prometheus_output.push_str(
+            "# HELP ai_orchestrator_response_time_ms Average response time in milliseconds\n",
+        );
         prometheus_output.push_str("# TYPE ai_orchestrator_response_time_ms gauge\n");
-        prometheus_output.push_str(&format!("ai_orchestrator_response_time_ms {}\n",
-                                          system_metrics.performance.average_response_time_ms));
+        prometheus_output.push_str(&format!(
+            "ai_orchestrator_response_time_ms {}\n",
+            system_metrics.performance.average_response_time_ms
+        ));
 
         // Resource metrics
-        prometheus_output.push_str("# HELP ai_orchestrator_cpu_usage_percent CPU usage percentage\n");
+        prometheus_output
+            .push_str("# HELP ai_orchestrator_cpu_usage_percent CPU usage percentage\n");
         prometheus_output.push_str("# TYPE ai_orchestrator_cpu_usage_percent gauge\n");
-        prometheus_output.push_str(&format!("ai_orchestrator_cpu_usage_percent {}\n",
-                                          system_metrics.resource_usage.cpu_usage_percent));
+        prometheus_output.push_str(&format!(
+            "ai_orchestrator_cpu_usage_percent {}\n",
+            system_metrics.resource_usage.cpu_usage_percent
+        ));
 
-        prometheus_output.push_str("# HELP ai_orchestrator_memory_usage_percent Memory usage percentage\n");
+        prometheus_output
+            .push_str("# HELP ai_orchestrator_memory_usage_percent Memory usage percentage\n");
         prometheus_output.push_str("# TYPE ai_orchestrator_memory_usage_percent gauge\n");
-        prometheus_output.push_str(&format!("ai_orchestrator_memory_usage_percent {}\n",
-                                          system_metrics.resource_usage.memory_usage_percent));
+        prometheus_output.push_str(&format!(
+            "ai_orchestrator_memory_usage_percent {}\n",
+            system_metrics.resource_usage.memory_usage_percent
+        ));
 
         Ok(prometheus_output)
     }
 
     /// Send alert to external systems
-    pub async fn send_external_alert(&self, alert: &crate::infrastructure::metrics::Alert) -> HiveResult<()> {
+    pub async fn send_external_alert(
+        &self,
+        alert: &crate::infrastructure::metrics::Alert,
+    ) -> HiveResult<()> {
         let integrations = self.integrations.read().await;
 
         for integration in integrations.values() {
@@ -3676,7 +4059,11 @@ impl Integration {
         Ok(())
     }
 
-    async fn send_slack_alert(&self, integration: &ExternalIntegration, alert: &crate::infrastructure::metrics::Alert) -> HiveResult<()> {
+    async fn send_slack_alert(
+        &self,
+        integration: &ExternalIntegration,
+        alert: &crate::infrastructure::metrics::Alert,
+    ) -> HiveResult<()> {
         // Validate webhook URL
         if !integration.endpoint.starts_with("https://hooks.slack.com/") {
             return Err(HiveError::ValidationError {
@@ -3715,11 +4102,19 @@ impl Integration {
             }]
         });
 
-        tracing::info!("Would send Slack alert to {}: {}", integration.endpoint, payload);
+        tracing::info!(
+            "Would send Slack alert to {}: {}",
+            integration.endpoint,
+            payload
+        );
         Ok(())
     }
 
-    async fn send_email_alert(&self, integration: &ExternalIntegration, alert: &crate::infrastructure::metrics::Alert) -> HiveResult<()> {
+    async fn send_email_alert(
+        &self,
+        integration: &ExternalIntegration,
+        alert: &crate::infrastructure::metrics::Alert,
+    ) -> HiveResult<()> {
         // Sanitize email content
         let sanitized_title = alert.title.chars().take(100).collect::<String>();
         let sanitized_description = alert.description.chars().take(1000).collect::<String>();
@@ -3730,12 +4125,19 @@ impl Integration {
             alert.level, sanitized_description, alert.timestamp.to_rfc3339()
         );
 
-        tracing::info!("Would send email alert to configured recipients - Subject: {}", subject);
+        tracing::info!(
+            "Would send email alert to configured recipients - Subject: {}",
+            subject
+        );
         Ok(())
     }
 
     /// Send alert to webhook
-    async fn send_webhook_alert(&self, integration: &ExternalIntegration, alert: &crate::infrastructure::metrics::Alert) -> HiveResult<()> {
+    async fn send_webhook_alert(
+        &self,
+        integration: &ExternalIntegration,
+        alert: &crate::infrastructure::metrics::Alert,
+    ) -> HiveResult<()> {
         let payload = serde_json::json!({
             "alert": {
                 "id": alert.id,
@@ -3748,7 +4150,11 @@ impl Integration {
         });
 
         // In a real implementation, this would send an HTTP request to the webhook
-        tracing::info!("Would send webhook alert to {}: {}", integration.endpoint, payload);
+        tracing::info!(
+            "Would send webhook alert to {}: {}",
+            integration.endpoint,
+            payload
+        );
         Ok(())
     }
 
@@ -3769,8 +4175,11 @@ impl Integration {
                 const MAX_LOGS_PER_BATCH: usize = 1000;
                 let logs_to_export = &logs[..logs.len().min(MAX_LOGS_PER_BATCH)];
 
-                tracing::info!("Would export {} log entries to Elasticsearch at {}",
-                              logs_to_export.len(), es_integration.endpoint);
+                tracing::info!(
+                    "Would export {} log entries to Elasticsearch at {}",
+                    logs_to_export.len(),
+                    es_integration.endpoint
+                );
             }
         }
 
@@ -3783,11 +4192,16 @@ impl Integration {
 
         if let Some(grafana_integration) = integrations.get("grafana") {
             if grafana_integration.enabled {
-                let dashboard_config = self.generate_grafana_dashboard_config(agent_monitor).await?;
+                let dashboard_config = self
+                    .generate_grafana_dashboard_config(agent_monitor)
+                    .await?;
 
                 // In a real implementation, this would create/update the dashboard via Grafana API
-                tracing::info!("Would create Grafana dashboard at {}: {}",
-                              grafana_integration.endpoint, dashboard_config);
+                tracing::info!(
+                    "Would create Grafana dashboard at {}: {}",
+                    grafana_integration.endpoint,
+                    dashboard_config
+                );
             }
         }
 
@@ -3795,7 +4209,10 @@ impl Integration {
     }
 
     /// Generate Grafana dashboard configuration
-    async fn generate_grafana_dashboard_config(&self, agent_monitor: &AgentMonitor) -> HiveResult<serde_json::Value> {
+    async fn generate_grafana_dashboard_config(
+        &self,
+        agent_monitor: &AgentMonitor,
+    ) -> HiveResult<serde_json::Value> {
         let dashboard = serde_json::json!({
             "dashboard": {
                 "title": "AI Orchestrator Monitoring",
@@ -3854,7 +4271,10 @@ impl Integration {
     }
 
     /// Test integration connectivity
-    pub async fn test_integration_connectivity(&self, integration_name: &str) -> HiveResult<IntegrationTestResult> {
+    pub async fn test_integration_connectivity(
+        &self,
+        integration_name: &str,
+    ) -> HiveResult<IntegrationTestResult> {
         let integrations = self.integrations.read().await;
 
         if let Some(integration) = integrations.get(integration_name) {
@@ -3887,11 +4307,14 @@ impl Integration {
         let total_integrations = integrations.len();
         let enabled_integrations = integrations.values().filter(|i| i.enabled).count();
 
-        let integrations_by_type = integrations.values()
-            .fold(HashMap::new(), |mut acc, integration| {
-                *acc.entry(format!("{:?}", integration.integration_type)).or_insert(0) += 1;
-                acc
-            });
+        let integrations_by_type =
+            integrations
+                .values()
+                .fold(HashMap::new(), |mut acc, integration| {
+                    *acc.entry(format!("{:?}", integration.integration_type))
+                        .or_insert(0) += 1;
+                    acc
+                });
 
         Ok(IntegrationStats {
             total_integrations,

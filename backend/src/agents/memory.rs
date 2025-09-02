@@ -291,17 +291,13 @@ impl AgentMemorySystem {
         task_id: Option<Uuid>,
     ) {
         // Create new collaboration record if task-related
-        let new_collaboration = if let Some(task_id) = task_id {
-            Some(CollaborationRecord {
-                task_id,
-                role: "collaborator".to_string(), // Could be more specific
-                success: interaction_success,
-                efficiency: if interaction_success { 0.8 } else { 0.3 },
-                timestamp: Utc::now(),
-            })
-        } else {
-            None
-        };
+        let new_collaboration = task_id.map(|task_id| CollaborationRecord {
+            task_id,
+            role: "collaborator".to_string(), // Could be more specific
+            success: interaction_success,
+            efficiency: if interaction_success { 0.8 } else { 0.3 },
+            timestamp: Utc::now(),
+        });
 
         // Get current collaboration history and calculate new reliability score
         let mut updated_history = if let Some(entry) = self.social_memory.get(&agent_id) {
@@ -394,8 +390,7 @@ impl AgentMemorySystem {
     pub fn get_trust_level(&self, agent_id: Uuid) -> f64 {
         self.social_memory
             .get(&agent_id)
-            .map(|social| social.trust_level)
-            .unwrap_or(0.5) // Default neutral trust
+            .map_or(0.5, |social| social.trust_level) // Default neutral trust
     }
 
     /// Get learned patterns matching specific conditions
@@ -411,6 +406,7 @@ impl AgentMemorySystem {
     }
 
     /// Private helper methods
+    #[allow(clippy::unused_self)]
     fn calculate_emotional_valence(&self, content: &MemoryContent) -> f64 {
         match content {
             MemoryContent::TaskExperience { outcome, .. } => match outcome {
@@ -430,6 +426,7 @@ impl AgentMemorySystem {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn is_memory_relevant(&self, memory: &MemoryItem, context: &str) -> bool {
         // Check context tags
         if memory.context_tags.iter().any(|tag| context.contains(tag)) {
@@ -455,7 +452,7 @@ impl AgentMemorySystem {
         score += recency_factor * 0.3;
 
         // Boost score for frequently accessed memories
-        let access_factor = (memory.access_count as f64).ln() * 0.1;
+        let access_factor = f64::from(memory.access_count).ln() * 0.1;
         score += access_factor;
 
         // Context relevance boost
@@ -466,6 +463,7 @@ impl AgentMemorySystem {
         score
     }
 
+    #[allow(clippy::unused_self)]
     fn should_consolidate(&self, memory: &MemoryItem) -> bool {
         // High importance memories are always consolidated
         if memory.importance >= CONSOLIDATION_THRESHOLD {
@@ -503,6 +501,7 @@ impl AgentMemorySystem {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn calculate_reliability_score(&self, history: &[CollaborationRecord]) -> f64 {
         if history.is_empty() {
             return 0.5;

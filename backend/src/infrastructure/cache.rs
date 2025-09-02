@@ -117,11 +117,7 @@ where
         let total_entries = data.len();
         let total_hits: u64 = data.values().map(|entry| entry.access_count).sum();
         let total_accesses = total_hits; // Simplified for demo
-        let total_misses = if total_accesses > total_hits {
-            total_accesses - total_hits
-        } else {
-            0
-        };
+        let total_misses = total_accesses.saturating_sub(total_hits);
 
         let hit_rate = if total_accesses > 0 {
             total_hits as f64 / total_accesses as f64
@@ -163,7 +159,7 @@ where
 /// Specialized cache for agent data
 pub type AgentCache = Cache<uuid::Uuid, crate::agents::Agent>;
 
-/// Specialized cache for task data  
+/// Specialized cache for task data
 pub type TaskCache = Cache<uuid::Uuid, crate::tasks::Task>;
 
 /// Specialized cache for hive status
@@ -190,7 +186,7 @@ impl CacheManager {
 
     /// Start background cleanup task
     pub fn start_cleanup_task(self: Arc<Self>) {
-        let cache_manager = self.clone();
+        let cache_manager = Arc::clone(&self);
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(60));
             loop {

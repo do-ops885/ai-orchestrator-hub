@@ -142,6 +142,7 @@ impl OptimizedAgent {
     }
 
     /// Optimize agent capabilities using quantization
+    #[allow(clippy::unnecessary_wraps)]
     pub fn optimize_capabilities(&mut self) -> Result<()> {
         let capability_count = self.base_agent.capabilities.len();
         if capability_count == 0 {
@@ -200,6 +201,7 @@ impl OptimizedAgent {
         Ok(())
     }
 
+    #[allow(clippy::unused_self)]
     fn capability_to_features(&self, capability: &AgentCapability) -> Vec<f32> {
         // Convert capability to 10-dimensional feature vector
         vec![
@@ -210,7 +212,7 @@ impl OptimizedAgent {
             (capability.proficiency * capability.learning_rate) as f32, // Interaction term
             capability.proficiency.powi(2) as f32, // Squared proficiency
             capability.learning_rate.powi(2) as f32, // Squared learning rate
-            ((capability.proficiency + capability.learning_rate) / 2.0) as f32, // Average
+            f64::midpoint(capability.proficiency, capability.learning_rate) as f32, // Average
             (capability.proficiency - capability.learning_rate) as f32, // Difference
             0.5,                                 // Reserved for future features
         ]
@@ -240,7 +242,7 @@ impl OptimizedAgent {
             let weight_sum: f32 = weights.iter().sum();
 
             if weight_sum > 0.0 {
-                return (weighted_sum / weight_sum) as f64;
+                return f64::from(weighted_sum / weight_sum);
             }
         }
 
@@ -285,8 +287,9 @@ impl OptimizedAgent {
             // Memory pressure - reduce optimization level
             self.optimization_level = match self.optimization_level {
                 OptimizationLevel::Aggressive => OptimizationLevel::Standard,
-                OptimizationLevel::Standard => OptimizationLevel::Minimal,
-                OptimizationLevel::Minimal => OptimizationLevel::Minimal,
+                OptimizationLevel::Standard | OptimizationLevel::Minimal => {
+                    OptimizationLevel::Minimal
+                }
             };
 
             tracing::warn!(
@@ -297,8 +300,9 @@ impl OptimizedAgent {
             // Memory available - increase optimization level
             self.optimization_level = match self.optimization_level {
                 OptimizationLevel::Minimal => OptimizationLevel::Standard,
-                OptimizationLevel::Standard => OptimizationLevel::Aggressive,
-                OptimizationLevel::Aggressive => OptimizationLevel::Aggressive,
+                OptimizationLevel::Standard | OptimizationLevel::Aggressive => {
+                    OptimizationLevel::Aggressive
+                }
             };
         }
     }
@@ -554,7 +558,7 @@ impl AgentBehavior for OptimizedAgent {
             + cohesion.1 * force_multiplier * 0.5
             + (swarm_center.1 as f32 - current_pos.1) * force_multiplier * 0.1;
 
-        self.base_agent.position = (new_x as f64, new_y as f64);
+        self.base_agent.position = (f64::from(new_x), f64::from(new_y));
 
         // Update performance metrics
         let elapsed_ms = start_time.elapsed().as_millis() as f64;

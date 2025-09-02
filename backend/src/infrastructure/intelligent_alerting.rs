@@ -300,8 +300,7 @@ impl IntelligentAlertingSystem {
                 adaptive_thresholds
                     .thresholds
                     .get(&rule.metric_name)
-                    .map(|t| t.current_threshold)
-                    .unwrap_or(rule.threshold)
+                    .map_or(rule.threshold, |t| t.current_threshold)
             } else {
                 rule.threshold
             };
@@ -420,7 +419,7 @@ impl IntelligentAlertingSystem {
         // Simple correlation based on timing and metric relationships
         let mut correlated_alerts = alerts;
         let correlation_window =
-            Duration::minutes(self.config.alert_correlation_window_minutes as i64);
+            Duration::minutes(i64::from(self.config.alert_correlation_window_minutes));
 
         // Group alerts that occurred within the correlation window
         let now = Utc::now();
@@ -440,7 +439,7 @@ impl IntelligentAlertingSystem {
     ) -> anyhow::Result<Vec<IntelligentAlert>> {
         let mut suppression = self.alert_suppression.write().await;
         let mut final_alerts = Vec::new();
-        let suppression_window = Duration::minutes(self.config.suppression_window_minutes as i64);
+        let suppression_window = Duration::minutes(i64::from(self.config.suppression_window_minutes));
         let now = Utc::now();
 
         for alert in alerts {
@@ -530,7 +529,7 @@ impl IntelligentAlertingSystem {
             match channel.channel_type {
                 ChannelType::Console => match alert.base_alert.level {
                     AlertLevel::Critical => {
-                        error!("🚨 CRITICAL ALERT: {}", alert.base_alert.description)
+                        error!("🚨 CRITICAL ALERT: {}", alert.base_alert.description);
                     }
                     AlertLevel::Warning => warn!("⚠️  WARNING: {}", alert.base_alert.description),
                     AlertLevel::Info => info!("ℹ️  INFO: {}", alert.base_alert.description),
@@ -594,6 +593,7 @@ impl IntelligentAlertingSystem {
 
     // Helper methods
 
+    #[allow(clippy::unused_self)]
     fn get_metric_value(
         &self,
         metrics: &crate::infrastructure::metrics::SystemMetrics,
@@ -609,6 +609,7 @@ impl IntelligentAlertingSystem {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn generate_suggested_actions(
         &self,
         metric_name: &str,
@@ -635,6 +636,7 @@ impl IntelligentAlertingSystem {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn generate_anomaly_actions(&self, anomaly: &Anomaly) -> Vec<String> {
         match anomaly.anomaly_type {
             crate::infrastructure::metrics::AnomalyType::PerformanceSpike => vec![
@@ -650,14 +652,16 @@ impl IntelligentAlertingSystem {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn can_auto_resolve(&self, metric_name: &str) -> bool {
         match metric_name {
-            "memory_usage" => true, // Can trigger garbage collection
-            "agent_count" => true,  // Can restart failed agents
+            // Can trigger garbage collection or restart failed agents
+            "memory_usage" | "agent_count" => true,
             _ => false,
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn extract_metric_name(&self, alert_title: &str) -> Option<String> {
         if alert_title.contains("CPU") {
             Some("cpu_usage".to_string())
@@ -695,6 +699,7 @@ impl IntelligentAlertingSystem {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn get_most_frequent_alert(&self, history: &[Alert]) -> Option<String> {
         let mut alert_counts: HashMap<String, usize> = HashMap::new();
 
@@ -723,8 +728,8 @@ impl IntelligentAlertingSystem {
                 throughput_tasks_per_second: 50.0,
             },
             resource_usage: crate::infrastructure::metrics::ResourceUsageMetrics {
-                cpu_usage_percent: 95.0, // Will trigger CPU alert
-                memory_usage_percent: 90.0, // Will trigger memory alert
+                cpu_usage_percent: 95.0,                // Will trigger CPU alert
+                memory_usage_percent: 90.0,             // Will trigger memory alert
                 memory_usage_bytes: 1024 * 1024 * 1024, // 1GB
                 network_bytes_in: 1024 * 1024,
                 network_bytes_out: 512 * 1024,
@@ -758,18 +763,32 @@ impl IntelligentAlertingSystem {
         };
 
         // Update the metrics collector with test data
-        self.metrics_collector.update_performance_metrics(test_metrics.performance.clone()).await;
-        self.metrics_collector.update_resource_metrics(test_metrics.resource_usage.clone()).await;
-        self.metrics_collector.update_agent_metrics(test_metrics.agent_metrics.clone()).await;
-        self.metrics_collector.update_task_metrics(test_metrics.task_metrics.clone()).await;
+        self.metrics_collector
+            .update_performance_metrics(test_metrics.performance.clone())
+            .await;
+        self.metrics_collector
+            .update_resource_metrics(test_metrics.resource_usage.clone())
+            .await;
+        self.metrics_collector
+            .update_agent_metrics(test_metrics.agent_metrics.clone())
+            .await;
+        self.metrics_collector
+            .update_task_metrics(test_metrics.task_metrics.clone())
+            .await;
 
         // Process alerts with test metrics
         let alerts = self.process_intelligent_alerts().await?;
-        info!("Alert system test completed. Generated {} alerts", alerts.len());
+        info!(
+            "Alert system test completed. Generated {} alerts",
+            alerts.len()
+        );
 
         // Log test results
         for alert in &alerts {
-            info!("Test Alert: {} - {}", alert.base_alert.title, alert.base_alert.description);
+            info!(
+                "Test Alert: {} - {}",
+                alert.base_alert.title, alert.base_alert.description
+            );
         }
 
         Ok(())

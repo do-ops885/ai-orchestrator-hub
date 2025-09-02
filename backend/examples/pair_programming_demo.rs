@@ -8,10 +8,12 @@
 //! is executed by a primary agent and independently verified by a verification agent.
 
 use anyhow::Result;
-use multiagent_hive::{
-    Agent, AgentCapability, AgentType, HiveCoordinator, OverallTaskStatus, VerificationLevel,
-    VerifiedTaskResult,
+use multiagent_hive::agents::{
+    IssueSeverity, IssueType, SimpleVerificationResult, SimpleVerificationStatus,
+    VerificationIssue, VerificationTier,
 };
+use multiagent_hive::tasks::TaskResult;
+use multiagent_hive::{Agent, AgentCapability, AgentType, HiveCoordinator};
 use serde_json::json;
 use tracing::{error, info, warn};
 use uuid::Uuid;
@@ -34,12 +36,6 @@ async fn main() -> Result<()> {
 
     info!("✅ Created 3 agents for demonstration");
 
-    // Create agent pairs
-    let pair_id = hive
-        .create_agent_pair(primary_agent_id, verification_agent_id)
-        .await?;
-    info!("✅ Created agent pair: {}", pair_id);
-
     // Demo 1: Simple task with verification
     info!("\n🔍 Demo 1: Simple Task Verification");
     let simple_task_result = demo_simple_task_verification(&hive).await?;
@@ -55,11 +51,11 @@ async fn main() -> Result<()> {
     let failing_task_result = demo_failing_task_verification(&hive).await?;
     print_verification_result("Failing Task", &failing_task_result);
 
-    // Demo 4: Show pair programming statistics
-    info!("\n📊 Pair Programming Statistics");
-    let stats = hive.get_pair_programming_stats().await;
+    // Demo 4: Show simple verification statistics
+    info!("\n📊 Simple Verification Statistics");
+    let stats = hive.get_simple_verification_stats().await;
     println!(
-        "Pair Programming Stats:\n{}",
+        "Simple Verification Stats:\n{}",
         serde_json::to_string_pretty(&stats)?
     );
 
@@ -144,13 +140,15 @@ async fn create_backup_agent(hive: &HiveCoordinator) -> Result<Uuid> {
     hive.create_agent(config).await
 }
 
-async fn demo_simple_task_verification(hive: &HiveCoordinator) -> Result<VerifiedTaskResult> {
+async fn demo_simple_task_verification(
+    hive: &HiveCoordinator,
+) -> Result<(TaskResult, SimpleVerificationResult)> {
     let task_config = json!({
         "description": "Process customer data and generate summary report",
         "type": "data_processing",
         "priority": 1,
         "original_goal": "Create a comprehensive summary of customer data that highlights key insights and trends",
-        "verification_level": "standard",
+
         "required_capabilities": [
             {
                 "name": "data_processing",
@@ -159,11 +157,15 @@ async fn demo_simple_task_verification(hive: &HiveCoordinator) -> Result<Verifie
         ]
     });
 
-    let task_id = hive.create_verifiable_task(task_config).await?;
-    hive.execute_task_with_verification(task_id).await
+    let task_id = hive.create_task(task_config.clone()).await?;
+    let original_goal = task_config.get("original_goal").and_then(|v| v.as_str());
+    hive.execute_task_with_simple_verification(task_id, original_goal)
+        .await
 }
 
-async fn demo_complex_task_verification(hive: &HiveCoordinator) -> Result<VerifiedTaskResult> {
+async fn demo_complex_task_verification(
+    hive: &HiveCoordinator,
+) -> Result<(TaskResult, SimpleVerificationResult)> {
     let task_config = json!({
         "description": "Analyze market trends and provide strategic recommendations for Q4",
         "type": "analysis",
@@ -178,11 +180,15 @@ async fn demo_complex_task_verification(hive: &HiveCoordinator) -> Result<Verifi
         ]
     });
 
-    let task_id = hive.create_verifiable_task(task_config).await?;
-    hive.execute_task_with_verification(task_id).await
+    let task_id = hive.create_task(task_config.clone()).await?;
+    let original_goal = task_config.get("original_goal").and_then(|v| v.as_str());
+    hive.execute_task_with_simple_verification(task_id, original_goal)
+        .await
 }
 
-async fn demo_failing_task_verification(hive: &HiveCoordinator) -> Result<VerifiedTaskResult> {
+async fn demo_failing_task_verification(
+    hive: &HiveCoordinator,
+) -> Result<(TaskResult, SimpleVerificationResult)> {
     let task_config = json!({
         "description": "Perform advanced quantum computing simulation",
         "type": "quantum_simulation",
@@ -197,26 +203,28 @@ async fn demo_failing_task_verification(hive: &HiveCoordinator) -> Result<Verifi
         ]
     });
 
-    let task_id = hive.create_verifiable_task(task_config).await?;
+    let task_id = hive.create_task(task_config.clone()).await?;
+    let original_goal = task_config.get("original_goal").and_then(|v| v.as_str());
 
     // This should fail because no agent has quantum computing capabilities
-    match hive.execute_task_with_verification(task_id).await {
+    match hive
+        .execute_task_with_simple_verification(task_id, original_goal)
+        .await
+    {
         Ok(result) => Ok(result),
         Err(e) => {
             warn!("Task failed as expected: {}", e);
             // Create a mock failed result for demonstration
-            create_mock_failed_result(task_id)
+            Ok(create_mock_failed_result(task_id))
         }
     }
 }
 
-fn create_mock_failed_result(task_id: Uuid) -> Result<VerifiedTaskResult> {
+fn create_mock_failed_result(task_id: Uuid) -> (TaskResult, SimpleVerificationResult) {
     use chrono::Utc;
-    use multiagent_hive::{
-        Discrepancy, DiscrepancySeverity, TaskResult, VerificationDetails, VerificationMethod,
-        VerificationResult, VerificationStatus,
+    use multiagent_hive::agents::{
+        IssueSeverity, IssueType, SimpleVerificationStatus, VerificationIssue, VerificationTier,
     };
-    use std::collections::HashMap;
 
     let execution_result = TaskResult {
         task_id,
@@ -230,113 +238,86 @@ fn create_mock_failed_result(task_id: Uuid) -> Result<VerifiedTaskResult> {
         learned_insights: vec!["Need specialized quantum computing agents".to_string()],
     };
 
-    let verification_result = VerificationResult {
-        verification_id: Uuid::new_v4(),
+    let verification_result = SimpleVerificationResult {
         task_id,
-        verifier_agent: Uuid::new_v4(),
-        verification_status: VerificationStatus::Failed,
+        verification_status: SimpleVerificationStatus::Failed,
+        confidence_score: 0.95,
         goal_alignment_score: 0.0,
-        quality_score: 0.1,
-        independent_assessment: "Task execution failed due to capability mismatch. Agent could not perform quantum computing simulation.".to_string(),
-        discrepancies_found: vec![
-            Discrepancy {
-                discrepancy_id: Uuid::new_v4(),
-                criterion_id: Uuid::new_v4(),
-                expected: "Quantum computing simulation execution".to_string(),
-                actual: "Capability not available".to_string(),
-                severity: DiscrepancySeverity::Critical,
+        format_compliance_score: 0.1,
+        overall_score: 0.1,
+        verification_tier: VerificationTier::Standard,
+        issues_found: vec![
+            VerificationIssue {
+                issue_type: IssueType::GoalMismatch,
+                severity: IssueSeverity::Critical,
                 description: "Required quantum computing capability not present in any available agent".to_string(),
+                suggestion: Some("Add quantum computing capable agents to the hive".to_string()),
             }
         ],
-        verification_confidence: 0.95,
-        method_used: VerificationMethod::GoalAlignment,
-        timestamp: Utc::now(),
-        verification_details: VerificationDetails {
-            criteria_scores: HashMap::new(),
-            method_specific_data: HashMap::new(),
-            reasoning: "Verification confirmed task failure due to missing capabilities".to_string(),
-            alternative_approaches_considered: vec!["Capability substitution".to_string()],
-            confidence_factors: vec!["Clear capability mismatch".to_string()],
-        },
+        verification_time_ms: 500,
+        verified_at: Utc::now(),
+        verifier_notes: "Task execution failed due to capability mismatch. Agent could not perform quantum computing simulation.".to_string(),
     };
 
-    Ok(VerifiedTaskResult::new(
-        execution_result,
-        verification_result,
-    ))
+    (execution_result, verification_result)
 }
 
-fn print_verification_result(task_name: &str, result: &VerifiedTaskResult) {
+fn print_verification_result(task_name: &str, result: &(TaskResult, SimpleVerificationResult)) {
     println!("\n📋 {} Results:", task_name);
-    println!("   Overall Status: {:?}", result.overall_status);
+    println!("   Overall Status: {:?}", result.1.verification_status);
     println!(
         "   Final Confidence: {:.1}%",
-        result.final_confidence * 100.0
+        result.1.overall_score * 100.0
     );
-    println!("   Meets Requirements: {}", result.meets_requirements);
+    println!("   Meets Requirements: {}", result.1.overall_score > 0.5);
 
     println!("\n   Execution Result:");
-    println!("     Success: {}", result.execution_result.success);
+    println!("     Success: {}", result.0.success);
     println!(
         "     Output: {}",
-        result
-            .execution_result
-            .output
-            .chars()
-            .take(100)
-            .collect::<String>()
+        result.0.output.chars().take(100).collect::<String>()
     );
-    if let Some(error) = &result.execution_result.error_message {
+    if let Some(error) = &result.0.error_message {
         println!("     Error: {}", error);
     }
 
     println!("\n   Verification Result:");
-    println!(
-        "     Status: {:?}",
-        result.verification_result.verification_status
-    );
+    println!("     Status: {:?}", result.1.verification_status);
     println!(
         "     Goal Alignment: {:.1}%",
-        result.verification_result.goal_alignment_score * 100.0
+        result.1.goal_alignment_score * 100.0
     );
     println!(
-        "     Quality Score: {:.1}%",
-        result.verification_result.quality_score * 100.0
+        "     Format Compliance: {:.1}%",
+        result.1.format_compliance_score * 100.0
     );
+    println!("     Overall Score: {:.1}%", result.1.overall_score * 100.0);
     println!(
-        "     Verification Confidence: {:.1}%",
-        result.verification_result.verification_confidence * 100.0
+        "     Confidence Score: {:.1}%",
+        result.1.confidence_score * 100.0
     );
-    println!(
-        "     Assessment: {}",
-        result.verification_result.independent_assessment
-    );
+    println!("     Notes: {}", result.1.verifier_notes);
 
-    if !result.verification_result.discrepancies_found.is_empty() {
-        println!("\n   Discrepancies Found:");
-        for (i, discrepancy) in result
-            .verification_result
-            .discrepancies_found
-            .iter()
-            .enumerate()
-        {
+    if !result.1.issues_found.is_empty() {
+        println!("\n   Issues Found:");
+        for (i, issue) in result.1.issues_found.iter().enumerate() {
             println!(
-                "     {}. {} (Severity: {:?})",
+                "     {}. {} (Severity: {:?}, Type: {:?})",
                 i + 1,
-                discrepancy.description,
-                discrepancy.severity
+                issue.description,
+                issue.severity,
+                issue.issue_type
             );
         }
     }
 
     // Color-coded status indicator
-    let status_indicator = match result.overall_status {
-        OverallTaskStatus::FullyVerified => "✅ FULLY VERIFIED",
-        OverallTaskStatus::ExecutedButUnverified => "⚠️  EXECUTED BUT UNVERIFIED",
-        OverallTaskStatus::ExecutionFailed => "❌ EXECUTION FAILED",
-        OverallTaskStatus::VerificationFailed => "🔍 VERIFICATION FAILED",
-        OverallTaskStatus::VerificationError => "⚡ VERIFICATION ERROR",
-        OverallTaskStatus::RequiresReview => "👁️  REQUIRES REVIEW",
+    let status_indicator = match result.1.verification_status {
+        SimpleVerificationStatus::Passed => "✅ PASSED",
+        SimpleVerificationStatus::PassedWithIssues => "⚠️  PASSED WITH ISSUES",
+        SimpleVerificationStatus::Failed => "❌ FAILED",
+        SimpleVerificationStatus::RequiresReview => "👁️  REQUIRES REVIEW",
+        SimpleVerificationStatus::Error => "⚡ VERIFICATION ERROR",
     };
 
     println!("\n   Status: {}", status_indicator);

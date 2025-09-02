@@ -236,6 +236,43 @@ impl WorkStealingQueue {
         Ok(())
     }
 
+    /// Get a task by its ID from any queue
+    pub async fn get_task_by_id(&self, task_id: Uuid) -> Option<Task> {
+        // Check global queue first
+        {
+            let mut global_queue = self.global_queue.lock().await;
+            if let Some(pos) = global_queue.iter().position(|t| t.id == task_id) {
+                let task = global_queue.remove(pos).unwrap();
+                return Some(task);
+            }
+        }
+
+        // Check all agent queues
+        for agent_queue_ref in self.agent_queues.iter() {
+            let agent_queue = agent_queue_ref.value();
+
+            // Check priority queue
+            {
+                let mut priority_queue = agent_queue.priority_queue.lock().await;
+                if let Some(pos) = priority_queue.iter().position(|t| t.id == task_id) {
+                    let task = priority_queue.remove(pos).unwrap();
+                    return Some(task);
+                }
+            }
+
+            // Check local queue
+            {
+                let mut local_queue = agent_queue.local_queue.lock().await;
+                if let Some(pos) = local_queue.iter().position(|t| t.id == task_id) {
+                    let task = local_queue.remove(pos).unwrap();
+                    return Some(task);
+                }
+            }
+        }
+
+        None
+    }
+
     /// Get next task for a specific agent (with work stealing)
     pub async fn get_task_for_agent(&self, agent_id: Uuid) -> Option<Task> {
         // First, try agent's own queue

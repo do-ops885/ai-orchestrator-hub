@@ -1,12 +1,14 @@
 //! # Agent Monitor Usage Example
 //!
-//! This example demonstrates how to use the comprehensive AgentMonitor system
+//! This example demonstrates how to use the comprehensive `AgentMonitor` system
 //! for monitoring and analyzing the AI Orchestrator Hub.
 
+#![allow(clippy::expect_used)]
+
 use multiagent_hive::infrastructure::{
-    monitoring::*, metrics::MetricsCollector, telemetry::TelemetryCollector,
+    metrics::MetricsCollector, monitoring::AgentMonitor, telemetry::TelemetryCollector,
 };
-use multiagent_hive::utils::config::{MonitoringConfig, DiagnosticsConfig};
+use multiagent_hive::utils::config::{DiagnosticsConfig, MonitoringConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -45,36 +47,52 @@ async fn main() -> anyhow::Result<()> {
             },
             component_issues: {
                 let mut issues = HashMap::new();
-                issues.insert("database".to_string(), vec!["Slow query performance".to_string()]);
-                issues.insert("cache".to_string(), vec!["High cache miss rate".to_string()]);
-                issues.insert("network".to_string(), vec!["Intermittent connectivity".to_string()]);
+                issues.insert(
+                    "database".to_string(),
+                    vec!["Slow query performance".to_string()],
+                );
+                issues.insert(
+                    "cache".to_string(),
+                    vec!["High cache miss rate".to_string()],
+                );
+                issues.insert(
+                    "network".to_string(),
+                    vec!["Intermittent connectivity".to_string()],
+                );
                 issues
             },
             component_recommendations: {
                 let mut recommendations = HashMap::new();
-                recommendations.insert("database".to_string(), vec![
-                    "Add database indexes".to_string(),
-                    "Optimize query patterns".to_string()
-                ]);
-                recommendations.insert("cache".to_string(), vec![
-                    "Increase cache size".to_string(),
-                    "Implement cache warming".to_string()
-                ]);
-                recommendations.insert("network".to_string(), vec![
-                    "Implement retry logic".to_string(),
-                    "Monitor network latency".to_string()
-                ]);
+                recommendations.insert(
+                    "database".to_string(),
+                    vec![
+                        "Add database indexes".to_string(),
+                        "Optimize query patterns".to_string(),
+                    ],
+                );
+                recommendations.insert(
+                    "cache".to_string(),
+                    vec![
+                        "Increase cache size".to_string(),
+                        "Implement cache warming".to_string(),
+                    ],
+                );
+                recommendations.insert(
+                    "network".to_string(),
+                    vec![
+                        "Implement retry logic".to_string(),
+                        "Monitor network latency".to_string(),
+                    ],
+                );
                 recommendations
             },
             network_components: vec![
                 "internal_api".to_string(),
                 "external_services".to_string(),
-                "database".to_string()
+                "database".to_string(),
             ],
             default_health_score: 0.85,
-            performance_bottlenecks: vec![
-                "Database query optimization needed".to_string(),
-            ],
+            performance_bottlenecks: vec!["Database query optimization needed".to_string()],
             optimization_opportunities: vec![
                 "Implement caching layer".to_string(),
                 "Optimize resource allocation".to_string(),
@@ -99,43 +117,94 @@ async fn main() -> anyhow::Result<()> {
     println!("📊 Discovered {} agents", discovered_agents.len());
 
     for agent in &discovered_agents {
-        println!("  - {} ({}) - Status: {:?}", agent.name, agent.agent_type, agent.status);
+        println!(
+            "  - {} ({}) - Status: {:?}",
+            agent.name, agent.agent_type, agent.status
+        );
     }
 
     // Example 2: Health Monitoring
     println!("\n🏥 Running Health Monitoring...");
     let health_status = agent_monitor.health_monitor.get_health_status().await?;
-    println!("📊 System Health: {:.1}%", health_status.overall_score * 100.0);
+    println!(
+        "📊 System Health: {:.1}%",
+        health_status.overall_score * 100.0
+    );
     println!("  - Healthy agents: {}", health_status.healthy_agents);
     println!("  - Warning agents: {}", health_status.warning_agents);
     println!("  - Critical agents: {}", health_status.critical_agents);
 
     // Example 3: Performance Monitoring
     println!("\n⚡ Running Performance Monitoring...");
-    let performance_status = agent_monitor.performance_monitor.get_performance_status().await?;
-    println!("📊 Performance Score: {:.1}%", performance_status.overall_score * 100.0);
-    println!("  - Avg Response Time: {:.1}ms", performance_status.average_response_time_ms);
-    println!("  - Throughput: {:.1} tasks/sec", performance_status.throughput_tasks_per_second);
+    let performance_status = agent_monitor
+        .performance_monitor
+        .get_performance_status()
+        .await?;
+    println!(
+        "📊 Performance Score: {:.1}%",
+        performance_status.overall_score * 100.0
+    );
+    println!(
+        "  - Avg Response Time: {:.1}ms",
+        performance_status.average_response_time_ms
+    );
+    println!(
+        "  - Throughput: {:.1} tasks/sec",
+        performance_status.throughput_tasks_per_second
+    );
 
     // Example 4: Behavior Analysis
     println!("\n🧠 Running Behavior Analysis...");
-    let behavior_status = agent_monitor.behavior_analyzer.get_behavior_status().await?;
-    println!("📊 Communication Efficiency: {:.1}%", behavior_status.communication_efficiency * 100.0);
-    println!("📊 Decision Quality: {:.1}%", behavior_status.decision_quality_score * 100.0);
-    println!("📊 Adaptation Rate: {:.1}%", behavior_status.adaptation_rate * 100.0);
+    let behavior_status = agent_monitor
+        .behavior_analyzer
+        .get_behavior_status()
+        .await?;
+    println!(
+        "📊 Communication Efficiency: {:.1}%",
+        behavior_status.communication_efficiency * 100.0
+    );
+    println!(
+        "📊 Decision Quality: {:.1}%",
+        behavior_status.decision_quality_score * 100.0
+    );
+    println!(
+        "📊 Adaptation Rate: {:.1}%",
+        behavior_status.adaptation_rate * 100.0
+    );
 
     // Example 5: Dashboard Creation
     println!("\n📊 Setting up Monitoring Dashboard...");
     agent_monitor.dashboard.initialize_default_widgets().await?;
-    let dashboard_data = agent_monitor.dashboard.generate_dashboard_data(&agent_monitor).await?;
-    println!("📊 Dashboard created with {} widgets", dashboard_data["widgets"].as_array().unwrap().len());
+    let dashboard_data = agent_monitor
+        .dashboard
+        .generate_dashboard_data(&agent_monitor)
+        .await?;
+    println!(
+        "📊 Dashboard created with {} widgets",
+        dashboard_data["widgets"]
+            .as_array()
+            .expect("widgets should be an array")
+            .len()
+    );
 
     // Example 6: Diagnostics
     println!("\n🔧 Running System Diagnostics...");
     let diagnostics = agent_monitor.diagnostics.run_system_diagnostics().await?;
     println!("📊 System diagnostics completed");
-    println!("  - Overall performance score: {:.1}%", diagnostics.system_performance_profile.overall_performance_score * 100.0);
-    println!("  - Performance bottlenecks: {}", diagnostics.system_performance_profile.performance_bottlenecks.len());
+    println!(
+        "  - Overall performance score: {:.1}%",
+        diagnostics
+            .system_performance_profile
+            .overall_performance_score
+            * 100.0
+    );
+    println!(
+        "  - Performance bottlenecks: {}",
+        diagnostics
+            .system_performance_profile
+            .performance_bottlenecks
+            .len()
+    );
 
     // Example 7: Alerting System
     println!("\n🚨 Testing Alerting System...");
@@ -151,31 +220,55 @@ async fn main() -> anyhow::Result<()> {
     let health_report = agent_monitor.reporting.generate_health_report(24).await?;
     println!("📊 Health report generated: {}", health_report.title);
 
-    let performance_report = agent_monitor.reporting.generate_performance_report(24).await?;
-    println!("📊 Performance report generated: {}", performance_report.title);
+    let performance_report = agent_monitor
+        .reporting
+        .generate_performance_report(24)
+        .await?;
+    println!(
+        "📊 Performance report generated: {}",
+        performance_report.title
+    );
 
     // Example 10: Automation Setup
     println!("\n🤖 Setting up Automation...");
-    agent_monitor.automation.setup_default_automated_tasks().await?;
-    agent_monitor.automation.setup_default_automation_schedules().await?;
+    agent_monitor
+        .automation
+        .setup_default_automated_tasks()
+        .await?;
+    agent_monitor
+        .automation
+        .setup_default_automation_schedules()
+        .await?;
     println!("📊 Automation system configured");
 
     // Example 11: External Integration
     println!("\n🔗 Setting up External Integrations...");
 
     // Prometheus integration
-    agent_monitor.integration.setup_prometheus_integration("http://localhost:9090").await?;
+    agent_monitor
+        .integration
+        .setup_prometheus_integration("http://localhost:9090")
+        .await?;
     println!("📊 Prometheus integration configured");
 
     // Slack integration
-    agent_monitor.integration.setup_slack_integration("https://hooks.slack.com/services/...", "#alerts").await?;
+    agent_monitor
+        .integration
+        .setup_slack_integration("https://hooks.slack.com/services/...", "#alerts")
+        .await?;
     println!("📊 Slack integration configured");
 
     // Example 12: Comprehensive Monitoring Status
     println!("\n📊 Getting Comprehensive Monitoring Status...");
     let monitoring_status = agent_monitor.get_monitoring_status().await?;
-    println!("📊 Overall system health: {:.1}%", monitoring_status.overall_health * 100.0);
-    println!("📊 Active alerts: {}", monitoring_status.active_alerts.total_alerts);
+    println!(
+        "📊 Overall system health: {:.1}%",
+        monitoring_status.overall_health * 100.0
+    );
+    println!(
+        "📊 Active alerts: {}",
+        monitoring_status.active_alerts.total_alerts
+    );
 
     println!("\n🎉 Agent Monitor Example completed successfully!");
     println!("💡 The monitoring system is now fully operational with:");

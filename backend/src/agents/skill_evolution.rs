@@ -193,11 +193,11 @@ pub struct LearningEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LearningEventType {
-    SkillAcquisition,
-    SkillImprovement,
-    SkillTransfer,
-    SkillForgetting,
-    SkillSynergy,
+    Acquisition,
+    Improvement,
+    Transfer,
+    Forgetting,
+    Synergy,
 }
 
 /// Configuration for skill evolution behavior
@@ -310,7 +310,7 @@ impl SkillEvolutionSystem {
                             event_id: Uuid::new_v4(),
                             agent_id,
                             skill_id: skill_to_learn.clone(),
-                            event_type: LearningEventType::SkillAcquisition,
+                            event_type: LearningEventType::Acquisition,
                             timestamp: Utc::now(),
                             proficiency_before: 0.0,
                             proficiency_after: learning_result
@@ -397,13 +397,10 @@ impl SkillEvolutionSystem {
                         return Ok(true);
                     }
                 }
-                LearningTrigger::NewTaskType { .. } => {
-                    // Check if agent has encountered new task types
-                    // This would analyze recent task patterns
-                    return Ok(false); // Placeholder
-                }
-                LearningTrigger::CollaborationOpportunity { .. } => {
-                    // Check if there are collaboration opportunities
+                LearningTrigger::NewTaskType { .. }
+                | LearningTrigger::CollaborationOpportunity { .. } => {
+                    // Check if agent has encountered new task types or collaboration opportunities
+                    // This would analyze recent task patterns or opportunities
                     return Ok(false); // Placeholder
                 }
                 LearningTrigger::ScheduledLearning { interval_hours } => {
@@ -623,7 +620,7 @@ impl SkillEvolutionSystem {
         let successful_events = history.iter().filter(|e| e.success).count();
         let skills_learned = history
             .iter()
-            .filter(|e| matches!(e.event_type, LearningEventType::SkillAcquisition))
+            .filter(|e| matches!(e.event_type, LearningEventType::Acquisition))
             .count();
 
         let skill_popularity: HashMap<String, usize> =

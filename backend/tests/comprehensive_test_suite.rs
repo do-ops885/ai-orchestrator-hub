@@ -3,6 +3,8 @@
 //! This file serves as the main test runner that can be executed with `cargo test`
 //! and provides organized test execution with proper setup and teardown.
 
+#![allow(clippy::expect_used)]
+
 use multiagent_hive::tests::test_utils::*;
 use multiagent_hive::{AgentType, HiveCoordinator};
 
@@ -70,7 +72,7 @@ async fn test_system_initialization() {
     let hive = HiveCoordinator::new().await;
     assert!(hive.is_ok(), "Failed to create hive coordinator");
 
-    let coordinator = hive.unwrap();
+    let coordinator = hive.expect("Failed to create hive coordinator");
     assert_eq!(
         coordinator.agents.len(),
         0,
@@ -87,7 +89,7 @@ async fn test_system_initialization() {
 }
 
 async fn test_agent_lifecycle() {
-    let hive = HiveCoordinator::new().await.unwrap();
+    let hive = HiveCoordinator::new().await.expect("Failed to create hive");
 
     // Test agent creation
     let agent_config =
@@ -95,14 +97,14 @@ async fn test_agent_lifecycle() {
     let agent_id = hive.create_agent(agent_config).await;
     assert!(agent_id.is_ok(), "Failed to create agent");
 
-    let agent_uuid = agent_id.unwrap();
+    let agent_uuid = agent_id.expect("Failed to create agent");
     assert!(
         hive.agents.contains_key(&agent_uuid),
         "Agent should exist in hive"
     );
 
     // Test agent capabilities
-    let agent = hive.agents.get(&agent_uuid).unwrap();
+    let agent = hive.agents.get(&agent_uuid).expect("Agent should exist");
     assert_eq!(agent.name, "TestAgent", "Agent name should match");
     assert!(
         matches!(agent.agent_type, AgentType::Worker),
@@ -116,7 +118,7 @@ async fn test_agent_lifecycle() {
 }
 
 async fn test_task_management() {
-    let hive = HiveCoordinator::new().await.unwrap();
+    let hive = HiveCoordinator::new().await.expect("Failed to create hive");
 
     // Create agent first
     let agent_config = create_agent_config(
@@ -124,7 +126,10 @@ async fn test_task_management() {
         "worker",
         Some(vec![("data_processing", 0.8, 0.1)]),
     );
-    let _agent_id = hive.create_agent(agent_config).await.unwrap();
+    let _agent_id = hive
+        .create_agent(agent_config)
+        .await
+        .expect("Failed to create agent");
 
     // Test task creation
     let task_config = create_task_config(
@@ -138,12 +143,9 @@ async fn test_task_management() {
 
     // Test task info retrieval
     let tasks_info = hive.get_tasks_info().await;
-    assert!(
-        tasks_info["work_stealing_queue"]["total_queue_depth"]
-            .as_u64()
-            .unwrap_or(0)
-            >= 0
-    );
+    assert!(tasks_info["work_stealing_queue"]["total_queue_depth"]
+        .as_u64()
+        .is_some());
 
     // Wait for task processing
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
@@ -154,16 +156,19 @@ async fn test_task_management() {
 }
 
 async fn test_hive_coordination() {
-    let hive = HiveCoordinator::new().await.unwrap();
+    let hive = HiveCoordinator::new().await.expect("Failed to create hive");
 
     // Create multiple agents for coordination testing
     for i in 0..3 {
         let config = create_agent_config(
-            &format!("CoordAgent{}", i),
+            &format!("CoordAgent{i}"),
             "worker",
             Some(vec![("coordination", 0.6, 0.1)]),
         );
-        let _agent_id = hive.create_agent(config).await.unwrap();
+        let _agent_id = hive
+            .create_agent(config)
+            .await
+            .expect("Failed to create agent");
     }
 
     // Wait for coordination processes
@@ -183,13 +188,16 @@ async fn test_hive_coordination() {
         "Should have three agents"
     );
     assert!(
-        status["metrics"]["swarm_cohesion"].as_f64().unwrap() >= 0.0,
+        status["metrics"]["swarm_cohesion"]
+            .as_f64()
+            .expect("swarm_cohesion should be f64")
+            >= 0.0,
         "Swarm cohesion should be non-negative"
     );
 }
 
 async fn test_neural_integration() {
-    let hive = HiveCoordinator::new().await.unwrap();
+    let hive = HiveCoordinator::new().await.expect("Failed to create hive");
 
     // Test NLP processor
     let nlp = &hive.nlp_processor;
@@ -217,7 +225,7 @@ async fn test_neural_integration() {
 }
 
 async fn test_performance_scalability() {
-    let hive = HiveCoordinator::new().await.unwrap();
+    let hive = HiveCoordinator::new().await.expect("Failed to create hive");
 
     // Create multiple agents and tasks to test scalability
     let num_agents = 5;
@@ -226,19 +234,19 @@ async fn test_performance_scalability() {
     // Create agents
     for i in 0..num_agents {
         let config = create_agent_config(
-            &format!("PerfAgent{}", i),
+            &format!("PerfAgent{i}"),
             "worker",
             Some(vec![("performance", 0.7, 0.1)]),
         );
         let agent_result = hive.create_agent(config).await;
-        assert!(agent_result.is_ok(), "Should create agent {}", i);
+        assert!(agent_result.is_ok(), "Should create agent {i}");
     }
 
     // Create tasks
     for i in 0..num_tasks {
-        let config = create_task_config(&format!("PerfTask{}", i), "performance", 1, None);
+        let config = create_task_config(&format!("PerfTask{i}"), "performance", 1, None);
         let task_result = hive.create_task(config).await;
-        assert!(task_result.is_ok(), "Should create task {}", i);
+        assert!(task_result.is_ok(), "Should create task {i}");
     }
 
     // Wait for processing
@@ -266,7 +274,7 @@ async fn test_performance_scalability() {
 }
 
 async fn test_error_handling() {
-    let hive = HiveCoordinator::new().await.unwrap();
+    let hive = HiveCoordinator::new().await.expect("Failed to create hive");
 
     // Test invalid configurations
     let invalid_agent_config = serde_json::json!({
@@ -290,7 +298,7 @@ async fn test_error_handling() {
     );
 
     // Test operations on empty hive
-    let empty_hive = HiveCoordinator::new().await.unwrap();
+    let empty_hive = HiveCoordinator::new().await.expect("Failed to create hive");
     let empty_status = empty_hive.get_status().await;
     assert_eq!(
         empty_status["metrics"]["total_agents"], 0,
@@ -303,14 +311,14 @@ async fn test_error_handling() {
 
     let handle1 = tokio::spawn(async move {
         for i in 0..3 {
-            let config = create_agent_config(&format!("ConcurrentAgent{}", i), "worker", None);
+            let config = create_agent_config(&format!("ConcurrentAgent{i}"), "worker", None);
             let _result = hive_clone1.create_agent(config).await;
         }
     });
 
     let handle2 = tokio::spawn(async move {
         for i in 0..3 {
-            let config = create_task_config(&format!("ConcurrentTask{}", i), "general", 1, None);
+            let config = create_task_config(&format!("ConcurrentTask{i}"), "general", 1, None);
             let _result = hive_clone2.create_task(config).await;
         }
     });
@@ -325,29 +333,29 @@ async fn test_error_handling() {
 /// Performance benchmark test
 #[tokio::test]
 async fn benchmark_system_performance() {
-    let hive = HiveCoordinator::new().await.unwrap();
+    let hive = HiveCoordinator::new().await.expect("Failed to create hive");
 
     let start_time = std::time::Instant::now();
 
     // Create agents
     for i in 0..10 {
-        let config = create_agent_config(&format!("BenchAgent{}", i), "worker", None);
+        let config = create_agent_config(&format!("BenchAgent{i}"), "worker", None);
         let _result = hive.create_agent(config).await.unwrap();
     }
 
     let agent_creation_time = start_time.elapsed();
-    println!("Agent creation time: {:?}", agent_creation_time);
+    println!("Agent creation time: {agent_creation_time:?}");
 
     let task_start = std::time::Instant::now();
 
     // Create tasks
     for i in 0..20 {
-        let config = create_task_config(&format!("BenchTask{}", i), "general", 1, None);
+        let config = create_task_config(&format!("BenchTask{i}"), "general", 1, None);
         let _result = hive.create_task(config).await.unwrap();
     }
 
     let task_creation_time = task_start.elapsed();
-    println!("Task creation time: {:?}", task_creation_time);
+    println!("Task creation time: {task_creation_time:?}");
 
     // Performance assertions
     assert!(
@@ -365,12 +373,12 @@ async fn benchmark_system_performance() {
 /// Memory usage test
 #[tokio::test]
 async fn test_memory_usage() {
-    let hive = HiveCoordinator::new().await.unwrap();
+    let hive = HiveCoordinator::new().await.expect("Failed to create hive");
 
     // Create a moderate number of agents and tasks
     for i in 0..20 {
         let config = create_agent_config(
-            &format!("MemAgent{}", i),
+            &format!("MemAgent{i}"),
             "worker",
             Some(vec![("memory_test", 0.5, 0.1)]),
         );
@@ -378,7 +386,7 @@ async fn test_memory_usage() {
     }
 
     for i in 0..40 {
-        let config = create_task_config(&format!("MemTask{}", i), "memory_test", 1, None);
+        let config = create_task_config(&format!("MemTask{i}"), "memory_test", 1, None);
         let _result = hive.create_task(config).await.unwrap();
     }
 
@@ -394,9 +402,8 @@ async fn test_memory_usage() {
     // Memory usage should be reasonable (less than 90%)
     assert!(
         memory_usage < 90.0,
-        "Memory usage should be reasonable: {}%",
-        memory_usage
+        "Memory usage should be reasonable: {memory_usage}%"
     );
 
-    println!("✅ Memory usage test passed: {}%", memory_usage);
+    println!("✅ Memory usage test passed: {memory_usage}%");
 }

@@ -1,7 +1,7 @@
 //! Comprehensive Persistence System Demo
 //!
 //! Demonstrates the full persistence capabilities including:
-//! - Multiple storage backends (Memory, FileSystem, SQLite)
+//! - Multiple storage backends (Memory, `FileSystem`, `SQLite`)
 //! - Automatic checkpointing
 //! - System state restoration
 //! - Checkpoint management and cleanup
@@ -62,7 +62,7 @@ async fn demo_memory_storage() -> anyhow::Result<()> {
     // Create multiple checkpoints
     for i in 1..=3 {
         let checkpoint_id = persistence
-            .create_checkpoint(&hive, Some(format!("Memory checkpoint {}", i)))
+            .create_checkpoint(&hive, Some(format!("Memory checkpoint {i}")))
             .await?;
         info!("Created checkpoint {}: {}", i, checkpoint_id);
     }
@@ -225,13 +225,13 @@ async fn demo_automatic_checkpointing() -> anyhow::Result<()> {
     info!("Starting automatic checkpointing every 2 seconds...");
     let _checkpoint_handle = tokio::spawn({
         let persistence = persistence.clone();
-        let hive = hive.clone();
+        let hive = Arc::clone(&hive);
         async move {
             let mut interval = tokio::time::interval(Duration::from_secs(2));
             for i in 1..=3 {
                 interval.tick().await;
                 match persistence
-                    .create_checkpoint(&hive, Some(format!("Auto checkpoint {}", i)))
+                    .create_checkpoint(&hive, Some(format!("Auto checkpoint {i}")))
                     .await
                 {
                     Ok(id) => info!("Auto checkpoint {} created: {}", i, id),

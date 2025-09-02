@@ -86,7 +86,7 @@ impl AgentRecoveryManager {
         }
 
         // Reset capabilities if they've been corrupted
-        Self::validate_and_repair_capabilities(agent)?;
+        Self::validate_and_repair_capabilities(agent);
 
         // Validate agent can perform basic operations
         self.validate_agent_health(agent).await?;
@@ -95,7 +95,7 @@ impl AgentRecoveryManager {
         Ok(())
     }
 
-    fn validate_and_repair_capabilities(agent: &mut Agent) -> HiveResult<()> {
+    fn validate_and_repair_capabilities(agent: &mut Agent) {
         // Remove any capabilities with invalid proficiency
         agent.capabilities.retain(|cap| {
             cap.proficiency >= 0.0 && cap.proficiency <= 1.0 && cap.learning_rate >= 0.0
@@ -110,8 +110,6 @@ impl AgentRecoveryManager {
                 learning_rate: 0.1,
             });
         }
-
-        Ok(())
     }
 
     async fn validate_agent_health(&self, agent: &Agent) -> HiveResult<()> {
@@ -172,7 +170,7 @@ impl AgentRecoveryManager {
         Ok(())
     }
 
-    pub fn can_recover(&self, agent: &Agent) -> bool {
+    pub fn can_recover(agent: &Agent) -> bool {
         // Check if agent is in a recoverable state
         match agent.state {
             AgentState::Failed => true,

@@ -112,23 +112,23 @@ impl HiveMCPServer {
         // Register hive-specific tools
         server.register_tool(
             "create_swarm_agent".to_string(),
-            Box::new(CreateSwarmAgentTool::new(server.hive.clone())),
+            Box::new(CreateSwarmAgentTool::new(Arc::clone(&server.hive))),
         );
         server.register_tool(
             "assign_swarm_task".to_string(),
-            Box::new(AssignSwarmTaskTool::new(server.hive.clone())),
+            Box::new(AssignSwarmTaskTool::new(Arc::clone(&server.hive))),
         );
         server.register_tool(
             "get_swarm_status".to_string(),
-            Box::new(GetSwarmStatusTool::new(server.hive.clone())),
+            Box::new(GetSwarmStatusTool::new(Arc::clone(&server.hive))),
         );
         server.register_tool(
             "analyze_with_nlp".to_string(),
-            Box::new(AnalyzeWithNLPTool::new(server.hive.clone())),
+            Box::new(AnalyzeWithNLPTool::new(Arc::clone(&server.hive))),
         );
         server.register_tool(
             "coordinate_agents".to_string(),
-            Box::new(CoordinateAgentsTool::new(server.hive.clone())),
+            Box::new(CoordinateAgentsTool::new(Arc::clone(&server.hive))),
         );
 
         // Register utility tools
@@ -261,7 +261,7 @@ impl HiveMCPServer {
 
         let handler = self.tools.get(tool_name).ok_or_else(|| MCPError {
             code: error_codes::TOOL_NOT_FOUND,
-            message: format!("Tool '{}' not found", tool_name),
+            message: format!("Tool '{tool_name}' not found"),
             data: None,
         })?;
 
@@ -274,7 +274,7 @@ impl HiveMCPServer {
             })),
             Err(e) => Err(MCPError {
                 code: error_codes::INTERNAL_ERROR,
-                message: format!("Tool execution failed: {}", e),
+                message: format!("Tool execution failed: {e}"),
                 data: Some(json!({"tool": tool_name, "error": e.to_string()})),
             }),
         }
@@ -307,33 +307,30 @@ impl HiveMCPServer {
 
         debug!("Reading MCP resource: {}", uri);
 
-        match uri {
-            "hive://status" => {
-                let hive = self.hive.read().await;
-                let status = hive.get_status().await;
-                Ok(json!({
-                    "contents": [{
-                        "uri": uri,
-                        "mimeType": "application/json",
-                        "text": serde_json::to_string_pretty(&status).unwrap_or_else(|_| "{}".to_string())
-                    }]
-                }))
-            }
-            _ => {
-                let resource = self.resources.get(uri).ok_or_else(|| MCPError {
-                    code: error_codes::RESOURCE_NOT_FOUND,
-                    message: format!("Resource '{}' not found", uri),
-                    data: None,
-                })?;
+        if uri == "hive://status" {
+            let hive = self.hive.read().await;
+            let status = hive.get_status().await;
+            Ok(json!({
+                "contents": [{
+                    "uri": uri,
+                    "mimeType": "application/json",
+                    "text": serde_json::to_string_pretty(&status).unwrap_or_else(|_| "{}".to_string())
+                }]
+            }))
+        } else {
+            let resource = self.resources.get(uri).ok_or_else(|| MCPError {
+                code: error_codes::RESOURCE_NOT_FOUND,
+                message: format!("Resource '{uri}' not found"),
+                data: None,
+            })?;
 
-                Ok(json!({
-                    "contents": [{
-                        "uri": resource.uri,
-                        "mimeType": resource.mime_type.as_deref().unwrap_or("text/plain"),
-                        "text": format!("Resource: {}", resource.name)
-                    }]
-                }))
-            }
+            Ok(json!({
+                "contents": [{
+                    "uri": resource.uri,
+                    "mimeType": resource.mime_type.as_deref().unwrap_or("text/plain"),
+                    "text": format!("Resource: {}", resource.name)
+                }]
+            }))
         }
     }
 }
@@ -359,7 +356,6 @@ impl MCPToolHandler for CreateSwarmAgentTool {
             .unwrap_or("Worker");
 
         let _agent_type = match agent_type_str {
-            "Worker" => AgentType::Worker,
             "Coordinator" => AgentType::Coordinator,
             "Learner" => AgentType::Learner,
             "Specialist" => {
@@ -435,7 +431,6 @@ impl MCPToolHandler for AssignSwarmTaskTool {
 
         let _priority = match priority_str {
             "Low" => TaskPriority::Low,
-            "Medium" => TaskPriority::Medium,
             "High" => TaskPriority::High,
             "Critical" => TaskPriority::Critical,
             _ => TaskPriority::Medium,

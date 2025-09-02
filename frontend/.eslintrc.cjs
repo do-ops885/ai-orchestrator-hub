@@ -1,0 +1,90 @@
+module.exports = {
+  extends: [
+    'next',
+  ],
+  parser: '@typescript-eslint/parser',
+  plugins: ['@typescript-eslint', 'react-refresh'],
+  rules: {
+    // TypeScript rules
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-non-null-assertion': 'warn',
+    '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+    '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: true, variables: true, typedefs: false }],
+
+    // General rules
+    'prefer-const': 'error',
+    'no-var': 'error',
+    'no-console': ['warn', { allow: ['warn', 'error'] }],
+    'eqeqeq': ['error', 'always'],
+    'curly': ['error', 'all'],
+    'no-unused-vars': 'off', // Handled by TypeScript
+    'no-undef': 'off',
+    'object-shorthand': 'error',
+    'prefer-template': 'error',
+    'template-curly-spacing': ['error', 'never'],
+    'quotes': ['error', 'single', { avoidEscape: true }],
+    'semi': ['error', 'never'],
+    'comma-dangle': ['error', 'always-multiline'],
+    'indent': ['error', 2, { SwitchCase: 1 }],
+    'linebreak-style': ['error', 'unix'],
+    'no-duplicate-imports': 'error',
+    'no-useless-rename': 'error',
+    'no-useless-computed-key': 'error',
+    'no-useless-constructor': 'error',
+    'prefer-destructuring': ['error', { array: true, object: true }],
+    'no-unreachable': 'error',
+    'no-constant-condition': 'error',
+    'no-dupe-keys': 'error',
+    'no-duplicate-case': 'error',
+    'no-empty': ['error', { allowEmptyCatch: true }],
+    'no-extra-boolean-cast': 'error',
+    'no-func-assign': 'error',
+    'no-invalid-regexp': 'error',
+    'no-irregular-whitespace': 'error',
+    'no-obj-calls': 'error',
+    'no-sparse-arrays': 'error',
+    'no-unexpected-multiline': 'error',
+    'use-isnan': 'error',
+    'valid-typeof': 'error',
+    'react-refresh/only-export-components': 'warn',
+  },
+  overrides: [
+    {
+      files: ['**/*.ts', '**/*.tsx'],
+      parserOptions: {
+        project: true,
+        tsconfigRootDir: __dirname,
+      },
+      rules: {
+        '@typescript-eslint/strict-boolean-expressions': ['error', { allowString: false, allowNumber: false, allowNullableObject: false }],
+      },
+    },
+    {
+      files: ['**/*.test.{js,jsx,ts,tsx}', '**/*.spec.{js,jsx,ts,tsx}'],
+      rules: {
+        'no-console': 'off',
+        '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-non-null-assertion': 'off',
+      },
+    },
+    {
+      files: ['*.config.{js,ts}', '*.config.*.{js,ts}'],
+      rules: {
+        'no-console': 'off',
+        '@typescript-eslint/no-var-requires': 'off',
+        'import/no-anonymous-default-export': 'off',
+      },
+    },
+  ],
+  ignorePatterns: [
+    'node_modules/**',
+    '.next/**',
+    'out/**',
+    'dist/**',
+    'build/**',
+    '.vercel/**',
+    '*.min.js',
+    'coverage/**',
+  ],
+}

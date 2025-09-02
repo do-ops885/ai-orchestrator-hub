@@ -4,17 +4,17 @@
 //! and independently verified by a verification agent. This ensures that results are validated
 //! against original goals rather than just execution criteria.
 
+use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
-use anyhow::Result;
-use tracing::{info, debug, warn, error};
 
 use crate::agents::{Agent, AgentBehavior};
-use crate::tasks::{Task, TaskResult};
 use crate::neural::NLPProcessor;
+use crate::tasks::{Task, TaskResult};
 
 /// Enhanced task structure that includes verification requirements
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,7 +40,7 @@ pub struct SuccessCriterion {
     pub description: String,
     pub measurable_outcome: String,
     pub verification_method: VerificationMethod,
-    pub weight: f64,  // Importance weight (0.0 to 1.0)
+    pub weight: f64,    // Importance weight (0.0 to 1.0)
     pub threshold: f64, // Minimum score to pass this criterion
 }
 
@@ -137,7 +137,7 @@ pub enum VerificationStatus {
 /// Specific discrepancy found during verification
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Discrepancy {
-    pub discrepancy_id: Uuid,
+    pub id: Uuid,
     pub criterion_id: Uuid,
     pub expected: String,
     pub actual: String,
@@ -148,10 +148,10 @@ pub struct Discrepancy {
 /// Severity of a discrepancy
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DiscrepancySeverity {
-    Critical,  // Task fails completely
-    Major,     // Significant issue but task might still be acceptable
-    Minor,     // Small issue that doesn't affect overall success
-    Cosmetic,  // Aesthetic or style issue
+    Critical, // Task fails completely
+    Major,    // Significant issue but task might still be acceptable
+    Minor,    // Small issue that doesn't affect overall success
+    Cosmetic, // Aesthetic or style issue
 }
 
 /// Detailed verification information
@@ -261,7 +261,9 @@ impl PairCoordinator {
     ) -> Result<Uuid> {
         // Ensure agents are different
         if primary_agent == verification_agent {
-            return Err(anyhow::anyhow!("Primary and verification agents must be different"));
+            return Err(anyhow::anyhow!(
+                "Primary and verification agents must be different"
+            ));
         }
 
         let pair_id = Uuid::new_v4();
@@ -278,10 +280,13 @@ impl PairCoordinator {
         };
 
         self.active_pairs.insert(pair_id, pair);
-        self.pair_performance_metrics.insert(pair_id, PairMetrics::default());
+        self.pair_performance_metrics
+            .insert(pair_id, PairMetrics::default());
 
-        info!("Created agent pair {} with primary {} and verifier {}", 
-              pair_id, primary_agent, verification_agent);
+        info!(
+            "Created agent pair {} with primary {} and verifier {}",
+            pair_id, primary_agent, verification_agent
+        );
 
         Ok(pair_id)
     }
@@ -297,26 +302,28 @@ impl PairCoordinator {
 
         for (pair_id, pair) in &self.active_pairs {
             // Check if both agents are available and capable
-            let primary_agent = available_agents.iter()
-                .find(|a| a.id == pair.primary_agent);
-            let verification_agent = available_agents.iter()
+            let primary_agent = available_agents.iter().find(|a| a.id == pair.primary_agent);
+            let verification_agent = available_agents
+                .iter()
                 .find(|a| a.id == pair.verification_agent);
 
             if let (Some(primary), Some(verifier)) = (primary_agent, verification_agent) {
                 // Calculate suitability score
                 let primary_fitness = primary.calculate_task_fitness(&task.base_task);
-                let verifier_capability = self.calculate_verification_capability(verifier, task);
+                let verifier_capability =
+                    PairCoordinator::calculate_verification_capability(verifier, task);
                 let pair_trust = pair.trust_score;
-                let specialization_match = if task.base_task.task_type.contains(&pair.specialization) {
-                    0.2
-                } else {
-                    0.0
-                };
+                let specialization_match =
+                    if task.base_task.task_type.contains(&pair.specialization) {
+                        0.2
+                    } else {
+                        0.0
+                    };
 
-                let total_score = primary_fitness * 0.4 + 
-                                verifier_capability * 0.3 + 
-                                pair_trust * 0.2 + 
-                                specialization_match;
+                let total_score = primary_fitness * 0.4
+                    + verifier_capability * 0.3
+                    + pair_trust * 0.2
+                    + specialization_match;
 
                 if total_score > best_score {
                     best_score = total_score;
@@ -329,14 +336,19 @@ impl PairCoordinator {
     }
 
     /// Calculate an agent's capability for verification tasks
-    fn calculate_verification_capability(&self, agent: &Agent, task: &VerifiableTask) -> f64 {
+    fn calculate_verification_capability(agent: &Agent, task: &VerifiableTask) -> f64 {
         let mut score = 0.0;
 
         // Base capability from agent's general proficiency
-        let avg_proficiency = if !agent.capabilities.is_empty() {
-            agent.capabilities.iter().map(|c| c.proficiency).sum::<f64>() / agent.capabilities.len() as f64
-        } else {
+        let avg_proficiency = if agent.capabilities.is_empty() {
             0.5
+        } else {
+            agent
+                .capabilities
+                .iter()
+                .map(|c| c.proficiency)
+                .sum::<f64>()
+                / agent.capabilities.len() as f64
         };
         score += avg_proficiency * 0.4;
 
@@ -377,18 +389,20 @@ impl PairCoordinator {
             }
 
             // Update running averages
-            let task_count = metrics.total_tasks as f64;
-            metrics.average_verification_time = 
-                (metrics.average_verification_time * (task_count - 1.0) + 
-                 verification_duration.num_milliseconds() as f64) / task_count;
+            let task_count = f64::from(metrics.total_tasks);
+            metrics.average_verification_time = (metrics.average_verification_time
+                * (task_count - 1.0)
+                + verification_duration.num_milliseconds() as f64)
+                / task_count;
 
-            metrics.average_confidence = 
-                (metrics.average_confidence * (task_count - 1.0) + 
-                 verification_result.verification_confidence) / task_count;
+            metrics.average_confidence = (metrics.average_confidence * (task_count - 1.0)
+                + verification_result.verification_confidence)
+                / task_count;
 
             // Update trust score for the pair
             if let Some(pair) = self.active_pairs.get_mut(&pair_id) {
-                let success_rate = metrics.successful_verifications as f64 / metrics.total_tasks as f64;
+                let success_rate =
+                    f64::from(metrics.successful_verifications) / f64::from(metrics.total_tasks);
                 pair.trust_score = (pair.trust_score * 0.8) + (success_rate * 0.2);
                 pair.last_used = Utc::now();
                 pair.verification_history.push(verification_result.clone());
@@ -399,8 +413,12 @@ impl PairCoordinator {
                 }
             }
 
-            debug!("Updated metrics for pair {}: success rate {:.2}%", 
-                   pair_id, (metrics.successful_verifications as f64 / metrics.total_tasks as f64) * 100.0);
+            debug!(
+                "Updated metrics for pair {}: success rate {:.2}%",
+                pair_id,
+                (f64::from(metrics.successful_verifications) / f64::from(metrics.total_tasks))
+                    * 100.0
+            );
         }
 
         Ok(())
@@ -412,7 +430,10 @@ impl PairCoordinator {
     }
 
     /// Remove underperforming pairs
-    pub async fn cleanup_underperforming_pairs(&mut self, min_trust_threshold: f64) -> Result<usize> {
+    pub async fn cleanup_underperforming_pairs(
+        &mut self,
+        min_trust_threshold: f64,
+    ) -> Result<usize> {
         let mut removed_count = 0;
         let mut pairs_to_remove = Vec::new();
 
@@ -475,7 +496,7 @@ impl VerifiableTask {
         criteria.push(SuccessCriterion {
             criterion_id: Uuid::new_v4(),
             description: "Goal alignment".to_string(),
-            measurable_outcome: format!("Result aligns with original goal: {}", original_goal),
+            measurable_outcome: format!("Result aligns with original goal: {original_goal}"),
             verification_method: VerificationMethod::GoalAlignment,
             weight: 0.5,
             threshold: 0.7,
@@ -543,7 +564,11 @@ impl VerifiableTask {
         }
 
         // Check if required methods were used
-        if self.verification_requirements.required_methods.contains(&result.method_used) {
+        if self
+            .verification_requirements
+            .required_methods
+            .contains(&result.method_used)
+        {
             return true;
         }
 
@@ -605,8 +630,10 @@ impl VerifiedTaskResult {
         execution_result: crate::tasks::TaskResult,
         verification_result: VerificationResult,
     ) -> Self {
-        let overall_status = Self::determine_overall_status(&execution_result, &verification_result);
-        let final_confidence = Self::calculate_final_confidence(&execution_result, &verification_result);
+        let overall_status =
+            Self::determine_overall_status(&execution_result, &verification_result);
+        let final_confidence =
+            Self::calculate_final_confidence(&execution_result, &verification_result);
         let meets_requirements = Self::check_requirements(&execution_result, &verification_result);
 
         Self {
@@ -629,11 +656,12 @@ impl VerifiedTaskResult {
 
         match verification_result.verification_status {
             VerificationStatus::Verified => OverallTaskStatus::FullyVerified,
-            VerificationStatus::PartiallyVerified => OverallTaskStatus::ExecutedButUnverified,
+            VerificationStatus::PartiallyVerified | VerificationStatus::Inconclusive => {
+                OverallTaskStatus::ExecutedButUnverified
+            }
             VerificationStatus::Failed => OverallTaskStatus::VerificationFailed,
             VerificationStatus::RequiresReview => OverallTaskStatus::RequiresReview,
             VerificationStatus::VerificationError => OverallTaskStatus::VerificationError,
-            VerificationStatus::Inconclusive => OverallTaskStatus::ExecutedButUnverified,
         }
     }
 
@@ -648,15 +676,18 @@ impl VerifiedTaskResult {
         };
 
         // Combine execution and verification confidence
-        (execution_confidence * 0.4 + verification_result.verification_confidence * 0.6).clamp(0.0, 1.0)
+        (execution_confidence * 0.4 + verification_result.verification_confidence * 0.6)
+            .clamp(0.0, 1.0)
     }
 
     fn check_requirements(
         execution_result: &crate::tasks::TaskResult,
         verification_result: &VerificationResult,
     ) -> bool {
-        execution_result.success && 
-        matches!(verification_result.verification_status, 
-                VerificationStatus::Verified | VerificationStatus::PartiallyVerified)
+        execution_result.success
+            && matches!(
+                verification_result.verification_status,
+                VerificationStatus::Verified | VerificationStatus::PartiallyVerified
+            )
     }
 }

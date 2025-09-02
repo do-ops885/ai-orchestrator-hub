@@ -183,7 +183,7 @@ impl SimpleVerificationSystem {
         let start_time = std::time::Instant::now();
 
         // Determine verification tier based on task priority and type
-        let tier = self.determine_verification_tier(task, result);
+        let tier = SimpleVerificationSystem::determine_verification_tier(task, result);
 
         let verification_result = match tier {
             VerificationTier::Quick => self.quick_verification(task, result, original_goal).await?,
@@ -215,7 +215,7 @@ impl SimpleVerificationSystem {
     }
 
     /// Determine appropriate verification tier
-    fn determine_verification_tier(&self, task: &Task, result: &TaskResult) -> VerificationTier {
+    fn determine_verification_tier(task: &Task, result: &TaskResult) -> VerificationTier {
         // Critical tasks always get thorough verification
         if matches!(task.priority, crate::tasks::TaskPriority::Critical) {
             return VerificationTier::Thorough;
@@ -261,16 +261,28 @@ impl SimpleVerificationSystem {
 
             let score = match &rule.rule_type {
                 RuleType::LengthCheck { min, max } => {
-                    self.check_length(&result.output, *min, *max, &mut issues)
+                    SimpleVerificationSystem::check_length(&result.output, *min, *max, &mut issues)
                 }
                 RuleType::RegexPattern { pattern } => {
-                    self.check_regex_pattern(&result.output, pattern, &mut issues)
+                    SimpleVerificationSystem::check_regex_pattern(
+                        &result.output,
+                        pattern,
+                        &mut issues,
+                    )
                 }
                 RuleType::KeywordPresence { keywords } => {
-                    self.check_keyword_presence(&result.output, keywords, &mut issues)
+                    SimpleVerificationSystem::check_keyword_presence(
+                        &result.output,
+                        keywords,
+                        &mut issues,
+                    )
                 }
                 RuleType::KeywordAbsence { forbidden_words } => {
-                    self.check_keyword_absence(&result.output, forbidden_words, &mut issues)
+                    SimpleVerificationSystem::check_keyword_absence(
+                        &result.output,
+                        forbidden_words,
+                        &mut issues,
+                    )
                 }
                 _ => 1.0, // Skip complex rules in quick mode
             };
@@ -285,7 +297,8 @@ impl SimpleVerificationSystem {
             1.0
         };
 
-        let format_compliance_score = self.calculate_weighted_score(&scores, &rules);
+        let format_compliance_score =
+            SimpleVerificationSystem::calculate_weighted_score(&scores, &rules);
         let overall_score = goal_alignment_score * 0.6 + format_compliance_score * 0.4;
 
         Ok(SimpleVerificationResult {
@@ -334,19 +347,35 @@ impl SimpleVerificationSystem {
                         .await
                 }
                 RuleType::StructureCheck { expected_sections } => {
-                    self.structure_check(&result.output, expected_sections, &mut issues)
+                    SimpleVerificationSystem::structure_check(
+                        &result.output,
+                        expected_sections,
+                        &mut issues,
+                    )
                 }
                 RuleType::LengthCheck { min, max } => {
-                    self.check_length(&result.output, *min, *max, &mut issues)
+                    SimpleVerificationSystem::check_length(&result.output, *min, *max, &mut issues)
                 }
                 RuleType::RegexPattern { pattern } => {
-                    self.check_regex_pattern(&result.output, pattern, &mut issues)
+                    SimpleVerificationSystem::check_regex_pattern(
+                        &result.output,
+                        pattern,
+                        &mut issues,
+                    )
                 }
                 RuleType::KeywordPresence { keywords } => {
-                    self.check_keyword_presence(&result.output, keywords, &mut issues)
+                    SimpleVerificationSystem::check_keyword_presence(
+                        &result.output,
+                        keywords,
+                        &mut issues,
+                    )
                 }
                 RuleType::KeywordAbsence { forbidden_words } => {
-                    self.check_keyword_absence(&result.output, forbidden_words, &mut issues)
+                    SimpleVerificationSystem::check_keyword_absence(
+                        &result.output,
+                        forbidden_words,
+                        &mut issues,
+                    )
                 }
             };
 
@@ -354,7 +383,8 @@ impl SimpleVerificationSystem {
         }
 
         let goal_alignment_score = scores.get("goal_alignment").copied().unwrap_or(1.0);
-        let format_compliance_score = self.calculate_weighted_score(&scores, &rules);
+        let format_compliance_score =
+            SimpleVerificationSystem::calculate_weighted_score(&scores, &rules);
         let overall_score = goal_alignment_score * 0.6 + format_compliance_score * 0.4;
 
         Ok(SimpleVerificationResult {
@@ -519,7 +549,7 @@ impl SimpleVerificationSystem {
                 } else {
                     IssueSeverity::Minor
                 },
-                 description: format!("Low semantic similarity to goal: {similarity:.2}"),
+                description: format!("Low semantic similarity to goal: {similarity:.2}"),
                 suggestion: Some(
                     "Consider aligning output more closely with the original goal".to_string(),
                 ),
@@ -543,7 +573,7 @@ impl SimpleVerificationSystem {
             issues.push(VerificationIssue {
                 issue_type: IssueType::QualityIssue,
                 severity: IssueSeverity::Minor,
-                 description: format!(
+                description: format!(
                     "Sentiment score {sentiment:.2} below threshold {min_sentiment:.2}"
                 ),
                 suggestion: Some("Consider using more positive language".to_string()),
@@ -556,7 +586,6 @@ impl SimpleVerificationSystem {
 
     /// Structure check for expected sections
     fn structure_check(
-        &self,
         output: &str,
         expected_sections: &[String],
         issues: &mut Vec<VerificationIssue>,
@@ -570,7 +599,7 @@ impl SimpleVerificationSystem {
             }
         }
 
-        let score = found_sections as f64 / expected_sections.len() as f64;
+        let score = f64::from(found_sections) / expected_sections.len() as f64;
 
         if score < 1.0 {
             let missing_sections: Vec<String> = expected_sections
@@ -586,7 +615,7 @@ impl SimpleVerificationSystem {
                 } else {
                     IssueSeverity::Minor
                 },
-                 description: format!("Missing expected sections: {}", missing_sections.join(", ")),
+                description: format!("Missing expected sections: {}", missing_sections.join(", ")),
                 suggestion: Some("Include all required sections in the output".to_string()),
             });
         }
@@ -596,7 +625,6 @@ impl SimpleVerificationSystem {
 
     /// Length check
     fn check_length(
-        &self,
         output: &str,
         min: usize,
         max: usize,
@@ -608,7 +636,7 @@ impl SimpleVerificationSystem {
             issues.push(VerificationIssue {
                 issue_type: IssueType::LengthIssue,
                 severity: IssueSeverity::Major,
-                 description: format!("Output too short: {length} chars (min: {min})"),
+                description: format!("Output too short: {length} chars (min: {min})"),
                 suggestion: Some("Provide more detailed output".to_string()),
             });
             0.0
@@ -616,7 +644,7 @@ impl SimpleVerificationSystem {
             issues.push(VerificationIssue {
                 issue_type: IssueType::LengthIssue,
                 severity: IssueSeverity::Minor,
-                 description: format!("Output too long: {length} chars (max: {max})"),
+                description: format!("Output too long: {length} chars (max: {max})"),
                 suggestion: Some("Consider making output more concise".to_string()),
             });
             0.7
@@ -627,35 +655,30 @@ impl SimpleVerificationSystem {
 
     /// Regex pattern check
     fn check_regex_pattern(
-        &self,
         output: &str,
         pattern: &str,
         issues: &mut Vec<VerificationIssue>,
     ) -> f64 {
-        match regex::Regex::new(pattern) {
-            Ok(re) => {
-                if re.is_match(output) {
-                    1.0
-                } else {
-                    issues.push(VerificationIssue {
-                        issue_type: IssueType::FormatError,
-                        severity: IssueSeverity::Major,
-                         description: format!("Output does not match required pattern: {pattern}"),
-                        suggestion: Some("Ensure output follows the required format".to_string()),
-                    });
-                    0.0
-                }
+        if let Ok(re) = regex::Regex::new(pattern) {
+            if re.is_match(output) {
+                1.0
+            } else {
+                issues.push(VerificationIssue {
+                    issue_type: IssueType::FormatError,
+                    severity: IssueSeverity::Major,
+                    description: format!("Output does not match required pattern: {pattern}"),
+                    suggestion: Some("Ensure output follows the required format".to_string()),
+                });
+                0.0
             }
-            Err(_) => {
-                warn!("Invalid regex pattern: {pattern}");
-                1.0 // Don't penalize for invalid patterns
-            }
+        } else {
+            warn!("Invalid regex pattern: {pattern}");
+            1.0 // Don't penalize for invalid patterns
         }
     }
 
     /// Keyword presence check
     fn check_keyword_presence(
-        &self,
         output: &str,
         keywords: &[String],
         issues: &mut Vec<VerificationIssue>,
@@ -669,7 +692,7 @@ impl SimpleVerificationSystem {
             }
         }
 
-        let score = found_keywords as f64 / keywords.len() as f64;
+        let score = f64::from(found_keywords) / keywords.len() as f64;
 
         if score < 1.0 {
             let missing_keywords: Vec<String> = keywords
@@ -685,7 +708,7 @@ impl SimpleVerificationSystem {
                 } else {
                     IssueSeverity::Minor
                 },
-                 description: format!("Missing required keywords: {}", missing_keywords.join(", ")),
+                description: format!("Missing required keywords: {}", missing_keywords.join(", ")),
                 suggestion: Some("Include all required keywords in the output".to_string()),
             });
         }
@@ -695,7 +718,6 @@ impl SimpleVerificationSystem {
 
     /// Keyword absence check (forbidden words)
     fn check_keyword_absence(
-        &self,
         output: &str,
         forbidden_words: &[String],
         issues: &mut Vec<VerificationIssue>,
@@ -709,25 +731,21 @@ impl SimpleVerificationSystem {
             }
         }
 
-        if !found_forbidden.is_empty() {
+        if found_forbidden.is_empty() {
+            1.0
+        } else {
             issues.push(VerificationIssue {
                 issue_type: IssueType::QualityIssue,
                 severity: IssueSeverity::Major,
-                 description: format!("Contains forbidden words: {}", found_forbidden.join(", ")),
+                description: format!("Contains forbidden words: {}", found_forbidden.join(", ")),
                 suggestion: Some("Remove inappropriate or forbidden content".to_string()),
             });
             0.0
-        } else {
-            1.0
         }
     }
 
     /// Calculate weighted score from rule results
-    fn calculate_weighted_score(
-        &self,
-        scores: &HashMap<String, f64>,
-        rules: &[VerificationRule],
-    ) -> f64 {
+    fn calculate_weighted_score(scores: &HashMap<String, f64>, rules: &[VerificationRule]) -> f64 {
         let mut total_weight = 0.0;
         let mut weighted_sum = 0.0;
 
@@ -759,13 +777,11 @@ impl SimpleVerificationSystem {
             .filter(|i| matches!(i.severity, IssueSeverity::Major))
             .count();
 
-        if critical_issues {
+        if critical_issues || overall_score < 0.5 || major_issues > 2 {
             SimpleVerificationStatus::Failed
-        } else if overall_score < 0.5 || major_issues > 2 {
-            SimpleVerificationStatus::Failed
-        } else if overall_score < self.confidence_threshold || major_issues > 0 {
-            SimpleVerificationStatus::PassedWithIssues
-        } else if overall_score < 0.9 && !issues.is_empty() {
+        } else if (overall_score < self.confidence_threshold || major_issues > 0)
+            || (overall_score < 0.9 && !issues.is_empty())
+        {
             SimpleVerificationStatus::PassedWithIssues
         } else {
             SimpleVerificationStatus::Passed

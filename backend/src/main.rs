@@ -35,8 +35,8 @@ use crate::core::{HiveCoordinator, SwarmIntelligenceEngine};
 use crate::infrastructure::metrics::{AgentMetrics, AlertLevel, MetricThresholds, TaskMetrics};
 use crate::infrastructure::middleware::security_headers_middleware;
 use crate::infrastructure::performance_optimizer::{PerformanceConfig, PerformanceOptimizer};
-use crate::infrastructure::{CircuitBreaker, MetricsCollector, PersistenceManager, StorageBackend};
 use crate::infrastructure::persistence::PersistenceConfig;
+use crate::infrastructure::{CircuitBreaker, MetricsCollector, PersistenceManager, StorageBackend};
 use crate::neural::AdaptiveLearningSystem;
 use crate::utils::config::HiveConfig;
 use crate::utils::error::ResultExt;
@@ -202,7 +202,7 @@ async fn main() -> anyhow::Result<()> {
     let persistence_manager = Arc::new(
         PersistenceManager::new(persistence_config)
             .await
-            .expect("Failed to initialize persistence manager")
+            .expect("Failed to initialize persistence manager"),
     );
     info!("✅ Persistence manager initialized with SQLite backend");
 

@@ -304,12 +304,9 @@ impl AutoScalingSystem {
                 policy_id: policy.policy_id,
                 trigger_reason: format!("Policy '{}' conditions met", policy.name),
                 action_taken: policy.scaling_action.clone(),
-                agents_affected: scaling_result
-                    .as_ref()
-                    .map(|r| r.clone())
-                    .unwrap_or_default(),
+                agents_affected: scaling_result.as_ref().cloned().unwrap_or_default(),
                 success: scaling_result.is_ok(),
-                error_message: scaling_result.as_ref().err().map(|e| e.to_string()),
+                error_message: scaling_result.as_ref().err().map(ToString::to_string),
                 metrics_before: current_metrics.clone(),
                 metrics_after: None, // Will be updated after action completes
             };
@@ -719,13 +716,13 @@ impl Default for AutoScalingConfig {
     }
 }
 
-impl ToString for AgentType {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for AgentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AgentType::Worker => "worker".to_string(),
-            AgentType::Coordinator => "coordinator".to_string(),
-            AgentType::Learner => "learner".to_string(),
-            AgentType::Specialist(spec) => format!("specialist:{}", spec),
+            AgentType::Worker => write!(f, "worker"),
+            AgentType::Coordinator => write!(f, "coordinator"),
+            AgentType::Learner => write!(f, "learner"),
+            AgentType::Specialist(spec) => write!(f, "specialist:{spec}"),
         }
     }
 }

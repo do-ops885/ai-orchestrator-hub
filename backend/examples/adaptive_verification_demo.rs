@@ -47,7 +47,7 @@ async fn main() -> Result<()> {
     ));
 
     // Create base verification system
-    let base_verification = SimpleVerificationSystem::new(nlp_processor.clone());
+    let base_verification = SimpleVerificationSystem::new(Arc::clone(&nlp_processor));
 
     // Create adaptive verification system with custom configuration
     let adaptation_config = AdaptationConfig {
@@ -60,7 +60,7 @@ async fn main() -> Result<()> {
 
     let mut adaptive_verification = AdaptiveVerificationSystem::new(
         base_verification,
-        learning_system.clone(),
+        Arc::clone(&learning_system),
         adaptation_config,
     )
     .await;

@@ -138,6 +138,7 @@ pub struct Experience {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_field_names)]
 pub struct Agent {
     pub id: Uuid,
     pub name: String,
@@ -221,13 +222,13 @@ impl Agent {
 
     #[must_use]
     pub fn can_perform_task(&self, task: &Task) -> bool {
-        if !task.required_capabilities.is_empty() {
+        if task.required_capabilities.is_empty() {
+            true
+        } else {
             let required = &task.required_capabilities;
             required.iter().all(|req_cap| {
                 self.get_capability_score(&req_cap.name) >= req_cap.minimum_proficiency
             })
-        } else {
-            true
         }
     }
 
@@ -348,8 +349,10 @@ impl AgentBehavior for Agent {
 
         for experience in recent_experiences {
             if let Some(insight) = &experience.learned_insight {
-                let tokens: Vec<String> =
-                    insight.split_whitespace().map(|s| s.to_string()).collect();
+                let tokens: Vec<String> = insight
+                    .split_whitespace()
+                    .map(ToString::to_string)
+                    .collect();
                 let sentiment = nlp_processor.analyze_sentiment(&tokens);
                 let pattern_key = format!(
                     "{}_{}",

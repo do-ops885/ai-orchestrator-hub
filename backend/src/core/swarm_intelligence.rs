@@ -299,7 +299,7 @@ impl SwarmIntelligenceEngine {
         let mut agent_types_used = std::collections::HashSet::new();
 
         // Prioritize diversity in agent types
-        for agent in agents.iter() {
+        for agent in agents {
             let type_key = std::mem::discriminant(&agent.agent_type);
             if !agent_types_used.contains(&type_key) || selected.len() < 3 {
                 selected.push(agent.id);
@@ -335,6 +335,7 @@ impl SwarmIntelligenceEngine {
         Ok(selected)
     }
 
+    #[allow(clippy::unused_self)]
     fn agent_can_handle_task(&self, agent: &Agent, task: &Task) -> bool {
         // Check if agent has required capabilities
         task.required_capabilities.iter().all(|req_cap| {
@@ -360,8 +361,7 @@ impl SwarmIntelligenceEngine {
                     .capabilities
                     .iter()
                     .find(|cap| cap.name == req_cap.name)
-                    .map(|cap| cap.proficiency)
-                    .unwrap_or(0.0)
+                    .map_or(0.0, |cap| cap.proficiency)
             })
             .sum();
 
@@ -378,6 +378,7 @@ impl SwarmIntelligenceEngine {
         score
     }
 
+    #[allow(clippy::unused_self)]
     fn calculate_coordination_score(&self, agent: &Agent) -> f64 {
         let mut score = 0.0;
 
@@ -409,7 +410,7 @@ impl SwarmIntelligenceEngine {
         let history = self
             .agent_performance_history
             .entry(agent_id)
-            .or_insert_with(Vec::new);
+            .or_default();
         history.push(performance);
 
         // Keep only recent performance records

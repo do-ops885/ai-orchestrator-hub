@@ -50,7 +50,7 @@ pub async fn logging_middleware(
     let status = response.status();
 
     // Record metrics
-    if let Err(e) = record_request_metrics(&metrics, &method.to_string(), status, duration).await {
+    if let Err(e) = record_request_metrics(&metrics, method.as_ref(), status, duration).await {
         warn!("Failed to record request metrics: {}", e);
     }
 

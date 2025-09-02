@@ -64,6 +64,7 @@ pub struct AgentMetrics {
     pub failed_agents: usize,
     pub average_agent_performance: f64,
     pub agent_utilization_percent: f64,
+    #[allow(clippy::struct_field_names)]
     pub individual_agent_metrics: HashMap<uuid::Uuid, IndividualAgentMetrics>,
 }
 
@@ -292,13 +293,13 @@ impl MetricsCollector {
             alerts.push(Alert::new(
                 AlertLevel::Critical,
                 "High task failure rate".to_string(),
-                format!("Task failure rate: {:.1}%", failure_rate),
+                format!("Task failure rate: {failure_rate:.1}%"),
             ));
         } else if failure_rate >= self.alert_thresholds.task_failure_rate_warning {
             alerts.push(Alert::new(
                 AlertLevel::Warning,
                 "Elevated task failure rate".to_string(),
-                format!("Task failure rate: {:.1}%", failure_rate),
+                format!("Task failure rate: {failure_rate:.1}%"),
             ));
         }
 
@@ -314,13 +315,13 @@ impl MetricsCollector {
             alerts.push(Alert::new(
                 AlertLevel::Critical,
                 "High agent failure rate".to_string(),
-                format!("Agent failure rate: {:.1}%", agent_failure_rate),
+                format!("Agent failure rate: {agent_failure_rate:.1}%"),
             ));
         } else if agent_failure_rate >= self.alert_thresholds.agent_failure_rate_warning {
             alerts.push(Alert::new(
                 AlertLevel::Warning,
                 "Elevated agent failure rate".to_string(),
-                format!("Agent failure rate: {:.1}%", agent_failure_rate),
+                format!("Agent failure rate: {agent_failure_rate:.1}%"),
             ));
         }
 
@@ -482,6 +483,7 @@ impl AnomalyDetector {
         }
     }
 
+    #[allow(clippy::unused_self)]
     pub fn detect(&self, _history: &[SystemMetrics]) -> Vec<Anomaly> {
         // Simplified anomaly detection
         vec![]
@@ -518,6 +520,7 @@ impl Default for SystemForecast {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Anomaly {
     pub timestamp: DateTime<Utc>,
+    #[allow(clippy::struct_field_names)]
     pub anomaly_type: AnomalyType,
     pub severity: AnomalySeverity,
     pub description: String,
@@ -541,6 +544,7 @@ pub enum AnomalySeverity {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_field_names)]
 pub struct MetricsTrends {
     pub cpu_trend: TrendDirection,
     pub memory_trend: TrendDirection,

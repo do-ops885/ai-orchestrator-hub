@@ -646,7 +646,7 @@ impl HiveCoordinator {
             let mut best_agent_id = None;
             let mut best_fitness = 0.0;
 
-            for agent_ref in agents.iter() {
+            for agent_ref in agents {
                 let agent = agent_ref.value();
                 if agent.can_perform_task(&task) {
                     let fitness = agent.calculate_task_fitness(&task);
@@ -722,7 +722,7 @@ impl HiveCoordinator {
 
                         // Execute task asynchronously
                         let agents_map2 = agents.clone();
-                        let queue_clone = self.work_stealing_queue.clone();
+                        let queue_clone = Arc::clone(&self.work_stealing_queue);
                         tokio::spawn(async move {
                             let mut agent_exec = agent;
                             let start_time = std::time::Instant::now();
@@ -809,7 +809,7 @@ impl HiveCoordinator {
             return Ok(());
         }
 
-        for agent_ref in agents.iter() {
+        for agent_ref in agents {
             let agent = agent_ref.value();
             center_x += agent.position.0;
             center_y += agent.position.1;
@@ -863,18 +863,18 @@ impl HiveCoordinator {
             })
             .sum();
 
-        metrics_guard.average_performance = if agents.len() > 0 {
-            total_performance / agents.len() as f64
-        } else {
+        metrics_guard.average_performance = if agents.is_empty() {
             0.0
+        } else {
+            total_performance / agents.len() as f64
         };
 
         // Calculate swarm cohesion (how close agents are to each other)
         let mut total_distance = 0.0;
         let mut distance_count = 0;
 
-        for agent1 in agents.iter() {
-            for agent2 in agents.iter() {
+        for agent1 in agents {
+            for agent2 in agents {
                 if agent1.key() != agent2.key() {
                     let dist = ((agent1.value().position.0 - agent2.value().position.0).powi(2)
                         + (agent1.value().position.1 - agent2.value().position.1).powi(2))
@@ -886,7 +886,7 @@ impl HiveCoordinator {
         }
 
         metrics_guard.swarm_cohesion = if distance_count > 0 {
-            1.0 / (1.0 + total_distance / distance_count as f64 / 100.0) // Normalize
+            1.0 / (1.0 + total_distance / f64::from(distance_count) / 100.0) // Normalize
         } else {
             1.0
         };
@@ -1013,17 +1013,22 @@ impl HiveCoordinator {
         original_goal: Option<&str>,
     ) -> anyhow::Result<(crate::tasks::TaskResult, SimpleVerificationResult)> {
         // Find and execute the task
-        let mut task_queue = self.task_queue.write().await;
-        let task = task_queue
-            .pending_tasks
-            .iter()
-            .find(|t| t.id == task_id)
-            .ok_or_else(|| anyhow::anyhow!("Task {} not found", task_id))?
-            .clone();
+        let task = if let Some(task) = self.work_stealing_queue.get_task_by_id(task_id).await {
+            task
+        } else {
+            let mut task_queue = self.task_queue.write().await;
+            let task = task_queue
+                .pending_tasks
+                .iter()
+                .find(|t| t.id == task_id)
+                .ok_or_else(|| anyhow::anyhow!("Task {} not found", task_id))?
+                .clone();
 
-        // Remove from pending queue
-        task_queue.pending_tasks.retain(|t| t.id != task_id);
-        drop(task_queue);
+            // Remove from pending queue
+            task_queue.pending_tasks.retain(|t| t.id != task_id);
+            drop(task_queue);
+            task
+        };
 
         // Find best agent for the task
         let mut best_agent_id = None;
@@ -1101,7 +1106,7 @@ impl HiveCoordinator {
         config: serde_json::Value,
     ) -> anyhow::Result<()> {
         // Configure confidence threshold
-        if let Some(threshold) = config.get("confidence_threshold").and_then(|v| v.as_f64()) {
+        if let Some(threshold) = config.get("confidence_threshold").and_then(serde_json::Value::as_f64) {
             // Note: This would require making simple_verification mutable
             // For now, we'll log the configuration request
             tracing::info!(

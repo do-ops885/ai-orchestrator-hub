@@ -12,7 +12,10 @@ pub mod resource_manager;
 pub mod security_middleware;
 pub mod telemetry;
 
-pub use benchmarks::{BenchmarkSuite, PerformanceMonitor as BenchmarkPerformanceMonitor, create_default_benchmark_suite};
+pub use benchmarks::{
+    create_default_benchmark_suite, BenchmarkSuite,
+    PerformanceMonitor as BenchmarkPerformanceMonitor,
+};
 pub use cache::*;
 pub use circuit_breaker::*;
 pub use intelligent_alerting::*;

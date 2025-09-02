@@ -62,8 +62,8 @@ impl Default for AdaptationConfig {
 /// Historical threshold data for learning
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThresholdHistory {
-    pub confidence_threshold_history: Vec<ThresholdEntry>,
-    pub rule_threshold_history: HashMap<String, Vec<ThresholdEntry>>,
+    pub confidence_thresholds: Vec<ThresholdEntry>,
+    pub rule_thresholds: HashMap<String, Vec<ThresholdEntry>>,
     pub last_adaptation: DateTime<Utc>,
     pub adaptation_count: u32,
 }
@@ -500,7 +500,7 @@ impl AdaptiveVerificationSystem {
             // Record the adaptation
             let mut history = self.threshold_history.write().await;
 
-            history.confidence_threshold_history.push(ThresholdEntry {
+            history.confidence_thresholds.push(ThresholdEntry {
                 timestamp: Utc::now(),
                 threshold_value: recommendation.confidence_threshold,
                 performance_score: recommendation.expected_performance_improvement,
@@ -529,6 +529,7 @@ impl AdaptiveVerificationSystem {
     }
 
     /// Helper methods
+    #[allow(clippy::unused_self)]
     fn get_recent_outcomes<'a>(
         &self,
         performance: &'a PerformanceTracker,
@@ -584,6 +585,7 @@ impl AdaptiveVerificationSystem {
             .await
     }
 
+    #[allow(clippy::unused_self)]
     fn calculate_recommendation_confidence(
         &self,
         sample_count: usize,
@@ -595,6 +597,7 @@ impl AdaptiveVerificationSystem {
         f64::midpoint(sample_confidence, improvement_confidence)
     }
 
+    #[allow(clippy::unused_self)]
     fn calculate_outcome_score(
         &self,
         verification_result: &SimpleVerificationResult,
@@ -646,8 +649,8 @@ impl AdaptiveVerificationSystem {
 impl ThresholdHistory {
     fn new() -> Self {
         Self {
-            confidence_threshold_history: Vec::new(),
-            rule_threshold_history: HashMap::new(),
+            confidence_thresholds: Vec::new(),
+            rule_thresholds: HashMap::new(),
             last_adaptation: Utc::now() - Duration::hours(24), // Allow immediate first adaptation
             adaptation_count: 0,
         }
