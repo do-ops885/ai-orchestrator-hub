@@ -9,17 +9,14 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "lint:check": "eslint . --max-warnings 0"
+    "lint:check": "eslint . --max-warnings 0",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.1",
-    "ai": "^3.4.33",
-    "next": "^15.4.7",
-    "react": "^19.1.1",
-    "react-dom": "^18.3.1",
-
     "@ai-sdk/openai": "^2.0.5",
-
     "@types/node": "^22.9.0",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^18.3.1",
@@ -29,7 +26,7 @@
     "lucide-react": "^0.454.0",
     "next": "^15.5.2",
     "postcss": "^8.4.47",
-    "react": "^18.3.1",
+    "react": "^19.1.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.12.7",
     "tailwindcss": "^4.1.12",
@@ -39,11 +36,22 @@
   },
   "devDependencies": {
     "@eslint/js": "^8.57.0",
+    "@testing-library/jest-dom": "^6.1.4",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^18.3.1",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.41.0",
+    "@vitest/coverage-v8": "^1.0.4",
+    "@vitest/ui": "^1.0.4",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",
     "eslint-plugin-react-hooks": "^5.0.0",
-    "eslint-plugin-react-refresh": "^0.4.14"
+    "eslint-plugin-react-refresh": "^0.4.14",
+    "eslint-plugin-vitest": "^0.3.20",
+    "jsdom": "^23.0.1",
+    "vitest": "^1.0.4"
   }
 }

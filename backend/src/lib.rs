@@ -1,7 +1,4 @@
-#![allow(clippy::all)]
-#![allow(clippy::pedantic)]
-#![allow(clippy::nursery)]
-#![allow(clippy::cargo)]
+
 #![allow(missing_docs)]
 #![allow(unused)]
 #![allow(dead_code)]

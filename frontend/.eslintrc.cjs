@@ -3,7 +3,7 @@ module.exports = {
     'next',
   ],
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint', 'react-refresh'],
+  plugins: ['@typescript-eslint', 'react-refresh', 'vitest'],
   rules: {
     // TypeScript rules
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
@@ -66,7 +66,17 @@ module.exports = {
         'no-console': 'off',
         '@typescript-eslint/no-explicit-any': 'off',
         '@typescript-eslint/no-non-null-assertion': 'off',
+        '@typescript-eslint/no-unused-vars': 'off',
+        'no-unused-vars': 'off',
+        'vitest/expect-expect': 'off',
+        'vitest/no-conditional-tests': 'error',
+        'vitest/no-disabled-tests': 'warn',
+        'vitest/no-focused-tests': 'error',
+        'vitest/prefer-to-be': 'error',
+        'vitest/prefer-to-have-length': 'error',
+        'vitest/prefer-to-contain': 'error',
       },
+
     },
     {
       files: ['*.config.{js,ts}', '*.config.*.{js,ts}'],

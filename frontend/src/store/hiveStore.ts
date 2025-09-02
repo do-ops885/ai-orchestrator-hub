@@ -39,13 +39,13 @@ interface HiveStore {
   // Connection state
   isConnected: boolean;
   socket: WebSocket | null;
-  connectionAttempts: number
-  
+  connectionAttempts: number;
+
   // Data
   agents: Agent[];
   hiveStatus: HiveStatus | null;
   tasks: unknown[];
-  
+
   // Actions
   connectWebSocket: (url: string) => void;
   disconnect: () => void;
@@ -70,19 +70,19 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       console.warn('WebSocket already connected')
       return
     }
-    
+
     console.warn('🔌 Attempting WebSocket connection to:', url)
     const socket = new WebSocket(url)
-    
+
     socket.onopen = () => {
       console.warn('✅ WebSocket connected successfully')
       set({ isConnected: true, socket, connectionAttempts: 0 })
     }
-    
+
     socket.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data)
-        
+
         if (typeof message.message_type === 'string') {
           switch (message.message_type) {
             case 'hive_status':
@@ -118,12 +118,12 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         console.warn('Failed to parse WebSocket message:', error)
       }
     }
-    
+
     socket.onclose = (event) => {
       const attempts = get().connectionAttempts
       console.warn(`🔌 WebSocket disconnected (code: ${event.code}, reason: ${event.reason !== '' ? event.reason : 'Unknown'})`)
       set({ isConnected: false, socket: null })
-      
+
       // Auto-retry with exponential backoff (max 5 attempts)
       if (attempts < 5 && event.code !== 1000) { // Don't retry on normal closure
         const retryDelay = Math.min(1000 * Math.pow(2, attempts), 10000) // Max 10 seconds
@@ -136,7 +136,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         console.warn('❌ Max WebSocket connection attempts reached. Please refresh the page.')
       }
     }
-    
+
     socket.onerror = (error) => {
       console.warn('WebSocket connection error - this is normal during development. Retrying...', error)
       set({ isConnected: false })
