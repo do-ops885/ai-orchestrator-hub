@@ -10,9 +10,9 @@ jobs:
   frontend-lint:
     name: Frontend ESLint
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
+     defaults:
+       run:
+         working-directory: ./frontend
 
      steps:
        - name: Checkout code
@@ -31,8 +31,8 @@ jobs:
        - name: Run ESLint
          run: npm run lint:check
 
-      - name: Check TypeScript
-        run: npx tsc --noEmit
+       - name: Check TypeScript
+         run: npx tsc --noEmit
 
   backend-lint:
     name: Backend Clippy
@@ -89,8 +89,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+       - name: Setup Rust
+         uses: dtolnay/rust-toolchain@stable
 
        - name: Install frontend dependencies
          working-directory: ./frontend
