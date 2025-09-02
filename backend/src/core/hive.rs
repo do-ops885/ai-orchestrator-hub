@@ -1106,7 +1106,10 @@ impl HiveCoordinator {
         config: serde_json::Value,
     ) -> anyhow::Result<()> {
         // Configure confidence threshold
-        if let Some(threshold) = config.get("confidence_threshold").and_then(serde_json::Value::as_f64) {
+        if let Some(threshold) = config
+            .get("confidence_threshold")
+            .and_then(serde_json::Value::as_f64)
+        {
             // Note: This would require making simple_verification mutable
             // For now, we'll log the configuration request
             tracing::info!(

@@ -439,7 +439,8 @@ impl IntelligentAlertingSystem {
     ) -> anyhow::Result<Vec<IntelligentAlert>> {
         let mut suppression = self.alert_suppression.write().await;
         let mut final_alerts = Vec::new();
-        let suppression_window = Duration::minutes(i64::from(self.config.suppression_window_minutes));
+        let suppression_window =
+            Duration::minutes(i64::from(self.config.suppression_window_minutes));
         let now = Utc::now();
 
         for alert in alerts {

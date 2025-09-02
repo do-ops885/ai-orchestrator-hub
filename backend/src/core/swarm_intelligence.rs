@@ -407,10 +407,7 @@ impl SwarmIntelligenceEngine {
     }
 
     pub fn record_agent_performance(&mut self, agent_id: Uuid, performance: f64) {
-        let history = self
-            .agent_performance_history
-            .entry(agent_id)
-            .or_default();
+        let history = self.agent_performance_history.entry(agent_id).or_default();
         history.push(performance);
 
         // Keep only recent performance records

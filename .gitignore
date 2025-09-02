@@ -8,6 +8,7 @@ Cargo.lock
 
 # Node dependencies
 node_modules/
+frontend/node_modules/
 
 # Next.js build output
 .next/
