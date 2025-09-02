@@ -57,21 +57,21 @@ jobs:
             ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
-             ~/.cargo/git/db/
-             backend/target/
-           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+            ~/.cargo/git/db/
+            backend/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-       - name: Check formatting
-         run: cargo fmt --all -- --check
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-       - name: Run Clippy (basic features)
-         run: cargo clippy --all-targets --all-features
+      - name: Run Clippy (basic features)
+        run: cargo clippy --all-targets --all-features
 
-       - name: Run Clippy (advanced neural features)
-         run: cargo clippy --all-targets --features advanced-neural
+      - name: Run Clippy (advanced neural features)
+        run: cargo clippy --all-targets --features advanced-neural
 
-       - name: Check documentation
-         run: cargo doc --no-deps --document-private-items
+      - name: Check documentation
+        run: cargo doc --no-deps --document-private-items
 
   integration-test:
     name: Integration Tests
