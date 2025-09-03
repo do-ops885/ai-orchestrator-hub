@@ -38,6 +38,7 @@ impl Default for AdaptiveLearningConfig {
     }
 }
 
+#[derive(Debug)]
 pub struct AdaptiveLearningSystem {
     config: AdaptiveLearningConfig,
     patterns: HashMap<String, LearningPattern>,

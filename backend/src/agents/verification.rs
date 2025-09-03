@@ -336,7 +336,7 @@ impl PairCoordinator {
     }
 
     /// Calculate an agent's capability for verification tasks
-    fn calculate_verification_capability(agent: &Agent, task: &VerifiableTask) -> f64 {
+    fn calculate_verification_capability(agent: &Agent, _task: &VerifiableTask) -> f64 {
         let mut score = 0.0;
 
         // Base capability from agent's general proficiency
@@ -481,7 +481,7 @@ impl VerifiableTask {
     }
 
     /// Generate default success criteria based on task and goal
-    fn generate_default_criteria(task: &Task, original_goal: &str) -> Vec<SuccessCriterion> {
+    fn generate_default_criteria(_task: &Task, original_goal: &str) -> Vec<SuccessCriterion> {
         let mut criteria = Vec::new();
 
         // Basic completion criterion

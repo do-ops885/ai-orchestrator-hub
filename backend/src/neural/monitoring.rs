@@ -272,11 +272,7 @@ impl TrainingMonitor {
         metrics: &TrainingMetrics,
         epoch: usize,
     ) -> Result<()> {
-        let session_monitor = self
-            .sessions
-            .get_mut(&session_id)
-            .ok_or_else(|| anyhow::anyhow!("Session monitor not found"))?;
-
+        // Collect system resources first (immutable borrow)
         let system_resources = self.collect_system_resources().await?;
         let timestamp = Utc::now();
 
@@ -287,14 +283,22 @@ impl TrainingMonitor {
             system_resources,
         };
 
-        session_monitor.metrics_history.push(snapshot);
-        session_monitor.last_update = timestamp;
+        // Update session monitor (mutable borrow)
+        {
+            let session_monitor = self
+                .sessions
+                .get_mut(&session_id)
+                .ok_or_else(|| anyhow::anyhow!("Session monitor not found"))?;
 
-        // Update performance indicators
-        self.update_performance_indicators(session_monitor).await?;
+            session_monitor.metrics_history.push(snapshot);
+            session_monitor.last_update = timestamp;
 
-        // Check for alerts
-        self.check_alerts(session_monitor).await?;
+            // Update performance indicators
+            self.update_performance_indicators(session_monitor).await?;
+
+            // Check for alerts
+            self.check_alerts(session_monitor).await?;
+        }
 
         // Log epoch completion
         self.log_event(
@@ -428,7 +432,7 @@ impl TrainingMonitor {
             .iter()
             .rev()
             .take(5)
-            .map(|snapshot| snapshot.metrics.loss_history.last().unwrap_or(&0.0))
+            .map(|snapshot| *snapshot.metrics.loss_history.last().unwrap_or(&0.0))
             .collect();
 
         let convergence_rate = if recent_losses.len() >= 2 {
@@ -561,7 +565,7 @@ impl TrainingMonitor {
                 .last()
                 .unwrap_or(&0.0);
 
-            if current_loss > previous_loss * (1.0 + self.alert_thresholds.max_loss_increase) {
+            if current_loss > *previous_loss * (1.0 + self.alert_thresholds.max_loss_increase) {
                 self.create_alert(
                     session_monitor,
                     AlertType::TrainingDivergence,
@@ -601,8 +605,8 @@ impl TrainingMonitor {
             MonitoringEventType::AlertTriggered,
             Some(session_monitor.session_id),
             serde_json::json!({
-                "alert_type": format!("{:?}", alert_type),
-                "severity": format!("{:?}", severity),
+                "alert_type": format!("{:?}", alert.alert_type),
+                "severity": format!("{:?}", alert.severity),
                 "message": alert.message
             }),
         );
@@ -691,18 +695,19 @@ impl ModelEvaluator {
         // Generate confusion matrix
         let confusion_matrix = self.generate_confusion_matrix(model_id, test_data).await?;
         self.confusion_matrices
-            .insert(model_id.to_string(), confusion_matrix);
+            .insert(model_id.to_string(), confusion_matrix.clone());
 
         // Generate ROC curve
         let roc_curve = self.generate_roc_curve(model_id, test_data).await?;
-        self.roc_curves.insert(model_id.to_string(), roc_curve);
+        self.roc_curves
+            .insert(model_id.to_string(), roc_curve.clone());
 
         // Calculate feature importance
         let feature_importance = self
             .calculate_feature_importance(model_id, test_data)
             .await?;
         self.feature_importance
-            .insert(model_id.to_string(), feature_importance);
+            .insert(model_id.to_string(), feature_importance.clone());
 
         Ok(EvaluationResults {
             model_id: model_id.to_string(),
@@ -716,7 +721,7 @@ impl ModelEvaluator {
     /// Generate confusion matrix
     async fn generate_confusion_matrix(
         &self,
-        model_id: &str,
+        _model_id: &str,
         test_data: &Dataset,
     ) -> Result<ConfusionMatrix> {
         // Simulate confusion matrix generation
@@ -742,7 +747,7 @@ impl ModelEvaluator {
     }
 
     /// Generate ROC curve
-    async fn generate_roc_curve(&self, model_id: &str, test_data: &Dataset) -> Result<ROCCurve> {
+    async fn generate_roc_curve(&self, _model_id: &str, _test_data: &Dataset) -> Result<ROCCurve> {
         // Simulate ROC curve generation
         let mut fpr = Vec::new();
         let mut tpr = Vec::new();
@@ -770,12 +775,12 @@ impl ModelEvaluator {
     /// Calculate feature importance
     async fn calculate_feature_importance(
         &self,
-        model_id: &str,
-        test_data: &Dataset,
+        _model_id: &str,
+        _test_data: &Dataset,
     ) -> Result<Vec<FeatureImportance>> {
         let mut importance_scores = Vec::new();
 
-        for (i, feature_name) in test_data.metadata.feature_names.iter().enumerate() {
+        for (_i, feature_name) in _test_data.metadata.feature_names.iter().enumerate() {
             let importance = rand::random::<f64>() * 0.5 + 0.1; // Random importance score
             importance_scores.push((feature_name.clone(), importance));
         }
@@ -927,7 +932,7 @@ impl TrainingVisualizer {
 }
 
 /// Evaluation results
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvaluationResults {
     pub model_id: String,
     pub metrics: Vec<EvaluationMetric>,

@@ -254,7 +254,6 @@ impl DataPipeline {
             .ok_or_else(|| anyhow::anyhow!("Data loader '{}' not found", loader_id))?;
 
         let mut loader = loader.write().await;
-        let dataset = loader.dataset.read().await;
 
         if loader.current_index >= loader.indices.len() {
             return Ok(None); // No more batches
@@ -264,16 +263,20 @@ impl DataPipeline {
         let end_idx = (start_idx + loader.batch_size).min(loader.indices.len());
         let batch_indices: Vec<usize> = loader.indices[start_idx..end_idx].to_vec();
 
-        // Extract batch data
-        let mut batch_features = Vec::new();
-        let mut batch_labels = Vec::new();
-        let mut sample_indices = Vec::new();
+        // Extract batch data - read dataset separately to avoid borrow conflict
+        let (batch_features, batch_labels, sample_indices) = {
+            let dataset = loader.dataset.read().await;
+            let mut batch_features = Vec::new();
+            let mut batch_labels = Vec::new();
+            let mut sample_indices = Vec::new();
 
-        for &idx in &batch_indices {
-            batch_features.push(dataset.features[idx].clone());
-            batch_labels.push(dataset.labels[idx].clone());
-            sample_indices.push(idx);
-        }
+            for &idx in &batch_indices {
+                batch_features.push(dataset.features[idx].clone());
+                batch_labels.push(dataset.labels[idx].clone());
+                sample_indices.push(idx);
+            }
+            (batch_features, batch_labels, sample_indices)
+        };
 
         let total_batches = (loader.indices.len() + loader.batch_size - 1) / loader.batch_size;
         let batch_index = loader.current_index / loader.batch_size;
@@ -354,7 +357,7 @@ impl DataPipeline {
         let total_samples = dataset.features.len();
         let train_size = (total_samples as f64 * split.train_ratio) as usize;
         let val_size = (total_samples as f64 * split.val_ratio) as usize;
-        let test_size = total_samples - train_size - val_size;
+        let _test_size = total_samples - train_size - val_size;
 
         // Create indices for each split
         let mut indices: Vec<usize> = (0..total_samples).collect();
@@ -468,7 +471,7 @@ impl DataPipeline {
         let (min_val, max_val) = feature_range.unwrap_or((0.0, 1.0));
 
         for feature_idx in 0..dataset.metadata.num_features {
-            let mut feature_values: Vec<f32> = dataset
+            let feature_values: Vec<f32> = dataset
                 .features
                 .iter()
                 .map(|sample| sample[feature_idx])
@@ -586,7 +589,7 @@ impl DataPipeline {
     }
 
     /// Apply encoding preprocessing
-    async fn apply_encoding(&self, dataset: &mut Dataset, config: &EncodingConfig) -> Result<()> {
+    async fn apply_encoding(&self, _dataset: &mut Dataset, config: &EncodingConfig) -> Result<()> {
         tracing::info!("🔢 Applying encoding: {:?}", config.method);
 
         match config.method {

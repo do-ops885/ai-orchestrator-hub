@@ -1,17 +1,15 @@
 //! Unit tests for the hive coordination system
 
-use serde_json::json;
-
-use crate::agents::AgentType;
-use crate::core::{HiveCoordinator, SwarmMetrics};
-use crate::tasks::{Task, TaskPriority};
-use crate::tests::test_utils::{
-    assert_approx_eq, create_agent_config, create_task_config, create_test_task,
-};
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use serde_json::json;
+
+    use crate::agents::AgentType;
+    use crate::core::{HiveCoordinator, SwarmMetrics};
+    use crate::tasks::{Task, TaskPriority};
+    use crate::tests::test_utils::{
+        assert_approx_eq, create_agent_config, create_task_config, create_test_task,
+    };
 
     #[tokio::test]
     async fn test_hive_coordinator_creation() {

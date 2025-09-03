@@ -480,7 +480,11 @@ impl IntelligentFallback {
     }
 
     /// Find best agent using direct assignment (no fallback)
-    fn find_best_agent_direct(&self, task: &Task, available_agents: &[Agent]) -> Option<&Agent> {
+    fn find_best_agent_direct<'a>(
+        &self,
+        task: &Task,
+        available_agents: &'a [Agent],
+    ) -> Option<&'a Agent> {
         let mut best_agent = None;
         let mut best_fitness = 0.0;
 

@@ -15,11 +15,26 @@ pub mod nlp;
 /// Neural network training and optimization
 pub mod training;
 
-pub use adaptive_learning::*;
-pub use cpu_optimization::*;
-pub use data::*;
-pub use experiments::*;
-pub use monitoring::*;
-pub use neural::*;
-pub use nlp::*;
-pub use training::*;
+// Explicit re-exports to avoid ambiguous glob re-exports
+pub use adaptive_learning::{AdaptiveLearningConfig, AdaptiveLearningSystem};
+pub use cpu_optimization::{CpuOptimizer, QuantizedOps, QuantizedWeights, VectorizedOps};
+pub use data::{DataLoader, Dataset};
+pub use experiments::{
+    EarlyStoppingConfig, EarlyStoppingMode, Experiment, ExperimentComparison, ExperimentConfig,
+    ExperimentMetadata, ExperimentRun, ExperimentStatus, ExperimentTracker,
+};
+pub use monitoring::{
+    AlertSeverity, AlertType, ConfusionMatrix, EvaluationMetric, EvaluationResults,
+    FeatureImportance, MetricsSnapshot, ROCCurve,
+};
+pub use neural::{HybridNeuralProcessor, NetworkType};
+pub use nlp::{NLPProcessor, ProcessedText};
+pub use training::{
+    ArchitectureConfig, CNNConfig, DataConfig, GNNConfig, MemoryOptimization, ModelType,
+    NeuralTrainingSystem, OptimizationConfig, RNNConfig, TrainingConfig, TrainingMetrics,
+    TrainingParams, TrainingRecord, TrainingSession, TransformerConfig,
+};
+
+// Re-export advanced neural features if available
+#[cfg(feature = "advanced-neural")]
+pub use neural::{FANNConfig, LSTMConfig, NeuralConfig};

@@ -14,7 +14,9 @@ use aes_gcm::{
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
+use pbkdf2::hmac;
 use pbkdf2::pbkdf2;
+use ring::rand::SecureRandom;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -254,7 +256,7 @@ impl PersistenceManager {
                     let salt = b"hive_persistence_salt"; // In production, use a random salt per key
                     let mut key = [0u8; 32];
 
-                    pbkdf2(
+                    pbkdf2::<pbkdf2::hmac::Hmac<sha2::Sha256>>(
                         key_str.as_bytes(),
                         salt,
                         100_000, // 100k iterations for good security
@@ -572,7 +574,7 @@ impl PersistenceManager {
         let snapshot_id = snapshot.snapshot_id;
 
         // Save the snapshot
-        let storage_id = self.storage.save_snapshot(&snapshot).await?;
+        let _storage_id = self.storage.save_snapshot(&snapshot).await?;
 
         // Update checkpoint history
         let metadata = CheckpointMetadata {
@@ -1213,8 +1215,9 @@ impl StorageProvider for FileSystemStorage {
 
         fs::write(
             &metadata_path,
-            serde_json::to_string_pretty(&metadata).map_err(|e| HiveError::SerializationError {
-                reason: format!("Failed to serialize metadata: {}", e),
+            serde_json::to_string_pretty(&metadata).map_err(|e| HiveError::ValidationError {
+                field: "metadata".to_string(),
+                reason: format!("Failed to serialize: {}", e),
             })?,
         )
         .await

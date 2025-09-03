@@ -31,7 +31,7 @@ pub struct Experiment {
 }
 
 /// Experiment status
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ExperimentStatus {
     Created,
     Running,
@@ -247,6 +247,8 @@ impl ExperimentTracker {
     ) -> Result<String> {
         let experiment_id = format!("exp_{}", Uuid::new_v4().simple());
 
+        let num_runs = config.num_runs;
+
         let experiment = Experiment {
             experiment_id: experiment_id.clone(),
             name: name.to_string(),
@@ -270,11 +272,7 @@ impl ExperimentTracker {
 
         self.metadata.insert(experiment_id.clone(), metadata);
 
-        tracing::info!(
-            "🧪 Created experiment '{}' with {} runs",
-            name,
-            config.num_runs
-        );
+        tracing::info!("🧪 Created experiment '{}' with {} runs", name, num_runs);
         Ok(experiment_id)
     }
 
@@ -435,6 +433,7 @@ impl ExperimentTracker {
                 let completed_runs: Vec<&ExperimentRun> = runs
                     .iter()
                     .filter(|r| matches!(r.status, RunStatus::Completed))
+                    .map(|r| *r)
                     .collect();
 
                 if !completed_runs.is_empty() {
@@ -685,7 +684,7 @@ impl ExperimentTracker {
     /// Compare convergence across experiments
     fn compare_convergence(
         &self,
-        experiment_ids: &[String],
+        _experiment_ids: &[String],
         results: &mut ComparisonResults,
     ) -> Result<()> {
         // Implementation for convergence comparison

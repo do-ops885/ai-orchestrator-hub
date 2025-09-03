@@ -1,13 +1,11 @@
 //! Unit tests for the neural processing system
 
-use uuid;
-
-use crate::neural::{HybridNeuralProcessor, NLPProcessor};
-use crate::tests::test_utils::assert_approx_eq;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use uuid;
+
+    use crate::neural::{HybridNeuralProcessor, NLPProcessor};
+    use crate::tests::test_utils::assert_approx_eq;
 
     #[tokio::test]
     async fn test_nlp_processor_creation() {
