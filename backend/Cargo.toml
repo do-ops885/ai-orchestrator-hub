@@ -45,6 +45,7 @@ base64 = "0.21"
 ring = { version = "0.17", features = ["std"] }
 hex = "0.4"
 pbkdf2 = "0.12"
+sha2 = "0.10"
 
 # Observability and tracing
 opentelemetry = "0.21"

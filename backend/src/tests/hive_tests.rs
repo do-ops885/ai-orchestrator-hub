@@ -1,11 +1,11 @@
 //! Unit tests for the hive coordination system
 
-use serde_json::json;
 
-use crate::agents::AgentType;
-use crate::core::{HiveCoordinator, SwarmMetrics};
-use crate::tasks::TaskPriority;
-use crate::tests::test_utils::*;
+
+
+use crate::core::HiveCoordinator;
+
+
 
 #[cfg(test)]
 mod tests {

@@ -3,7 +3,7 @@
 //! Provides detailed performance metrics, memory leak detection,
 //! and system benchmarking capabilities for the multiagent hive.
 
-use crate::utils::error::{HiveError, HiveResult};
+use crate::utils::error::HiveResult;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

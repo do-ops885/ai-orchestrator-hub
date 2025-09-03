@@ -25,8 +25,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::agents::{Agent, AgentCapability, AgentState, AgentType};
-use crate::tasks::{Task, TaskRequiredCapability};
+use crate::agents::{Agent, AgentState, AgentType};
+use crate::tasks::Task;
 
 /// Configuration for the intelligent fallback system
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -352,7 +352,7 @@ impl IntelligentFallback {
             timestamp: Utc::now(),
             context: {
                 let mut ctx = HashMap::new();
-                ctx.insert("tier".to_string(), self.tier_name(tier));
+                ctx.insert("tier".to_string(), self.tier_name(tier).to_string());
                 ctx.insert(
                     "eligible_agents".to_string(),
                     eligible_agents.len().to_string(),

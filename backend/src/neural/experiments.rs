@@ -1,5 +1,5 @@
 use crate::neural::{
-    EvaluationResults, HPOTrial, TrainingConfig, TrainingMetrics, TrainingSession,
+    EvaluationResults, TrainingConfig, TrainingMetrics,
 };
 use anyhow::Result;
 use chrono::{DateTime, Utc};

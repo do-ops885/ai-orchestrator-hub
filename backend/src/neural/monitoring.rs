@@ -1,4 +1,4 @@
-use crate::neural::{DataBatch, Dataset, TrainingMetrics, TrainingSession};
+use crate::neural::{Dataset, TrainingMetrics, TrainingSession};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

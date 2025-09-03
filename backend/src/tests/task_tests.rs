@@ -1,9 +1,9 @@
 //! Unit tests for the task system
 
-use crate::tasks::{Task, TaskPriority, TaskQueue, TaskRequiredCapability, TaskResult, TaskStatus};
-use crate::tests::test_utils::*;
-use chrono::{Duration, Utc};
-use uuid::Uuid;
+use crate::tasks::{Task, TaskPriority, TaskStatus};
+
+use chrono::Utc;
+
 
 #[cfg(test)]
 mod tests {

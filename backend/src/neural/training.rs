@@ -1,8 +1,8 @@
-use crate::agents::agent::Agent;
+
 use crate::neural::{AdaptiveLearningConfig, AdaptiveLearningSystem};
-use crate::neural::{CpuOptimizer, VectorizedOps};
+use crate::neural::CpuOptimizer;
 use crate::neural::{FANNConfig, HybridNeuralProcessor, LSTMConfig, NetworkType};
-use crate::tasks::task::Task;
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

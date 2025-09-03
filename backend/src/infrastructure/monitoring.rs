@@ -1,8 +1,8 @@
 use crate::infrastructure::intelligent_alerting::{
     IntelligentAlertConfig, IntelligentAlertingSystem,
 };
-use crate::infrastructure::metrics::{MetricsCollector, SystemMetrics};
-use crate::infrastructure::telemetry::{EventType, Severity, TelemetryCollector, TelemetryEvent};
+use crate::infrastructure::metrics::MetricsCollector;
+use crate::infrastructure::telemetry::{EventType, Severity, TelemetryCollector};
 use crate::utils::config::MonitoringConfig;
 use crate::utils::error::{HiveError, HiveResult};
 use chrono::{DateTime, Datelike, Timelike, Utc, Weekday};
@@ -732,7 +732,7 @@ impl AgentMonitor {
                 }
 
                 if let Ok(health_map) = agent_health.try_read() {
-                    let active_agents: Vec<Uuid> = health_map.keys().copied().collect();
+                    let _active_agents: Vec<Uuid> = health_map.keys().copied().collect();
                     // In a real implementation, you'd check which agents are still active
                 }
             }
@@ -804,9 +804,9 @@ impl AgentMonitor {
         name: String,
         description: String,
         metric_name: String,
-        condition: crate::infrastructure::intelligent_alerting::AlertCondition,
+        _condition: crate::infrastructure::intelligent_alerting::AlertCondition,
         threshold: f64,
-        severity: crate::infrastructure::metrics::AlertLevel,
+        _severity: crate::infrastructure::metrics::AlertLevel,
     ) -> HiveResult<()> {
         // Validate inputs
         if id.is_empty() || name.is_empty() || metric_name.is_empty() {
@@ -942,19 +942,19 @@ impl AgentMonitor {
     }
 
     /// Measure agent response time
-    async fn measure_response_time(agent_id: Uuid) -> f64 {
+    async fn measure_response_time(_agent_id: Uuid) -> f64 {
         // Simulate response time measurement
         100.0 + rand::random::<f64>() * 200.0
     }
 
     /// Measure agent throughput
-    async fn measure_throughput(agent_id: Uuid) -> f64 {
+    async fn measure_throughput(_agent_id: Uuid) -> f64 {
         // Simulate throughput measurement
         10.0 + rand::random::<f64>() * 20.0
     }
 
     /// Measure agent resource utilization
-    async fn measure_resource_utilization(agent_id: Uuid) -> ResourceUtilization {
+    async fn measure_resource_utilization(_agent_id: Uuid) -> ResourceUtilization {
         ResourceUtilization {
             cpu_percent: 15.0 + rand::random::<f64>() * 50.0,
             memory_percent: 25.0 + rand::random::<f64>() * 40.0,
@@ -964,13 +964,13 @@ impl AgentMonitor {
     }
 
     /// Measure agent success rate
-    async fn measure_success_rate(agent_id: Uuid) -> f64 {
+    async fn measure_success_rate(_agent_id: Uuid) -> f64 {
         // Simulate success rate (90-100%)
         0.9 + rand::random::<f64>() * 0.1
     }
 
     /// Measure agent queue length
-    async fn measure_queue_length(agent_id: Uuid) -> usize {
+    async fn measure_queue_length(_agent_id: Uuid) -> usize {
         // Simulate queue length
         (rand::random::<u32>() % 50) as usize
     }
@@ -1165,7 +1165,7 @@ impl AgentMonitor {
     /// Monitor task performance
     pub async fn monitor_task_performance(
         &self,
-        task_id: Uuid,
+        _task_id: Uuid,
         agent_id: Uuid,
         duration_ms: u64,
         success: bool,
@@ -1322,37 +1322,37 @@ impl BehaviorAnalyzer {
     }
 
     /// Calculate communication frequency for an agent
-    async fn calculate_communication_frequency(agent_id: Uuid) -> f64 {
+    async fn calculate_communication_frequency(_agent_id: Uuid) -> f64 {
         // Simulate communication frequency calculation
         5.0 + rand::random::<f64>() * 15.0 // messages per minute
     }
 
     /// Calculate average response time for an agent
-    async fn calculate_average_response_time(agent_id: Uuid) -> f64 {
+    async fn calculate_average_response_time(_agent_id: Uuid) -> f64 {
         // Simulate response time calculation
         50.0 + rand::random::<f64>() * 200.0 // milliseconds
     }
 
     /// Identify communication partners for an agent
-    async fn identify_communication_partners(agent_id: Uuid) -> Vec<Uuid> {
+    async fn identify_communication_partners(_agent_id: Uuid) -> Vec<Uuid> {
         // Simulate partner identification
         vec![Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()]
     }
 
     /// Calculate decision quality for an agent
-    async fn calculate_decision_quality(agent_id: Uuid) -> f64 {
+    async fn calculate_decision_quality(_agent_id: Uuid) -> f64 {
         // Simulate decision quality calculation (0.0 to 1.0)
         0.7 + rand::random::<f64>() * 0.3
     }
 
     /// Calculate decision speed for an agent
-    async fn calculate_decision_speed(agent_id: Uuid) -> f64 {
+    async fn calculate_decision_speed(_agent_id: Uuid) -> f64 {
         // Simulate decision speed calculation
         100.0 + rand::random::<f64>() * 400.0 // milliseconds
     }
 
     /// Analyze decision types for an agent
-    async fn analyze_decision_types(agent_id: Uuid) -> HashMap<String, u64> {
+    async fn analyze_decision_types(_agent_id: Uuid) -> HashMap<String, u64> {
         let mut decision_types = HashMap::new();
         decision_types.insert(
             "task_assignment".to_string(),
@@ -1371,13 +1371,13 @@ impl BehaviorAnalyzer {
     }
 
     /// Calculate learning progress for an agent
-    async fn calculate_learning_progress(agent_id: Uuid) -> f64 {
+    async fn calculate_learning_progress(_agent_id: Uuid) -> f64 {
         // Simulate learning progress calculation (0.0 to 1.0)
         0.6 + rand::random::<f64>() * 0.4
     }
 
     /// Identify skill improvements for an agent
-    async fn identify_skill_improvements(agent_id: Uuid) -> Vec<String> {
+    async fn identify_skill_improvements(_agent_id: Uuid) -> Vec<String> {
         vec![
             "Task processing efficiency".to_string(),
             "Resource optimization".to_string(),
@@ -1513,7 +1513,7 @@ impl BehaviorAnalyzer {
         &self,
         from_agent: Uuid,
         to_agent: Uuid,
-        message_type: String,
+        _message_type: String,
     ) -> HiveResult<()> {
         let mut communication_patterns = self.communication_patterns.write().await;
 
@@ -1893,7 +1893,7 @@ impl Dashboard {
     /// Set up alerts for dashboard
     pub async fn setup_dashboard_alerts(
         &self,
-        alert_rules: Vec<DashboardAlertRule>,
+        _alert_rules: Vec<DashboardAlertRule>,
     ) -> HiveResult<()> {
         // Implementation for setting up dashboard-specific alerts
         // This would integrate with the alerting system
@@ -2012,7 +2012,7 @@ impl Diagnostics {
     /// Analyze agent configuration
     async fn analyze_agent_configuration(
         &self,
-        agent_id: Uuid,
+        _agent_id: Uuid,
     ) -> HiveResult<HashMap<String, String>> {
         // Simulate configuration analysis
         let mut config = HashMap::new();
@@ -2026,7 +2026,7 @@ impl Diagnostics {
     }
 
     /// Profile agent performance
-    async fn profile_agent_performance(&self, agent_id: Uuid) -> HiveResult<PerformanceProfile> {
+    async fn profile_agent_performance(&self, _agent_id: Uuid) -> HiveResult<PerformanceProfile> {
         // Simulate performance profiling
         Ok(PerformanceProfile {
             bottlenecks: vec![
@@ -2043,7 +2043,7 @@ impl Diagnostics {
     }
 
     /// Analyze agent errors
-    async fn analyze_agent_errors(&self, agent_id: Uuid) -> HiveResult<ErrorAnalysis> {
+    async fn analyze_agent_errors(&self, _agent_id: Uuid) -> HiveResult<ErrorAnalysis> {
         // Simulate error analysis
         let mut error_types = HashMap::new();
         error_types.insert("NetworkError".to_string(), 5);
@@ -2228,7 +2228,7 @@ impl Diagnostics {
     /// Analyze log patterns
     pub async fn analyze_log_patterns(
         &self,
-        agent_id: Option<Uuid>,
+        _agent_id: Option<Uuid>,
         time_range_hours: u32,
     ) -> HiveResult<LogAnalysis> {
         // Simulate log analysis
@@ -2315,7 +2315,7 @@ impl Diagnostics {
     /// Check agent configuration validity
     pub async fn validate_agent_configuration(
         &self,
-        agent_id: Uuid,
+        _agent_id: Uuid,
     ) -> HiveResult<ConfigurationValidation> {
         // Simulate configuration validation
         Ok(ConfigurationValidation {
@@ -3533,7 +3533,7 @@ impl Integration {
 
     async fn send_email_alert(
         &self,
-        integration: &ExternalIntegration,
+        _integration: &ExternalIntegration,
         alert: &crate::infrastructure::metrics::Alert,
     ) -> HiveResult<()> {
         // Sanitize email content
@@ -3541,7 +3541,7 @@ impl Integration {
         let sanitized_description = alert.description.chars().take(1000).collect::<String>();
 
         let subject = format!("AI Orchestrator Alert: {}", sanitized_title);
-        let body = format!(
+        let _body = format!(
             "Alert Level: {:?}\n\n{}\n\nTime: {}\n\nThis is an automated message from the AI Orchestrator monitoring system.",
             alert.level, sanitized_description, alert.timestamp.to_rfc3339()
         );
@@ -3632,7 +3632,7 @@ impl Integration {
     /// Generate Grafana dashboard configuration
     async fn generate_grafana_dashboard_config(
         &self,
-        agent_monitor: &AgentMonitor,
+        _agent_monitor: &AgentMonitor,
     ) -> HiveResult<serde_json::Value> {
         let dashboard = serde_json::json!({
             "dashboard": {
@@ -3698,7 +3698,7 @@ impl Integration {
     ) -> HiveResult<IntegrationTestResult> {
         let integrations = self.integrations.read().await;
 
-        if let Some(integration) = integrations.get(integration_name) {
+        if let Some(_integration) = integrations.get(integration_name) {
             // In a real implementation, this would test the actual connectivity
             let is_connected = rand::random::<f64>() > 0.1; // 90% success rate for demo
             let response_time_ms = 50 + (rand::random::<u64>() % 200);

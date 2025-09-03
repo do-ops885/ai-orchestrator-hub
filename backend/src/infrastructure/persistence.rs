@@ -8,20 +8,20 @@ use crate::core::HiveCoordinator;
 use crate::tasks::Task;
 use crate::utils::error::{HiveError, HiveResult};
 use aes_gcm::{
-    aead::{Aead, KeyInit, OsRng},
+    aead::{Aead, KeyInit},
     Aes256Gcm, Key, Nonce,
 };
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
-use pbkdf2::pbkdf2;
-use ring::rand::SecureRandom;
+
+
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
 use tokio::sync::{Mutex, RwLock};
@@ -464,45 +464,53 @@ impl PersistenceManager {
         info!("Found {} snapshots to re-encrypt", snapshots.len());
 
         for metadata in snapshots {
-            if metadata.is_encrypted {
-                info!("Re-encrypting snapshot: {}", metadata.snapshot_id);
+            info!("Re-encrypting snapshot: {}", metadata.checkpoint_id);
 
-                // Load the snapshot
-                let processed = self
-                    .storage
-                    .load_processed_snapshot(&metadata.snapshot_id)
-                    .await?;
+            // Load the snapshot
+            let processed = self
+                .storage
+                .load_processed_snapshot(&metadata.checkpoint_id.to_string())
+                .await?;
 
-                // Decrypt with old key
-                let decrypted_data = if processed.is_encrypted {
-                    self.decrypt_data(&processed.data)?
-                } else {
-                    processed.data
-                };
+            // Decrypt with old key
+            let decrypted_data = if processed.is_encrypted {
+                self.decrypt_data(&processed.data)?
+            } else {
+                processed.data
+            };
 
-                // Decompress if needed
-                let decompressed_data = if processed.is_compressed {
-                    self.decompress_data(&decrypted_data)?
-                } else {
-                    decrypted_data
-                };
+            // Decompress if needed
+            let decompressed_data = if processed.is_compressed {
+                self.decompress_data(&decrypted_data)?
+            } else {
+                decrypted_data
+            };
 
-                // Update encryption key
-                self.encryption_key = Some(new_key);
+            // Deserialize back to SystemSnapshot
+            let json_str = String::from_utf8(decompressed_data)
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to convert decompressed data to string: {}", e),
+                })?;
+            let snapshot: SystemSnapshot = serde_json::from_str(&json_str)
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to deserialize snapshot: {}", e),
+                })?;
 
-                // Re-process with new key
-                let reprocessed = self.process_snapshot_data(decompressed_data).await?;
+            // Update encryption key
+            self.encryption_key = Some(new_key);
 
-                // Save with new encryption
-                self.storage
-                    .save_processed_snapshot(&processed.snapshot, &reprocessed)
-                    .await?;
+            // Re-process with new key
+            let reprocessed = self.process_snapshot_data(&snapshot).await?;
 
-                info!(
-                    "Successfully re-encrypted snapshot: {}",
-                    metadata.snapshot_id
-                );
-            }
+            // Save with new encryption
+            self.storage
+                .save_processed_snapshot(&snapshot, &reprocessed)
+                .await?;
+
+            info!(
+                "Successfully re-encrypted snapshot: {}",
+                metadata.checkpoint_id
+            );
         }
 
         // Update the key in memory

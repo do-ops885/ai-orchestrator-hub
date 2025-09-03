@@ -3,12 +3,12 @@
 //! These tests verify that different components work together correctly
 //! and test end-to-end workflows.
 
-use std::time::Duration;
 
-use crate::agents::{AgentBehavior, AgentState};
-use crate::core::HiveCoordinator;
-use crate::tasks::TaskPriority;
-use crate::tests::test_utils::*;
+
+use crate::agents::AgentState;
+
+
+
 
 #[cfg(test)]
 mod tests {

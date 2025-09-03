@@ -9,10 +9,10 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
-use crate::agents::{Agent, AgentBehavior};
+use crate::agents::Agent;
 use crate::neural::NLPProcessor;
 use crate::tasks::{Task, TaskResult};
 

@@ -316,7 +316,6 @@ mod tests {
 
         // Test hot data acquisition and release
         let hot_data = pool.acquire_hot_data().await;
-        #[allow(clippy::float_cmp)]
         assert!((hot_data.energy - 100.0).abs() < f32::EPSILON);
 
         pool.release_hot_data(hot_data).await;
@@ -350,7 +349,6 @@ mod tests {
         let mut agent = OptimizedAgent::new(hot_data, Uuid::new_v4());
 
         assert!(agent.is_available());
-        #[allow(clippy::float_cmp)]
         assert!((agent.get_performance_score() - 0.5).abs() < f32::EPSILON);
 
         // Test task assignment
