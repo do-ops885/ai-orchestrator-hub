@@ -213,20 +213,57 @@ impl PersistenceManager {
     fn derive_encryption_key(key_config: &Option<String>) -> HiveResult<[u8; 32]> {
         match key_config {
             Some(key_str) => {
-                // Use PBKDF2 to derive a strong key from the provided password/key
-                let salt = b"hive_persistence_salt"; // In production, use a random salt per key
-                let mut key = [0u8; 32];
+                // Check if it's a hex-encoded key (64 characters for 32 bytes)
+                if key_str.len() == 64 {
+                    hex::decode(key_str).map_err(|e| {
+                        HiveError::OperationFailed {
+                            reason: format!("Invalid hex encryption key: {}", e),
+                        }
+                    }).and_then(|decoded| {
+                        if decoded.len() == 32 {
+                            let mut key = [0u8; 32];
+                            key.copy_from_slice(&decoded);
+                            Ok(key)
+                        } else {
+                            Err(HiveError::OperationFailed {
+                                reason: "Hex encryption key must decode to 32 bytes".to_string(),
+                            })
+                        }
+                    })
+                } else if key_str.len() == 44 {
+                    // Base64-encoded key (44 chars for 32 bytes + padding)
+                    use base64::{Engine as _, engine::general_purpose};
+                    general_purpose::STANDARD.decode(key_str).map_err(|e| {
+                        HiveError::OperationFailed {
+                            reason: format!("Invalid base64 encryption key: {}", e),
+                        }
+                    }).and_then(|decoded| {
+                        if decoded.len() == 32 {
+                            let mut key = [0u8; 32];
+                            key.copy_from_slice(&decoded);
+                            Ok(key)
+                        } else {
+                            Err(HiveError::OperationFailed {
+                                reason: "Base64 encryption key must decode to 32 bytes".to_string(),
+                            })
+                        }
+                    })
+                } else {
+                    // Use PBKDF2 to derive a strong key from the provided password/key
+                    let salt = b"hive_persistence_salt"; // In production, use a random salt per key
+                    let mut key = [0u8; 32];
 
-                pbkdf2::pbkdf2::<pbkdf2::Hmac<sha2::Sha256>>(
-                    key_str.as_bytes(),
-                    salt,
-                    100_000, // 100k iterations for good security
-                    &mut key,
-                ).map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to derive encryption key: {:?}", e),
-                })?;
+                    pbkdf2::pbkdf2::<pbkdf2::Hmac<sha2::Sha256>>(
+                        key_str.as_bytes(),
+                        salt,
+                        100_000, // 100k iterations for good security
+                        &mut key,
+                    ).map_err(|e| HiveError::OperationFailed {
+                        reason: format!("Failed to derive encryption key: {:?}", e),
+                    })?;
 
-                Ok(key)
+                    Ok(key)
+                }
             }
             None => {
                 // Generate a cryptographically secure random key
@@ -245,45 +282,6 @@ impl PersistenceManager {
                     "For production use, set HIVE_ENCRYPTION_KEY environment variable"
                 );
 
-                Ok(key)
-            }
-        }
-    }
-                    })?;
-                    Ok(key)
-                } else if key_str.len() == 44 {
-                    // Base64-encoded key
-                    let decoded = general_purpose::STANDARD.decode(key_str).map_err(|e| {
-                        HiveError::OperationFailed {
-                            reason: format!("Invalid base64 encryption key: {}", e),
-                        }
-                    })?;
-                    if decoded.len() != 32 {
-                        return Err(HiveError::OperationFailed {
-                            reason: "Encryption key must be 32 bytes".to_string(),
-                        });
-                    }
-                    let mut key = [0u8; 32];
-                    key.copy_from_slice(&decoded);
-                    Ok(key)
-                } else {
-                    Err(HiveError::OperationFailed {
-                        reason: "Encryption key must be 32 bytes (64 hex chars or 44 base64 chars)"
-                            .to_string(),
-                    })
-                }
-            }
-            None => {
-                // Generate a random key
-                let rng = ring::rand::SystemRandom::new();
-                let mut key = [0u8; 32];
-                rng.fill(&mut key).map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to generate encryption key: {:?}", e),
-                })?;
-                warn!(
-                    "Generated random encryption key - save this for recovery: {}",
-                    general_purpose::STANDARD.encode(&key)
-                );
                 Ok(key)
             }
         }
@@ -1355,7 +1353,7 @@ impl StorageProvider for SQLiteStorage {
                 processed.processed_size as i64,
                 snapshot.agents.len() as i64,
                 snapshot.tasks.len() as i64,
-                format!("Processed checkpoint (compressed: {}, encrypted: {})", 
+                format!("Processed checkpoint (compressed: {}, encrypted: {})",
                        processed.is_compressed, processed.is_encrypted),
                 encoded_data
             ],
@@ -1422,7 +1420,7 @@ impl StorageProvider for SQLiteStorage {
         let conn = self.connection.lock().await;
         let mut stmt = conn
             .prepare(
-                "SELECT id, timestamp, size_bytes, agent_count, task_count, description 
+                "SELECT id, timestamp, size_bytes, agent_count, task_count, description
              FROM snapshots ORDER BY timestamp DESC",
             )
             .map_err(|e| HiveError::OperationFailed {
