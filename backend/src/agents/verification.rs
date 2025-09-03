@@ -425,6 +425,7 @@ impl PairCoordinator {
     }
 
     /// Get performance statistics for all pairs
+    #[must_use]
     pub fn get_pair_statistics(&self) -> HashMap<Uuid, PairMetrics> {
         self.pair_performance_metrics.clone()
     }
@@ -460,6 +461,7 @@ impl PairCoordinator {
 
 impl VerifiableTask {
     /// Create a new verifiable task from a base task
+    #[must_use]
     pub fn from_task(
         base_task: Task,
         original_goal: String,
@@ -557,6 +559,7 @@ impl VerifiableTask {
     }
 
     /// Check if verification requirements are met
+    #[must_use]
     pub fn meets_verification_requirements(&self, result: &VerificationResult) -> bool {
         // Check confidence threshold
         if result.verification_confidence < self.verification_requirements.min_confidence {
@@ -626,6 +629,7 @@ impl Default for VerificationRequirements {
 
 impl VerifiedTaskResult {
     /// Create a new verified task result
+    #[must_use]
     pub fn new(
         execution_result: crate::tasks::TaskResult,
         verification_result: VerificationResult,

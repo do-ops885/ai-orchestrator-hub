@@ -62,6 +62,7 @@ impl Default for SwarmOptimizationConfig {
 }
 
 impl SwarmIntelligenceEngine {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             formations: HashMap::new(),
@@ -71,6 +72,7 @@ impl SwarmIntelligenceEngine {
         }
     }
 
+    #[must_use]
     pub fn with_config(config: SwarmOptimizationConfig) -> Self {
         Self {
             formations: HashMap::new(),
@@ -421,12 +423,14 @@ impl SwarmIntelligenceEngine {
         );
     }
 
+    #[must_use]
     pub fn get_formation_efficiency(&self, formation_id: Uuid) -> Option<f64> {
         self.formations
             .get(&formation_id)
             .map(|f| f.efficiency_score)
     }
 
+    #[must_use]
     pub fn get_active_formations(&self) -> Vec<&SwarmFormation> {
         self.formations.values().collect()
     }

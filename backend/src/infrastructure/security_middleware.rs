@@ -45,7 +45,7 @@ pub async fn comprehensive_security_middleware(
     let user_agent = headers
         .get("user-agent")
         .and_then(|h| h.to_str().ok())
-        .map(|s| s.to_string());
+        .map(std::string::ToString::to_string);
 
     // Get payload size if available
     let payload_size = headers

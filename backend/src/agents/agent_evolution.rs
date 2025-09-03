@@ -1,5 +1,5 @@
 //! # Agent Evolution System
-//! 
+//!
 //! Implements genetic algorithm-inspired evolution for agents, allowing them to
 //! adapt, mutate, and evolve their capabilities over time based on performance.
 
@@ -209,7 +209,7 @@ impl AgentEvolutionSystem {
         };
 
         self.genomes.insert(agent.id, genome.clone());
-        
+
         // Register in species
         let species_key = self.determine_species(&genome);
         self.species_registry
@@ -228,16 +228,16 @@ impl AgentEvolutionSystem {
 
             // Base fitness from task performance
             fitness += performance_metrics.task_success_rate * 0.4;
-            
+
             // Energy efficiency bonus
             fitness += performance_metrics.energy_efficiency * 0.2;
-            
+
             // Collaboration effectiveness
             fitness += performance_metrics.collaboration_score * 0.2;
-            
+
             // Learning progress
             fitness += performance_metrics.learning_progress * 0.1;
-            
+
             // Adaptability bonus
             fitness += performance_metrics.adaptability_score * 0.1;
 
@@ -248,7 +248,7 @@ impl AgentEvolutionSystem {
             fitness += diversity_bonus;
 
             genome.fitness_score = fitness.clamp(0.0, 1.0);
-            
+
             // Record fitness evaluation event
             genome.evolution_history.push(EvolutionEvent {
                 event_type: EvolutionEventType::FitnessEvaluation,
@@ -275,7 +275,7 @@ impl AgentEvolutionSystem {
             for gene in &mut genome.genes {
                 if rng.gen::<f64>() < gene.mutation_probability {
                     let old_value = gene.value;
-                    
+
                     // Apply mutation based on gene type
                     match gene.gene_type {
                         GeneType::LearningRate => {
@@ -327,7 +327,7 @@ impl AgentEvolutionSystem {
         let parent1 = self.genomes.get(&parent1_id)
             .ok_or_else(|| anyhow::anyhow!("Parent 1 genome not found"))?
             .clone();
-        
+
         let parent2 = self.genomes.get(&parent2_id)
             .ok_or_else(|| anyhow::anyhow!("Parent 2 genome not found"))?
             .clone();
@@ -337,19 +337,19 @@ impl AgentEvolutionSystem {
 
         // Combine genes from both parents
         let max_genes = parent1.genes.len().max(parent2.genes.len());
-        
+
         for i in 0..max_genes {
             let gene = if i < parent1.genes.len() && i < parent2.genes.len() {
                 // Both parents have this gene - blend them
                 let p1_gene = &parent1.genes[i];
                 let p2_gene = &parent2.genes[i];
-                
+
                 let blend_ratio = rng.gen::<f64>();
                 Gene {
                     gene_type: p1_gene.gene_type.clone(),
                     value: p1_gene.value * blend_ratio + p2_gene.value * (1.0 - blend_ratio),
-                    expression_strength: (p1_gene.expression_strength + p2_gene.expression_strength) / 2.0,
-                    mutation_probability: (p1_gene.mutation_probability + p2_gene.mutation_probability) / 2.0,
+                    expression_strength: f64::midpoint(p1_gene.expression_strength, p2_gene.expression_strength),
+                    mutation_probability: f64::midpoint(p1_gene.mutation_probability, p2_gene.mutation_probability),
                 }
             } else if i < parent1.genes.len() {
                 // Only parent 1 has this gene
@@ -367,21 +367,21 @@ impl AgentEvolutionSystem {
             generation: parent1.generation.max(parent2.generation) + 1,
             parent_ids: vec![parent1_id, parent2_id],
             genes: offspring_genes,
-            fitness_score: (parent1.fitness_score + parent2.fitness_score) / 2.0,
+            fitness_score: f64::midpoint(parent1.fitness_score, parent2.fitness_score),
             mutation_rate: self.evolution_config.mutation_rate,
             created_at: Utc::now(),
             evolution_history: vec![EvolutionEvent {
                 event_type: EvolutionEventType::Crossover,
                 timestamp: Utc::now(),
                 fitness_before: 0.0,
-                fitness_after: (parent1.fitness_score + parent2.fitness_score) / 2.0,
+                fitness_after: f64::midpoint(parent1.fitness_score, parent2.fitness_score),
                 description: format!("Crossover between {} and {}", parent1_id, parent2_id),
             }],
         };
 
         self.genomes.insert(offspring_agent.id, offspring_genome.clone());
 
-        info!("Created offspring agent {} from parents {} and {}", 
+        info!("Created offspring agent {} from parents {} and {}",
               offspring_agent.id, parent1_id, parent2_id);
 
         Ok(offspring_genome)
@@ -412,9 +412,9 @@ impl AgentEvolutionSystem {
             let mut tournament: Vec<_> = (0..tournament_size)
                 .map(|_| &candidates[rng.gen_range(0..candidates.len())])
                 .collect();
-            
+
             tournament.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-            
+
             let winner = tournament[0].0;
             if !selected.contains(&winner) {
                 selected.push(winner);

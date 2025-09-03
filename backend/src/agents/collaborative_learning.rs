@@ -1,5 +1,5 @@
 //! # Collaborative Learning System
-//! 
+//!
 //! Enables agents to share knowledge and learn collectively through peer-to-peer
 //! knowledge transfer, collective intelligence, and distributed problem solving.
 
@@ -109,7 +109,7 @@ impl CollaborativeLearningSystem {
         session_type: SessionType,
     ) -> Result<Uuid> {
         let session_id = Uuid::new_v4();
-        
+
         let session = CollaborativeLearningSession {
             session_id,
             participants: participants.clone(),
@@ -125,7 +125,7 @@ impl CollaborativeLearningSystem {
         self.active_sessions.insert(session_id, session);
         self.learning_metrics.collaborative_sessions += 1;
 
-        info!("Started collaborative learning session {} with {} participants", 
+        info!("Started collaborative learning session {} with {} participants",
               session_id, participants.len());
 
         Ok(session_id)
@@ -141,7 +141,7 @@ impl CollaborativeLearningSystem {
         tags: Vec<String>,
     ) -> Result<Uuid> {
         let knowledge_id = Uuid::new_v4();
-        
+
         let knowledge = SharedKnowledge {
             id: knowledge_id,
             source_agent,
@@ -156,7 +156,7 @@ impl CollaborativeLearningSystem {
         };
 
         self.knowledge_base.insert(knowledge_id, knowledge);
-        
+
         // Update agent knowledge mapping
         self.agent_knowledge_map
             .entry(source_agent)
@@ -249,7 +249,7 @@ impl CollaborativeLearningSystem {
 
             self.learning_metrics.successful_transfers += 1;
 
-            info!("Transferred knowledge {} from agent {} to agent {}", 
+            info!("Transferred knowledge {} from agent {} to agent {}",
                   knowledge_id, from_agent, to_agent);
 
             Ok(true)
@@ -272,7 +272,7 @@ impl CollaborativeLearningSystem {
             let new_success = if was_successful { 1.0 } else { 0.0 };
             knowledge.success_rate = (1.0 - alpha) * knowledge.success_rate + alpha * new_success;
 
-            debug!("Updated knowledge {} success rate to {:.3}", 
+            debug!("Updated knowledge {} success rate to {:.3}",
                    knowledge_id, knowledge.success_rate);
         }
 
@@ -350,7 +350,7 @@ impl CollaborativeLearningSystem {
         self.active_sessions.insert(session_id, session);
         self.learning_metrics.performance_improvements.push(collaboration_result.performance_gain);
 
-        info!("Completed collaborative session {} with {:.1}% performance gain", 
+        info!("Completed collaborative session {} with {:.1}% performance gain",
               session_id, collaboration_result.performance_gain * 100.0);
 
         Ok(collaboration_result)
@@ -370,7 +370,7 @@ impl CollaborativeLearningSystem {
         let mut relevant_items = Vec::new();
         for knowledge in collective_knowledge {
             let mut relevance = 0.0;
-            
+
             for keyword in problem_keywords {
                 if knowledge.content.to_lowercase().contains(&keyword.to_lowercase()) {
                     relevance += 0.2;
@@ -408,7 +408,7 @@ impl CollaborativeLearningSystem {
     /// Get learning metrics and statistics
     pub fn get_learning_metrics(&self) -> LearningMetrics {
         let mut metrics = self.learning_metrics.clone();
-        
+
         // Calculate average confidence
         if !self.knowledge_base.is_empty() {
             metrics.average_confidence = self.knowledge_base.values()
@@ -420,7 +420,7 @@ impl CollaborativeLearningSystem {
         let total_usage: u32 = self.knowledge_base.values()
             .map(|k| k.usage_count)
             .sum();
-        
+
         if !self.knowledge_base.is_empty() {
             metrics.knowledge_utilization_rate = total_usage as f64 / self.knowledge_base.len() as f64;
         }
@@ -474,7 +474,7 @@ mod tests {
         ).await.unwrap();
 
         assert!(system.knowledge_base.contains_key(&knowledge_id));
-        assert_eq!(system.learning_metrics.total_knowledge_items, 1);
+        assert!((system.learning_metrics.total_knowledge_items - 1).abs() < f32::EPSILON);
     }
 
     #[tokio::test]
@@ -512,6 +512,6 @@ mod tests {
         ).await.unwrap();
 
         assert!(system.active_sessions.contains_key(&session_id));
-        assert_eq!(system.learning_metrics.collaborative_sessions, 1);
+        assert!((system.learning_metrics.collaborative_sessions - 1).abs() < f32::EPSILON);
     }
 }

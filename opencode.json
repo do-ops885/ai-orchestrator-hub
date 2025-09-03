@@ -1,9 +1,25 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "opencode/grok-code",
+  "agent": {
+    "security-auditor": {
+      "model": "chutes/zai-org/GLM-4.5-FP8"
+    },
+    "ml-pipeline-manager": {
+      "model": "nvidia/deepseek-ai/deepseek-v3.1"
+    },
+    "ml-training-specialist": {
+      "model": "nvidia/deepseek-ai/deepseek-v3.1"
+    },
+  },
   "mcp": {
     "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp",
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@upstash/context7-mcp"
+      ],
       "enabled": true
     }
   },

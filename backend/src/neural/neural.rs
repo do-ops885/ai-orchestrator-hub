@@ -738,7 +738,7 @@ impl HybridNeuralProcessor {
 
             // Adjust sentiment based on sequence patterns
             let sequence_influence = self.calculate_sequence_influence(&sequence_context);
-            processed.sentiment = (processed.sentiment + sequence_influence) / 2.0;
+            processed.sentiment = f64::midpoint(processed.sentiment, sequence_influence);
 
             // Enhance semantic vector with temporal information
             if processed.semantic_vector.dimensions.len() >= config.hidden_size {
@@ -1058,7 +1058,7 @@ impl AdvancedNeuralCoordinator {
             .map(|r| r.performance_prediction)
             .sum::<f64>()
             / results.len() as f64;
-        (avg_confidence + avg_prediction) / 2.0
+        f64::midpoint(avg_confidence, avg_prediction)
     }
 }
 

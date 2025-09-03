@@ -177,6 +177,7 @@ pub struct AutoScalingConfig {
 
 impl AutoScalingSystem {
     /// Create a new auto-scaling system
+    #[must_use]
     pub fn new(resource_manager: Arc<ResourceManager>, config: AutoScalingConfig) -> Self {
         Self {
             scaling_policies: Arc::new(RwLock::new(Self::create_default_policies())),

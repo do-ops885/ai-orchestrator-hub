@@ -656,6 +656,7 @@ pub struct SkillLearningResult {
 
 impl SkillLibrary {
     /// Create a default skill library with common skills
+    #[must_use]
     pub fn create_default() -> Self {
         let mut skill_templates = HashMap::new();
         let learning_pathways = HashMap::new();

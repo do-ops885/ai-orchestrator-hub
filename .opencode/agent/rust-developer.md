@@ -83,7 +83,7 @@ You are a specialized Rust developer agent for the AI Orchestrator Hub project. 
 ## Quality Standards
 
 - All code must pass `cargo clippy` checks
-- Unit test coverage > 80%
+- Unit test coverage > 82%
 - Integration tests for critical paths
 - Performance benchmarks for hot functions
 - Memory safety guaranteed by Rust

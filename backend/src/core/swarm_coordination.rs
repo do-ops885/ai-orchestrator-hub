@@ -158,6 +158,7 @@ pub struct AdaptiveBehaviorSystem {
 }
 
 impl FormationOptimizationEngine {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             strategies: Self::create_default_strategies(),
@@ -210,7 +211,14 @@ impl FormationOptimizationEngine {
     }
 }
 
+impl Default for FormationOptimizationEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AdaptiveBehaviorSystem {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             learned_patterns: HashMap::new(),
@@ -256,6 +264,12 @@ impl AdaptiveBehaviorSystem {
                 .insert(pattern.pattern_id, pattern.strength);
         }
         Ok(())
+    }
+}
+
+impl Default for AdaptiveBehaviorSystem {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -145,6 +145,7 @@ pub struct IntelligentAlert {
 }
 
 impl IntelligentAlertingSystem {
+    #[must_use]
     pub fn new(metrics_collector: Arc<MetricsCollector>, config: IntelligentAlertConfig) -> Self {
         Self {
             alert_rules: Arc::new(RwLock::new(Vec::new())),
@@ -797,6 +798,7 @@ impl IntelligentAlertingSystem {
 }
 
 impl AdaptiveThresholds {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             thresholds: HashMap::new(),
@@ -806,13 +808,26 @@ impl AdaptiveThresholds {
     }
 }
 
+impl Default for AdaptiveThresholds {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AlertSuppression {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             suppressed_alerts: HashMap::new(),
             correlation_groups: HashMap::new(),
             escalation_chains: HashMap::new(),
         }
+    }
+}
+
+impl Default for AlertSuppression {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

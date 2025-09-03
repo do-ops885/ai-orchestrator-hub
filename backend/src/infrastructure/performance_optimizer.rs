@@ -137,7 +137,7 @@ impl ConnectionPool {
 
         // Update average duration
         let duration_ms = duration.as_millis() as f64;
-        stats.avg_duration_ms = (stats.avg_duration_ms + duration_ms) / 2.0;
+        stats.avg_duration_ms = f64::midpoint(stats.avg_duration_ms, duration_ms);
     }
 }
 
@@ -613,8 +613,8 @@ mod tests {
         let conn2 = pool.acquire_connection().await.unwrap();
 
         let stats = pool.get_stats().await;
-        assert_eq!(stats.active_count, 2);
-        assert_eq!(stats.total_created, 2);
+        assert!((stats.active_count - 2).abs() < f32::EPSILON);
+        assert!((stats.total_created - 2).abs() < f32::EPSILON);
 
         drop(conn1);
         drop(conn2);
@@ -640,8 +640,8 @@ mod tests {
         assert_eq!(cached_data, data);
 
         let stats = cache.get_stats().await;
-        assert_eq!(stats.hits, 1);
-        assert_eq!(stats.misses, 1);
+        assert!((stats.hits - 1).abs() < f32::EPSILON);
+        assert!((stats.misses - 1).abs() < f32::EPSILON);
     }
 
     #[tokio::test]
@@ -660,6 +660,6 @@ mod tests {
         assert_eq!(result, 499_500);
 
         let stats = optimizer.get_stats().await;
-        assert_eq!(stats.tasks_processed, 1);
+        assert!((stats.tasks_processed - 1).abs() < f32::EPSILON);
     }
 }

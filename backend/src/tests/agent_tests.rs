@@ -19,8 +19,8 @@ mod tests {
         assert_eq!(agent.name, "TestAgent");
         assert!(matches!(agent.agent_type, AgentType::Worker));
         assert!(matches!(agent.state, AgentState::Idle));
-        assert_eq!(agent.capabilities.len(), 0);
-        assert_eq!(agent.energy, 100.0);
+        assert!((agent.capabilities.len() - 0).abs() < f32::EPSILON);
+        assert!((agent.energy - 100.0).abs() < f32::EPSILON);
         assert_eq!(agent.position, (0.0, 0.0));
         assert!(agent.memory.experiences.is_empty());
         assert!(agent.memory.learned_patterns.is_empty());
@@ -55,7 +55,7 @@ mod tests {
         let capability = create_test_capability("data_processing", 0.8, 0.1);
         agent.add_capability(capability);
 
-        assert_eq!(agent.capabilities.len(), 3); // 2 default + 1 added
+        assert!((agent.capabilities.len() - 3).abs() < f32::EPSILON); // 2 default + 1 added
         assert_approx_eq(agent.get_capability_score("data_processing"), 0.8, 0.001);
         assert_approx_eq(agent.get_capability_score("nonexistent"), 0.0, 0.001);
     }
@@ -92,7 +92,7 @@ mod tests {
         // Proficiency should have improved
         let new_proficiency = agent.get_capability_score("general");
         assert!(new_proficiency > initial_proficiency);
-        assert_eq!(agent.memory.experiences.len(), 1);
+        assert!((agent.memory.experiences.len() - 1).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -118,7 +118,7 @@ mod tests {
         // Proficiency should have decreased
         let new_proficiency = agent.get_capability_score("general");
         assert!(new_proficiency < initial_proficiency);
-        assert_eq!(agent.memory.experiences.len(), 1);
+        assert!((agent.memory.experiences.len() - 1).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -138,7 +138,7 @@ mod tests {
         }
 
         // Memory should be limited to 1000 experiences
-        assert_eq!(agent.memory.experiences.len(), 1000);
+        assert!((agent.memory.experiences.len() - 1000).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -253,7 +253,7 @@ mod tests {
                 create_test_required_capability("analysis", 0.5),
             ],
         );
-        let expected_fitness = (0.8 + 0.6) / 2.0; // Average of capabilities
+        let expected_fitness = f64::midpoint(0.8, 0.6); // Average of capabilities
         assert_approx_eq(
             agent.calculate_task_fitness(&multi_req_task),
             expected_fitness,
@@ -281,7 +281,7 @@ mod tests {
         assert!(matches!(agent.state, AgentState::Idle));
 
         // Agent should have gained experience
-        assert_eq!(agent.memory.experiences.len(), 1);
+        assert!((agent.memory.experiences.len() - 1).abs() < f32::EPSILON);
     }
 
     #[tokio::test]
@@ -379,10 +379,10 @@ mod tests {
 
         // Test energy bounds
         agent.energy = 150.0; // Over maximum
-        assert_eq!(agent.energy, 150.0); // No automatic clamping in basic agent
+        assert!((agent.energy - 150.0).abs() < f32::EPSILON); // No automatic clamping in basic agent
 
         agent.energy = -10.0; // Below minimum
-        assert_eq!(agent.energy, -10.0); // No automatic clamping in basic agent
+        assert!((agent.energy - -10.0).abs() < f32::EPSILON); // No automatic clamping in basic agent
 
         // Reset to valid range
         agent.energy = 50.0;

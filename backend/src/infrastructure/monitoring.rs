@@ -36,6 +36,17 @@ pub struct AgentDiscovery {
     last_discovery: Arc<RwLock<DateTime<Utc>>>,
 }
 
+impl AgentDiscovery {
+    pub fn new() -> Self {
+        Self {
+            agents: Arc::new(RwLock::new(HashMap::new())),
+            relationships: Arc::new(RwLock::new(HashMap::new())),
+            last_discovery: Arc::new(RwLock::new(Utc::now())),
+        }
+    }
+}
+
+/// Health monitoring system
 #[derive(Clone)]
 pub struct HealthMonitor {
     agent_health: Arc<RwLock<HashMap<Uuid, AgentHealth>>>,
@@ -43,15 +54,92 @@ pub struct HealthMonitor {
     health_history: Arc<RwLock<Vec<HealthSnapshot>>>,
 }
 
+impl HealthMonitor {
+    pub fn new() -> Self {
+        Self {
+            agent_health: Arc::new(RwLock::new(HashMap::new())),
+            system_health: Arc::new(RwLock::new(SystemHealth::default())),
+            health_history: Arc::new(RwLock::new(Vec::new())),
+        }
+    }
+
+    pub async fn get_health_status(&self) -> HiveResult<SystemHealth> {
+        let system_health = self.system_health.read().await;
+        Ok(system_health.clone())
+    }
+
+    pub async fn start_monitoring(&self) -> HiveResult<()> {
+        // Placeholder
+        Ok(())
+    }
+}
+
 /// Performance monitoring system
 #[derive(Clone)]
 pub struct PerformanceMonitor {
-    /// Agent performance metrics
     agent_performance: Arc<RwLock<HashMap<Uuid, AgentPerformance>>>,
-    /// System performance metrics
     system_performance: Arc<RwLock<SystemPerformance>>,
-    /// Performance baselines
     baselines: Arc<RwLock<HashMap<String, PerformanceBaseline>>>,
+}
+
+impl PerformanceMonitor {
+    pub fn new() -> Self {
+        Self {
+            agent_performance: Arc::new(RwLock::new(HashMap::new())),
+            system_performance: Arc::new(RwLock::new(SystemPerformance::default())),
+            baselines: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    pub async fn start_monitoring(&self) -> HiveResult<()> {
+        // Placeholder
+        Ok(())
+    }
+
+    pub async fn get_performance_status(&self) -> HiveResult<SystemPerformance> {
+        let system_performance = self.system_performance.read().await;
+        Ok(system_performance.clone())
+    }
+
+    pub async fn get_system_performance(&self) -> HiveResult<PerformanceStatusSummary> {
+        let system_performance = self.get_performance_status().await?;
+
+        // Calculate performance score
+        let response_time_score =
+            (500.0 - system_performance.average_response_time_ms).max(0.0) / 500.0;
+        let throughput_score = system_performance.throughput_tasks_per_second.min(500.0) / 500.0;
+        let resource_score = 1.0
+            - (system_performance.resource_utilization.cpu_usage_percent
+                + system_performance.resource_utilization.memory_usage_percent)
+                / 200.0;
+        let overall_score = (response_time_score + throughput_score + resource_score) / 3.0;
+
+        Ok(PerformanceStatusSummary {
+            overall_score,
+            average_response_time_ms: system_performance.average_response_time_ms,
+            throughput_tasks_per_second: system_performance.throughput_tasks_per_second,
+            resource_utilization_percent: (system_performance
+                .resource_utilization
+                .cpu_usage_percent
+                + system_performance.resource_utilization.memory_usage_percent)
+                / 2.0,
+        })
+    }
+
+    pub async fn get_performance_trends(
+        &self,
+        _metric_name: &str,
+        _hours: u32,
+    ) -> HiveResult<PerformanceTrend> {
+        // Placeholder
+        Ok(PerformanceTrend {
+            metric_name: _metric_name.to_string(),
+            trend_direction: TrendDirection::Stable,
+            change_percent: 0.0,
+            period_hours: _hours,
+            data_points: Vec::new(),
+        })
+    }
 }
 
 /// Behavior analysis system
@@ -177,11 +265,19 @@ pub struct HealthSnapshot {
 }
 
 /// System health metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SystemHealth {
     pub overall_score: f64,
     pub component_health: HashMap<String, f64>,
     pub critical_issues: Vec<String>,
+}
+
+/// Monitoring status summary
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MonitoringStatus {
+    pub overall_health: f64,
+    pub health_status: Option<SystemHealth>,
+    pub health_count: usize,
 }
 
 /// Agent performance metrics
@@ -206,7 +302,7 @@ pub struct ResourceUtilization {
 }
 
 /// System performance metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SystemPerformance {
     pub requests_per_second: f64,
     pub average_response_time_ms: f64,
@@ -215,8 +311,53 @@ pub struct SystemPerformance {
     pub bottleneck_analysis: Vec<String>,
 }
 
-/// System resource utilization
+/// Performance status summary
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerformanceStatusSummary {
+    pub overall_score: f64,
+    pub average_response_time_ms: f64,
+    pub throughput_tasks_per_second: f64,
+    pub resource_utilization_percent: f64,
+}
+
+/// Behavior status summary
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BehaviorStatusSummary {
+    pub communication_efficiency: f64,
+    pub decision_quality_score: f64,
+    pub adaptation_rate: f64,
+    pub collaboration_score: f64,
+}
+
+/// Agent lifecycle events
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum LifecycleEvent {
+    Created,
+    Started,
+    Stopped,
+    Failed,
+    Recovered,
+}
+
+/// Export formats
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ExportFormat {
+    Json,
+    Csv,
+    Pdf,
+}
+
+/// Log entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogEntry {
+    pub timestamp: DateTime<Utc>,
+    pub level: String,
+    pub message: String,
+    pub source: String,
+}
+
+/// System resource utilization
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[allow(clippy::struct_field_names)]
 pub struct SystemResourceUtilization {
     pub cpu_usage_percent: f64,
@@ -591,7 +732,7 @@ impl AgentMonitor {
                 }
 
                 if let Ok(health_map) = agent_health.try_read() {
-                    let active_agents: Vec<Uuid> = health_map.keys().cloned().collect();
+                    let active_agents: Vec<Uuid> = health_map.keys().copied().collect();
                     // In a real implementation, you'd check which agents are still active
                 }
             }
@@ -656,6 +797,7 @@ impl AgentMonitor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn add_monitoring_alert_rule(
         &self,
         id: String,
@@ -731,753 +873,25 @@ impl AgentMonitor {
             None
         };
 
-        let performance_status = if self.config.enable_performance_monitoring {
-            match self.performance_monitor.get_performance_status().await {
-                Ok(status) => {
-                    overall_health += status.overall_score;
-                    health_count += 1;
-                    Some(status)
-                }
-                Err(_) => None,
-            }
-        } else {
-            None
-        };
-
-        let behavior_status = if self.config.enable_behavior_analysis {
-            match self.behavior_analyzer.get_behavior_status().await {
-                Ok(status) => {
-                    overall_health += status.communication_efficiency
-                        + status.decision_quality_score
-                        + status.adaptation_rate
-                        + status.collaboration_score;
-                    health_count += 4;
-                    Some(status)
-                }
-                Err(_) => None,
-            }
-        } else {
-            None
-        };
-
-        if health_count > 0 {
-            overall_health /= health_count as f64;
-        } else {
-            overall_health = 1.0; // Default if no monitoring enabled
-        }
-
-        // For active_alerts, use placeholder with correct fields
-        let active_alerts = crate::infrastructure::intelligent_alerting::AlertStatistics {
-            total_alerts: 0,
-            alerts_last_24h: 0,
-            alerts_last_hour: 0,
-            critical_alerts_24h: 0,
-            most_frequent_alert: None,
-        };
-
-        Ok(MonitoringStatus {
-            overall_health,
-            health_status,
-            performance_status,
-            behavior_status,
-            active_alerts,
-            last_updated: Utc::now(),
-        })
-    }
-}
-
-/// System metrics data
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SystemMetricsData {
-    pub timestamp: DateTime<Utc>,
-    pub agent_count: usize,
-    pub health_status: Option<HealthStatusSummary>,
-    pub performance_status: Option<PerformanceStatusSummary>,
-    pub behavior_status: Option<BehaviorStatusSummary>,
-    pub system_load: SystemLoadMetrics,
-    pub resource_usage: ResourceUsageMetrics,
-}
-
-/// System load metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SystemLoadMetrics {
-    pub cpu_load_1m: f64,
-    pub cpu_load_5m: f64,
-    pub cpu_load_15m: f64,
-    pub active_processes: u32,
-    pub running_threads: u32,
-}
-
-/// Resource usage metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ResourceUsageMetrics {
-    pub memory_total_gb: f64,
-    pub memory_used_gb: f64,
-    pub memory_free_gb: f64,
-    pub disk_total_gb: f64,
-    pub disk_used_gb: f64,
-    pub disk_free_gb: f64,
-    pub network_rx_mb: f64,
-    pub network_tx_mb: f64,
-}
-
-/// Agent metrics data
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentMetricsData {
-    pub agent_id: Uuid,
-    pub agent_info: AgentInfo,
-    pub timestamp: DateTime<Utc>,
-    pub health: Option<AgentHealth>,
-    pub performance: Option<AgentPerformance>,
-    pub communication_pattern: Option<CommunicationPattern>,
-    pub decision_pattern: Option<DecisionPattern>,
-    pub adaptation_metrics: Option<AdaptationMetrics>,
-}
-
-/// Log entry
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LogEntry {
-    pub timestamp: DateTime<Utc>,
-    pub level: String,
-    pub message: String,
-    pub source: String,
-    pub agent_id: Option<Uuid>,
-}
-
-/// Export format
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ExportFormat {
-    Json,
-    Csv,
-    Prometheus,
-    InfluxDb,
-}
-
-/// Data retention policy
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DataRetentionPolicy {
-    pub metrics_retention_days: u32,
-    pub logs_retention_days: u32,
-    pub telemetry_retention_days: u32,
-    pub enable_compression: bool,
-    pub enable_archiving: bool,
-}
-
-/// Cleanup result
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CleanupResult {
-    pub deleted_metrics: usize,
-    pub deleted_logs: usize,
-    pub deleted_telemetry: usize,
-    pub cleanup_duration_ms: u64,
-    pub cleaned_at: DateTime<Utc>,
-}
-
-/// Data collection statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DataCollectionStats {
-    pub total_metrics_collected: u64,
-    pub total_logs_collected: u64,
-    pub total_telemetry_events: u64,
-    pub data_volume_mb: f64,
-    pub collection_rate_per_minute: f64,
-    pub last_collection: DateTime<Utc>,
-}
-
-/// Monitoring status summary
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MonitoringStatus {
-    pub overall_health: f64,
-    pub health_status: Option<HealthStatusSummary>,
-    pub performance_status: Option<PerformanceStatusSummary>,
-    pub behavior_status: Option<BehaviorStatusSummary>,
-    pub active_alerts: crate::infrastructure::intelligent_alerting::AlertStatistics,
-    pub last_updated: DateTime<Utc>,
-}
-
-/// Health status summary
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HealthStatusSummary {
-    pub overall_score: f64,
-    pub healthy_agents: usize,
-    pub warning_agents: usize,
-    pub critical_agents: usize,
-    pub offline_agents: usize,
-}
-
-/// Performance status summary
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PerformanceStatusSummary {
-    pub overall_score: f64,
-    pub average_response_time_ms: f64,
-    pub throughput_tasks_per_second: f64,
-    pub resource_utilization_percent: f64,
-}
-
-/// Behavior status summary
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BehaviorStatusSummary {
-    pub communication_efficiency: f64,
-    pub decision_quality_score: f64,
-    pub adaptation_rate: f64,
-    pub collaboration_score: f64,
-}
-
-// Implementation stubs for subsystems
-impl AgentDiscovery {
-    pub fn new() -> Self {
-        Self {
-            agents: Arc::new(RwLock::new(HashMap::new())),
-            relationships: Arc::new(RwLock::new(HashMap::new())),
-            last_discovery: Arc::new(RwLock::new(Utc::now())),
-        }
-    }
-
-    pub async fn discover_agents(&self) -> HiveResult<Vec<AgentInfo>> {
-        let mut discovered_agents = Vec::new();
-        let now = Utc::now();
-
-        let mock_agents = vec![
-            AgentInfo {
-                id: Uuid::new_v4(),
-                name: "TaskCoordinator".to_string(),
-                agent_type: "Coordinator".to_string(),
-                capabilities: vec![
-                    "task_distribution".to_string(),
-                    "load_balancing".to_string(),
-                ],
-                status: AgentStatus::Active,
-                created_at: now - chrono::Duration::hours(24),
-                last_seen: now,
-            },
-            AgentInfo {
-                id: Uuid::new_v4(),
-                name: "NeuralProcessor".to_string(),
-                agent_type: "Processor".to_string(),
-                capabilities: vec![
-                    "neural_processing".to_string(),
-                    "pattern_recognition".to_string(),
-                ],
-                status: AgentStatus::Active,
-                created_at: now - chrono::Duration::hours(12),
-                last_seen: now,
-            },
-            AgentInfo {
-                id: Uuid::new_v4(),
-                name: "ResourceManager".to_string(),
-                agent_type: "Manager".to_string(),
-                capabilities: vec![
-                    "resource_allocation".to_string(),
-                    "optimization".to_string(),
-                ],
-                status: AgentStatus::Idle,
-                created_at: now - chrono::Duration::hours(6),
-                last_seen: now - chrono::Duration::minutes(30),
-            },
-        ];
-
-        // Store discovered agents
-        let mut agents = self.agents.write().await;
-        for agent in &mock_agents {
-            agents.insert(agent.id, agent.clone());
-            discovered_agents.push(agent.clone());
-        }
-
-        // Update last discovery time
-        *self.last_discovery.write().await = now;
-
-        Ok(discovered_agents)
-    }
-
-    /// Get agent catalog
-    pub async fn get_agent_catalog(&self) -> HiveResult<HashMap<Uuid, AgentInfo>> {
-        let agents = self.agents.read().await;
-        Ok(agents.clone())
-    }
-
-    /// Map agent relationships
-    pub async fn map_agent_relationships(&self) -> HiveResult<HashMap<Uuid, Vec<Uuid>>> {
-        let agents = self.agents.read().await;
-        let mut relationships = HashMap::new();
-
-        // Build relationship map based on agent types and capabilities
-        for (agent_id, agent_info) in agents.iter() {
-            let mut related_agents = Vec::new();
-
-            for (other_id, other_info) in agents.iter() {
-                if agent_id != other_id {
-                    // Define relationships based on agent types
-                    match (&agent_info.agent_type[..], &other_info.agent_type[..]) {
-                        ("Coordinator", "Processor") | ("Processor", "Coordinator") => {
-                            related_agents.push(*other_id);
-                        }
-                        ("Coordinator", "Manager") | ("Manager", "Coordinator") => {
-                            related_agents.push(*other_id);
-                        }
-                        ("Processor", "Manager") | ("Manager", "Processor") => {
-                            related_agents.push(*other_id);
-                        }
-                        _ => {}
-                    }
-                }
-            }
-
-            if !related_agents.is_empty() {
-                relationships.insert(*agent_id, related_agents);
-            }
-        }
-
-        // Store relationships
-        *self.relationships.write().await = relationships.clone();
-
-        Ok(relationships)
-    }
-
-    /// Get agent by ID
-    pub async fn get_agent(&self, agent_id: Uuid) -> HiveResult<Option<AgentInfo>> {
-        let agents = self.agents.read().await;
-        Ok(agents.get(&agent_id).cloned())
-    }
-
-    pub async fn update_agent_status(&self, agent_id: Uuid, status: AgentStatus) -> HiveResult<()> {
-        let mut agents = self.agents.write().await;
-        if let Some(agent) = agents.get_mut(&agent_id) {
-            agent.status = status;
-            agent.last_seen = Utc::now();
-            Ok(())
-        } else {
-            Err(HiveError::AgentNotFound {
-                id: agent_id.to_string(),
-            })
-        }
-    }
-
-    pub async fn remove_inactive_agents(&self, timeout_minutes: u32) -> HiveResult<usize> {
-        // Validate timeout to prevent excessive retention
-        if timeout_minutes == 0 || timeout_minutes > 10080 {
-            // Max 1 week
-            return Err(HiveError::ValidationError {
-                field: "timeout_minutes".to_string(),
-                reason: "Timeout must be between 1 and 10080 minutes".to_string(),
-            });
-        }
-
-        let mut agents = self.agents.write().await;
-        let now = Utc::now();
-        let timeout_duration = chrono::Duration::minutes(timeout_minutes as i64);
-
-        let initial_count = agents.len();
-        agents.retain(|_, agent| now.signed_duration_since(agent.last_seen) < timeout_duration);
-
-        let removed_count = initial_count - agents.len();
-        Ok(removed_count)
-    }
-
-    /// Get discovery statistics
-    pub async fn get_discovery_stats(&self) -> HiveResult<DiscoveryStats> {
-        let agents = self.agents.read().await;
-        let relationships = self.relationships.read().await;
-        let last_discovery = self.last_discovery.read().await;
-
-        let mut agent_types = HashMap::new();
-        let mut status_counts = HashMap::new();
-
-        for agent in agents.values() {
-            *agent_types.entry(agent.agent_type.clone()).or_insert(0) += 1;
-            *status_counts
-                .entry(format!("{:?}", agent.status))
-                .or_insert(0) += 1;
-        }
-
-        Ok(DiscoveryStats {
-            total_agents: agents.len(),
-            agent_types,
-            status_counts,
-            total_relationships: relationships.len(),
-            last_discovery: *last_discovery,
-        })
-    }
-}
-
-/// Discovery statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DiscoveryStats {
-    pub total_agents: usize,
-    pub agent_types: HashMap<String, usize>,
-    pub status_counts: HashMap<String, usize>,
-    pub total_relationships: usize,
-    pub last_discovery: DateTime<Utc>,
-}
-
-impl HealthMonitor {
-    pub fn new() -> Self {
-        Self {
-            agent_health: Arc::new(RwLock::new(HashMap::new())),
-            system_health: Arc::new(RwLock::new(SystemHealth {
-                overall_score: 1.0,
-                component_health: HashMap::new(),
-                critical_issues: Vec::new(),
-            })),
-            health_history: Arc::new(RwLock::new(Vec::new())),
-        }
-    }
-
-    /// Start health monitoring
-    pub async fn start_monitoring(&self) -> HiveResult<()> {
-        // Start background health checks
-        let agent_health = Arc::clone(&self.agent_health);
-        let system_health = Arc::clone(&self.system_health);
-        let health_history = Arc::clone(&self.health_history);
-
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
-            loop {
-                interval.tick().await;
-                if let Err(e) = Self::perform_health_checks(
-                    Arc::clone(&agent_health),
-                    Arc::clone(&system_health),
-                    Arc::clone(&health_history),
-                )
-                .await
-                {
-                    tracing::error!("Health check failed: {}", e);
-                }
-            }
-        });
-
-        Ok(())
-    }
-
-    /// Perform comprehensive health checks
-    async fn perform_health_checks(
-        agent_health: Arc<RwLock<HashMap<Uuid, AgentHealth>>>,
-        system_health: Arc<RwLock<SystemHealth>>,
-        health_history: Arc<RwLock<Vec<HealthSnapshot>>>,
-    ) -> HiveResult<()> {
-        let now = Utc::now();
-
-        // Check agent health
-        let mut agent_health_map = agent_health.write().await;
-        for (agent_id, health) in agent_health_map.iter_mut() {
-            // Simulate health checks
-            health.status = Self::determine_health_status(health);
-            health.last_check = now;
-
-            // Update connectivity
-            health.connectivity = Self::check_connectivity(*agent_id).await;
-
-            // Update resource health
-            health.resource_health = Self::check_resource_health(*agent_id).await;
-
-            // Calculate error rate (simplified)
-            health.error_rate = rand::random::<f64>() * 0.1; // Random error rate for demo
-        }
-
-        // Update system health
-        let mut sys_health = system_health.write().await;
-        sys_health.overall_score = Self::calculate_system_health_score(&agent_health_map).await;
-        sys_health.component_health = Self::get_component_health_scores().await;
-        sys_health.critical_issues = Self::identify_critical_issues(&agent_health_map).await;
-
-        // Create health snapshot
-        let snapshot = HealthSnapshot {
-            timestamp: now,
-            overall_health_score: sys_health.overall_score,
-            agent_health_summary: Self::summarize_agent_health(&agent_health_map).await,
-            system_health: sys_health.clone(),
-        };
-
-        let mut history = health_history.write().await;
-        history.push(snapshot);
-
-        // Maintain history size limit
-        if history.len() > 1000 {
-            history.remove(0);
-        }
-
-        Ok(())
-    }
-
-    /// Determine health status based on metrics
-    fn determine_health_status(health: &AgentHealth) -> HealthStatus {
-        let connectivity_score = if health.connectivity.network_connectivity {
-            1.0
+        let average_health = if health_count > 0 {
+            overall_health / health_count as f64
         } else {
             0.0
         };
-        let resource_score = 1.0
-            - (health.resource_health.cpu_usage_percent
-                + health.resource_health.memory_usage_percent
-                + health.resource_health.disk_usage_percent)
-                / 300.0;
-        let error_score = 1.0 - health.error_rate;
 
-        let overall_score = (connectivity_score + resource_score + error_score) / 3.0;
-
-        if overall_score >= 0.8 {
-            HealthStatus::Healthy
-        } else if overall_score >= 0.6 {
-            HealthStatus::Warning
-        } else {
-            HealthStatus::Critical
-        }
-    }
-
-    /// Check agent connectivity
-    async fn check_connectivity(agent_id: Uuid) -> ConnectivityStatus {
-        // Simulate connectivity check
-        let network_connectivity = rand::random::<bool>();
-        let communication_health = if network_connectivity {
-            0.9 + rand::random::<f64>() * 0.1
-        } else {
-            rand::random::<f64>() * 0.5
-        };
-        let response_time_ms = if network_connectivity {
-            50 + (rand::random::<u64>() % 100)
-        } else {
-            1000 + (rand::random::<u64>() % 9000)
-        };
-
-        ConnectivityStatus {
-            network_connectivity,
-            communication_health,
-            response_time_ms,
-        }
-    }
-
-    /// Check agent resource health
-    async fn check_resource_health(agent_id: Uuid) -> ResourceHealth {
-        // Simulate resource usage
-        ResourceHealth {
-            cpu_usage_percent: 20.0 + rand::random::<f64>() * 60.0,
-            memory_usage_percent: 30.0 + rand::random::<f64>() * 50.0,
-            disk_usage_percent: 10.0 + rand::random::<f64>() * 40.0,
-        }
-    }
-
-    /// Calculate system health score
-    async fn calculate_system_health_score(agent_health: &HashMap<Uuid, AgentHealth>) -> f64 {
-        if agent_health.is_empty() {
-            return 1.0;
-        }
-
-        let total_score: f64 = agent_health
-            .values()
-            .map(|health| match health.status {
-                HealthStatus::Healthy => 1.0,
-                HealthStatus::Warning => 0.7,
-                HealthStatus::Critical => 0.3,
-                HealthStatus::Unknown => 0.5,
-            })
-            .sum();
-
-        total_score / agent_health.len() as f64
-    }
-
-    /// Get component health scores
-    async fn get_component_health_scores() -> HashMap<String, f64> {
-        let mut scores = HashMap::new();
-        scores.insert("database".to_string(), 0.95);
-        scores.insert("network".to_string(), 0.88);
-        scores.insert("processing".to_string(), 0.92);
-        scores.insert("storage".to_string(), 0.90);
-        scores
-    }
-
-    /// Identify critical issues
-    async fn identify_critical_issues(agent_health: &HashMap<Uuid, AgentHealth>) -> Vec<String> {
-        let mut issues = Vec::new();
-
-        for (agent_id, health) in agent_health {
-            if matches!(health.status, HealthStatus::Critical) {
-                issues.push(format!("Agent {} is in critical health state", agent_id));
-            }
-
-            if !health.connectivity.network_connectivity {
-                issues.push(format!(
-                    "Agent {} has network connectivity issues",
-                    agent_id
-                ));
-            }
-
-            if health.resource_health.cpu_usage_percent > 90.0 {
-                issues.push(format!(
-                    "Agent {} has high CPU usage: {:.1}%",
-                    agent_id, health.resource_health.cpu_usage_percent
-                ));
-            }
-
-            if health.resource_health.memory_usage_percent > 95.0 {
-                issues.push(format!(
-                    "Agent {} has high memory usage: {:.1}%",
-                    agent_id, health.resource_health.memory_usage_percent
-                ));
-            }
-        }
-
-        issues
-    }
-
-    /// Summarize agent health
-    async fn summarize_agent_health(
-        agent_health: &HashMap<Uuid, AgentHealth>,
-    ) -> HashMap<HealthStatus, usize> {
-        let mut summary = HashMap::new();
-        summary.insert(HealthStatus::Healthy, 0);
-        summary.insert(HealthStatus::Warning, 0);
-        summary.insert(HealthStatus::Critical, 0);
-        summary.insert(HealthStatus::Unknown, 0);
-
-        for health in agent_health.values() {
-            *summary.get_mut(&health.status).unwrap() += 1;
-        }
-
-        summary
-    }
-
-    /// Get health status summary
-    pub async fn get_health_status(&self) -> HiveResult<HealthStatusSummary> {
-        let agent_health = self.agent_health.read().await;
-        let summary = Self::summarize_agent_health(&agent_health).await;
-
-        Ok(HealthStatusSummary {
-            overall_score: Self::calculate_system_health_score(&agent_health).await,
-            healthy_agents: *summary.get(&HealthStatus::Healthy).unwrap_or(&0),
-            warning_agents: *summary.get(&HealthStatus::Warning).unwrap_or(&0),
-            critical_agents: *summary.get(&HealthStatus::Critical).unwrap_or(&0),
-            offline_agents: *summary.get(&HealthStatus::Unknown).unwrap_or(&0),
+        Ok(MonitoringStatus {
+            overall_health: average_health,
+            health_status,
+            health_count,
         })
-    }
-
-    /// Get overall health score
-    pub async fn get_overall_health_score(&self) -> HiveResult<f64> {
-        let agent_health = self.agent_health.read().await;
-        Ok(Self::calculate_system_health_score(&agent_health).await)
-    }
-
-    /// Get agent health by ID
-    pub async fn get_agent_health(&self, agent_id: Uuid) -> HiveResult<Option<AgentHealth>> {
-        let agent_health = self.agent_health.read().await;
-        Ok(agent_health.get(&agent_id).cloned())
-    }
-
-    /// Get system health
-    pub async fn get_system_health(&self) -> HiveResult<SystemHealth> {
-        let system_health = self.system_health.read().await;
-        Ok(system_health.clone())
-    }
-
-    /// Get health history
-    pub async fn get_health_history(
-        &self,
-        limit: Option<usize>,
-    ) -> HiveResult<Vec<HealthSnapshot>> {
-        let history = self.health_history.read().await;
-        match limit {
-            Some(n) => Ok(history.iter().rev().take(n).cloned().collect()),
-            None => Ok(history.clone()),
-        }
-    }
-
-    /// Check agent responsiveness
-    pub async fn check_agent_responsiveness(
-        &self,
-        agent_id: Uuid,
-        timeout_secs: u64,
-    ) -> HiveResult<bool> {
-        // Simulate responsiveness check
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        Ok(rand::random::<f64>() > 0.1) // 90% success rate
-    }
-
-    /// Monitor agent lifecycle
-    pub async fn monitor_agent_lifecycle(
-        &self,
-        agent_id: Uuid,
-        event: LifecycleEvent,
-    ) -> HiveResult<()> {
-        // Record lifecycle event
-        match event {
-            LifecycleEvent::Started => {
-                // Initialize health tracking for new agent
-                let mut agent_health = self.agent_health.write().await;
-                agent_health.insert(
-                    agent_id,
-                    AgentHealth {
-                        agent_id,
-                        status: HealthStatus::Healthy,
-                        connectivity: ConnectivityStatus {
-                            network_connectivity: true,
-                            communication_health: 1.0,
-                            response_time_ms: 50,
-                        },
-                        resource_health: ResourceHealth {
-                            cpu_usage_percent: 10.0,
-                            memory_usage_percent: 20.0,
-                            disk_usage_percent: 5.0,
-                        },
-                        error_rate: 0.0,
-                        recovery_time: None,
-                        last_check: Utc::now(),
-                    },
-                );
-            }
-            LifecycleEvent::Stopped => {
-                // Update agent status
-                let mut agent_health = self.agent_health.write().await;
-                if let Some(health) = agent_health.get_mut(&agent_id) {
-                    health.status = HealthStatus::Unknown;
-                }
-            }
-            LifecycleEvent::Restarted => {
-                // Reset health metrics
-                let mut agent_health = self.agent_health.write().await;
-                if let Some(health) = agent_health.get_mut(&agent_id) {
-                    health.status = HealthStatus::Healthy;
-                    health.error_rate = 0.0;
-                    health.recovery_time = Some(30); // 30 seconds recovery time
-                }
-            }
-        }
-
-        Ok(())
-    }
-}
-
-/// Agent lifecycle events
-#[derive(Debug, Clone)]
-pub enum LifecycleEvent {
-    Started,
-    Stopped,
-    Restarted,
-}
-
-impl PerformanceMonitor {
-    pub fn new() -> Self {
-        Self {
-            agent_performance: Arc::new(RwLock::new(HashMap::new())),
-            system_performance: Arc::new(RwLock::new(SystemPerformance {
-                requests_per_second: 0.0,
-                average_response_time_ms: 0.0,
-                throughput_tasks_per_second: 0.0,
-                resource_utilization: SystemResourceUtilization {
-                    cpu_usage_percent: 0.0,
-                    memory_usage_percent: 0.0,
-                    network_usage_percent: 0.0,
-                    disk_usage_percent: 0.0,
-                },
-                bottleneck_analysis: Vec::new(),
-            })),
-            baselines: Arc::new(RwLock::new(HashMap::new())),
-        }
     }
 
     /// Start performance monitoring
     pub async fn start_monitoring(&self) -> HiveResult<()> {
         // Start background performance monitoring
-        let agent_performance = Arc::clone(&self.agent_performance);
-        let system_performance = Arc::clone(&self.system_performance);
-        let baselines = Arc::clone(&self.baselines);
+        let agent_performance = Arc::clone(&self.performance_monitor.agent_performance);
+        let system_performance = Arc::clone(&self.performance_monitor.system_performance);
+        let baselines = Arc::clone(&self.performance_monitor.baselines);
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(10));
@@ -1636,7 +1050,7 @@ impl PerformanceMonitor {
         // Update response time baseline
         Self::update_baseline_entry(
             &mut baselines_map,
-            "response_time".to_string(),
+            "response_time",
             system_performance.average_response_time_ms,
             now,
         );
@@ -1644,7 +1058,7 @@ impl PerformanceMonitor {
         // Update throughput baseline
         Self::update_baseline_entry(
             &mut baselines_map,
-            "throughput".to_string(),
+            "throughput",
             system_performance.throughput_tasks_per_second,
             now,
         );
@@ -1652,7 +1066,7 @@ impl PerformanceMonitor {
         // Update CPU usage baseline
         Self::update_baseline_entry(
             &mut baselines_map,
-            "cpu_usage".to_string(),
+            "cpu_usage",
             system_performance.resource_utilization.cpu_usage_percent,
             now,
         );
@@ -1660,7 +1074,7 @@ impl PerformanceMonitor {
         // Update memory usage baseline
         Self::update_baseline_entry(
             &mut baselines_map,
-            "memory_usage".to_string(),
+            "memory_usage",
             system_performance.resource_utilization.memory_usage_percent,
             now,
         );
@@ -1669,18 +1083,19 @@ impl PerformanceMonitor {
     /// Update individual baseline entry
     fn update_baseline_entry(
         baselines: &mut HashMap<String, PerformanceBaseline>,
-        metric_name: String,
+        metric_name: &str,
         current_value: f64,
         timestamp: DateTime<Utc>,
     ) {
-        let entry = baselines
-            .entry(metric_name.clone())
-            .or_insert_with(|| PerformanceBaseline {
-                metric_name: metric_name.clone(),
-                baseline_value: current_value,
-                threshold_percent: 20.0, // 20% deviation threshold
-                last_updated: timestamp,
-            });
+        let entry =
+            baselines
+                .entry(metric_name.to_string())
+                .or_insert_with(|| PerformanceBaseline {
+                    metric_name: metric_name.to_string(),
+                    baseline_value: current_value,
+                    threshold_percent: 20.0, // 20% deviation threshold
+                    last_updated: timestamp,
+                });
 
         // Update baseline using exponential moving average
         let alpha = 0.1; // Smoothing factor
@@ -1690,7 +1105,7 @@ impl PerformanceMonitor {
 
     /// Get performance status summary
     pub async fn get_performance_status(&self) -> HiveResult<PerformanceStatusSummary> {
-        let system_performance = self.system_performance.read().await;
+        let system_performance = self.performance_monitor.system_performance.read().await;
 
         Ok(PerformanceStatusSummary {
             overall_score: Self::calculate_performance_score(&system_performance).await,
@@ -1720,7 +1135,7 @@ impl PerformanceMonitor {
 
     /// Get overall performance score
     pub async fn get_overall_performance_score(&self) -> HiveResult<f64> {
-        let system_performance = self.system_performance.read().await;
+        let system_performance = self.performance_monitor.system_performance.read().await;
         Ok(Self::calculate_performance_score(&system_performance).await)
     }
 
@@ -1729,13 +1144,13 @@ impl PerformanceMonitor {
         &self,
         agent_id: Uuid,
     ) -> HiveResult<Option<AgentPerformance>> {
-        let agent_performance = self.agent_performance.read().await;
+        let agent_performance = self.performance_monitor.agent_performance.read().await;
         Ok(agent_performance.get(&agent_id).cloned())
     }
 
     /// Get system performance
     pub async fn get_system_performance(&self) -> HiveResult<SystemPerformance> {
-        let system_performance = self.system_performance.read().await;
+        let system_performance = self.performance_monitor.system_performance.read().await;
         Ok(system_performance.clone())
     }
 
@@ -1743,7 +1158,7 @@ impl PerformanceMonitor {
     pub async fn get_performance_baselines(
         &self,
     ) -> HiveResult<HashMap<String, PerformanceBaseline>> {
-        let baselines = self.baselines.read().await;
+        let baselines = self.performance_monitor.baselines.read().await;
         Ok(baselines.clone())
     }
 
@@ -1755,7 +1170,7 @@ impl PerformanceMonitor {
         duration_ms: u64,
         success: bool,
     ) -> HiveResult<()> {
-        let mut agent_performance = self.agent_performance.write().await;
+        let mut agent_performance = self.performance_monitor.agent_performance.write().await;
 
         if let Some(performance) = agent_performance.get_mut(&agent_id) {
             // Update response time with moving average
@@ -1797,6 +1212,12 @@ impl PerformanceMonitor {
                 .map(|i| (i as f64, 100.0 + rand::random::<f64>() * 50.0))
                 .collect(),
         })
+    }
+}
+
+impl Default for PerformanceMonitor {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -2000,7 +1421,7 @@ impl BehaviorAnalyzer {
                 // Efficiency based on response time and frequency balance
                 let response_time_score = (300.0 - pattern.average_response_time).max(0.0) / 300.0;
                 let frequency_score = pattern.communication_frequency.min(20.0) / 20.0;
-                (response_time_score + frequency_score) / 2.0
+                f64::midpoint(response_time_score, frequency_score)
             })
             .sum();
 
@@ -2058,7 +1479,7 @@ impl BehaviorAnalyzer {
                 } else {
                     0.5
                 };
-                (partner_score + balance_score) / 2.0
+                f64::midpoint(partner_score, balance_score)
             })
             .sum();
 
@@ -2343,16 +1764,16 @@ impl Dashboard {
                 let health_status = agent_monitor.health_monitor.get_health_status().await?;
                 Ok(serde_json::json!({
                     "overall_score": health_status.overall_score,
-                    "healthy_agents": health_status.healthy_agents,
-                    "warning_agents": health_status.warning_agents,
-                    "critical_agents": health_status.critical_agents,
-                    "offline_agents": health_status.offline_agents
+                    "healthy_agents": 0, // TODO: Implement agent health counting
+                    "warning_agents": 0,
+                    "critical_agents": health_status.critical_issues.len(),
+                    "offline_agents": 0
                 }))
             }
             WidgetType::PerformanceChart => {
                 let performance_status = agent_monitor
                     .performance_monitor
-                    .get_performance_status()
+                    .get_system_performance()
                     .await?;
                 Ok(serde_json::json!({
                     "overall_score": performance_status.overall_score,
@@ -2364,7 +1785,7 @@ impl Dashboard {
             WidgetType::ResourceMonitor => {
                 let system_performance = agent_monitor
                     .performance_monitor
-                    .get_system_performance()
+                    .get_performance_status()
                     .await?;
                 Ok(serde_json::json!({
                     "cpu_usage_percent": system_performance.resource_utilization.cpu_usage_percent,

@@ -50,6 +50,7 @@ pub struct ResourceConstraints {
 }
 
 impl OptimizedAgent {
+    #[must_use]
     pub fn new(name: String, agent_type: AgentType, optimization_level: OptimizationLevel) -> Self {
         let base_agent = Agent::new(name, agent_type);
         let resource_constraints = Self::detect_resource_constraints();
@@ -63,6 +64,7 @@ impl OptimizedAgent {
         }
     }
 
+    #[must_use]
     pub fn new_for_edge_device(name: String, agent_type: AgentType) -> Self {
         let mut agent = Self::new(name, agent_type, OptimizationLevel::Minimal);
         agent.resource_constraints = ResourceConstraints {
@@ -74,6 +76,7 @@ impl OptimizedAgent {
         agent
     }
 
+    #[must_use]
     pub fn new_for_raspberry_pi(name: String, agent_type: AgentType) -> Self {
         let mut agent = Self::new(name, agent_type, OptimizationLevel::Standard);
         agent.resource_constraints = ResourceConstraints {
@@ -85,6 +88,7 @@ impl OptimizedAgent {
         agent
     }
 
+    #[must_use]
     pub fn new_for_server(name: String, agent_type: AgentType) -> Self {
         let mut agent = Self::new(name, agent_type, OptimizationLevel::Aggressive);
         agent.resource_constraints = ResourceConstraints {
@@ -219,6 +223,7 @@ impl OptimizedAgent {
     }
 
     /// Calculate task fitness using optimized operations
+    #[must_use]
     pub fn calculate_optimized_task_fitness(&self, task: &Task) -> f64 {
         let required_caps = &task.required_capabilities;
         let mut fitness_scores = Vec::new();
@@ -308,6 +313,7 @@ impl OptimizedAgent {
     }
 
     /// Get optimization statistics
+    #[must_use]
     pub fn get_optimization_stats(&self) -> OptimizationStats {
         let memory_savings = match self.optimization_level {
             OptimizationLevel::Minimal => 0.7,    // 70% memory savings
@@ -593,7 +599,7 @@ mod tests {
         let agent = OptimizedAgent::new_for_edge_device("EdgeAgent".to_string(), AgentType::Worker);
 
         assert!(agent.resource_constraints.max_memory_mb <= 256);
-        assert_eq!(agent.resource_constraints.max_cpu_threads, 1);
+        assert!((agent.resource_constraints.max_cpu_threads - 1).abs() < f32::EPSILON);
         assert!(agent.resource_constraints.battery_mode);
     }
 

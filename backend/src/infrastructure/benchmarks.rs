@@ -137,6 +137,7 @@ pub struct PerformanceSnapshot {
 /// Memory leak detection and tracking
 pub struct MemoryTracker {
     baseline_memory: Arc<RwLock<Option<f64>>>,
+    #[allow(clippy::type_complexity)]
     memory_samples: Arc<RwLock<Vec<(DateTime<Utc>, f64)>>>,
     leak_threshold_mb: f64,
     sample_window_minutes: u64,
@@ -144,6 +145,7 @@ pub struct MemoryTracker {
 
 /// CPU usage tracking and profiling
 pub struct CpuTracker {
+    #[allow(clippy::type_complexity)]
     cpu_samples: Arc<RwLock<Vec<(DateTime<Utc>, f64)>>>,
     profiling_enabled: bool,
     sample_window_minutes: u64,
@@ -191,6 +193,7 @@ pub enum AlertSeverity {
 
 impl PerformanceMonitor {
     /// Create a new performance monitor
+    #[must_use]
     pub fn new(config: PerformanceConfig) -> Self {
         Self {
             memory_tracker: MemoryTracker::new(
@@ -535,6 +538,7 @@ pub struct PerformanceStats {
 }
 
 impl MemoryTracker {
+    #[must_use]
     pub fn new(leak_threshold_mb: f64, sample_window_minutes: u64) -> Self {
         Self {
             baseline_memory: Arc::new(RwLock::new(None)),
@@ -569,6 +573,7 @@ impl MemoryTracker {
 }
 
 impl CpuTracker {
+    #[must_use]
     pub fn new(profiling_enabled: bool, sample_window_minutes: u64) -> Self {
         Self {
             cpu_samples: Arc::new(RwLock::new(Vec::new())),
@@ -591,6 +596,7 @@ impl CpuTracker {
 }
 
 impl AlertManager {
+    #[must_use]
     pub fn new(thresholds: AlertThresholds) -> Self {
         Self {
             thresholds,
@@ -698,6 +704,7 @@ impl Default for PerformanceConfig {
 }
 
 /// Create a default benchmark suite for the hive system
+#[must_use]
 pub fn create_default_benchmark_suite() -> BenchmarkSuite {
     BenchmarkSuite {
         suite_id: uuid::Uuid::new_v4(),
@@ -761,15 +768,15 @@ mod tests {
         let monitor = PerformanceMonitor::new(config);
 
         let stats = monitor.get_performance_stats().await;
-        assert_eq!(stats.total_snapshots, 0);
-        assert_eq!(stats.total_benchmarks, 0);
+        assert!((stats.total_snapshots - 0).abs() < f32::EPSILON);
+        assert!((stats.total_benchmarks - 0).abs() < f32::EPSILON);
     }
 
     #[tokio::test]
     async fn test_benchmark_suite_creation() {
         let suite = create_default_benchmark_suite();
         assert!(!suite.benchmarks.is_empty());
-        assert_eq!(suite.benchmarks.len(), 4);
+        assert!((suite.benchmarks.len() - 4).abs() < f32::EPSILON);
     }
 
     #[tokio::test]

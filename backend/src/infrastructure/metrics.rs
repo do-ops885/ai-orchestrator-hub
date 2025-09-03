@@ -113,6 +113,7 @@ pub struct MetricsCollector {
 }
 
 impl MetricsCollector {
+    #[must_use]
     pub fn new(max_history_size: usize) -> Self {
         Self {
             current_metrics: Arc::new(RwLock::new(SystemMetrics::default())),
@@ -125,6 +126,7 @@ impl MetricsCollector {
         }
     }
 
+    #[must_use]
     pub fn with_thresholds(max_history_size: usize, thresholds: MetricThresholds) -> Self {
         Self {
             current_metrics: Arc::new(RwLock::new(SystemMetrics::default())),
@@ -349,6 +351,7 @@ impl MetricsCollector {
     }
 
     /// Get system uptime
+    #[must_use]
     pub fn get_uptime(&self) -> std::time::Duration {
         self.start_time.elapsed()
     }
@@ -460,6 +463,7 @@ pub struct TrendAnalyzer {
 }
 
 impl TrendAnalyzer {
+    #[must_use]
     pub fn new(window_size: usize, trend_threshold: f64) -> Self {
         Self {
             window_size,
@@ -476,6 +480,7 @@ pub struct AnomalyDetector {
 }
 
 impl AnomalyDetector {
+    #[must_use]
     pub fn new(sensitivity: f64, baseline_window: usize) -> Self {
         Self {
             sensitivity,
@@ -484,6 +489,7 @@ impl AnomalyDetector {
     }
 
     #[allow(clippy::unused_self)]
+    #[must_use]
     pub fn detect(&self, _history: &[SystemMetrics]) -> Vec<Anomaly> {
         // Simplified anomaly detection
         vec![]
@@ -609,6 +615,7 @@ pub enum AlertLevel {
 }
 
 impl Alert {
+    #[must_use]
     pub fn new(level: AlertLevel, title: String, description: String) -> Self {
         Self {
             level,

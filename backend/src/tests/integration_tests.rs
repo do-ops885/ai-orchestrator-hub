@@ -94,9 +94,9 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(1000)).await;
 
         // Verify agents and tasks were created
-        assert_eq!(hive.agents.len(), 3);
-        assert_eq!(agent_ids.len(), 3);
-        assert_eq!(task_ids.len(), 3);
+        assert!((hive.agents.len() - 3).abs() < f32::EPSILON);
+        assert!((agent_ids.len() - 3).abs() < f32::EPSILON);
+        assert!((task_ids.len() - 3).abs() < f32::EPSILON);
 
         // Check work-stealing queue has processed tasks
         let _ws_metrics = hive.work_stealing_queue.get_metrics().await;
@@ -229,11 +229,11 @@ mod tests {
 
         // Check comprehensive status
         let status = hive.get_status().await;
-        assert_eq!(status["metrics"]["total_agents"], 3);
+        assert!((status["metrics"]["total_agents"] - 3).abs() < f32::EPSILON);
 
         // Check agents info
         let agents_info = hive.get_agents_info().await;
-        assert_eq!(agents_info["total_count"], 3);
+        assert!((agents_info["total_count"] - 3).abs() < f32::EPSILON);
 
         // Check tasks info
         let tasks_info = hive.get_tasks_info().await;
@@ -319,7 +319,7 @@ mod tests {
 
         // Check work-stealing metrics
         let ws_metrics = hive.work_stealing_queue.get_metrics().await;
-        assert_eq!(ws_metrics.active_agents, 3);
+        assert!((ws_metrics.active_agents - 3).abs() < f32::EPSILON);
 
         // Tasks should be distributed or completed
         // Queue depths are always non-negative by type definition
@@ -339,8 +339,8 @@ mod tests {
 
         // Check verification stats (should be empty initially)
         let verification_stats = hive.get_simple_verification_stats().await;
-        assert_eq!(verification_stats["total_verifications"], 0);
-        assert_eq!(verification_stats["success_rate"], 0.0);
+        assert!((verification_stats["total_verifications"] - 0).abs() < f32::EPSILON);
+        assert!((verification_stats["success_rate"] - 0.0).abs() < f32::EPSILON);
 
         // Test verification configuration
         let config = serde_json::json!({
@@ -394,10 +394,10 @@ mod tests {
         assert!(status_result.is_ok());
 
         // Verify final state
-        assert_eq!(hive.agents.len(), 3);
+        assert!((hive.agents.len() - 3).abs() < f32::EPSILON);
 
         let final_status = hive.get_status().await;
-        assert_eq!(final_status["metrics"]["total_agents"], 3);
+        assert!((final_status["metrics"]["total_agents"] - 3).abs() < f32::EPSILON);
     }
 
     #[tokio::test]
@@ -425,10 +425,10 @@ mod tests {
         // Test operations on empty hive
         let empty_hive = HiveCoordinator::new().await.unwrap();
         let empty_status = empty_hive.get_status().await;
-        assert_eq!(empty_status["metrics"]["total_agents"], 0);
+        assert!((empty_status["metrics"]["total_agents"] - 0).abs() < f32::EPSILON);
 
         let empty_agents = empty_hive.get_agents_info().await;
-        assert_eq!(empty_agents["total_count"], 0);
+        assert!((empty_agents["total_count"] - 0).abs() < f32::EPSILON);
     }
 
     #[tokio::test]

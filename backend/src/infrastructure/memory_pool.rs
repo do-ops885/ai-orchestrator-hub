@@ -72,6 +72,7 @@ pub struct AgentMemoryPool {
 }
 
 impl AgentMemoryPool {
+    #[must_use]
     pub fn new(initial_pool_size: usize) -> Self {
         let mut hot_pool = VecDeque::with_capacity(initial_pool_size);
         let mut cold_pool = VecDeque::with_capacity(initial_pool_size);
@@ -247,6 +248,7 @@ pub struct OptimizedAgent {
 }
 
 impl OptimizedAgent {
+    #[must_use]
     pub fn new(hot_data: AgentHotData, cold_data_id: Uuid) -> Self {
         Self {
             hot_data,
@@ -255,6 +257,7 @@ impl OptimizedAgent {
     }
 
     /// Quick access to frequently used data
+    #[must_use]
     pub fn get_performance_score(&self) -> f32 {
         self.hot_data.performance_score
     }
@@ -289,11 +292,13 @@ impl OptimizedAgent {
     }
 
     /// Check if agent is available for new tasks
+    #[must_use]
     pub fn is_available(&self) -> bool {
         matches!(self.hot_data.state, AgentState::Idle) && self.hot_data.energy > 10.0
     }
 
     /// Calculate distance to another agent (for swarm coordination)
+    #[must_use]
     pub fn distance_to(&self, other: &OptimizedAgent) -> f32 {
         let dx = self.hot_data.position.0 - other.hot_data.position.0;
         let dy = self.hot_data.position.1 - other.hot_data.position.1;
@@ -312,7 +317,7 @@ mod tests {
         // Test hot data acquisition and release
         let hot_data = pool.acquire_hot_data().await;
         #[allow(clippy::float_cmp)]
-        assert_eq!(hot_data.energy, 100.0);
+        assert!((hot_data.energy - 100.0).abs() < f32::EPSILON);
 
         pool.release_hot_data(hot_data).await;
 
@@ -324,8 +329,8 @@ mod tests {
 
         // Check stats
         let stats = pool.get_pool_stats().await;
-        assert_eq!(stats.total_allocations, 2);
-        assert_eq!(stats.total_deallocations, 2);
+        assert!((stats.total_allocations - 2).abs() < f32::EPSILON);
+        assert!((stats.total_deallocations - 2).abs() < f32::EPSILON);
     }
 
     #[tokio::test]
@@ -346,7 +351,7 @@ mod tests {
 
         assert!(agent.is_available());
         #[allow(clippy::float_cmp)]
-        assert_eq!(agent.get_performance_score(), 0.5);
+        assert!((agent.get_performance_score() - 0.5).abs() < f32::EPSILON);
 
         // Test task assignment
         let task_id = Uuid::new_v4();
@@ -370,7 +375,7 @@ mod tests {
         let _hot3 = pool.acquire_hot_data().await; // Should create new object
 
         let stats = pool.get_pool_stats().await;
-        assert_eq!(stats.total_allocations, 3);
+        assert!((stats.total_allocations - 3).abs() < f32::EPSILON);
 
         // Test pool resizing
         pool.optimize_pool_size(10).await;

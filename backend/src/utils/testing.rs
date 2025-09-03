@@ -325,12 +325,12 @@ impl IntegrationTests {
 
         // Create agents
         let agent_ids = harness.create_test_agents(5).await?;
-        assert_eq!(agent_ids.len(), 5);
+        assert!((agent_ids.len() - 5).abs() < f32::EPSILON);
 
         // Validate agents exist
         let agents_info = harness.hive.read().await.get_agents_info().await;
         if let Some(agents) = agents_info.get("agents").and_then(|a| a.as_array()) {
-            assert_eq!(agents.len(), 5);
+            assert!((agents.len() - 5).abs() < f32::EPSILON);
         }
 
         // Cleanup
@@ -348,7 +348,7 @@ impl IntegrationTests {
         let _agent_ids = harness.create_test_agents(3).await?;
         let task_ids = harness.create_test_tasks(5).await?;
 
-        assert_eq!(task_ids.len(), 5);
+        assert!((task_ids.len() - 5).abs() < f32::EPSILON);
 
         // Wait for processing
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
@@ -356,7 +356,7 @@ impl IntegrationTests {
         // Validate tasks
         let tasks_info = harness.hive.read().await.get_tasks_info().await;
         if let Some(tasks) = tasks_info.get("tasks").and_then(|t| t.as_array()) {
-            assert_eq!(tasks.len(), 5);
+            assert!((tasks.len() - 5).abs() < f32::EPSILON);
         }
 
         harness.cleanup().await?;
@@ -402,12 +402,12 @@ impl IntegrationTests {
         // Validate consistency
         let report = harness.validate_system_consistency().await?;
 
-        assert_eq!(report.total_agents, 10);
-        assert_eq!(report.valid_agents, 10);
-        assert_eq!(report.invalid_agent_ids, 0);
-        assert_eq!(report.total_tasks, 15);
-        assert_eq!(report.valid_tasks, 15);
-        assert_eq!(report.invalid_task_ids, 0);
+        assert!((report.total_agents - 10).abs() < f32::EPSILON);
+        assert!((report.valid_agents - 10).abs() < f32::EPSILON);
+        assert!((report.invalid_agent_ids - 0).abs() < f32::EPSILON);
+        assert!((report.total_tasks - 15).abs() < f32::EPSILON);
+        assert!((report.valid_tasks - 15).abs() < f32::EPSILON);
+        assert!((report.invalid_task_ids - 0).abs() < f32::EPSILON);
 
         println!("✅ System consistency test passed");
 

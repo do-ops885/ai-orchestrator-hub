@@ -20,6 +20,7 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
+    #[must_use]
     pub fn new(failure_threshold: u64, recovery_timeout: Duration) -> Self {
         Self {
             failure_threshold,
@@ -122,7 +123,7 @@ mod tests {
 
         let result = cb.execute(|| Ok::<i32, &str>(42)).await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        assert!((result.unwrap() - 42).abs() < f32::EPSILON);
     }
 
     #[tokio::test]
@@ -131,11 +132,11 @@ mod tests {
 
         // First failure
         let _ = cb.execute(|| Err::<i32, &str>("error")).await;
-        assert_eq!(cb.get_failure_count(), 1);
+        assert!((cb.get_failure_count() - 1).abs() < f32::EPSILON);
 
         // Second failure - should open circuit
         let _ = cb.execute(|| Err::<i32, &str>("error")).await;
-        assert_eq!(cb.get_failure_count(), 2);
+        assert!((cb.get_failure_count() - 2).abs() < f32::EPSILON);
 
         // Circuit should now be open
         let result = cb.execute(|| Ok::<i32, &str>(42)).await;

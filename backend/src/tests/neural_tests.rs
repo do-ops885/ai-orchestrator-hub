@@ -54,7 +54,7 @@ mod tests {
 
         let text = "The data processing task was completed successfully with excellent results";
         // Test keyword extraction using sentiment analysis as a proxy
-        let tokens: Vec<String> = text.split_whitespace().map(|s| s.to_string()).collect();
+        let tokens: Vec<String> = text.split_whitespace().map(std::string::ToString::to_string).collect();
         let sentiment = nlp.analyze_sentiment(&tokens);
         let keywords = if sentiment > 0.0 {
             vec![
@@ -91,9 +91,9 @@ mod tests {
         let text3 = "completely unrelated content about weather";
 
         // Test semantic similarity using sentiment analysis as a proxy
-        let tokens1: Vec<String> = text1.split_whitespace().map(|s| s.to_string()).collect();
-        let tokens2: Vec<String> = text2.split_whitespace().map(|s| s.to_string()).collect();
-        let tokens3: Vec<String> = text3.split_whitespace().map(|s| s.to_string()).collect();
+        let tokens1: Vec<String> = text1.split_whitespace().map(std::string::ToString::to_string).collect();
+        let tokens2: Vec<String> = text2.split_whitespace().map(std::string::ToString::to_string).collect();
+        let tokens3: Vec<String> = text3.split_whitespace().map(std::string::ToString::to_string).collect();
 
         let sentiment1 = nlp.analyze_sentiment(&tokens1);
         let sentiment2 = nlp.analyze_sentiment(&tokens2);
@@ -104,8 +104,8 @@ mod tests {
 
         // Similar texts should have higher similarity than dissimilar ones
         assert!(similarity_high > similarity_low);
-        assert!(similarity_high >= 0.0 && similarity_high <= 1.0);
-        assert!(similarity_low >= 0.0 && similarity_low <= 1.0);
+        assert!((0.0..=1.0).contains(&similarity_high));
+        assert!((0.0..=1.0).contains(&similarity_low));
     }
 
     #[tokio::test]
@@ -123,7 +123,7 @@ mod tests {
         for experience in &experiences {
             let tokens: Vec<String> = experience
                 .split_whitespace()
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
                 .collect();
             let sentiment = nlp.analyze_sentiment(&tokens);
             if sentiment > 0.0 {
@@ -200,7 +200,7 @@ mod tests {
 
         if prediction.is_ok() {
             let result = prediction.unwrap();
-            assert!(result >= 0.0 && result <= 1.0); // Should be a valid probability
+            assert!((0.0..=1.0).contains(&result)); // Should be a valid probability
         }
         // If prediction fails, it's acceptable (neural agent might not be fully initialized)
     }
@@ -253,7 +253,7 @@ mod tests {
 
             // Each coordination result should be a valid probability
             for coord_value in result {
-                assert!(coord_value >= 0.0 && coord_value <= 1.0);
+                assert!((0.0..=1.0).contains(&coord_value));
             }
         }
         // If coordination fails, it's acceptable (neural system might not be fully ready)
@@ -288,7 +288,7 @@ mod tests {
         let large_tokens: Vec<String> = (0..1000).map(|i| format!("word{}", i)).collect();
 
         let sentiment = nlp.analyze_sentiment(&large_tokens);
-        assert!(sentiment >= -1.0 && sentiment <= 1.0); // Should be within valid range
+        assert!((-1.0..=1.0).contains(&sentiment)); // Should be within valid range
 
         // Test with very long text
         let long_tokens: Vec<String> = (0..1000).map(|i| format!("word{}", i)).collect();
@@ -309,7 +309,7 @@ mod tests {
         let text_with_special = "Hello! How are you? I'm doing great!!! @#$%^&*()";
         let tokens_with_special: Vec<String> = text_with_special
             .split_whitespace()
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
         let sentiment = nlp.analyze_sentiment(&tokens_with_special);
         let keywords = if sentiment > 0.0 {
@@ -329,7 +329,7 @@ mod tests {
             "123".to_string(),
         ];
         let sentiment = nlp.analyze_sentiment(&mixed_tokens);
-        assert!(sentiment >= -1.0 && sentiment <= 1.0);
+        assert!((-1.0..=1.0).contains(&sentiment));
     }
 
     #[tokio::test]
@@ -358,7 +358,7 @@ mod tests {
 
         // Test that same input produces consistent results
         let text = "data processing task completed successfully";
-        let tokens: Vec<String> = text.split_whitespace().map(|s| s.to_string()).collect();
+        let tokens: Vec<String> = text.split_whitespace().map(std::string::ToString::to_string).collect();
 
         let sentiment = nlp.analyze_sentiment(&tokens);
         let keywords1 = if sentiment > 0.0 {
@@ -416,7 +416,7 @@ mod tests {
         let mixed_text = "Hello world 你好世界 Здравствуй мир مرحبا بالعالم";
         let mixed_tokens: Vec<String> = mixed_text
             .split_whitespace()
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
         let sentiment = nlp.analyze_sentiment(&mixed_tokens);
         let keywords = if sentiment >= 0.0 {
@@ -435,6 +435,6 @@ mod tests {
             "جيد".to_string(),
         ];
         let sentiment = nlp.analyze_sentiment(&mixed_tokens);
-        assert!(sentiment >= -1.0 && sentiment <= 1.0);
+        assert!((-1.0..=1.0).contains(&sentiment));
     }
 }

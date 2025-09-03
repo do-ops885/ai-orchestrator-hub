@@ -11,6 +11,7 @@ pub struct AgentRecoveryManager {
 }
 
 impl AgentRecoveryManager {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             max_retry_attempts: 3,
@@ -19,6 +20,7 @@ impl AgentRecoveryManager {
         }
     }
 
+    #[must_use]
     pub fn with_config(
         max_retry_attempts: u32,
         base_retry_delay: Duration,
@@ -170,6 +172,7 @@ impl AgentRecoveryManager {
         Ok(())
     }
 
+    #[must_use]
     pub fn can_recover(agent: &Agent) -> bool {
         // Check if agent is in a recoverable state
         match agent.state {

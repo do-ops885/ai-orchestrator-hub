@@ -15,7 +15,7 @@ export default function Home() {
     setMounted(true)
     // Use the correct backend URL
     connectWebSocket('ws://localhost:3001/ws')
-    
+
     return () => {
       disconnect()
     }
@@ -69,9 +69,9 @@ export default function Home() {
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold text-gray-900">🐝 Multiagent Hive System</h1>
               <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                isConnected === true ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
               }`}>
-                {isConnected ? 'Connected' : 'Disconnected'}
+                {isConnected === true ? 'Connected' : 'Disconnected'}
               </div>
             </div>
             <nav className="flex space-x-4">

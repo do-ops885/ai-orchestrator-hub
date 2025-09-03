@@ -232,6 +232,7 @@ impl Agent {
         }
     }
 
+    #[must_use]
     pub fn calculate_task_fitness(&self, task: &Task) -> f64 {
         let mut fitness = 0.0;
         let mut total_weight = 0.0;

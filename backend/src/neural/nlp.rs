@@ -181,7 +181,7 @@ impl NLPProcessor {
                     .collect::<String>()
             })
             .filter(|word: &String| !word.is_empty())
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect()
     }
 
@@ -246,7 +246,7 @@ impl NLPProcessor {
     }
 
     pub async fn extract_keywords(&self, text: &str, limit: usize) -> Vec<String> {
-        let tokens: Vec<String> = text.split_whitespace().map(|s| s.to_string()).collect();
+        let tokens: Vec<String> = text.split_whitespace().map(std::string::ToString::to_string).collect();
         let vocabulary = self.vocabulary.read().await;
         let mut keyword_scores: Vec<(String, f64)> = tokens
             .iter()

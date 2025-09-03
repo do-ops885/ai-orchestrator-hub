@@ -45,6 +45,7 @@ where
     V: Clone + Send + Sync,
 {
     /// Create a new cache with default TTL and maximum size
+    #[must_use]
     pub fn new(default_ttl: Duration, max_size: usize) -> Self {
         Self {
             data: Arc::new(RwLock::new(HashMap::new())),
@@ -175,6 +176,7 @@ pub struct CacheManager {
 
 impl CacheManager {
     /// Create a new cache manager with optimized settings
+    #[must_use]
     pub fn new() -> Self {
         Self {
             agents: Cache::new(Duration::from_secs(300), 1000), // 5 min TTL, 1000 agents max

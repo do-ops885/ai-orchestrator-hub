@@ -47,7 +47,7 @@ mod tests {
             requirements.clone(),
         );
 
-        assert_eq!(task.required_capabilities.len(), 2);
+        assert!((task.required_capabilities.len() - 2).abs() < f32::EPSILON);
         assert_eq!(task.required_capabilities[0].name, "data_processing");
         assert_approx_eq(
             task.required_capabilities[0].minimum_proficiency,
@@ -83,13 +83,13 @@ mod tests {
         assert!(task.deadline.is_some());
         assert_eq!(task.deadline.unwrap(), deadline);
         assert_eq!(task.estimated_duration, Some(3600));
-        assert_eq!(task.context.len(), 2);
+        assert!((task.context.len() - 2).abs() < f32::EPSILON);
         assert_eq!(task.context.get("environment"), Some(&"test".to_string()));
         assert_eq!(
             task.context.get("priority_level"),
             Some(&"normal".to_string())
         );
-        assert_eq!(task.dependencies.len(), 1);
+        assert!((task.dependencies.len() - 1).abs() < f32::EPSILON);
         assert_eq!(task.dependencies[0], dependency_id);
     }
 
@@ -162,7 +162,7 @@ mod tests {
         assert!(success_result.success);
         assert_eq!(success_result.output, "Task completed successfully");
         assert!(success_result.error_message.is_none());
-        assert_eq!(success_result.execution_time, 2500);
+        assert!((success_result.execution_time - 2500).abs() < f32::EPSILON);
         assert!(success_result.quality_score.is_none());
         assert!(success_result.learned_insights.is_empty());
 
@@ -182,7 +182,7 @@ mod tests {
             failure_result.error_message,
             Some("Task failed due to insufficient resources".to_string())
         );
-        assert_eq!(failure_result.execution_time, 1200);
+        assert!((failure_result.execution_time - 1200).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -198,7 +198,7 @@ mod tests {
             ]);
 
         assert_approx_eq(result.quality_score.unwrap(), 0.95, 0.001);
-        assert_eq!(result.learned_insights.len(), 2);
+        assert!((result.learned_insights.len() - 2).abs() < f32::EPSILON);
         assert_eq!(result.learned_insights[0], "Learned efficient algorithm");
         assert_eq!(result.learned_insights[1], "Improved error handling");
     }
@@ -222,10 +222,10 @@ mod tests {
     fn test_task_queue_creation() {
         let queue = TaskQueue::new();
 
-        assert_eq!(queue.get_pending_count(), 0);
-        assert_eq!(queue.get_assigned_count(), 0);
-        assert_eq!(queue.get_completed_count(), 0);
-        assert_eq!(queue.get_failed_count(), 0);
+        assert!((queue.get_pending_count() - 0).abs() < f32::EPSILON);
+        assert!((queue.get_assigned_count() - 0).abs() < f32::EPSILON);
+        assert!((queue.get_completed_count() - 0).abs() < f32::EPSILON);
+        assert!((queue.get_failed_count() - 0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -270,8 +270,8 @@ mod tests {
 
         queue.assign_task(task, agent_id);
 
-        assert_eq!(queue.get_assigned_count(), 1);
-        assert_eq!(queue.get_pending_count(), 0);
+        assert!((queue.get_assigned_count() - 1).abs() < f32::EPSILON);
+        assert!((queue.get_pending_count() - 0).abs() < f32::EPSILON);
 
         let assigned_task = queue.get_task_by_agent(&agent_id).unwrap();
         assert_eq!(assigned_task.id, task_id);
@@ -299,9 +299,9 @@ mod tests {
 
         queue.complete_task(success_result);
 
-        assert_eq!(queue.get_assigned_count(), 0);
-        assert_eq!(queue.get_completed_count(), 1);
-        assert_eq!(queue.get_failed_count(), 0);
+        assert!((queue.get_assigned_count() - 0).abs() < f32::EPSILON);
+        assert!((queue.get_completed_count() - 1).abs() < f32::EPSILON);
+        assert!((queue.get_failed_count() - 0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -319,9 +319,9 @@ mod tests {
 
         queue.complete_task(failure_result);
 
-        assert_eq!(queue.get_assigned_count(), 0);
-        assert_eq!(queue.get_completed_count(), 0);
-        assert_eq!(queue.get_failed_count(), 1);
+        assert!((queue.get_assigned_count() - 0).abs() < f32::EPSILON);
+        assert!((queue.get_completed_count() - 0).abs() < f32::EPSILON);
+        assert!((queue.get_failed_count() - 1).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -378,7 +378,7 @@ mod tests {
 
         // Should find easy task (no requirements) and medium task (requirements met)
         // Should NOT find hard task (analysis requirement too high: 0.8 > 0.6)
-        assert_eq!(suitable_tasks.len(), 2);
+        assert!((suitable_tasks.len() - 2).abs() < f32::EPSILON);
 
         let task_titles: Vec<&str> = suitable_tasks.iter().map(|t| t.title.as_str()).collect();
         assert!(task_titles.contains(&"Easy Task"));
@@ -495,13 +495,13 @@ mod tests {
             name: "test".to_string(),
             minimum_proficiency: 1.5, // No automatic clamping in basic struct
         };
-        assert_eq!(req_cap_high.minimum_proficiency, 1.5);
+        assert!((req_cap_high.minimum_proficiency - 1.5).abs() < f32::EPSILON);
 
         let req_cap_low = TaskRequiredCapability {
             name: "test".to_string(),
             minimum_proficiency: -0.5, // No automatic clamping in basic struct
         };
-        assert_eq!(req_cap_low.minimum_proficiency, -0.5);
+        assert!((req_cap_low.minimum_proficiency - -0.5).abs() < f32::EPSILON);
 
         // Test with clamped values using helper function
         let req_cap_clamped = create_test_required_capability("test", 1.5);
