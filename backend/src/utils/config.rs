@@ -5,7 +5,6 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
-
 /// Configuration for the multiagent hive system
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HiveConfig {

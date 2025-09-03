@@ -62,7 +62,7 @@ impl Default for FallbackConfig {
 }
 
 /// Represents the different tiers of fallback options
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum FallbackTier {
     /// Primary: Specialized agents with exact capability matches
     Primary,

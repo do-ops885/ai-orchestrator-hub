@@ -3,12 +3,14 @@
 //! These tests verify that different components work together correctly
 //! and test end-to-end workflows.
 
-
+use tokio::time::Duration;
 
 use crate::agents::AgentState;
-
-
-
+use crate::core::HiveCoordinator;
+use crate::tasks::TaskPriority;
+use crate::tests::test_utils::{
+    assert_approx_eq, create_agent_config, create_task_config, create_test_task,
+};
 
 #[cfg(test)]
 mod tests {

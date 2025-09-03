@@ -1,6 +1,4 @@
-use crate::neural::{
-    EvaluationResults, TrainingConfig, TrainingMetrics,
-};
+use crate::neural::{EvaluationResults, TrainingConfig, TrainingMetrics};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -39,6 +37,22 @@ pub enum ExperimentStatus {
     Running,
     Completed,
     Failed(String),
+}
+
+/// Early stopping configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EarlyStoppingConfig {
+    pub patience: usize,
+    pub min_delta: f64,
+    pub monitor_metric: String,
+    pub mode: EarlyStoppingMode,
+}
+
+/// Early stopping modes
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum EarlyStoppingMode {
+    Min, // For loss - stop when metric stops decreasing
+    Max, // For accuracy - stop when metric stops increasing
 }
 
 /// Experiment configuration

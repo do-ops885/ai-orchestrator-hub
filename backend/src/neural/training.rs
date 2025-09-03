@@ -1,6 +1,5 @@
-
-use crate::neural::{AdaptiveLearningConfig, AdaptiveLearningSystem};
 use crate::neural::CpuOptimizer;
+use crate::neural::{AdaptiveLearningConfig, AdaptiveLearningSystem};
 use crate::neural::{FANNConfig, HybridNeuralProcessor, LSTMConfig, NetworkType};
 
 use anyhow::Result;

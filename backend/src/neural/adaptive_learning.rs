@@ -1,4 +1,5 @@
 use crate::agents::agent::Agent;
+use crate::agents::agent::AgentMemory;
 use crate::neural::NLPProcessor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

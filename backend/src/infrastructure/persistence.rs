@@ -14,11 +14,9 @@ use aes_gcm::{
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
-
-
+use pbkdf2::pbkdf2;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -256,7 +254,7 @@ impl PersistenceManager {
                     let salt = b"hive_persistence_salt"; // In production, use a random salt per key
                     let mut key = [0u8; 32];
 
-                    pbkdf2::pbkdf2::<pbkdf2::Hmac<sha2::Sha256>>(
+                    pbkdf2(
                         key_str.as_bytes(),
                         salt,
                         100_000, // 100k iterations for good security
@@ -487,12 +485,12 @@ impl PersistenceManager {
             };
 
             // Deserialize back to SystemSnapshot
-            let json_str = String::from_utf8(decompressed_data)
-                .map_err(|e| HiveError::OperationFailed {
+            let json_str =
+                String::from_utf8(decompressed_data).map_err(|e| HiveError::OperationFailed {
                     reason: format!("Failed to convert decompressed data to string: {}", e),
                 })?;
-            let snapshot: SystemSnapshot = serde_json::from_str(&json_str)
-                .map_err(|e| HiveError::OperationFailed {
+            let snapshot: SystemSnapshot =
+                serde_json::from_str(&json_str).map_err(|e| HiveError::OperationFailed {
                     reason: format!("Failed to deserialize snapshot: {}", e),
                 })?;
 
@@ -666,8 +664,9 @@ impl PersistenceManager {
         fs::write(
             &metadata_path,
             serde_json::to_string_pretty(&backup_metadata).map_err(|e| {
-                HiveError::SerializationError {
-                    reason: format!("Failed to serialize backup metadata: {}", e),
+                HiveError::ValidationError {
+                    field: "backup_metadata".to_string(),
+                    reason: format!("Failed to serialize: {}", e),
                 }
             })?,
         )
@@ -949,7 +948,7 @@ impl PersistenceManager {
     }
 
     /// Restore tasks
-    async fn restore_tasks(&self, hive: &mut HiveCoordinator, tasks: &[Task]) -> HiveResult<()> {
+    async fn restore_tasks(&self, _hive: &mut HiveCoordinator, tasks: &[Task]) -> HiveResult<()> {
         info!("Restoring {} tasks", tasks.len());
         // TODO: Implement task restoration
         Ok(())

@@ -1,12 +1,15 @@
 //! Unit tests for the agent system
 
+use chrono::Utc;
+use uuid::Uuid;
 
-
-
-use crate::agents::{Agent, AgentState, AgentType};
-
-
-
+use crate::agents::{Agent, AgentState, AgentType, Experience};
+use crate::neural::NLPProcessor;
+use crate::tasks::{Task, TaskPriority};
+use crate::tests::test_utils::{
+    assert_approx_eq, create_test_agent, create_test_capability, create_test_required_capability,
+    create_test_task, create_test_task_with_requirements,
+};
 
 #[cfg(test)]
 mod tests {

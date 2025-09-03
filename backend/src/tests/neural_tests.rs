@@ -1,7 +1,9 @@
 //! Unit tests for the neural processing system
 
-use crate::neural::NLPProcessor;
+use uuid;
 
+use crate::neural::{HybridNeuralProcessor, NLPProcessor};
+use crate::tests::test_utils::assert_approx_eq;
 
 #[cfg(test)]
 mod tests {
