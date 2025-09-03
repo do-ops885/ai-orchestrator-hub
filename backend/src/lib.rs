@@ -1,14 +1,14 @@
-#![allow(missing_docs)]
-#![allow(unused)]
-#![allow(dead_code)]
-#![allow(clippy::clone_on_ref_ptr)]
-#![allow(clippy::unwrap_used)]
-#![allow(unused_comparisons)]
-#![allow(clippy::uninlined_format_args)]
-#![allow(clippy::cast_lossless)]
-#![allow(clippy::useless_vec)]
-#![allow(unused_imports)]
-#![allow(clippy::single_component_path_imports)]
+#![warn(missing_docs)]
+#![warn(unused)]
+#![warn(dead_code)]
+#![warn(clippy::clone_on_ref_ptr)]
+#![warn(clippy::unwrap_used)]
+#![warn(unused_comparisons)]
+#![warn(clippy::uninlined_format_args)]
+#![warn(clippy::cast_lossless)]
+#![warn(clippy::useless_vec)]
+#![warn(unused_imports)]
+#![warn(clippy::single_component_path_imports)]
 //! # Multiagent Hive System
 //!
 //! A sophisticated hybrid neural multiagent hive system implementing swarm intelligence
@@ -92,6 +92,10 @@ pub use tasks::{Task, TaskPriority, TaskQueue, TaskResult, TaskStatus, WorkSteal
 pub use utils::{HiveConfig, HiveError, HiveResult, InputValidator};
 
 /// Application state shared across the system
+///
+/// This struct contains the core state that needs to be shared across
+/// different parts of the application, particularly the HTTP handlers
+/// and background tasks.
 #[derive(Clone)]
 pub struct AppState {
     /// The main hive coordinator managing all agents and tasks

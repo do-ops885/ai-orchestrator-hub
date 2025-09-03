@@ -123,7 +123,7 @@ mod tests {
 
         let result = cb.execute(|| Ok::<i32, &str>(42)).await;
         assert!(result.is_ok());
-        assert!((result.unwrap() - 42).abs() < f32::EPSILON);
+        assert_eq!(result.unwrap(), 42);
     }
 
     #[tokio::test]
@@ -132,11 +132,11 @@ mod tests {
 
         // First failure
         let _ = cb.execute(|| Err::<i32, &str>("error")).await;
-        assert!((cb.get_failure_count() - 1).abs() < f32::EPSILON);
+        assert_eq!(cb.get_failure_count(), 1);
 
         // Second failure - should open circuit
         let _ = cb.execute(|| Err::<i32, &str>("error")).await;
-        assert!((cb.get_failure_count() - 2).abs() < f32::EPSILON);
+        assert_eq!(cb.get_failure_count(), 2);
 
         // Circuit should now be open
         let result = cb.execute(|| Ok::<i32, &str>(42)).await;

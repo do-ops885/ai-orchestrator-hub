@@ -613,8 +613,8 @@ mod tests {
         let conn2 = pool.acquire_connection().await.unwrap();
 
         let stats = pool.get_stats().await;
-        assert!((stats.active_count - 2).abs() < f32::EPSILON);
-        assert!((stats.total_created - 2).abs() < f32::EPSILON);
+        assert_eq!(stats.active_count, 2);
+        assert_eq!(stats.total_created, 2);
 
         drop(conn1);
         drop(conn2);
@@ -640,8 +640,8 @@ mod tests {
         assert_eq!(cached_data, data);
 
         let stats = cache.get_stats().await;
-        assert!((stats.hits - 1).abs() < f32::EPSILON);
-        assert!((stats.misses - 1).abs() < f32::EPSILON);
+        assert_eq!(stats.hits, 1);
+        assert_eq!(stats.misses, 1);
     }
 
     #[tokio::test]
@@ -660,6 +660,6 @@ mod tests {
         assert_eq!(result, 499_500);
 
         let stats = optimizer.get_stats().await;
-        assert!((stats.tasks_processed - 1).abs() < f32::EPSILON);
+        assert_eq!(stats.tasks_processed, 1);
     }
 }

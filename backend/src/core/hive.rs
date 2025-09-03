@@ -17,6 +17,7 @@ use crate::agents::{
     Agent, AgentBehavior, AgentCapability, AgentType, SimpleVerificationResult,
     SimpleVerificationSystem, SkillEvolutionConfig, SkillEvolutionSystem,
 };
+use crate::core::fallback::{FallbackConfig, IntelligentFallback};
 use crate::infrastructure::ResourceManager;
 use crate::neural::{HybridNeuralProcessor, NLPProcessor};
 use crate::tasks::WorkStealingQueue;
@@ -130,6 +131,8 @@ pub struct HiveCoordinator {
     pub auto_scaling: Arc<AutoScalingSystem>,
     /// Skill evolution system for agent learning
     pub skill_evolution: Arc<SkillEvolutionSystem>,
+    /// Intelligent fallback system for agent selection
+    pub fallback_system: Arc<RwLock<IntelligentFallback>>,
     /// Timestamp when this coordinator was created
     pub created_at: DateTime<Utc>,
 }
@@ -222,6 +225,10 @@ impl HiveCoordinator {
             skill_evolution_config,
         ));
 
+        // Initialize intelligent fallback system
+        let fallback_config = FallbackConfig::default();
+        let fallback_system = Arc::new(RwLock::new(IntelligentFallback::new(fallback_config)));
+
         let coordinator = Self {
             id: Uuid::new_v4(),
             agents: Arc::new(DashMap::new()),
@@ -247,6 +254,7 @@ impl HiveCoordinator {
             coordination_metrics: Arc::new(RwLock::new(SwarmCoordinationMetrics::default())),
             auto_scaling: Arc::clone(&auto_scaling),
             skill_evolution: Arc::clone(&skill_evolution),
+            fallback_system: Arc::clone(&fallback_system),
             created_at: Utc::now(),
         };
 
@@ -294,13 +302,14 @@ impl HiveCoordinator {
 
     /// Starts the work-stealing task distribution process.
     async fn start_work_stealing_process(coordinator: Arc<RwLock<Self>>) {
-        let (agents, task_queue, _work_stealing_queue, resource_manager) = {
+        let (agents, task_queue, _work_stealing_queue, resource_manager, fallback_system) = {
             let coord = coordinator.read().await;
             (
                 Arc::clone(&coord.agents),
                 Arc::clone(&coord.task_queue),
                 Arc::clone(&coord.work_stealing_queue),
                 Arc::clone(&coord.resource_manager),
+                Arc::clone(&coord.fallback_system),
             )
         };
 
@@ -328,6 +337,7 @@ impl HiveCoordinator {
 
         // Legacy task distribution (for backward compatibility)
         let resource_manager_legacy = Arc::clone(&resource_manager);
+        let fallback_system_legacy = Arc::clone(&fallback_system);
         tokio::spawn(async move {
             loop {
                 let profile = resource_manager_legacy.get_current_profile().await;
@@ -336,7 +346,7 @@ impl HiveCoordinator {
                 );
                 interval.tick().await;
 
-                if let Err(e) = Self::distribute_tasks(&agents, &task_queue).await {
+                if let Err(e) = Self::distribute_tasks(&agents, &task_queue, &fallback_system_legacy).await {
                     tracing::error!("Legacy task distribution error: {}", e);
                 }
             }
@@ -638,33 +648,46 @@ impl HiveCoordinator {
     async fn distribute_tasks(
         agents: &DashMap<Uuid, Agent>,
         task_queue: &RwLock<TaskQueue>,
+        fallback_system: &Arc<RwLock<IntelligentFallback>>,
     ) -> anyhow::Result<()> {
         let mut queue = task_queue.write().await;
 
         while let Some(task) = queue.get_next_task() {
-            // Find the best agent for this task
-            let mut best_agent_id = None;
-            let mut best_fitness = 0.0;
+            // Collect available agents
+            let available_agents: Vec<Agent> = agents.iter().map(|r| r.value().clone()).collect();
 
-            for agent_ref in agents {
-                let agent = agent_ref.value();
-                if agent.can_perform_task(&task) {
-                    let fitness = agent.calculate_task_fitness(&task);
-                    if fitness > best_fitness {
-                        best_fitness = fitness;
-                        best_agent_id = Some(agent.id);
-                    }
-                }
-            }
+            // Use intelligent fallback system to find best agent
+            let mut fallback_sys = fallback_system.write().await;
+            let fallback_decision = fallback_sys.find_agent_with_fallback(
+                &task,
+                &available_agents,
+                None, // No additional context for now
+            ).await;
 
-            if let Some(agent_id) = best_agent_id {
+            drop(fallback_sys); // Release the lock
+
+            if let Some(agent_id) = fallback_decision.final_assignment {
                 if let Some(mut agent_ref) = agents.get_mut(&agent_id) {
                     let agent = agent_ref.value_mut();
+
+                    // Log fallback decision if detailed logging is enabled
+                    if fallback_decision.attempts.len() > 1 {
+                        tracing::info!(
+                            "Fallback used for task {}: tier={}, quality={:.2}, attempts={}",
+                            task.id,
+                            fallback_decision.attempts.last()
+                                .map(|r| format!("{:?}", r.tier))
+                                .unwrap_or_else(|| "Unknown".to_string()),
+                            fallback_decision.quality_degradation,
+                            fallback_decision.attempts.len()
+                        );
+                    }
 
                     // Execute task asynchronously
                     let task_clone = task.clone();
                     let agent_clone = agent.clone();
                     let agents_map = agents.clone();
+                    let fallback_clone = Arc::clone(fallback_system);
 
                     tokio::spawn(async move {
                         let mut agent_exec = agent_clone;
@@ -674,16 +697,36 @@ impl HiveCoordinator {
                                 if let Some(mut agent_ref) = agents_map.get_mut(&agent_id) {
                                     *agent_ref.value_mut() = agent_exec;
                                 }
-                                tracing::info!("Task completed: {:?}", result);
+
+                                // Log successful completion with fallback context
+                                let quality_score = result.quality_score.unwrap_or(0.0);
+                                if quality_score < 0.8 {
+                                    tracing::info!(
+                                        "Task {} completed with reduced quality ({:.2}) due to fallback",
+                                        result.task_id,
+                                        quality_score
+                                    );
+                                } else {
+                                    tracing::info!("Task completed successfully: {:?}", result);
+                                }
                             }
                             Err(e) => {
                                 tracing::error!("Task execution failed: {}", e);
+
+                                // Could implement retry logic here with different fallback tier
+                                let mut fallback_sys = fallback_clone.write().await;
+                                fallback_sys.cleanup_completed_decisions();
                             }
                         }
                     });
                 }
             } else {
-                // No suitable agent found, put task back in queue
+                // No suitable agent found even with fallback, put task back in queue
+                tracing::warn!(
+                    "No suitable agent found for task {} even with fallback (attempts: {})",
+                    task.id,
+                    fallback_decision.attempts.len()
+                );
                 queue.add_task(task);
                 break;
             }
@@ -692,7 +735,7 @@ impl HiveCoordinator {
         Ok(())
     }
 
-    /// High-performance work-stealing task distribution
+    /// High-performance work-stealing task distribution with intelligent fallback
     async fn work_stealing_distribution(
         &self,
         agents: &DashMap<Uuid, Agent>,
@@ -720,14 +763,15 @@ impl HiveCoordinator {
                             agent_queue.set_busy(true).await;
                         }
 
-                        // Execute task asynchronously
+                        // Execute task asynchronously with fallback-aware execution
                         let agents_map2 = agents.clone();
                         let queue_clone = Arc::clone(&self.work_stealing_queue);
+                        let fallback_clone = Arc::clone(&self.fallback_system);
                         tokio::spawn(async move {
                             let mut agent_exec = agent;
                             let start_time = std::time::Instant::now();
 
-                            match agent_exec.execute_task(task).await {
+                            match agent_exec.execute_task(task.clone()).await {
                                 Ok(result) => {
                                     // Update agent in the map
                                     if let Some(mut agent_ref) = agents_map2.get_mut(&agent_id) {
@@ -743,10 +787,23 @@ impl HiveCoordinator {
                                     }
 
                                     let duration = start_time.elapsed();
+
+                                    // Log with quality context for fallback monitoring
+                                    let quality_indicator = if let Some(quality) = result.quality_score {
+                                        if quality < 0.7 {
+                                            " (reduced quality)"
+                                        } else {
+                                            ""
+                                        }
+                                    } else {
+                                        ""
+                                    };
+
                                     tracing::debug!(
-                                        "🚀 Work-stealing task completed in {:?}: {:?}",
+                                        "🚀 Work-stealing task completed in {:?}: {}{}",
                                         duration,
-                                        result
+                                        result.task_id,
+                                        quality_indicator
                                     );
                                 }
                                 Err(e) => {
@@ -756,7 +813,13 @@ impl HiveCoordinator {
                                     {
                                         agent_queue.set_busy(false).await;
                                     }
-                                    tracing::error!("Work-stealing task execution failed: {}", e);
+
+                                    // Log failure for fallback system analysis
+                                    tracing::error!("Work-stealing task execution failed for task {}: {}", task.id, e);
+
+                                    // Update fallback system with failure information
+                                    let mut fallback_sys = fallback_clone.write().await;
+                                    fallback_sys.cleanup_completed_decisions();
                                 }
                             }
                         });
@@ -1159,18 +1222,159 @@ impl HiveCoordinator {
         let auto_scaling_stats = self.get_auto_scaling_stats().await;
         let skill_evolution_stats = self.get_skill_evolution_stats().await;
         let resource_info = self.get_resource_info().await;
+        let fallback_stats = self.get_fallback_stats().await;
 
         serde_json::json!({
             "hive_status": basic_status,
             "auto_scaling": auto_scaling_stats,
             "skill_evolution": skill_evolution_stats,
             "resource_management": resource_info,
+            "fallback_system": fallback_stats,
             "enhanced_features": {
                 "dynamic_scaling_enabled": true,
                 "skill_learning_enabled": true,
                 "neural_coordination_active": true,
-                "swarm_formations_active": true
+                "swarm_formations_active": true,
+                "intelligent_fallback_enabled": true
             }
         })
+    }
+
+    /// Get fallback system statistics
+    pub async fn get_fallback_stats(&self) -> serde_json::Value {
+        let fallback_sys = self.fallback_system.read().await;
+        let stats = fallback_sys.get_stats();
+
+        let tier_distribution: std::collections::HashMap<String, u64> = stats
+            .tier_distribution
+            .iter()
+            .map(|(tier, count)| (format!("{:?}", tier), *count))
+            .collect();
+
+        let tier_success_rates: std::collections::HashMap<String, f64> = stats
+            .tier_success_rates
+            .iter()
+            .map(|(tier, rate)| (format!("{:?}", tier), *rate))
+            .collect();
+
+        serde_json::json!({
+            "total_attempts": stats.total_attempts,
+            "successful_fallbacks": stats.successful_fallbacks,
+            "failed_fallbacks": stats.failed_fallbacks,
+            "success_rate": if stats.total_attempts > 0 {
+                stats.successful_fallbacks as f64 / stats.total_attempts as f64
+            } else {
+                0.0
+            },
+            "average_quality_degradation": stats.average_quality_degradation,
+            "average_decision_time_ms": stats.average_decision_time_ms,
+            "tier_distribution": tier_distribution,
+            "tier_success_rates": tier_success_rates
+        })
+    }
+
+    /// Get recent fallback decisions
+    pub async fn get_recent_fallback_decisions(&self, limit: usize) -> serde_json::Value {
+        let fallback_sys = self.fallback_system.read().await;
+        let decisions = fallback_sys.get_recent_decisions(limit);
+
+        let decisions_json: Vec<serde_json::Value> = decisions
+            .iter()
+            .map(|decision| {
+                let attempts: Vec<serde_json::Value> = decision.attempts
+                    .iter()
+                    .map(|attempt| {
+                        serde_json::json!({
+                            "success": attempt.success,
+                            "tier": format!("{:?}", attempt.tier),
+                            "selected_agent": attempt.selected_agent,
+                            "quality_score": attempt.quality_score,
+                            "reason": attempt.reason,
+                            "timestamp": attempt.timestamp,
+                        })
+                    })
+                    .collect();
+
+                serde_json::json!({
+                    "id": decision.id,
+                    "task_id": decision.task_id,
+                    "successful": decision.successful,
+                    "quality_degradation": decision.quality_degradation,
+                    "total_duration_ms": decision.total_duration_ms,
+                    "attempts": attempts,
+                    "final_assignment": decision.final_assignment,
+                    "started_at": decision.started_at,
+                    "completed_at": decision.completed_at,
+                })
+            })
+            .collect();
+
+        serde_json::json!({
+            "decisions": decisions_json,
+            "total_count": decisions.len()
+        })
+    }
+
+    /// Configure the fallback system
+    pub async fn configure_fallback_system(&self, config: serde_json::Value) -> anyhow::Result<()> {
+        let mut fallback_sys = self.fallback_system.write().await;
+
+        let new_config = FallbackConfig {
+            enabled: config.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true),
+            max_fallback_attempts: config
+                .get("max_fallback_attempts")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(3) as usize,
+            min_quality_threshold: config
+                .get("min_quality_threshold")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.6),
+            emergency_quality_threshold: config
+                .get("emergency_quality_threshold")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.3),
+            enable_emergency_generalization: config
+                .get("enable_emergency_generalization")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true),
+            availability_check_window: config
+                .get("availability_check_window")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(300),
+            detailed_logging: config
+                .get("detailed_logging")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true),
+        };
+
+        fallback_sys.update_config(new_config);
+
+        tracing::info!("Fallback system configuration updated");
+        Ok(())
+    }
+
+    /// Get fallback system configuration
+    pub async fn get_fallback_config(&self) -> serde_json::Value {
+        let fallback_sys = self.fallback_system.read().await;
+        let config = fallback_sys.get_config();
+
+        serde_json::json!({
+            "enabled": config.enabled,
+            "max_fallback_attempts": config.max_fallback_attempts,
+            "min_quality_threshold": config.min_quality_threshold,
+            "emergency_quality_threshold": config.emergency_quality_threshold,
+            "enable_emergency_generalization": config.enable_emergency_generalization,
+            "availability_check_window": config.availability_check_window,
+            "detailed_logging": config.detailed_logging
+        })
+    }
+
+    /// Manually trigger fallback system cleanup
+    pub async fn cleanup_fallback_system(&self) -> anyhow::Result<()> {
+        let mut fallback_sys = self.fallback_system.write().await;
+        fallback_sys.cleanup_completed_decisions();
+
+        tracing::info!("Fallback system cleanup completed");
+        Ok(())
     }
 }

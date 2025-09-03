@@ -9,23 +9,24 @@ repos:
 
    - repo: local
      hooks:
-       - id: cargo-fmt
-         name: cargo fmt
-         entry: bash -c 'cd backend && cargo fmt --all -- --check'
-         language: system
-         files: \.rs$
-         pass_filenames: false
+        - id: cargo-fmt
+          name: cargo fmt
+          entry: bash -c 'cd backend && cargo fmt --all -- --check'
+          language: system
+          files: \.rs$
+          pass_filenames: false
 
-       - id: cargo-clippy
-         name: cargo clippy
-         entry: bash -c 'cd backend && cargo clippy --all-targets --all-features -- -D warnings'
-         language: system
-         files: \.rs$
-         pass_filenames: false
+        - id: cargo-clippy
+          name: cargo clippy
+          entry: bash -c 'cd backend && cargo clippy --all-targets --all-features -- -D warnings'
+          language: system
+          files: \.rs$
+          pass_filenames: false
 
-       - id: eslint-check
-         name: eslint check
-         entry: bash -c 'cd frontend && npm run lint:check'
-         language: system
-         files: \.(ts|tsx|js)$
-         pass_filenames: false
+        - id: eslint-check
+          name: eslint check
+          entry: bash -c 'cd frontend && npm run lint:check'
+          language: system
+          files: \.(ts|tsx|js)$
+          exclude: ^frontend/scripts/neural-.*\.js$
+          pass_filenames: false

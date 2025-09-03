@@ -599,7 +599,7 @@ mod tests {
         let agent = OptimizedAgent::new_for_edge_device("EdgeAgent".to_string(), AgentType::Worker);
 
         assert!(agent.resource_constraints.max_memory_mb <= 256);
-        assert!((agent.resource_constraints.max_cpu_threads - 1).abs() < f32::EPSILON);
+        assert_eq!(agent.resource_constraints.max_cpu_threads, 1);
         assert!(agent.resource_constraints.battery_mode);
     }
 

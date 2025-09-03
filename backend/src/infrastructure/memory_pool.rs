@@ -329,8 +329,8 @@ mod tests {
 
         // Check stats
         let stats = pool.get_pool_stats().await;
-        assert!((stats.total_allocations - 2).abs() < f32::EPSILON);
-        assert!((stats.total_deallocations - 2).abs() < f32::EPSILON);
+        assert_eq!(stats.total_allocations, 2);
+        assert_eq!(stats.total_deallocations, 2);
     }
 
     #[tokio::test]
@@ -375,7 +375,7 @@ mod tests {
         let _hot3 = pool.acquire_hot_data().await; // Should create new object
 
         let stats = pool.get_pool_stats().await;
-        assert!((stats.total_allocations - 3).abs() < f32::EPSILON);
+        assert_eq!(stats.total_allocations, 3);
 
         // Test pool resizing
         pool.optimize_pool_size(10).await;

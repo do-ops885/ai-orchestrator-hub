@@ -1,0 +1,6 @@
+{
+  "dataset": "imagenet",
+  "total_samples": 1000,
+  "classes": 1000,
+  "downloaded_at": "2025-09-03T16:40:42.997Z"
+}

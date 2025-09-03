@@ -561,9 +561,9 @@ mod tests {
     #[test]
     fn test_memory_system_creation() {
         let memory_system = AgentMemorySystem::new();
-        assert!((memory_system.short_term_memory.len() - 0).abs() < f32::EPSILON);
-        assert!((memory_system.long_term_memory.len() - 0).abs() < f32::EPSILON);
-        assert!((memory_system.pattern_store.len() - 0).abs() < f32::EPSILON);
+        assert_eq!(memory_system.short_term_memory.len(), 0);
+        assert_eq!(memory_system.long_term_memory.len(), 0);
+        assert_eq!(memory_system.pattern_store.len(), 0);
     }
 
     #[test]
@@ -587,7 +587,7 @@ mod tests {
         );
 
         let recalled = memory_system.recall_memories("analysis", 5);
-        assert!((recalled.len() - 1).abs() < f32::EPSILON);
+        assert_eq!(recalled.len(), 1);
         assert_eq!(recalled[0].id, memory_id);
     }
 
@@ -617,7 +617,7 @@ mod tests {
         );
 
         let patterns = memory_system.get_matching_patterns(&["high_workload".to_string()]);
-        assert!((patterns.len() - 1).abs() < f32::EPSILON);
+        assert_eq!(patterns.len(), 1);
         assert_eq!(patterns[0].pattern_id, pattern_id);
     }
 }

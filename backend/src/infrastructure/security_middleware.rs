@@ -331,31 +331,34 @@ pub async fn enhanced_security_headers_middleware(request: Request, next: Next) 
     let headers = response.headers_mut();
 
     // Enhanced security headers
-    headers.insert("X-Content-Type-Options", "nosniff".parse().unwrap());
-    headers.insert("X-Frame-Options", "DENY".parse().unwrap());
-    headers.insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
-    headers.insert(
-        "Referrer-Policy",
-        "strict-origin-when-cross-origin".parse().unwrap(),
-    );
-    headers.insert("X-Permitted-Cross-Domain-Policies", "none".parse().unwrap());
-    headers.insert("X-Download-Options", "noopen".parse().unwrap());
+    if let Ok(header_value) = "nosniff".parse() {
+        headers.insert("X-Content-Type-Options", header_value);
+    }
+    if let Ok(header_value) = "DENY".parse() {
+        headers.insert("X-Frame-Options", header_value);
+    }
+    if let Ok(header_value) = "1; mode=block".parse() {
+        headers.insert("X-XSS-Protection", header_value);
+    }
+    if let Ok(header_value) = "strict-origin-when-cross-origin".parse() {
+        headers.insert("Referrer-Policy", header_value);
+    }
+    if let Ok(header_value) = "none".parse() {
+        headers.insert("X-Permitted-Cross-Domain-Policies", header_value);
+    }
+    if let Ok(header_value) = "noopen".parse() {
+        headers.insert("X-Download-Options", header_value);
+    }
 
     // Content Security Policy
-    headers.insert(
-        "Content-Security-Policy",
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; media-src 'self'; frame-src 'none';"
-            .parse()
-            .unwrap(),
-    );
+    if let Ok(header_value) = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; media-src 'self'; frame-src 'none';".parse() {
+        headers.insert("Content-Security-Policy", header_value);
+    }
 
     // Strict Transport Security (HSTS)
-    headers.insert(
-        "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains; preload"
-            .parse()
-            .unwrap(),
-    );
+    if let Ok(header_value) = "max-age=31536000; includeSubDomains; preload".parse() {
+        headers.insert("Strict-Transport-Security", header_value);
+    }
 
     // Feature Policy / Permissions Policy
     headers.insert(

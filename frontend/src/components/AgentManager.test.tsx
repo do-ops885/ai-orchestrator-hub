@@ -1,12 +1,12 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { AgentManager } from './AgentManager'
 import { useHiveStore } from '@/store/hiveStore'
-import { vi } from 'vitest'
+import { vi, type MockedFunction } from 'vitest'
 
 // Mock the store
 vi.mock('@/store/hiveStore')
 
-const mockUseHiveStore = useHiveStore as vi.MockedFunction<typeof useHiveStore>
+const mockUseHiveStore = useHiveStore as unknown as MockedFunction<typeof useHiveStore>
 
 describe('AgentManager', () => {
   const mockAgents = [
@@ -98,7 +98,7 @@ describe('AgentManager', () => {
     const nameInput = screen.getByPlaceholderText('Agent name')
     fireEvent.change(nameInput, { target: { value: 'New Agent' } })
 
-    const submitButton = screen.getByText('Create Agent')
+    const [, submitButton] = screen.getAllByText('Create Agent') // The submit button in the form
     fireEvent.click(submitButton)
 
     expect(mockCreateAgent).toHaveBeenCalledWith({

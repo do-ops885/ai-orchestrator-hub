@@ -446,9 +446,9 @@ mod tests {
             .learn_from_interaction(&agent, "test", 0.5)
             .await
             .unwrap();
-        assert!((learning_system.patterns.len() - 1).abs() < f32::EPSILON);
+        assert_eq!(learning_system.patterns.len(), 1);
 
         learning_system.cleanup_old_patterns();
-        assert!((learning_system.patterns.len() - 0).abs() < f32::EPSILON);
+        assert_eq!(learning_system.patterns.len(), 0);
     }
 }

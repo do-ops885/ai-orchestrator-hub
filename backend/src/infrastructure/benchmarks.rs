@@ -768,15 +768,15 @@ mod tests {
         let monitor = PerformanceMonitor::new(config);
 
         let stats = monitor.get_performance_stats().await;
-        assert!((stats.total_snapshots - 0).abs() < f32::EPSILON);
-        assert!((stats.total_benchmarks - 0).abs() < f32::EPSILON);
+        assert_eq!(stats.total_snapshots, 0);
+        assert_eq!(stats.total_benchmarks, 0);
     }
 
     #[tokio::test]
     async fn test_benchmark_suite_creation() {
         let suite = create_default_benchmark_suite();
         assert!(!suite.benchmarks.is_empty());
-        assert!((suite.benchmarks.len() - 4).abs() < f32::EPSILON);
+        assert_eq!(suite.benchmarks.len(), 4);
     }
 
     #[tokio::test]

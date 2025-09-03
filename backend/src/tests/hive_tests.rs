@@ -17,14 +17,14 @@ mod tests {
         assert!(hive.is_ok());
 
         let coordinator = hive.unwrap();
-        assert!((coordinator.agents.len() - 0).abs() < f32::EPSILON);
+        assert_eq!(coordinator.agents.len(), 0);
 
         // Check initial metrics
         let metrics = coordinator.metrics.read().await;
-        assert!((metrics.total_agents - 0).abs() < f32::EPSILON);
-        assert!((metrics.active_agents - 0).abs() < f32::EPSILON);
-        assert!((metrics.completed_tasks - 0).abs() < f32::EPSILON);
-        assert!((metrics.failed_tasks - 0).abs() < f32::EPSILON);
+        assert_eq!(metrics.total_agents, 0);
+        assert_eq!(metrics.active_agents, 0);
+        assert_eq!(metrics.completed_tasks, 0);
+        assert_eq!(metrics.failed_tasks, 0);
         assert_approx_eq(metrics.average_performance, 0.0, 0.001);
         assert_approx_eq(metrics.swarm_cohesion, 0.0, 0.001);
         assert_approx_eq(metrics.learning_progress, 0.0, 0.001);
@@ -45,7 +45,7 @@ mod tests {
         let agent = hive.agents.get(&worker_id).unwrap();
         assert_eq!(agent.name, "TestWorker");
         assert!(matches!(agent.agent_type, AgentType::Worker));
-        assert!((agent.capabilities.len() - 0).abs() < f32::EPSILON); // No capabilities specified
+        assert_eq!(agent.capabilities.len(), 0); // No capabilities specified
     }
 
     #[tokio::test]
@@ -58,7 +58,7 @@ mod tests {
         let agent_id = hive.create_agent(agent_config).await.unwrap();
 
         let agent = hive.agents.get(&agent_id).unwrap();
-        assert!((agent.capabilities.len() - 2).abs() < f32::EPSILON);
+        assert_eq!(agent.capabilities.len(), 2);
         assert_approx_eq(agent.get_capability_score("data_processing"), 0.8, 0.001);
         assert_approx_eq(agent.get_capability_score("analysis"), 0.6, 0.001);
     }
@@ -148,8 +148,8 @@ mod tests {
 
         // Initially should have no agents
         let initial_info = hive.get_agents_info().await;
-        assert!((initial_info["total_count"] - 0).abs() < f32::EPSILON);
-        assert!((initial_info["agents"].as_array().unwrap().len() - 0).abs() < f32::EPSILON);
+        assert_eq!(initial_info["total_count"].as_u64().unwrap(), 0);
+        assert_eq!(initial_info["agents"].as_array().unwrap().len(), 0);
 
         // Add some agents
         let worker_config = create_agent_config("Worker1", "worker", None);
@@ -160,8 +160,8 @@ mod tests {
 
         // Check updated info
         let updated_info = hive.get_agents_info().await;
-        assert!((updated_info["total_count"] - 2).abs() < f32::EPSILON);
-        assert!((updated_info["agents"].as_array().unwrap().len() - 2).abs() < f32::EPSILON);
+        assert_eq!(updated_info["total_count"].as_u64().unwrap(), 2);
+        assert_eq!(updated_info["agents"].as_array().unwrap().len(), 2);
 
         // Verify agent information structure
         let agents_array = updated_info["agents"].as_array().unwrap();
@@ -228,7 +228,7 @@ mod tests {
 
         // Verify swarm center is a 2-element array
         let swarm_center = status["swarm_center"].as_array().unwrap();
-        assert!((swarm_center.len() - 2).abs() < f32::EPSILON);
+        assert_eq!(swarm_center.len(), 2);
         assert!(swarm_center[0].is_number());
         assert!(swarm_center[1].is_number());
     }
@@ -274,8 +274,11 @@ mod tests {
         assert!(verification_stats["rule_effectiveness"].is_object());
 
         // Initial stats should show no verifications
-        assert!((verification_stats["total_verifications"] - 0).abs() < f32::EPSILON);
-        assert!((verification_stats["success_rate"] - 0.0).abs() < f32::EPSILON);
+        assert_eq!(
+            verification_stats["total_verifications"].as_u64().unwrap(),
+            0
+        );
+        assert!((verification_stats["success_rate"].as_f64().unwrap() - 0.0).abs() < f64::EPSILON);
     }
 
     #[tokio::test]
@@ -397,8 +400,8 @@ mod tests {
         }
 
         // Verify all agents were created with unique IDs
-        assert!((agent_ids.len() - 5).abs() < f32::EPSILON);
-        assert!((hive.agents.len() - 5).abs() < f32::EPSILON);
+        assert_eq!(agent_ids.len(), 5);
+        assert_eq!(hive.agents.len(), 5);
 
         // Check that all IDs are unique
         for i in 0..agent_ids.len() {
@@ -432,7 +435,7 @@ mod tests {
         }
 
         // Verify all tasks were created with unique IDs
-        assert!((task_ids.len() - 5).abs() < f32::EPSILON);
+        assert_eq!(task_ids.len(), 5);
 
         // Check that all IDs are unique
         for i in 0..task_ids.len() {
@@ -463,7 +466,7 @@ mod tests {
         let metrics = &status["metrics"];
 
         // Should reflect the added agents
-        assert!((metrics["total_agents"] - 3).abs() < f32::EPSILON);
+        assert_eq!(metrics["total_agents"].as_u64().unwrap(), 3);
         assert!(metrics["average_performance"].as_f64().unwrap() > 0.0);
     }
 

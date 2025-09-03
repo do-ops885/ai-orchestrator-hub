@@ -1,0 +1,37 @@
+{
+  "parameter": "learning_rate",
+  "values": [
+    0.001,
+    0.01,
+    0.1
+  ],
+  "results": [
+    {
+      "trial": 3,
+      "parameter": "learning_rate",
+      "value": 0.1,
+      "loss": 0.1342,
+      "accuracy": 0.9082,
+      "timestamp": "2025-09-03T16:40:49.984Z"
+    },
+    {
+      "trial": 1,
+      "parameter": "learning_rate",
+      "value": 0.001,
+      "loss": 0.2983,
+      "accuracy": 0.8763,
+      "timestamp": "2025-09-03T16:40:47.980Z"
+    },
+    {
+      "trial": 2,
+      "parameter": "learning_rate",
+      "value": 0.01,
+      "loss": 0.2459,
+      "accuracy": 0.8463,
+      "timestamp": "2025-09-03T16:40:48.984Z"
+    }
+  ],
+  "best_value": 0.1,
+  "best_accuracy": 0.9082,
+  "timestamp": "2025-09-03T16:40:50.989Z"
+}

@@ -14,6 +14,8 @@ use aes_gcm::{
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
+use pbkdf2::pbkdf2;
+use sha2::Sha256;
 use ring::rand::SecureRandom;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -207,17 +209,46 @@ impl PersistenceManager {
         })
     }
 
-    /// Derive encryption key from configuration
+    /// Derive encryption key from configuration with PBKDF2 key stretching
     fn derive_encryption_key(key_config: &Option<String>) -> HiveResult<[u8; 32]> {
         match key_config {
             Some(key_str) => {
-                if key_str.len() == 64 {
-                    // Hex-encoded key
-                    let mut key = [0u8; 32];
-                    hex::decode_to_slice(key_str, &mut key).map_err(|e| {
-                        HiveError::OperationFailed {
-                            reason: format!("Invalid hex encryption key: {}", e),
-                        }
+                // Use PBKDF2 to derive a strong key from the provided password/key
+                let salt = b"hive_persistence_salt"; // In production, use a random salt per key
+                let mut key = [0u8; 32];
+
+                pbkdf2::pbkdf2::<pbkdf2::Hmac<sha2::Sha256>>(
+                    key_str.as_bytes(),
+                    salt,
+                    100_000, // 100k iterations for good security
+                    &mut key,
+                ).map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to derive encryption key: {:?}", e),
+                })?;
+
+                Ok(key)
+            }
+            None => {
+                // Generate a cryptographically secure random key
+                let mut key = [0u8; 32];
+                ring::rand::SystemRandom::new()
+                    .fill(&mut key)
+                    .map_err(|e| HiveError::OperationFailed {
+                        reason: format!("Failed to generate encryption key: {:?}", e),
+                    })?;
+
+                tracing::warn!(
+                    "Generated random encryption key - save this for recovery: {}",
+                    hex::encode(&key)
+                );
+                tracing::warn!(
+                    "For production use, set HIVE_ENCRYPTION_KEY environment variable"
+                );
+
+                Ok(key)
+            }
+        }
+    }
                     })?;
                     Ok(key)
                 } else if key_str.len() == 44 {
@@ -415,6 +446,106 @@ impl PersistenceManager {
             })
     }
 
+    /// Rotate encryption key for existing data
+    ///
+    /// This method re-encrypts all existing snapshots with a new key
+    /// while maintaining data integrity and availability.
+    pub async fn rotate_encryption_key(
+        &mut self,
+        new_key_config: Option<String>,
+    ) -> HiveResult<()> {
+        info!("Starting encryption key rotation...");
+
+        // Derive new encryption key
+        let new_key = Self::derive_encryption_key(&new_key_config)?;
+
+        // Get all existing snapshots
+        let snapshots = self.storage.list_snapshots().await?;
+        info!("Found {} snapshots to re-encrypt", snapshots.len());
+
+        for metadata in snapshots {
+            if metadata.is_encrypted {
+                info!("Re-encrypting snapshot: {}", metadata.snapshot_id);
+
+                // Load the snapshot
+                let processed = self.storage.load_processed_snapshot(&metadata.snapshot_id).await?;
+
+                // Decrypt with old key
+                let decrypted_data = if processed.is_encrypted {
+                    self.decrypt_data(&processed.data)?
+                } else {
+                    processed.data
+                };
+
+                // Decompress if needed
+                let decompressed_data = if processed.is_compressed {
+                    self.decompress_data(&decrypted_data)?
+                } else {
+                    decrypted_data
+                };
+
+                // Update encryption key
+                self.encryption_key = Some(new_key);
+
+                // Re-process with new key
+                let reprocessed = self.process_snapshot_data(decompressed_data).await?;
+
+                // Save with new encryption
+                self.storage.save_processed_snapshot(&processed.snapshot, &reprocessed).await?;
+
+                info!("Successfully re-encrypted snapshot: {}", metadata.snapshot_id);
+            }
+        }
+
+        // Update the key in memory
+        self.encryption_key = Some(new_key);
+
+        info!("Encryption key rotation completed successfully");
+        Ok(())
+    }
+
+    /// Load encryption key from secure sources
+    ///
+    /// Attempts to load encryption key from:
+    /// 1. Environment variable HIVE_ENCRYPTION_KEY
+    /// 2. Key file at configured path
+    /// 3. Generate new key (development only)
+    pub fn load_encryption_key() -> Option<String> {
+        // Try environment variable first
+        if let Ok(key) = std::env::var("HIVE_ENCRYPTION_KEY") {
+            if !key.is_empty() {
+                info!("Loaded encryption key from environment variable");
+                return Some(key);
+            }
+        }
+
+        // Try key file
+        let key_paths = [
+            "./config/encryption.key",
+            "/etc/hive/encryption.key",
+            "./data/encryption.key",
+        ];
+
+        for path in &key_paths {
+            if let Ok(key_data) = std::fs::read_to_string(path) {
+                let key = key_data.trim();
+                if !key.is_empty() {
+                    info!("Loaded encryption key from file: {}", path);
+                    return Some(key.to_string());
+                }
+            }
+        }
+
+        // For development/demo purposes only
+        if cfg!(debug_assertions) {
+            warn!("No encryption key found - using development mode");
+            None
+        } else {
+            error!("No encryption key found - encryption disabled for security");
+            None
+        }
+    }
+
     /// Create a checkpoint of the current system state
     pub async fn create_checkpoint(
         &self,
@@ -518,7 +649,10 @@ impl PersistenceManager {
 
         fs::write(
             &metadata_path,
-            serde_json::to_string_pretty(&backup_metadata).unwrap(),
+            serde_json::to_string_pretty(&backup_metadata)
+                .map_err(|e| HiveError::SerializationError {
+                    reason: format!("Failed to serialize backup metadata: {}", e),
+                })?,
         )
         .await
         .map_err(|e| HiveError::OperationFailed {
@@ -1063,7 +1197,10 @@ impl StorageProvider for FileSystemStorage {
 
         fs::write(
             &metadata_path,
-            serde_json::to_string_pretty(&metadata).unwrap(),
+            serde_json::to_string_pretty(&metadata)
+                .map_err(|e| HiveError::SerializationError {
+                    reason: format!("Failed to serialize metadata: {}", e),
+                })?,
         )
         .await
         .map_err(|e| HiveError::OperationFailed {

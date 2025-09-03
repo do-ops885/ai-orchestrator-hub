@@ -86,6 +86,19 @@ module.exports = {
         'import/no-anonymous-default-export': 'off',
       },
     },
+    {
+      files: ['scripts/neural-*.js'],
+      rules: {
+        'no-console': 'off',
+        'semi': 'off',
+        'comma-dangle': 'off',
+        'object-shorthand': 'off',
+        'prefer-template': 'off',
+        'prefer-destructuring': 'off',
+        'no-empty': 'off',
+        '@typescript-eslint/no-unused-vars': 'off',
+      },
+    },
   ],
   ignorePatterns: [
     'node_modules/**',

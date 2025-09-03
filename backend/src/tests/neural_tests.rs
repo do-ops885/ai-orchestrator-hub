@@ -54,7 +54,10 @@ mod tests {
 
         let text = "The data processing task was completed successfully with excellent results";
         // Test keyword extraction using sentiment analysis as a proxy
-        let tokens: Vec<String> = text.split_whitespace().map(std::string::ToString::to_string).collect();
+        let tokens: Vec<String> = text
+            .split_whitespace()
+            .map(std::string::ToString::to_string)
+            .collect();
         let sentiment = nlp.analyze_sentiment(&tokens);
         let keywords = if sentiment > 0.0 {
             vec![
@@ -91,9 +94,18 @@ mod tests {
         let text3 = "completely unrelated content about weather";
 
         // Test semantic similarity using sentiment analysis as a proxy
-        let tokens1: Vec<String> = text1.split_whitespace().map(std::string::ToString::to_string).collect();
-        let tokens2: Vec<String> = text2.split_whitespace().map(std::string::ToString::to_string).collect();
-        let tokens3: Vec<String> = text3.split_whitespace().map(std::string::ToString::to_string).collect();
+        let tokens1: Vec<String> = text1
+            .split_whitespace()
+            .map(std::string::ToString::to_string)
+            .collect();
+        let tokens2: Vec<String> = text2
+            .split_whitespace()
+            .map(std::string::ToString::to_string)
+            .collect();
+        let tokens3: Vec<String> = text3
+            .split_whitespace()
+            .map(std::string::ToString::to_string)
+            .collect();
 
         let sentiment1 = nlp.analyze_sentiment(&tokens1);
         let sentiment2 = nlp.analyze_sentiment(&tokens2);
@@ -358,7 +370,10 @@ mod tests {
 
         // Test that same input produces consistent results
         let text = "data processing task completed successfully";
-        let tokens: Vec<String> = text.split_whitespace().map(std::string::ToString::to_string).collect();
+        let tokens: Vec<String> = text
+            .split_whitespace()
+            .map(std::string::ToString::to_string)
+            .collect();
 
         let sentiment = nlp.analyze_sentiment(&tokens);
         let keywords1 = if sentiment > 0.0 {

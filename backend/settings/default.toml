@@ -68,6 +68,18 @@ enable_external_integration = false
 
 [monitoring.diagnostics]
 default_health_score = 0.85
+network_components = ["internal_api", "external_services", "database"]
+performance_bottlenecks = [
+    "Database query optimization needed",
+    "Memory usage spikes during peak hours",
+    "Network latency affecting response times"
+]
+optimization_opportunities = [
+    "Implement database query caching",
+    "Add memory pooling for frequent allocations",
+    "Use CDN for static assets",
+    "Implement horizontal scaling"
+]
 
 [monitoring.diagnostics.component_health_scores]
 database = 0.95
@@ -83,19 +95,3 @@ network = ["Intermittent connectivity"]
 database = ["Add database indexes", "Optimize query patterns"]
 cache = ["Increase cache size", "Implement cache warming"]
 network = ["Implement retry logic", "Monitor network latency"]
-
-[monitoring.diagnostics.network_components]
-internal_api = "internal_api"
-external_services = "external_services"
-database = "database"
-
-[monitoring.diagnostics.performance_bottlenecks]
-bottleneck1 = "Database query optimization needed"
-bottleneck2 = "Memory usage spikes during peak hours"
-bottleneck3 = "Network latency affecting response times"
-
-[monitoring.diagnostics.optimization_opportunities]
-opt1 = "Implement database query caching"
-opt2 = "Add memory pooling for frequent allocations"
-opt3 = "Use CDN for static assets"
-opt4 = "Implement horizontal scaling"

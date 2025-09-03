@@ -31,18 +31,13 @@ use tracing::{debug, error, info, warn, Level};
 
 // Import enhanced error handling and configuration
 use crate::agents::AgentRecoveryManager;
-use crate::core::{HiveCoordinator, SwarmIntelligenceEngine};
-use crate::infrastructure::metrics::{AgentMetrics, AlertLevel, MetricThresholds, TaskMetrics};
+use crate::core::HiveCoordinator;
 use crate::infrastructure::middleware::security_headers_middleware;
-use crate::infrastructure::performance_optimizer::{PerformanceConfig, PerformanceOptimizer};
 use crate::infrastructure::persistence::PersistenceConfig;
 use crate::infrastructure::{CircuitBreaker, MetricsCollector, PersistenceManager, StorageBackend};
 use crate::neural::AdaptiveLearningSystem;
 use crate::utils::config::HiveConfig;
-use crate::utils::error::ResultExt;
 use crate::utils::rate_limiter::RateLimiter;
-use crate::utils::structured_logging::StructuredLogger;
-use crate::utils::{InputValidator, SecurityAuditor, SecurityConfig};
 use std::time::Duration;
 
 /// Application state containing shared resources
@@ -79,10 +74,13 @@ pub struct AppState {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Load and validate configuration with enhanced error handling
-    let config = Arc::new(HiveConfig::load().unwrap_or_else(|e| {
-        eprintln!("❌ Configuration error: {}", e);
-        std::process::exit(1);
-    }));
+    let config = Arc::new(match HiveConfig::load() {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("❌ Configuration error: {}", e);
+            return Err(e.into());
+        }
+    });
 
     info!("✅ Configuration loaded and validated successfully");
     debug!(
@@ -173,6 +171,16 @@ async fn main() -> anyhow::Result<()> {
     let swarm_intelligence = Arc::new(RwLock::new(SwarmIntelligenceEngine::new()));
     info!("✅ Swarm intelligence engine initialized");
 
+    // Load encryption key from secure sources
+    let encryption_key = PersistenceManager::load_encryption_key();
+    let encryption_enabled = encryption_key.is_some();
+
+    if encryption_enabled {
+        info!("🔐 Encryption enabled with secure key management");
+    } else {
+        warn!("🔓 Encryption disabled - consider enabling for production use");
+    }
+
     // Initialize persistence system
     let persistence_config = PersistenceConfig {
         storage_backend: StorageBackend::SQLite {
@@ -181,10 +189,10 @@ async fn main() -> anyhow::Result<()> {
         checkpoint_interval_minutes: 5, // Checkpoint every 5 minutes
         max_snapshots: 20,
         compression_enabled: true,
-        encryption_enabled: false, // Disable for demo, enable for production
+        encryption_enabled,
         backup_enabled: true,
         storage_path: std::path::PathBuf::from("./data"),
-        encryption_key: None,
+        encryption_key,
         compression_level: 6,
         backup_retention_days: 7,
         backup_location: Some(std::path::PathBuf::from("./data/backups")),
@@ -199,11 +207,13 @@ async fn main() -> anyhow::Result<()> {
         warn!("Failed to create backup directory: {}", e);
     }
 
-    let persistence_manager = Arc::new(
-        PersistenceManager::new(persistence_config)
-            .await
-            .expect("Failed to initialize persistence manager"),
-    );
+    let persistence_manager = Arc::new(match PersistenceManager::new(persistence_config).await {
+        Ok(manager) => manager,
+        Err(e) => {
+            error!("Failed to initialize persistence manager: {}", e);
+            return Err(e.into());
+        }
+    });
     info!("✅ Persistence manager initialized with SQLite backend");
 
     // Initialize adaptive learning system

@@ -474,7 +474,7 @@ mod tests {
         ).await.unwrap();
 
         assert!(system.knowledge_base.contains_key(&knowledge_id));
-        assert!((system.learning_metrics.total_knowledge_items - 1).abs() < f32::EPSILON);
+        assert_eq!(system.learning_metrics.total_knowledge_items, 1);
     }
 
     #[tokio::test]
@@ -512,6 +512,6 @@ mod tests {
         ).await.unwrap();
 
         assert!(system.active_sessions.contains_key(&session_id));
-        assert!((system.learning_metrics.collaborative_sessions - 1).abs() < f32::EPSILON);
+        assert_eq!(system.learning_metrics.collaborative_sessions, 1);
     }
 }
