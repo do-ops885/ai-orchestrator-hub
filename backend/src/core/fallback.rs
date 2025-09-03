@@ -243,7 +243,9 @@ impl IntelligentFallback {
                 break;
             }
 
-            let result = self.try_fallback_tier(task, available_agents, &tier, task_context).await;
+            let result = self
+                .try_fallback_tier(task, available_agents, &tier, task_context)
+                .await;
 
             decision.attempts.push(result.clone());
 
@@ -307,7 +309,8 @@ impl IntelligentFallback {
         let mut best_reason = String::new();
 
         for agent in &eligible_agents {
-            let (score, reason) = self.calculate_agent_fitness_for_tier(agent, task, tier, task_context);
+            let (score, reason) =
+                self.calculate_agent_fitness_for_tier(agent, task, tier, task_context);
 
             if score > best_score {
                 best_score = score;
@@ -316,7 +319,9 @@ impl IntelligentFallback {
             }
         }
 
-        let quality_threshold = if matches!(tier, FallbackTier::Emergency) && self.config.enable_emergency_generalization {
+        let quality_threshold = if matches!(tier, FallbackTier::Emergency)
+            && self.config.enable_emergency_generalization
+        {
             self.config.emergency_quality_threshold
         } else {
             self.config.min_quality_threshold
@@ -330,18 +335,36 @@ impl IntelligentFallback {
             selected_agent: best_agent,
             quality_score: best_score,
             reason: if success {
-                format!("Selected agent with score {:.2} in {} tier: {}", best_score, self.tier_name(tier), best_reason)
+                format!(
+                    "Selected agent with score {:.2} in {} tier: {}",
+                    best_score,
+                    self.tier_name(tier),
+                    best_reason
+                )
             } else {
-                format!("No agent met quality threshold {:.2} in {} tier (best: {:.2})",
-                       quality_threshold * tier.quality_factor(), self.tier_name(tier), best_score)
+                format!(
+                    "No agent met quality threshold {:.2} in {} tier (best: {:.2})",
+                    quality_threshold * tier.quality_factor(),
+                    self.tier_name(tier),
+                    best_score
+                )
             },
             timestamp: Utc::now(),
             context: {
                 let mut ctx = HashMap::new();
                 ctx.insert("tier".to_string(), self.tier_name(tier));
-                ctx.insert("eligible_agents".to_string(), eligible_agents.len().to_string());
-                ctx.insert("quality_threshold".to_string(), (quality_threshold * tier.quality_factor()).to_string());
-                ctx.insert("decision_time_ms".to_string(), (Utc::now() - start_time).num_milliseconds().to_string());
+                ctx.insert(
+                    "eligible_agents".to_string(),
+                    eligible_agents.len().to_string(),
+                );
+                ctx.insert(
+                    "quality_threshold".to_string(),
+                    (quality_threshold * tier.quality_factor()).to_string(),
+                );
+                ctx.insert(
+                    "decision_time_ms".to_string(),
+                    (Utc::now() - start_time).num_milliseconds().to_string(),
+                );
                 ctx
             },
         }
@@ -404,7 +427,10 @@ impl IntelligentFallback {
                 // Partial credit for close matches in higher tiers
                 let partial_score = agent_proficiency / req_cap.minimum_proficiency;
                 total_score += partial_score * weight * 0.5;
-                reasons.push(format!("{}: {:.2} (partial)", req_cap.name, agent_proficiency));
+                reasons.push(format!(
+                    "{}: {:.2} (partial)",
+                    req_cap.name, agent_proficiency
+                ));
             }
 
             total_weight += weight;
@@ -483,21 +509,31 @@ impl IntelligentFallback {
 
         // Update tier distribution
         for attempt in &decision.attempts {
-            let count = self.stats.tier_distribution.entry(attempt.tier.clone()).or_insert(0);
+            let count = self
+                .stats
+                .tier_distribution
+                .entry(attempt.tier.clone())
+                .or_insert(0);
             *count += 1;
         }
 
         // Update average quality degradation
-        let total_degradation: f64 = self.decision_history.iter()
+        let total_degradation: f64 = self
+            .decision_history
+            .iter()
             .map(|d| d.quality_degradation)
             .sum();
-        self.stats.average_quality_degradation = total_degradation / self.decision_history.len() as f64;
+        self.stats.average_quality_degradation =
+            total_degradation / self.decision_history.len() as f64;
 
         // Update average decision time
-        let total_time: u64 = self.decision_history.iter()
+        let total_time: u64 = self
+            .decision_history
+            .iter()
             .map(|d| d.total_duration_ms)
             .sum();
-        self.stats.average_decision_time_ms = total_time as f64 / self.decision_history.len() as f64;
+        self.stats.average_decision_time_ms =
+            total_time as f64 / self.decision_history.len() as f64;
     }
 
     /// Get human-readable name for a fallback tier

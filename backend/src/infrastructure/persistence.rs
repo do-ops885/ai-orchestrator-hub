@@ -15,10 +15,10 @@ use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use pbkdf2::pbkdf2;
-use sha2::Sha256;
 use ring::rand::SecureRandom;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -215,39 +215,42 @@ impl PersistenceManager {
             Some(key_str) => {
                 // Check if it's a hex-encoded key (64 characters for 32 bytes)
                 if key_str.len() == 64 {
-                    hex::decode(key_str).map_err(|e| {
-                        HiveError::OperationFailed {
+                    hex::decode(key_str)
+                        .map_err(|e| HiveError::OperationFailed {
                             reason: format!("Invalid hex encryption key: {}", e),
-                        }
-                    }).and_then(|decoded| {
-                        if decoded.len() == 32 {
-                            let mut key = [0u8; 32];
-                            key.copy_from_slice(&decoded);
-                            Ok(key)
-                        } else {
-                            Err(HiveError::OperationFailed {
-                                reason: "Hex encryption key must decode to 32 bytes".to_string(),
-                            })
-                        }
-                    })
+                        })
+                        .and_then(|decoded| {
+                            if decoded.len() == 32 {
+                                let mut key = [0u8; 32];
+                                key.copy_from_slice(&decoded);
+                                Ok(key)
+                            } else {
+                                Err(HiveError::OperationFailed {
+                                    reason: "Hex encryption key must decode to 32 bytes"
+                                        .to_string(),
+                                })
+                            }
+                        })
                 } else if key_str.len() == 44 {
                     // Base64-encoded key (44 chars for 32 bytes + padding)
-                    use base64::{Engine as _, engine::general_purpose};
-                    general_purpose::STANDARD.decode(key_str).map_err(|e| {
-                        HiveError::OperationFailed {
+                    use base64::{engine::general_purpose, Engine as _};
+                    general_purpose::STANDARD
+                        .decode(key_str)
+                        .map_err(|e| HiveError::OperationFailed {
                             reason: format!("Invalid base64 encryption key: {}", e),
-                        }
-                    }).and_then(|decoded| {
-                        if decoded.len() == 32 {
-                            let mut key = [0u8; 32];
-                            key.copy_from_slice(&decoded);
-                            Ok(key)
-                        } else {
-                            Err(HiveError::OperationFailed {
-                                reason: "Base64 encryption key must decode to 32 bytes".to_string(),
-                            })
-                        }
-                    })
+                        })
+                        .and_then(|decoded| {
+                            if decoded.len() == 32 {
+                                let mut key = [0u8; 32];
+                                key.copy_from_slice(&decoded);
+                                Ok(key)
+                            } else {
+                                Err(HiveError::OperationFailed {
+                                    reason: "Base64 encryption key must decode to 32 bytes"
+                                        .to_string(),
+                                })
+                            }
+                        })
                 } else {
                     // Use PBKDF2 to derive a strong key from the provided password/key
                     let salt = b"hive_persistence_salt"; // In production, use a random salt per key
@@ -258,7 +261,8 @@ impl PersistenceManager {
                         salt,
                         100_000, // 100k iterations for good security
                         &mut key,
-                    ).map_err(|e| HiveError::OperationFailed {
+                    )
+                    .map_err(|e| HiveError::OperationFailed {
                         reason: format!("Failed to derive encryption key: {:?}", e),
                     })?;
 
@@ -278,9 +282,7 @@ impl PersistenceManager {
                     "Generated random encryption key - save this for recovery: {}",
                     hex::encode(&key)
                 );
-                tracing::warn!(
-                    "For production use, set HIVE_ENCRYPTION_KEY environment variable"
-                );
+                tracing::warn!("For production use, set HIVE_ENCRYPTION_KEY environment variable");
 
                 Ok(key)
             }
@@ -466,7 +468,10 @@ impl PersistenceManager {
                 info!("Re-encrypting snapshot: {}", metadata.snapshot_id);
 
                 // Load the snapshot
-                let processed = self.storage.load_processed_snapshot(&metadata.snapshot_id).await?;
+                let processed = self
+                    .storage
+                    .load_processed_snapshot(&metadata.snapshot_id)
+                    .await?;
 
                 // Decrypt with old key
                 let decrypted_data = if processed.is_encrypted {
@@ -489,9 +494,14 @@ impl PersistenceManager {
                 let reprocessed = self.process_snapshot_data(decompressed_data).await?;
 
                 // Save with new encryption
-                self.storage.save_processed_snapshot(&processed.snapshot, &reprocessed).await?;
+                self.storage
+                    .save_processed_snapshot(&processed.snapshot, &reprocessed)
+                    .await?;
 
-                info!("Successfully re-encrypted snapshot: {}", metadata.snapshot_id);
+                info!(
+                    "Successfully re-encrypted snapshot: {}",
+                    metadata.snapshot_id
+                );
             }
         }
 
@@ -647,10 +657,11 @@ impl PersistenceManager {
 
         fs::write(
             &metadata_path,
-            serde_json::to_string_pretty(&backup_metadata)
-                .map_err(|e| HiveError::SerializationError {
+            serde_json::to_string_pretty(&backup_metadata).map_err(|e| {
+                HiveError::SerializationError {
                     reason: format!("Failed to serialize backup metadata: {}", e),
-                })?,
+                }
+            })?,
         )
         .await
         .map_err(|e| HiveError::OperationFailed {
@@ -1195,10 +1206,9 @@ impl StorageProvider for FileSystemStorage {
 
         fs::write(
             &metadata_path,
-            serde_json::to_string_pretty(&metadata)
-                .map_err(|e| HiveError::SerializationError {
-                    reason: format!("Failed to serialize metadata: {}", e),
-                })?,
+            serde_json::to_string_pretty(&metadata).map_err(|e| HiveError::SerializationError {
+                reason: format!("Failed to serialize metadata: {}", e),
+            })?,
         )
         .await
         .map_err(|e| HiveError::OperationFailed {

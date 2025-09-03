@@ -1,9 +1,9 @@
-use crate::neural::{TrainingMetrics, TrainingSession, DataBatch, Dataset};
+use crate::neural::{DataBatch, Dataset, TrainingMetrics, TrainingSession};
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use chrono::{DateTime, Utc};
 
 /// Comprehensive monitoring and evaluation system for neural training
 #[derive(Debug)]
@@ -254,16 +254,27 @@ impl TrainingMonitor {
 
         self.sessions.insert(session.session_id, monitor);
 
-        self.log_event(MonitoringEventType::SessionStarted, Some(session.session_id), serde_json::json!({
-            "config": format!("{:?}", session.config.model_type)
-        }));
+        self.log_event(
+            MonitoringEventType::SessionStarted,
+            Some(session.session_id),
+            serde_json::json!({
+                "config": format!("{:?}", session.config.model_type)
+            }),
+        );
 
         tracing::info!("📊 Started monitoring session {}", session.session_id);
     }
 
     /// Update monitoring with new metrics
-    pub async fn update_metrics(&mut self, session_id: uuid::Uuid, metrics: &TrainingMetrics, epoch: usize) -> Result<()> {
-        let session_monitor = self.sessions.get_mut(&session_id)
+    pub async fn update_metrics(
+        &mut self,
+        session_id: uuid::Uuid,
+        metrics: &TrainingMetrics,
+        epoch: usize,
+    ) -> Result<()> {
+        let session_monitor = self
+            .sessions
+            .get_mut(&session_id)
             .ok_or_else(|| anyhow::anyhow!("Session monitor not found"))?;
 
         let system_resources = self.collect_system_resources().await?;
@@ -286,11 +297,15 @@ impl TrainingMonitor {
         self.check_alerts(session_monitor).await?;
 
         // Log epoch completion
-        self.log_event(MonitoringEventType::EpochCompleted, Some(session_id), serde_json::json!({
-            "epoch": epoch,
-            "loss": metrics.loss_history.last().unwrap_or(&0.0),
-            "accuracy": metrics.accuracy_history.last().unwrap_or(&0.0)
-        }));
+        self.log_event(
+            MonitoringEventType::EpochCompleted,
+            Some(session_id),
+            serde_json::json!({
+                "epoch": epoch,
+                "loss": metrics.loss_history.last().unwrap_or(&0.0),
+                "accuracy": metrics.accuracy_history.last().unwrap_or(&0.0)
+            }),
+        );
 
         Ok(())
     }
@@ -302,7 +317,8 @@ impl TrainingMonitor {
 
     /// Get all active alerts
     pub fn get_active_alerts(&self) -> Vec<&Alert> {
-        self.sessions.values()
+        self.sessions
+            .values()
             .flat_map(|session| session.alerts.iter())
             .filter(|alert| !alert.resolved)
             .collect()
@@ -337,20 +353,33 @@ impl TrainingMonitor {
 
     /// Generate monitoring report
     pub fn generate_report(&self, session_id: uuid::Uuid) -> Result<MonitoringReport> {
-        let session_monitor = self.sessions.get(&session_id)
+        let session_monitor = self
+            .sessions
+            .get(&session_id)
             .ok_or_else(|| anyhow::anyhow!("Session monitor not found"))?;
 
         let total_epochs = session_monitor.metrics_history.len();
-        let avg_loss = session_monitor.metrics_history.iter()
+        let avg_loss = session_monitor
+            .metrics_history
+            .iter()
             .map(|snapshot| snapshot.metrics.loss_history.last().unwrap_or(&0.0))
-            .sum::<f64>() / total_epochs as f64;
+            .sum::<f64>()
+            / total_epochs as f64;
 
-        let avg_accuracy = session_monitor.metrics_history.iter()
+        let avg_accuracy = session_monitor
+            .metrics_history
+            .iter()
             .map(|snapshot| snapshot.metrics.accuracy_history.last().unwrap_or(&0.0))
-            .sum::<f64>() / total_epochs as f64;
+            .sum::<f64>()
+            / total_epochs as f64;
 
-        let total_training_time = session_monitor.metrics_history.last()
-            .map(|last| last.timestamp.signed_duration_since(session_monitor.start_time))
+        let total_training_time = session_monitor
+            .metrics_history
+            .last()
+            .map(|last| {
+                last.timestamp
+                    .signed_duration_since(session_monitor.start_time)
+            })
             .unwrap_or(chrono::Duration::zero());
 
         Ok(MonitoringReport {
@@ -358,8 +387,14 @@ impl TrainingMonitor {
             total_epochs,
             avg_loss,
             avg_accuracy,
-            total_training_time: total_training_time.to_std().unwrap_or(Duration::from_secs(0)),
-            active_alerts: session_monitor.alerts.iter().filter(|a| !a.resolved).count(),
+            total_training_time: total_training_time
+                .to_std()
+                .unwrap_or(Duration::from_secs(0)),
+            active_alerts: session_monitor
+                .alerts
+                .iter()
+                .filter(|a| !a.resolved)
+                .count(),
             performance_indicators: session_monitor.performance_indicators.clone(),
         })
     }
@@ -378,7 +413,10 @@ impl TrainingMonitor {
     }
 
     /// Update performance indicators
-    async fn update_performance_indicators(&self, session_monitor: &mut SessionMonitor) -> Result<()> {
+    async fn update_performance_indicators(
+        &self,
+        session_monitor: &mut SessionMonitor,
+    ) -> Result<()> {
         let history = &session_monitor.metrics_history;
 
         if history.len() < 2 {
@@ -386,7 +424,8 @@ impl TrainingMonitor {
         }
 
         // Calculate convergence rate (improvement per epoch)
-        let recent_losses: Vec<f64> = history.iter()
+        let recent_losses: Vec<f64> = history
+            .iter()
             .rev()
             .take(5)
             .map(|snapshot| snapshot.metrics.loss_history.last().unwrap_or(&0.0))
@@ -403,9 +442,11 @@ impl TrainingMonitor {
         // Calculate stability score (inverse of loss variance)
         let loss_variance = if recent_losses.len() > 1 {
             let mean = recent_losses.iter().sum::<f64>() / recent_losses.len() as f64;
-            recent_losses.iter()
+            recent_losses
+                .iter()
                 .map(|loss| (loss - mean).powi(2))
-                .sum::<f64>() / recent_losses.len() as f64
+                .sum::<f64>()
+                / recent_losses.len() as f64
         } else {
             0.0
         };
@@ -417,13 +458,17 @@ impl TrainingMonitor {
         };
 
         // Calculate efficiency score (performance per resource usage)
-        let avg_cpu = history.iter()
+        let avg_cpu = history
+            .iter()
             .map(|snapshot| snapshot.system_resources.cpu_usage)
-            .sum::<f64>() / history.len() as f64;
+            .sum::<f64>()
+            / history.len() as f64;
 
-        let avg_accuracy = history.iter()
+        let avg_accuracy = history
+            .iter()
             .map(|snapshot| snapshot.metrics.accuracy_history.last().unwrap_or(&0.0))
-            .sum::<f64>() / history.len() as f64;
+            .sum::<f64>()
+            / history.len() as f64;
 
         let efficiency_score = if avg_cpu > 0.0 {
             avg_accuracy / avg_cpu
@@ -432,9 +477,11 @@ impl TrainingMonitor {
         };
 
         // Calculate resource efficiency
-        let avg_memory = history.iter()
+        let avg_memory = history
+            .iter()
             .map(|snapshot| snapshot.system_resources.memory_usage)
-            .sum::<f64>() / history.len() as f64;
+            .sum::<f64>()
+            / history.len() as f64;
 
         let resource_efficiency = if avg_memory > 0.0 {
             1.0 / avg_memory
@@ -454,7 +501,9 @@ impl TrainingMonitor {
 
     /// Check for alerts
     async fn check_alerts(&mut self, session_monitor: &mut SessionMonitor) -> Result<()> {
-        let latest_snapshot = session_monitor.metrics_history.last()
+        let latest_snapshot = session_monitor
+            .metrics_history
+            .last()
             .ok_or_else(|| anyhow::anyhow!("No metrics snapshots available"))?;
 
         // Check memory usage
@@ -463,8 +512,12 @@ impl TrainingMonitor {
                 session_monitor,
                 AlertType::ResourceExhaustion,
                 AlertSeverity::High,
-                format!("Memory usage exceeded threshold: {:.1}%", latest_snapshot.system_resources.memory_usage),
-            ).await?;
+                format!(
+                    "Memory usage exceeded threshold: {:.1}%",
+                    latest_snapshot.system_resources.memory_usage
+                ),
+            )
+            .await?;
         }
 
         // Check CPU usage
@@ -473,33 +526,52 @@ impl TrainingMonitor {
                 session_monitor,
                 AlertType::ResourceExhaustion,
                 AlertSeverity::Medium,
-                format!("CPU usage exceeded threshold: {:.1}%", latest_snapshot.system_resources.cpu_usage),
-            ).await?;
+                format!(
+                    "CPU usage exceeded threshold: {:.1}%",
+                    latest_snapshot.system_resources.cpu_usage
+                ),
+            )
+            .await?;
         }
 
         // Check convergence
-        if session_monitor.performance_indicators.convergence_rate < self.alert_thresholds.min_convergence_rate {
+        if session_monitor.performance_indicators.convergence_rate
+            < self.alert_thresholds.min_convergence_rate
+        {
             self.create_alert(
                 session_monitor,
                 AlertType::ConvergenceStall,
                 AlertSeverity::Medium,
-                format!("Convergence rate too low: {:.4}", session_monitor.performance_indicators.convergence_rate),
-            ).await?;
+                format!(
+                    "Convergence rate too low: {:.4}",
+                    session_monitor.performance_indicators.convergence_rate
+                ),
+            )
+            .await?;
         }
 
         // Check for loss increase
         if session_monitor.metrics_history.len() >= 2 {
             let current_loss = latest_snapshot.metrics.loss_history.last().unwrap_or(&0.0);
-            let previous_snapshot = &session_monitor.metrics_history[session_monitor.metrics_history.len() - 2];
-            let previous_loss = previous_snapshot.metrics.loss_history.last().unwrap_or(&0.0);
+            let previous_snapshot =
+                &session_monitor.metrics_history[session_monitor.metrics_history.len() - 2];
+            let previous_loss = previous_snapshot
+                .metrics
+                .loss_history
+                .last()
+                .unwrap_or(&0.0);
 
             if current_loss > previous_loss * (1.0 + self.alert_thresholds.max_loss_increase) {
                 self.create_alert(
                     session_monitor,
                     AlertType::TrainingDivergence,
                     AlertSeverity::High,
-                    format!("Loss increased significantly: {:.4} -> {:.4}", previous_loss, current_loss),
-                ).await?;
+                    format!(
+                        "Loss increased significantly: {:.4} -> {:.4}",
+                        previous_loss, current_loss
+                    ),
+                )
+                .await?;
             }
         }
 
@@ -525,18 +597,27 @@ impl TrainingMonitor {
 
         session_monitor.alerts.push(alert.clone());
 
-        self.log_event(MonitoringEventType::AlertTriggered, Some(session_monitor.session_id), serde_json::json!({
-            "alert_type": format!("{:?}", alert_type),
-            "severity": format!("{:?}", severity),
-            "message": alert.message
-        }));
+        self.log_event(
+            MonitoringEventType::AlertTriggered,
+            Some(session_monitor.session_id),
+            serde_json::json!({
+                "alert_type": format!("{:?}", alert_type),
+                "severity": format!("{:?}", severity),
+                "message": alert.message
+            }),
+        );
 
         tracing::warn!("🚨 Alert triggered: {}", alert.message);
         Ok(())
     }
 
     /// Log monitoring event
-    fn log_event(&mut self, event_type: MonitoringEventType, session_id: Option<uuid::Uuid>, details: serde_json::Value) {
+    fn log_event(
+        &mut self,
+        event_type: MonitoringEventType,
+        session_id: Option<uuid::Uuid>,
+        details: serde_json::Value,
+    ) {
         let event = MonitoringEvent {
             event_id: uuid::Uuid::new_v4(),
             timestamp: Utc::now(),
@@ -561,7 +642,11 @@ impl ModelEvaluator {
     }
 
     /// Evaluate model on test dataset
-    pub async fn evaluate_model(&mut self, model_id: &str, test_data: &Dataset) -> Result<EvaluationResults> {
+    pub async fn evaluate_model(
+        &mut self,
+        model_id: &str,
+        test_data: &Dataset,
+    ) -> Result<EvaluationResults> {
         tracing::info!("🔍 Evaluating model '{}' on test dataset", model_id);
 
         // Simulate evaluation (in real implementation, this would run inference)
@@ -599,20 +684,25 @@ impl ModelEvaluator {
 
         // Store metrics
         for metric in &metrics {
-            self.metrics.insert(format!("{}_{}", model_id, metric.name), metric.clone());
+            self.metrics
+                .insert(format!("{}_{}", model_id, metric.name), metric.clone());
         }
 
         // Generate confusion matrix
         let confusion_matrix = self.generate_confusion_matrix(model_id, test_data).await?;
-        self.confusion_matrices.insert(model_id.to_string(), confusion_matrix);
+        self.confusion_matrices
+            .insert(model_id.to_string(), confusion_matrix);
 
         // Generate ROC curve
         let roc_curve = self.generate_roc_curve(model_id, test_data).await?;
         self.roc_curves.insert(model_id.to_string(), roc_curve);
 
         // Calculate feature importance
-        let feature_importance = self.calculate_feature_importance(model_id, test_data).await?;
-        self.feature_importance.insert(model_id.to_string(), feature_importance);
+        let feature_importance = self
+            .calculate_feature_importance(model_id, test_data)
+            .await?;
+        self.feature_importance
+            .insert(model_id.to_string(), feature_importance);
 
         Ok(EvaluationResults {
             model_id: model_id.to_string(),
@@ -624,7 +714,11 @@ impl ModelEvaluator {
     }
 
     /// Generate confusion matrix
-    async fn generate_confusion_matrix(&self, model_id: &str, test_data: &Dataset) -> Result<ConfusionMatrix> {
+    async fn generate_confusion_matrix(
+        &self,
+        model_id: &str,
+        test_data: &Dataset,
+    ) -> Result<ConfusionMatrix> {
         // Simulate confusion matrix generation
         let num_classes = test_data.metadata.num_classes;
         let mut matrix = vec![vec![0u32; num_classes]; num_classes];
@@ -674,7 +768,11 @@ impl ModelEvaluator {
     }
 
     /// Calculate feature importance
-    async fn calculate_feature_importance(&self, model_id: &str, test_data: &Dataset) -> Result<Vec<FeatureImportance>> {
+    async fn calculate_feature_importance(
+        &self,
+        model_id: &str,
+        test_data: &Dataset,
+    ) -> Result<Vec<FeatureImportance>> {
         let mut importance_scores = Vec::new();
 
         for (i, feature_name) in test_data.metadata.feature_names.iter().enumerate() {
@@ -685,7 +783,8 @@ impl ModelEvaluator {
         // Sort by importance
         importance_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-        let feature_importance: Vec<FeatureImportance> = importance_scores.into_iter()
+        let feature_importance: Vec<FeatureImportance> = importance_scores
+            .into_iter()
             .enumerate()
             .map(|(rank, (name, score))| FeatureImportance {
                 feature_name: name,
@@ -708,7 +807,11 @@ impl TrainingVisualizer {
     }
 
     /// Create loss curve plot
-    pub fn create_loss_curve(&mut self, session_id: uuid::Uuid, metrics: &TrainingMetrics) -> String {
+    pub fn create_loss_curve(
+        &mut self,
+        session_id: uuid::Uuid,
+        metrics: &TrainingMetrics,
+    ) -> String {
         let plot_id = format!("loss_curve_{}", session_id);
 
         let plot = PlotData {
@@ -726,7 +829,11 @@ impl TrainingVisualizer {
     }
 
     /// Create accuracy curve plot
-    pub fn create_accuracy_curve(&mut self, session_id: uuid::Uuid, metrics: &TrainingMetrics) -> String {
+    pub fn create_accuracy_curve(
+        &mut self,
+        session_id: uuid::Uuid,
+        metrics: &TrainingMetrics,
+    ) -> String {
         let plot_id = format!("accuracy_curve_{}", session_id);
 
         let plot = PlotData {
@@ -734,7 +841,9 @@ impl TrainingVisualizer {
             title: "Training Accuracy Curve".to_string(),
             x_label: "Epoch".to_string(),
             y_label: "Accuracy".to_string(),
-            x_data: (0..metrics.accuracy_history.len()).map(|x| x as f64).collect(),
+            x_data: (0..metrics.accuracy_history.len())
+                .map(|x| x as f64)
+                .collect(),
             y_data: metrics.accuracy_history.clone(),
             plot_type: PlotType::Line,
         };
@@ -744,7 +853,11 @@ impl TrainingVisualizer {
     }
 
     /// Create learning rate schedule plot
-    pub fn create_lr_schedule_plot(&mut self, session_id: uuid::Uuid, metrics: &TrainingMetrics) -> String {
+    pub fn create_lr_schedule_plot(
+        &mut self,
+        session_id: uuid::Uuid,
+        metrics: &TrainingMetrics,
+    ) -> String {
         let plot_id = format!("lr_schedule_{}", session_id);
 
         let plot = PlotData {
@@ -752,7 +865,9 @@ impl TrainingVisualizer {
             title: "Learning Rate Schedule".to_string(),
             x_label: "Epoch".to_string(),
             y_label: "Learning Rate".to_string(),
-            x_data: (0..metrics.learning_rate_history.len()).map(|x| x as f64).collect(),
+            x_data: (0..metrics.learning_rate_history.len())
+                .map(|x| x as f64)
+                .collect(),
             y_data: metrics.learning_rate_history.clone(),
             plot_type: PlotType::Line,
         };
@@ -762,14 +877,20 @@ impl TrainingVisualizer {
     }
 
     /// Create resource usage chart
-    pub fn create_resource_chart(&mut self, session_id: uuid::Uuid, snapshots: &[MetricsSnapshot]) -> String {
+    pub fn create_resource_chart(
+        &mut self,
+        session_id: uuid::Uuid,
+        snapshots: &[MetricsSnapshot],
+    ) -> String {
         let chart_id = format!("resources_{}", session_id);
 
-        let cpu_data: Vec<f64> = snapshots.iter()
+        let cpu_data: Vec<f64> = snapshots
+            .iter()
             .map(|snapshot| snapshot.system_resources.cpu_usage)
             .collect();
 
-        let memory_data: Vec<f64> = snapshots.iter()
+        let memory_data: Vec<f64> = snapshots
+            .iter()
             .map(|snapshot| snapshot.system_resources.memory_usage)
             .collect();
 

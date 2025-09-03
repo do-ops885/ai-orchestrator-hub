@@ -1,8 +1,10 @@
-use crate::neural::{TrainingConfig, TrainingMetrics, TrainingSession, EvaluationResults, HPOTrial};
+use crate::neural::{
+    EvaluationResults, HPOTrial, TrainingConfig, TrainingMetrics, TrainingSession,
+};
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 /// Experiment tracking and management system
@@ -223,7 +225,12 @@ impl ExperimentTracker {
     }
 
     /// Create a new experiment
-    pub fn create_experiment(&mut self, name: &str, description: &str, config: ExperimentConfig) -> Result<String> {
+    pub fn create_experiment(
+        &mut self,
+        name: &str,
+        description: &str,
+        config: ExperimentConfig,
+    ) -> Result<String> {
         let experiment_id = format!("exp_{}", Uuid::new_v4().simple());
 
         let experiment = Experiment {
@@ -249,13 +256,24 @@ impl ExperimentTracker {
 
         self.metadata.insert(experiment_id.clone(), metadata);
 
-        tracing::info!("🧪 Created experiment '{}' with {} runs", name, config.num_runs);
+        tracing::info!(
+            "🧪 Created experiment '{}' with {} runs",
+            name,
+            config.num_runs
+        );
         Ok(experiment_id)
     }
 
     /// Start an experiment run
-    pub fn start_run(&mut self, experiment_id: &str, config: TrainingConfig, hyperparameters: HashMap<String, serde_json::Value>) -> Result<Uuid> {
-        let experiment = self.experiments.get_mut(experiment_id)
+    pub fn start_run(
+        &mut self,
+        experiment_id: &str,
+        config: TrainingConfig,
+        hyperparameters: HashMap<String, serde_json::Value>,
+    ) -> Result<Uuid> {
+        let experiment = self
+            .experiments
+            .get_mut(experiment_id)
             .ok_or_else(|| anyhow::anyhow!("Experiment not found"))?;
 
         let run_id = Uuid::new_v4();
@@ -289,7 +307,9 @@ impl ExperimentTracker {
 
     /// Update run with session information
     pub fn update_run_session(&mut self, run_id: Uuid, session_id: Uuid) -> Result<()> {
-        let run = self.runs.get_mut(&run_id)
+        let run = self
+            .runs
+            .get_mut(&run_id)
             .ok_or_else(|| anyhow::anyhow!("Run not found"))?;
 
         run.session_id = Some(session_id);
@@ -299,8 +319,15 @@ impl ExperimentTracker {
     }
 
     /// Complete a run
-    pub fn complete_run(&mut self, run_id: Uuid, metrics: TrainingMetrics, evaluation_results: Option<EvaluationResults>) -> Result<()> {
-        let run = self.runs.get_mut(&run_id)
+    pub fn complete_run(
+        &mut self,
+        run_id: Uuid,
+        metrics: TrainingMetrics,
+        evaluation_results: Option<EvaluationResults>,
+    ) -> Result<()> {
+        let run = self
+            .runs
+            .get_mut(&run_id)
             .ok_or_else(|| anyhow::anyhow!("Run not found"))?;
 
         run.end_time = Some(Utc::now());
@@ -313,8 +340,9 @@ impl ExperimentTracker {
             metadata.completed_runs += 1;
 
             // Update best run
-            if metadata.best_run_id.is_none() ||
-               self.is_better_run(run, metadata.best_run_id.unwrap()) {
+            if metadata.best_run_id.is_none()
+                || self.is_better_run(run, metadata.best_run_id.unwrap())
+            {
                 metadata.best_run_id = Some(run_id);
             }
         }
@@ -325,7 +353,9 @@ impl ExperimentTracker {
 
     /// Fail a run
     pub fn fail_run(&mut self, run_id: Uuid, error: String) -> Result<()> {
-        let run = self.runs.get_mut(&run_id)
+        let run = self
+            .runs
+            .get_mut(&run_id)
             .ok_or_else(|| anyhow::anyhow!("Run not found"))?;
 
         run.end_time = Some(Utc::now());
@@ -341,8 +371,17 @@ impl ExperimentTracker {
     }
 
     /// Add artifact to run
-    pub fn add_artifact(&mut self, run_id: Uuid, name: &str, artifact_type: ArtifactType, path: &str, size_bytes: u64) -> Result<()> {
-        let run = self.runs.get_mut(&run_id)
+    pub fn add_artifact(
+        &mut self,
+        run_id: Uuid,
+        name: &str,
+        artifact_type: ArtifactType,
+        path: &str,
+        size_bytes: u64,
+    ) -> Result<()> {
+        let run = self
+            .runs
+            .get_mut(&run_id)
             .ok_or_else(|| anyhow::anyhow!("Run not found"))?;
 
         let artifact = ExperimentArtifact {
@@ -361,7 +400,11 @@ impl ExperimentTracker {
     }
 
     /// Compare experiments
-    pub fn compare_experiments(&mut self, experiment_ids: Vec<String>, comparison_type: ComparisonType) -> Result<String> {
+    pub fn compare_experiments(
+        &mut self,
+        experiment_ids: Vec<String>,
+        comparison_type: ComparisonType,
+    ) -> Result<String> {
         let comparison_id = format!("cmp_{}", Uuid::new_v4().simple());
 
         let mut results = ComparisonResults {
@@ -375,7 +418,8 @@ impl ExperimentTracker {
         let mut all_metrics = HashMap::new();
         for exp_id in &experiment_ids {
             if let Some(runs) = self.get_experiment_runs(exp_id) {
-                let completed_runs: Vec<&ExperimentRun> = runs.iter()
+                let completed_runs: Vec<&ExperimentRun> = runs
+                    .iter()
                     .filter(|r| matches!(r.status, RunStatus::Completed))
                     .collect();
 
@@ -415,7 +459,11 @@ impl ExperimentTracker {
 
         self.comparisons.insert(comparison_id.clone(), comparison);
 
-        tracing::info!("📊 Created comparison '{}' with {} experiments", comparison_id, experiment_ids.len());
+        tracing::info!(
+            "📊 Created comparison '{}' with {} experiments",
+            comparison_id,
+            experiment_ids.len()
+        );
         Ok(comparison_id)
     }
 
@@ -431,7 +479,9 @@ impl ExperimentTracker {
 
     /// Get all runs for an experiment
     pub fn get_experiment_runs(&self, experiment_id: &str) -> Option<Vec<&ExperimentRun>> {
-        let runs: Vec<&ExperimentRun> = self.runs.values()
+        let runs: Vec<&ExperimentRun> = self
+            .runs
+            .values()
             .filter(|r| r.experiment_id == experiment_id)
             .collect();
 
@@ -444,19 +494,24 @@ impl ExperimentTracker {
 
     /// Search experiments
     pub fn search_experiments(&self, query: &ExperimentQuery) -> Vec<&Experiment> {
-        self.experiments.values()
+        self.experiments
+            .values()
             .filter(|exp| {
                 // Name filter
                 if let Some(ref name_filter) = query.name_filter {
-                    if !exp.name.to_lowercase().contains(&name_filter.to_lowercase()) {
+                    if !exp
+                        .name
+                        .to_lowercase()
+                        .contains(&name_filter.to_lowercase())
+                    {
                         return false;
                     }
                 }
 
                 // Tag filter
                 if !query.tag_filter.is_empty() {
-                    let has_matching_tag = query.tag_filter.iter()
-                        .any(|tag| exp.tags.contains(tag));
+                    let has_matching_tag =
+                        query.tag_filter.iter().any(|tag| exp.tags.contains(tag));
                     if !has_matching_tag {
                         return false;
                     }
@@ -483,11 +538,15 @@ impl ExperimentTracker {
 
     /// Generate experiment report
     pub fn generate_report(&self, experiment_id: &str) -> Result<ExperimentReport> {
-        let experiment = self.experiments.get(experiment_id)
+        let experiment = self
+            .experiments
+            .get(experiment_id)
             .ok_or_else(|| anyhow::anyhow!("Experiment not found"))?
             .clone();
 
-        let runs: Vec<ExperimentRun> = self.runs.values()
+        let runs: Vec<ExperimentRun> = self
+            .runs
+            .values()
             .filter(|r| r.experiment_id == experiment_id)
             .cloned()
             .collect();
@@ -574,7 +633,11 @@ impl ExperimentTracker {
                 improvement_percentage: 0.0,
             };
 
-            let mut best_value = if metric_name == &"accuracy" { 0.0 } else { f64::INFINITY };
+            let mut best_value = if metric_name == &"accuracy" {
+                0.0
+            } else {
+                f64::INFINITY
+            };
             let mut best_exp = String::new();
 
             for exp_id in experiment_ids {
@@ -597,44 +660,71 @@ impl ExperimentTracker {
             }
 
             metric_comparison.best_experiment = best_exp;
-            results.metrics_comparison.insert(metric_name.to_string(), metric_comparison);
+            results
+                .metrics_comparison
+                .insert(metric_name.to_string(), metric_comparison);
         }
 
         Ok(())
     }
 
     /// Compare convergence across experiments
-    fn compare_convergence(&self, experiment_ids: &[String], results: &mut ComparisonResults) -> Result<()> {
+    fn compare_convergence(
+        &self,
+        experiment_ids: &[String],
+        results: &mut ComparisonResults,
+    ) -> Result<()> {
         // Implementation for convergence comparison
-        results.insights.push("Convergence analysis completed".to_string());
+        results
+            .insights
+            .push("Convergence analysis completed".to_string());
         Ok(())
     }
 
     /// Compare resource usage across experiments
-    fn compare_resource_usage(&self, experiment_ids: &[String], results: &mut ComparisonResults) -> Result<()> {
+    fn compare_resource_usage(
+        &self,
+        experiment_ids: &[String],
+        results: &mut ComparisonResults,
+    ) -> Result<()> {
         // Implementation for resource usage comparison
-        results.insights.push("Resource usage analysis completed".to_string());
+        results
+            .insights
+            .push("Resource usage analysis completed".to_string());
         Ok(())
     }
 
     /// Compare hyperparameter impact
-    fn compare_hyperparameter_impact(&self, experiment_ids: &[String], results: &mut ComparisonResults) -> Result<()> {
+    fn compare_hyperparameter_impact(
+        &self,
+        experiment_ids: &[String],
+        results: &mut ComparisonResults,
+    ) -> Result<()> {
         // Implementation for hyperparameter impact comparison
-        results.insights.push("Hyperparameter impact analysis completed".to_string());
+        results
+            .insights
+            .push("Hyperparameter impact analysis completed".to_string());
         Ok(())
     }
 
     /// Compare ablation study results
-    fn compare_ablation_study(&self, experiment_ids: &[String], results: &mut ComparisonResults) -> Result<()> {
+    fn compare_ablation_study(
+        &self,
+        experiment_ids: &[String],
+        results: &mut ComparisonResults,
+    ) -> Result<()> {
         // Implementation for ablation study comparison
-        results.insights.push("Ablation study analysis completed".to_string());
+        results
+            .insights
+            .push("Ablation study analysis completed".to_string());
         Ok(())
     }
 
     /// Generate experiment summary
     fn generate_experiment_summary(&self, runs: &[ExperimentRun]) -> Result<ExperimentSummary> {
         let total_runs = runs.len();
-        let successful_runs = runs.iter()
+        let successful_runs = runs
+            .iter()
             .filter(|r| matches!(r.status, RunStatus::Completed))
             .count();
 
@@ -642,7 +732,8 @@ impl ExperimentTracker {
         let mut average_metrics = HashMap::new();
 
         // Calculate best and average metrics
-        let completed_runs: Vec<&ExperimentRun> = runs.iter()
+        let completed_runs: Vec<&ExperimentRun> = runs
+            .iter()
             .filter(|r| matches!(r.status, RunStatus::Completed))
             .collect();
 
@@ -669,14 +760,14 @@ impl ExperimentTracker {
             best_metrics,
             average_metrics,
             convergence_analysis: ConvergenceAnalysis {
-                average_epochs_to_converge: 50.0, // Mock value
-                convergence_stability: 0.8, // Mock value
+                average_epochs_to_converge: 50.0,     // Mock value
+                convergence_stability: 0.8,           // Mock value
                 best_convergence_run: Uuid::new_v4(), // Mock value
             },
             resource_analysis: ResourceAnalysis {
-                average_cpu_usage: 65.0, // Mock value
-                average_memory_usage: 70.0, // Mock value
-                average_training_time: 1800.0, // Mock value
+                average_cpu_usage: 65.0,        // Mock value
+                average_memory_usage: 70.0,     // Mock value
+                average_training_time: 1800.0,  // Mock value
                 compute_efficiency_score: 0.75, // Mock value
             },
         })
@@ -695,12 +786,15 @@ impl ExperimentTracker {
 
         if let Some(avg_accuracy) = summary.average_metrics.get("accuracy") {
             if *avg_accuracy < 0.8 {
-                recommendations.push("Consider hyperparameter tuning to improve model accuracy".to_string());
+                recommendations
+                    .push("Consider hyperparameter tuning to improve model accuracy".to_string());
             }
         }
 
         if summary.resource_analysis.average_memory_usage > 80.0 {
-            recommendations.push("High memory usage detected - consider memory optimization techniques".to_string());
+            recommendations.push(
+                "High memory usage detected - consider memory optimization techniques".to_string(),
+            );
         }
 
         recommendations

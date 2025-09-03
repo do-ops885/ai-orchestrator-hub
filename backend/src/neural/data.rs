@@ -1,4 +1,4 @@
-use crate::neural::{VectorizedOps, CpuOptimizer};
+use crate::neural::{CpuOptimizer, VectorizedOps};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -192,14 +192,20 @@ impl DataPipeline {
     }
 
     /// Load dataset from file
-    pub async fn load_dataset(&mut self, name: &str, path: &Path, data_type: DataType) -> Result<()> {
+    pub async fn load_dataset(
+        &mut self,
+        name: &str,
+        path: &Path,
+        data_type: DataType,
+    ) -> Result<()> {
         tracing::info!("📊 Loading dataset '{}' from {:?}", name, path);
 
         // In a real implementation, this would read from various file formats
         // For now, we'll create a mock dataset
         let dataset = self.create_mock_dataset(name, data_type).await?;
 
-        self.datasets.insert(name.to_string(), Arc::new(RwLock::new(dataset)));
+        self.datasets
+            .insert(name.to_string(), Arc::new(RwLock::new(dataset)));
         tracing::info!("✅ Dataset '{}' loaded successfully", name);
         Ok(())
     }
@@ -211,7 +217,9 @@ impl DataPipeline {
         batch_size: usize,
         shuffle: bool,
     ) -> Result<String> {
-        let dataset = self.datasets.get(dataset_name)
+        let dataset = self
+            .datasets
+            .get(dataset_name)
             .ok_or_else(|| anyhow::anyhow!("Dataset '{}' not found", dataset_name))?
             .clone();
 
@@ -227,15 +235,22 @@ impl DataPipeline {
         };
 
         let loader_id = format!("{}_loader", dataset_name);
-        self.data_loaders.insert(loader_id.clone(), Arc::new(RwLock::new(loader)));
+        self.data_loaders
+            .insert(loader_id.clone(), Arc::new(RwLock::new(loader)));
 
-        tracing::info!("🔄 Created data loader '{}' with batch size {}", loader_id, batch_size);
+        tracing::info!(
+            "🔄 Created data loader '{}' with batch size {}",
+            loader_id,
+            batch_size
+        );
         Ok(loader_id)
     }
 
     /// Get next batch from data loader
     pub async fn get_next_batch(&self, loader_id: &str) -> Result<Option<DataBatch>> {
-        let loader = self.data_loaders.get(loader_id)
+        let loader = self
+            .data_loaders
+            .get(loader_id)
             .ok_or_else(|| anyhow::anyhow!("Data loader '{}' not found", loader_id))?;
 
         let mut loader = loader.write().await;
@@ -286,13 +301,22 @@ impl DataPipeline {
     }
 
     /// Apply preprocessing pipeline to dataset
-    pub async fn apply_preprocessing(&self, dataset_name: &str, pipeline: &PreprocessingPipeline) -> Result<()> {
-        let dataset = self.datasets.get(dataset_name)
+    pub async fn apply_preprocessing(
+        &self,
+        dataset_name: &str,
+        pipeline: &PreprocessingPipeline,
+    ) -> Result<()> {
+        let dataset = self
+            .datasets
+            .get(dataset_name)
             .ok_or_else(|| anyhow::anyhow!("Dataset '{}' not found", dataset_name))?;
 
         let mut dataset = dataset.write().await;
 
-        tracing::info!("🔧 Applying preprocessing pipeline to dataset '{}'", dataset_name);
+        tracing::info!(
+            "🔧 Applying preprocessing pipeline to dataset '{}'",
+            dataset_name
+        );
 
         for step in &pipeline.steps {
             match step {
@@ -320,9 +344,12 @@ impl DataPipeline {
 
     /// Split dataset into train/validation/test sets
     pub async fn split_dataset(&self, dataset_name: &str, split: &DataSplit) -> Result<DataSplits> {
-        let dataset = self.datasets.get(dataset_name)
+        let dataset = self
+            .datasets
+            .get(dataset_name)
             .ok_or_else(|| anyhow::anyhow!("Dataset '{}' not found", dataset_name))?
-            .read().await;
+            .read()
+            .await;
 
         let total_samples = dataset.features.len();
         let train_size = (total_samples as f64 * split.train_ratio) as usize;
@@ -370,7 +397,11 @@ impl DataPipeline {
             features.push(sample_features);
 
             // Simple classification based on first feature
-            let label = if features.last().unwrap()[0] > 0.0 { 1.0 } else { 0.0 };
+            let label = if features.last().unwrap()[0] > 0.0 {
+                1.0
+            } else {
+                0.0
+            };
             labels.push(vec![label]);
         }
 
@@ -378,7 +409,9 @@ impl DataPipeline {
             num_samples,
             num_features,
             num_classes,
-            feature_names: (0..num_features).map(|i| format!("feature_{}", i)).collect(),
+            feature_names: (0..num_features)
+                .map(|i| format!("feature_{}", i))
+                .collect(),
             class_names: (0..num_classes).map(|i| format!("class_{}", i)).collect(),
             data_type,
         };
@@ -400,12 +433,17 @@ impl DataPipeline {
     }
 
     /// Apply normalization preprocessing
-    async fn apply_normalization(&self, dataset: &mut Dataset, config: &NormalizationConfig) -> Result<()> {
+    async fn apply_normalization(
+        &self,
+        dataset: &mut Dataset,
+        config: &NormalizationConfig,
+    ) -> Result<()> {
         tracing::info!("📏 Applying normalization: {:?}", config.method);
 
         match config.method {
             NormalizationMethod::MinMax => {
-                self.apply_minmax_normalization(dataset, config.feature_range).await?;
+                self.apply_minmax_normalization(dataset, config.feature_range)
+                    .await?;
             }
             NormalizationMethod::L1 => {
                 self.apply_l1_normalization(dataset).await?;
@@ -422,23 +460,33 @@ impl DataPipeline {
     }
 
     /// Apply Min-Max normalization
-    async fn apply_minmax_normalization(&self, dataset: &mut Dataset, feature_range: Option<(f32, f32)>) -> Result<()> {
+    async fn apply_minmax_normalization(
+        &self,
+        dataset: &mut Dataset,
+        feature_range: Option<(f32, f32)>,
+    ) -> Result<()> {
         let (min_val, max_val) = feature_range.unwrap_or((0.0, 1.0));
 
         for feature_idx in 0..dataset.metadata.num_features {
-            let mut feature_values: Vec<f32> = dataset.features.iter()
+            let mut feature_values: Vec<f32> = dataset
+                .features
+                .iter()
                 .map(|sample| sample[feature_idx])
                 .collect();
 
             let feature_min = feature_values.iter().fold(f32::INFINITY, |a, &b| a.min(b));
-            let feature_max = feature_values.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+            let feature_max = feature_values
+                .iter()
+                .fold(f32::NEG_INFINITY, |a, &b| a.max(b));
 
             if (feature_max - feature_min).abs() < 1e-6 {
                 continue; // Skip constant features
             }
 
             for sample in &mut dataset.features {
-                let normalized = min_val + (sample[feature_idx] - feature_min) * (max_val - min_val) / (feature_max - feature_min);
+                let normalized = min_val
+                    + (sample[feature_idx] - feature_min) * (max_val - min_val)
+                        / (feature_max - feature_min);
                 sample[feature_idx] = normalized;
             }
         }
@@ -462,7 +510,8 @@ impl DataPipeline {
     /// Apply L2 normalization
     async fn apply_l2_normalization(&self, dataset: &mut Dataset) -> Result<()> {
         for sample in &mut dataset.features {
-            let l2_norm = VectorizedOps::vector_norm(&sample.iter().map(|&x| x as f32).collect::<Vec<f32>>());
+            let l2_norm =
+                VectorizedOps::vector_norm(&sample.iter().map(|&x| x as f32).collect::<Vec<f32>>());
             if l2_norm > 0.0 {
                 for feature in sample {
                     *feature /= l2_norm;
@@ -475,14 +524,18 @@ impl DataPipeline {
     /// Apply Z-score normalization
     async fn apply_zscore_normalization(&self, dataset: &mut Dataset) -> Result<()> {
         for feature_idx in 0..dataset.metadata.num_features {
-            let feature_values: Vec<f32> = dataset.features.iter()
+            let feature_values: Vec<f32> = dataset
+                .features
+                .iter()
                 .map(|sample| sample[feature_idx])
                 .collect();
 
             let mean = feature_values.iter().sum::<f32>() / feature_values.len() as f32;
-            let variance = feature_values.iter()
+            let variance = feature_values
+                .iter()
                 .map(|x| (x - mean).powi(2))
-                .sum::<f32>() / feature_values.len() as f32;
+                .sum::<f32>()
+                / feature_values.len() as f32;
             let std = variance.sqrt();
 
             if std > 0.0 {
@@ -495,11 +548,17 @@ impl DataPipeline {
     }
 
     /// Apply standardization preprocessing
-    async fn apply_standardization(&self, dataset: &mut Dataset, config: &StandardizationConfig) -> Result<()> {
+    async fn apply_standardization(
+        &self,
+        dataset: &mut Dataset,
+        config: &StandardizationConfig,
+    ) -> Result<()> {
         tracing::info!("📊 Applying standardization");
 
         for feature_idx in 0..dataset.metadata.num_features {
-            let feature_values: Vec<f32> = dataset.features.iter()
+            let feature_values: Vec<f32> = dataset
+                .features
+                .iter()
                 .map(|sample| sample[feature_idx])
                 .collect();
 
@@ -511,9 +570,8 @@ impl DataPipeline {
             }
 
             if config.with_std {
-                let variance = feature_values.iter()
-                    .map(|x| x.powi(2))
-                    .sum::<f32>() / feature_values.len() as f32;
+                let variance = feature_values.iter().map(|x| x.powi(2)).sum::<f32>()
+                    / feature_values.len() as f32;
                 let std = variance.sqrt();
 
                 if std > 0.0 {
@@ -554,7 +612,11 @@ impl DataPipeline {
     }
 
     /// Apply augmentation preprocessing
-    async fn apply_augmentation(&self, dataset: &mut Dataset, config: &AugmentationConfig) -> Result<()> {
+    async fn apply_augmentation(
+        &self,
+        dataset: &mut Dataset,
+        config: &AugmentationConfig,
+    ) -> Result<()> {
         tracing::info!("🎨 Applying data augmentation");
 
         let mut augmented_features = Vec::new();
@@ -592,15 +654,21 @@ impl DataPipeline {
     }
 
     /// Apply feature selection preprocessing
-    async fn apply_feature_selection(&self, dataset: &mut Dataset, config: &FeatureSelectionConfig) -> Result<()> {
+    async fn apply_feature_selection(
+        &self,
+        dataset: &mut Dataset,
+        config: &FeatureSelectionConfig,
+    ) -> Result<()> {
         tracing::info!("🎯 Applying feature selection: k={}", config.k);
 
         match config.method {
             FeatureSelectionMethod::VarianceThreshold { threshold } => {
-                self.apply_variance_threshold_selection(dataset, threshold).await?;
+                self.apply_variance_threshold_selection(dataset, threshold)
+                    .await?;
             }
             FeatureSelectionMethod::SelectKBest { .. } => {
-                self.apply_select_k_best_selection(dataset, config.k).await?;
+                self.apply_select_k_best_selection(dataset, config.k)
+                    .await?;
             }
             FeatureSelectionMethod::RecursiveFeatureElimination => {
                 self.apply_rfe_selection(dataset, config.k).await?;
@@ -611,18 +679,26 @@ impl DataPipeline {
     }
 
     /// Apply variance threshold feature selection
-    async fn apply_variance_threshold_selection(&self, dataset: &mut Dataset, threshold: f64) -> Result<()> {
+    async fn apply_variance_threshold_selection(
+        &self,
+        dataset: &mut Dataset,
+        threshold: f64,
+    ) -> Result<()> {
         let mut selected_indices = Vec::new();
 
         for feature_idx in 0..dataset.metadata.num_features {
-            let feature_values: Vec<f32> = dataset.features.iter()
+            let feature_values: Vec<f32> = dataset
+                .features
+                .iter()
                 .map(|sample| sample[feature_idx])
                 .collect();
 
             let mean = feature_values.iter().sum::<f32>() / feature_values.len() as f32;
-            let variance = feature_values.iter()
+            let variance = feature_values
+                .iter()
                 .map(|x| (x - mean).powi(2))
-                .sum::<f32>() / feature_values.len() as f32;
+                .sum::<f32>()
+                / feature_values.len() as f32;
 
             if variance >= threshold as f32 {
                 selected_indices.push(feature_idx);
@@ -639,20 +715,25 @@ impl DataPipeline {
         let mut feature_variances = Vec::new();
 
         for feature_idx in 0..dataset.metadata.num_features {
-            let feature_values: Vec<f32> = dataset.features.iter()
+            let feature_values: Vec<f32> = dataset
+                .features
+                .iter()
                 .map(|sample| sample[feature_idx])
                 .collect();
 
             let mean = feature_values.iter().sum::<f32>() / feature_values.len() as f32;
-            let variance = feature_values.iter()
+            let variance = feature_values
+                .iter()
                 .map(|x| (x - mean).powi(2))
-                .sum::<f32>() / feature_values.len() as f32;
+                .sum::<f32>()
+                / feature_values.len() as f32;
 
             feature_variances.push((feature_idx, variance));
         }
 
         feature_variances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-        let selected_indices: Vec<usize> = feature_variances.into_iter()
+        let selected_indices: Vec<usize> = feature_variances
+            .into_iter()
             .take(k)
             .map(|(idx, _)| idx)
             .collect();
@@ -671,14 +752,18 @@ impl DataPipeline {
             let mut feature_variances = Vec::new();
 
             for &feature_idx in &remaining_features {
-                let feature_values: Vec<f32> = dataset.features.iter()
+                let feature_values: Vec<f32> = dataset
+                    .features
+                    .iter()
                     .map(|sample| sample[feature_idx])
                     .collect();
 
                 let mean = feature_values.iter().sum::<f32>() / feature_values.len() as f32;
-                let variance = feature_values.iter()
+                let variance = feature_values
+                    .iter()
                     .map(|x| (x - mean).powi(2))
-                    .sum::<f32>() / feature_values.len() as f32;
+                    .sum::<f32>()
+                    / feature_values.len() as f32;
 
                 feature_variances.push((feature_idx, variance));
             }
@@ -694,16 +779,20 @@ impl DataPipeline {
     }
 
     /// Select specific features from dataset
-    async fn select_features(&self, dataset: &mut Dataset, selected_indices: &[usize]) -> Result<()> {
+    async fn select_features(
+        &self,
+        dataset: &mut Dataset,
+        selected_indices: &[usize],
+    ) -> Result<()> {
         for sample in &mut dataset.features {
-            let selected_features: Vec<f32> = selected_indices.iter()
-                .map(|&idx| sample[idx])
-                .collect();
+            let selected_features: Vec<f32> =
+                selected_indices.iter().map(|&idx| sample[idx]).collect();
             *sample = selected_features;
         }
 
         dataset.metadata.num_features = selected_indices.len();
-        dataset.metadata.feature_names = selected_indices.iter()
+        dataset.metadata.feature_names = selected_indices
+            .iter()
             .map(|&idx| dataset.metadata.feature_names[idx].clone())
             .collect();
 
@@ -711,7 +800,12 @@ impl DataPipeline {
     }
 
     /// Create dataset split
-    fn create_split_dataset(&self, original: &Dataset, indices: &[usize], split_name: &str) -> Result<Dataset> {
+    fn create_split_dataset(
+        &self,
+        original: &Dataset,
+        indices: &[usize],
+        split_name: &str,
+    ) -> Result<Dataset> {
         let mut features = Vec::new();
         let mut labels = Vec::new();
 

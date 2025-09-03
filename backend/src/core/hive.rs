@@ -346,7 +346,9 @@ impl HiveCoordinator {
                 );
                 interval.tick().await;
 
-                if let Err(e) = Self::distribute_tasks(&agents, &task_queue, &fallback_system_legacy).await {
+                if let Err(e) =
+                    Self::distribute_tasks(&agents, &task_queue, &fallback_system_legacy).await
+                {
                     tracing::error!("Legacy task distribution error: {}", e);
                 }
             }
@@ -658,11 +660,13 @@ impl HiveCoordinator {
 
             // Use intelligent fallback system to find best agent
             let mut fallback_sys = fallback_system.write().await;
-            let fallback_decision = fallback_sys.find_agent_with_fallback(
-                &task,
-                &available_agents,
-                None, // No additional context for now
-            ).await;
+            let fallback_decision = fallback_sys
+                .find_agent_with_fallback(
+                    &task,
+                    &available_agents,
+                    None, // No additional context for now
+                )
+                .await;
 
             drop(fallback_sys); // Release the lock
 
@@ -675,7 +679,9 @@ impl HiveCoordinator {
                         tracing::info!(
                             "Fallback used for task {}: tier={}, quality={:.2}, attempts={}",
                             task.id,
-                            fallback_decision.attempts.last()
+                            fallback_decision
+                                .attempts
+                                .last()
                                 .map(|r| format!("{:?}", r.tier))
                                 .unwrap_or_else(|| "Unknown".to_string()),
                             fallback_decision.quality_degradation,
@@ -789,15 +795,16 @@ impl HiveCoordinator {
                                     let duration = start_time.elapsed();
 
                                     // Log with quality context for fallback monitoring
-                                    let quality_indicator = if let Some(quality) = result.quality_score {
-                                        if quality < 0.7 {
-                                            " (reduced quality)"
+                                    let quality_indicator =
+                                        if let Some(quality) = result.quality_score {
+                                            if quality < 0.7 {
+                                                " (reduced quality)"
+                                            } else {
+                                                ""
+                                            }
                                         } else {
                                             ""
-                                        }
-                                    } else {
-                                        ""
-                                    };
+                                        };
 
                                     tracing::debug!(
                                         "🚀 Work-stealing task completed in {:?}: {}{}",
@@ -815,7 +822,11 @@ impl HiveCoordinator {
                                     }
 
                                     // Log failure for fallback system analysis
-                                    tracing::error!("Work-stealing task execution failed for task {}: {}", task.id, e);
+                                    tracing::error!(
+                                        "Work-stealing task execution failed for task {}: {}",
+                                        task.id,
+                                        e
+                                    );
 
                                     // Update fallback system with failure information
                                     let mut fallback_sys = fallback_clone.write().await;
@@ -1281,7 +1292,8 @@ impl HiveCoordinator {
         let decisions_json: Vec<serde_json::Value> = decisions
             .iter()
             .map(|decision| {
-                let attempts: Vec<serde_json::Value> = decision.attempts
+                let attempts: Vec<serde_json::Value> = decision
+                    .attempts
                     .iter()
                     .map(|attempt| {
                         serde_json::json!({
@@ -1320,7 +1332,10 @@ impl HiveCoordinator {
         let mut fallback_sys = self.fallback_system.write().await;
 
         let new_config = FallbackConfig {
-            enabled: config.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true),
+            enabled: config
+                .get("enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true),
             max_fallback_attempts: config
                 .get("max_fallback_attempts")
                 .and_then(|v| v.as_u64())

@@ -1,15 +1,15 @@
-use crate::neural::{HybridNeuralProcessor, NetworkType, FANNConfig, LSTMConfig};
-use crate::neural::{AdaptiveLearningSystem, AdaptiveLearningConfig};
-use crate::neural::{CpuOptimizer, VectorizedOps};
 use crate::agents::agent::Agent;
+use crate::neural::{AdaptiveLearningConfig, AdaptiveLearningSystem};
+use crate::neural::{CpuOptimizer, VectorizedOps};
+use crate::neural::{FANNConfig, HybridNeuralProcessor, LSTMConfig, NetworkType};
 use crate::tasks::task::Task;
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// Comprehensive neural training system for the AI Orchestrator Hub
 #[derive(Debug)]
@@ -301,7 +301,9 @@ impl NeuralTrainingSystem {
     pub async fn new() -> Result<Self> {
         let neural_processor = Arc::new(RwLock::new(HybridNeuralProcessor::new().await?));
         let adaptive_config = AdaptiveLearningConfig::default();
-        let adaptive_learning = Arc::new(RwLock::new(AdaptiveLearningSystem::new(adaptive_config).await?));
+        let adaptive_learning = Arc::new(RwLock::new(
+            AdaptiveLearningSystem::new(adaptive_config).await?,
+        ));
         let cpu_optimizer = CpuOptimizer::new();
 
         Ok(Self {
@@ -364,7 +366,9 @@ impl NeuralTrainingSystem {
 
     /// Execute training epoch
     pub async fn execute_epoch(&mut self, session_id: Uuid) -> Result<TrainingMetrics> {
-        let session = self.active_sessions.get_mut(&session_id)
+        let session = self
+            .active_sessions
+            .get_mut(&session_id)
             .ok_or_else(|| anyhow::anyhow!("Training session not found"))?;
 
         session.status = TrainingStatus::Running;
@@ -420,7 +424,10 @@ impl NeuralTrainingSystem {
         base_config: TrainingConfig,
         hpo_config: HPOConfig,
     ) -> Result<Vec<HPOTrial>> {
-        tracing::info!("🔬 Starting hyperparameter optimization with {} trials", hpo_config.trials);
+        tracing::info!(
+            "🔬 Starting hyperparameter optimization with {} trials",
+            hpo_config.trials
+        );
 
         let mut trials = Vec::new();
 
@@ -438,15 +445,17 @@ impl NeuralTrainingSystem {
 
             trials.push(trial_result);
 
-            tracing::info!("🎯 Completed HPO trial {}/{}", trial_num + 1, hpo_config.trials);
+            tracing::info!(
+                "🎯 Completed HPO trial {}/{}",
+                trial_num + 1,
+                hpo_config.trials
+            );
         }
 
         // Sort trials by objective
-        trials.sort_by(|a, b| {
-            match hpo_config.objective {
-                HPOObjective::Minimize(_) => a.objective_value.partial_cmp(&b.objective_value).unwrap(),
-                HPOObjective::Maximize(_) => b.objective_value.partial_cmp(&a.objective_value).unwrap(),
-            }
+        trials.sort_by(|a, b| match hpo_config.objective {
+            HPOObjective::Minimize(_) => a.objective_value.partial_cmp(&b.objective_value).unwrap(),
+            HPOObjective::Maximize(_) => b.objective_value.partial_cmp(&a.objective_value).unwrap(),
         });
 
         tracing::info!("✅ Hyperparameter optimization completed");
@@ -465,7 +474,9 @@ impl NeuralTrainingSystem {
 
     /// Export trained model
     pub async fn export_model(&self, session_id: Uuid, format: ExportFormat) -> Result<String> {
-        let session = self.active_sessions.get(&session_id)
+        let session = self
+            .active_sessions
+            .get(&session_id)
             .ok_or_else(|| anyhow::anyhow!("Training session not found"))?;
 
         match format {
@@ -505,7 +516,10 @@ impl NeuralTrainingSystem {
 
     /// Initialize data pipeline
     async fn initialize_data_pipeline(&self, config: &TrainingConfig) -> Result<()> {
-        tracing::info!("📊 Initializing data pipeline for dataset: {}", config.data.dataset);
+        tracing::info!(
+            "📊 Initializing data pipeline for dataset: {}",
+            config.data.dataset
+        );
 
         // In a real implementation, this would:
         // 1. Load dataset
@@ -531,7 +545,9 @@ impl NeuralTrainingSystem {
             _ => NetworkType::Basic, // For now, use basic for other architectures
         };
 
-        processor.create_neural_agent(agent_id, "training_agent".to_string(), true).await?;
+        processor
+            .create_neural_agent(agent_id, "training_agent".to_string(), true)
+            .await?;
 
         tracing::info!("✅ Model architecture configured");
         Ok(())
@@ -576,13 +592,20 @@ impl NeuralTrainingSystem {
     }
 
     /// Check if early stopping should be triggered
-    fn should_early_stop(&self, session: &TrainingSession, early_stop: &EarlyStoppingConfig) -> bool {
+    fn should_early_stop(
+        &self,
+        session: &TrainingSession,
+        early_stop: &EarlyStoppingConfig,
+    ) -> bool {
         if session.metrics.val_loss_history.len() < early_stop.patience {
             return false;
         }
 
-        let recent_losses = &session.metrics.val_loss_history
-            [session.metrics.val_loss_history.len().saturating_sub(early_stop.patience)..];
+        let recent_losses = &session.metrics.val_loss_history[session
+            .metrics
+            .val_loss_history
+            .len()
+            .saturating_sub(early_stop.patience)..];
 
         let min_recent = recent_losses.iter().fold(f64::INFINITY, |a, &b| a.min(b));
         let current_best = session.best_loss;
@@ -591,7 +614,10 @@ impl NeuralTrainingSystem {
     }
 
     /// Generate parameters for HPO trial
-    async fn generate_trial_parameters(&self, hpo_config: &HPOConfig) -> Result<HashMap<String, serde_json::Value>> {
+    async fn generate_trial_parameters(
+        &self,
+        hpo_config: &HPOConfig,
+    ) -> Result<HashMap<String, serde_json::Value>> {
         let mut parameters = HashMap::new();
 
         for (param_name, param_range) in &hpo_config.parameters {
