@@ -1,0 +1,322 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # Fast feedback job - runs first
+  pre-check:
+    name: Pre-flight Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      rust-changed: ${{ steps.filter.outputs.rust }}
+      frontend-changed: ${{ steps.filter.outputs.frontend }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'backend/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            frontend:
+              - 'frontend/**'
+              - 'package.json'
+              - 'package-lock.json'
+
+  # Optimized Rust build with cross-compilation
+  rust-build:
+    name: Rust Build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    needs: pre-check
+    if: needs.pre-check.outputs.rust-changed == 'true'
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: x86_64-apple-darwin
+            runner: macos-latest
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache target directory
+        uses: actions/cache@v4
+        with:
+          path: backend/target/
+          key: ${{ runner.os }}-cargo-target-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock', 'backend/src/**/*.rs') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-target-${{ matrix.target }}-
+            ${{ runner.os }}-cargo-target-
+
+      - name: Install cross-compilation tools
+        if: matrix.target != 'x86_64-unknown-linux-gnu'
+        run: |
+          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
+            sudo apt-get update
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          fi
+
+      - name: Build release binary
+        run: |
+          cd backend
+          if [ "${{ matrix.target }}" = "x86_64-unknown-linux-gnu" ]; then
+            cargo build --release --all-features
+          else
+            rustup target add ${{ matrix.target }}
+            cargo build --release --all-features --target ${{ matrix.target }}
+          fi
+
+      - name: Run tests
+        run: |
+          cd backend
+          cargo test --all-features --release -- --nocapture
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-binary-${{ matrix.target }}
+          path: backend/target/${{ matrix.target }}/release/multiagent-hive
+          retention-days: 30
+
+  # Optimized frontend build
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    needs: pre-check
+    if: needs.pre-check.outputs.frontend-changed == 'true'
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            ~/.npm
+            frontend/node_modules
+            frontend/.next/cache
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        if: steps.npm-cache.outputs.cache-hit != 'true'
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm run test:coverage
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/out/
+          retention-days: 30
+
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 30
+
+  # Performance benchmarking
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    needs: [rust-build, frontend-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache target directory
+        uses: actions/cache@v4
+        with:
+          path: backend/target/
+          key: ${{ runner.os }}-cargo-target-bench-${{ hashFiles('**/Cargo.lock', 'backend/src/**/*.rs') }}
+
+      - name: Run benchmarks
+        run: |
+          cd backend
+          cargo bench --all-features
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: backend/target/criterion/
+          retention-days: 30
+
+  # Integration and E2E testing
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [rust-build, frontend-build]
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.npm
+            backend/target/
+            frontend/node_modules
+          key: ${{ runner.os }}-integration-${{ hashFiles('**/Cargo.lock', 'frontend/package-lock.json') }}
+
+      - name: Install Playwright
+        run: |
+          cd frontend
+          npx playwright install --with-deps
+
+      - name: Run backend integration tests
+        run: |
+          cd backend
+          cargo test --test integration_tests --all-features -- --nocapture
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+
+      - name: Run E2E tests
+        run: |
+          cd frontend
+          npx playwright test
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            frontend/test-results/
+            backend/target/debug/deps/*.xml
+          retention-days: 30
+
+  # Quality gate
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [rust-build, frontend-build, benchmark, integration-test]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Quality gate check
+        run: |
+          if [[ "${{ needs.rust-build.result }}" != "success" ]]; then
+            echo "❌ Rust build failed"
+            exit 1
+          fi
+          if [[ "${{ needs.frontend-build.result }}" != "success" ]]; then
+            echo "❌ Frontend build failed"
+            exit 1
+          fi
+          if [[ "${{ needs.integration-test.result }}" != "success" ]]; then
+            echo "❌ Integration tests failed"
+            exit 1
+          fi
+          echo "✅ All quality gates passed"

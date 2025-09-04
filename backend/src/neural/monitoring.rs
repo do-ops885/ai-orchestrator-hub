@@ -458,8 +458,9 @@ impl TrainingMonitor {
             .collect();
 
         let convergence_rate = if recent_losses.len() >= 2 {
-            let first = recent_losses.last().unwrap();
-            let last = recent_losses.first().unwrap();
+            // Safe to unwrap since we checked length >= 2
+            let first = recent_losses[recent_losses.len() - 1];
+            let last = recent_losses[0];
             (first - last) / recent_losses.len() as f64
         } else {
             0.0
@@ -660,39 +661,6 @@ impl TrainingMonitor {
         Ok(())
     }
 
-    /// Create an alert (legacy method)
-    async fn create_alert(
-        &mut self,
-        session_monitor: &mut SessionMonitor,
-        alert_type: AlertType,
-        severity: AlertSeverity,
-        message: String,
-    ) -> Result<()> {
-        let alert = Alert {
-            alert_id: uuid::Uuid::new_v4(),
-            timestamp: Utc::now(),
-            alert_type,
-            severity,
-            message,
-            resolved: false,
-        };
-
-        session_monitor.alerts.push(alert.clone());
-
-        self.log_event(
-            MonitoringEventType::AlertTriggered,
-            Some(session_monitor.session_id),
-            serde_json::json!({
-                "alert_type": format!("{:?}", alert.alert_type),
-                "severity": format!("{:?}", alert.severity),
-                "message": alert.message
-            }),
-        );
-
-        tracing::warn!("🚨 Alert triggered: {}", alert.message);
-        Ok(())
-    }
-
     /// Log monitoring event
     fn log_event(
         &mut self,
@@ -814,9 +782,9 @@ impl ModelEvaluator {
         let mut matrix = vec![vec![0u32; num_classes]; num_classes];
 
         // Fill with simulated values
-        for i in 0..num_classes {
-            for j in 0..num_classes {
-                matrix[i][j] = if i == j {
+        for (i, row) in matrix.iter_mut().enumerate().take(num_classes) {
+            for (j, cell) in row.iter_mut().enumerate() {
+                *cell = if i == j {
                     80 + rand::random::<u32>() % 20 // High diagonal values
                 } else {
                     rand::random::<u32>() % 10 // Low off-diagonal values
@@ -861,17 +829,18 @@ impl ModelEvaluator {
     async fn calculate_feature_importance(
         &self,
         _model_id: &str,
-        _test_data: &Dataset,
+        test_data: &Dataset,
     ) -> Result<Vec<FeatureImportance>> {
         let mut importance_scores = Vec::new();
 
-        for feature_name in _test_data.metadata.feature_names.iter() {
+        for feature_name in &test_data.metadata.feature_names {
             let importance = rand::random::<f64>() * 0.5 + 0.1; // Random importance score
             importance_scores.push((feature_name.clone(), importance));
         }
 
         // Sort by importance
-        importance_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        importance_scores
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let feature_importance: Vec<FeatureImportance> = importance_scores
             .into_iter()

@@ -8,6 +8,7 @@ use crate::utils::error::{HiveError, HiveResult};
 use chrono::{DateTime, Datelike, Timelike, Utc, Weekday};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -30,6 +31,7 @@ pub struct AgentMonitor {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct AgentDiscovery {
     agents: Arc<RwLock<HashMap<Uuid, AgentInfo>>>,
     relationships: Arc<RwLock<HashMap<Uuid, Vec<Uuid>>>>,
@@ -142,15 +144,15 @@ impl PerformanceMonitor {
 
     pub async fn get_performance_trends(
         &self,
-        _metric_name: &str,
-        _hours: u32,
+        metric_name: &str,
+        hours: u32,
     ) -> HiveResult<PerformanceTrend> {
         // Placeholder
         Ok(PerformanceTrend {
-            metric_name: _metric_name.to_string(),
+            metric_name: metric_name.to_string(),
             trend_direction: TrendDirection::Stable,
             change_percent: 0.0,
-            period_hours: _hours,
+            period_hours: hours,
             data_points: Vec::new(),
         })
     }
@@ -3447,13 +3449,11 @@ impl Integration {
         let mut prometheus_output = String::new();
 
         // System metrics
-        let system_metrics = if let Ok(metrics) = agent_monitor
+        let Ok(system_metrics) = agent_monitor
             .metrics_collector
             .collect_system_metrics()
             .await
-        {
-            metrics
-        } else {
+        else {
             println!("📊 Failed to collect system metrics");
             return Ok(String::new());
         };
@@ -3461,41 +3461,61 @@ impl Integration {
             .push_str("# HELP ai_orchestrator_system_health Overall system health score\n");
         prometheus_output.push_str("# TYPE ai_orchestrator_system_health gauge\n");
         // Use a default health score since SystemMetrics doesn't have health_status
-        prometheus_output.push_str(&format!("ai_orchestrator_system_health {}\n", 0.85));
+        writeln!(prometheus_output, "ai_orchestrator_system_health {}", 0.85).map_err(|e| {
+            HiveError::OperationFailed {
+                reason: format!("Failed to write prometheus output: {e}"),
+            }
+        })?;
 
         prometheus_output.push_str("# HELP ai_orchestrator_agent_count Total number of agents\n");
         prometheus_output.push_str("# TYPE ai_orchestrator_agent_count gauge\n");
-        prometheus_output.push_str(&format!(
-            "ai_orchestrator_agent_count {}\n",
+        writeln!(
+            prometheus_output,
+            "ai_orchestrator_agent_count {}",
             system_metrics.agent_metrics.total_agents
-        ));
+        )
+        .map_err(|e| HiveError::OperationFailed {
+            reason: format!("Failed to write prometheus output: {e}"),
+        })?;
 
         // Performance metrics
         prometheus_output.push_str(
             "# HELP ai_orchestrator_response_time_ms Average response time in milliseconds\n",
         );
         prometheus_output.push_str("# TYPE ai_orchestrator_response_time_ms gauge\n");
-        prometheus_output.push_str(&format!(
-            "ai_orchestrator_response_time_ms {}\n",
+        writeln!(
+            prometheus_output,
+            "ai_orchestrator_response_time_ms {}",
             system_metrics.performance.average_response_time_ms
-        ));
+        )
+        .map_err(|e| HiveError::OperationFailed {
+            reason: format!("Failed to write prometheus output: {e}"),
+        })?;
 
         // Resource metrics
         prometheus_output
             .push_str("# HELP ai_orchestrator_cpu_usage_percent CPU usage percentage\n");
         prometheus_output.push_str("# TYPE ai_orchestrator_cpu_usage_percent gauge\n");
-        prometheus_output.push_str(&format!(
-            "ai_orchestrator_cpu_usage_percent {}\n",
+        writeln!(
+            prometheus_output,
+            "ai_orchestrator_cpu_usage_percent {}",
             system_metrics.resource_usage.cpu_usage_percent
-        ));
+        )
+        .map_err(|e| HiveError::OperationFailed {
+            reason: format!("Failed to write prometheus output: {e}"),
+        })?;
 
         prometheus_output
             .push_str("# HELP ai_orchestrator_memory_usage_percent Memory usage percentage\n");
         prometheus_output.push_str("# TYPE ai_orchestrator_memory_usage_percent gauge\n");
-        prometheus_output.push_str(&format!(
-            "ai_orchestrator_memory_usage_percent {}\n",
+        writeln!(
+            prometheus_output,
+            "ai_orchestrator_memory_usage_percent {}",
             system_metrics.resource_usage.memory_usage_percent
-        ));
+        )
+        .map_err(|e| HiveError::OperationFailed {
+            reason: format!("Failed to write prometheus output: {e}"),
+        })?;
 
         Ok(prometheus_output)
     }
@@ -3644,6 +3664,7 @@ impl Integration {
                 }
 
                 // Limit log export size to prevent memory issues
+                #[allow(clippy::items_after_statements)]
                 const MAX_LOGS_PER_BATCH: usize = 1000;
                 let logs_to_export = &logs[..logs.len().min(MAX_LOGS_PER_BATCH)];
 

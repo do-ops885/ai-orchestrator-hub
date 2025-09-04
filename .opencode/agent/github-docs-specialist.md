@@ -1,5 +1,6 @@
 ---
 description: Maintains and improves GitHub repository documentation following the latest best practices.
+mode: subagent
 tools:
   write: true
   edit: true

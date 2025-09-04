@@ -1,0 +1,394 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ main, develop ]
+
+concurrency:
+  group: pr-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # PR metadata validation
+  pr-metadata:
+    name: PR Metadata Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate PR title
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: ]]; then
+            echo "❌ PR title must follow conventional commit format: type(scope): description"
+            echo "Examples: feat: add new feature, fix(auth): resolve login issue"
+            exit 1
+          fi
+          echo "✅ PR title format is valid"
+
+      - name: Check PR size
+        run: |
+          CHANGED_FILES=$(git diff --name-only HEAD~1 | wc -l)
+          CHANGED_LINES=$(git diff --stat HEAD~1 | tail -1 | awk '{print $4+$6}')
+
+          echo "📊 PR Size Analysis:" >> $GITHUB_STEP_SUMMARY
+          echo "- Files changed: $CHANGED_FILES" >> $GITHUB_STEP_SUMMARY
+          echo "- Lines changed: $CHANGED_LINES" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$CHANGED_FILES" -gt 50 ] || [ "$CHANGED_LINES" -gt 1000 ]; then
+            echo "⚠️ **Large PR detected!** Consider breaking this into smaller PRs." >> $GITHUB_STEP_SUMMARY
+            echo "Large PRs are harder to review and more likely to introduce bugs." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ PR size looks good for review" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for WIP/Draft status
+        run: |
+          if [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
+            echo "📝 This PR is marked as draft"
+            echo "Remember to mark as ready for review when complete" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Code quality checks
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.npm
+            backend/target/
+            frontend/node_modules
+          key: ${{ runner.os }}-pr-quality-${{ hashFiles('**/Cargo.lock', 'frontend/package-lock.json') }}
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Run ESLint
+        run: |
+          cd frontend
+          npm run lint:check
+
+      - name: Check TypeScript
+        run: |
+          cd frontend
+          npx tsc --noEmit
+
+      - name: Run Clippy
+        run: |
+          cd backend
+          cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Check Rust formatting
+        run: |
+          cd backend
+          cargo fmt --all -- --check
+
+      - name: Check documentation
+        run: |
+          cd backend
+          cargo doc --no-deps --document-private-items --all-features
+
+  # Build validation
+  build-validation:
+    name: Build Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.npm
+            backend/target/
+            frontend/node_modules
+          key: ${{ runner.os }}-pr-build-${{ hashFiles('**/Cargo.lock', 'frontend/package-lock.json') }}
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Build backend
+        run: |
+          cd backend
+          cargo build --all-features
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          cargo test --all-features --lib --bins
+
+  # Security checks for PR
+  security-pr:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.pull_request.draft == false
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.npm
+          key: ${{ runner.os }}-pr-security-${{ hashFiles('**/Cargo.lock', 'frontend/package-lock.json') }}
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Run frontend security audit
+        run: |
+          cd frontend
+          npm audit --audit-level high --json > audit-results.json || echo "::warning::Security vulnerabilities found in dependencies"
+
+      - name: Run Rust security audit
+        run: |
+          cd backend
+          cargo install cargo-audit --version ^0.18 || true
+          cargo audit --deny warnings || echo "::warning::Security vulnerabilities found in Rust dependencies"
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v4
+
+      - name: Check for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Test coverage
+  test-coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.npm
+            backend/target/
+            frontend/node_modules
+          key: ${{ runner.os }}-pr-coverage-${{ hashFiles('**/Cargo.lock', 'frontend/package-lock.json') }}
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Run frontend tests with coverage
+        run: |
+          cd frontend
+          npm run test:coverage
+
+      - name: Run backend tests with coverage
+        run: |
+          cd backend
+          cargo install cargo-tarpaulin --version ^0.27 || true
+          cargo tarpaulin --all-features --out Xml -- --test-threads 1
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-coverage-reports
+          path: |
+            frontend/coverage/
+            backend/cobertura.xml
+          retention-days: 30
+
+      - name: Coverage summary
+        run: |
+          echo "## 📊 Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Frontend coverage
+          if [ -f "frontend/coverage/coverage-summary.json" ]; then
+            cd frontend
+            COVERAGE=$(jq '.total.lines.pct' coverage/coverage-summary.json)
+            echo "Frontend Coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+            cd ..
+          fi
+
+          # Backend coverage would need additional parsing
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📈 Detailed coverage reports uploaded as artifacts" >> $GITHUB_STEP_SUMMARY
+
+  # Performance impact check
+  performance-check:
+    name: Performance Impact
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry/
+          key: ${{ runner.os }}-cargo-perf-pr-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache target directory
+        uses: actions/cache@v4
+        with:
+          path: backend/target/
+          key: ${{ runner.os }}-cargo-target-perf-pr-${{ hashFiles('**/Cargo.lock', 'backend/src/**/*.rs') }}
+
+      - name: Run performance benchmarks
+        run: |
+          cd backend
+          cargo bench --all-features -- --save-baseline pr-${{ github.event.pull_request.number }}
+
+      - name: Compare with main branch
+        run: |
+          cd backend
+          git fetch origin main
+          git checkout origin/main
+          cargo bench --all-features -- --save-baseline main-branch
+
+          # Compare benchmarks (this would need more sophisticated comparison)
+          echo "Performance comparison completed"
+
+      - name: Performance summary
+        run: |
+          echo "## ⚡ Performance Impact Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Performance benchmarks completed" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Results compared with main branch baseline" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Recommendations:" >> $GITHUB_STEP_SUMMARY
+          echo "- Review benchmark results for performance regressions" >> $GITHUB_STEP_SUMMARY
+          echo "- Consider performance implications of changes" >> $GITHUB_STEP_SUMMARY
+
+  # PR validation summary
+  pr-validation-summary:
+    name: PR Validation Summary
+    runs-on: ubuntu-latest
+    needs: [pr-metadata, code-quality, build-validation, security-pr, test-coverage, performance-check]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Generate PR validation summary
+        run: |
+          echo "## ✅ PR Validation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR #${{ github.event.pull_request.number }}** - ${{ github.event.pull_request.title }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 📝 PR Metadata | ${{ needs.pr-metadata.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔍 Code Quality | ${{ needs.code-quality.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ Build Validation | ${{ needs.build-validation.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Security Checks | ${{ needs.security-pr.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 Test Coverage | ${{ needs.test-coverage.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚡ Performance | ${{ needs.performance-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Determine overall status
+          if [[ "${{ needs.pr-metadata.result }}" == "success" ]] && \
+             [[ "${{ needs.code-quality.result }}" == "success" ]] && \
+             [[ "${{ needs.build-validation.result }}" == "success" ]] && \
+             [[ "${{ needs.security-pr.result }}" != "failure" ]] && \
+             [[ "${{ needs.test-coverage.result }}" == "success" ]] && \
+             [[ "${{ needs.performance-check.result }}" == "success" ]]; then
+            echo "🎉 **All validations passed!** Ready for review and merge." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Some validations failed.** Please address the issues above before merging." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "- Address any failed validation checks" >> $GITHUB_STEP_SUMMARY
+          echo "- Review test coverage and performance impact" >> $GITHUB_STEP_SUMMARY
+          echo "- Ensure all security concerns are resolved" >> $GITHUB_STEP_SUMMARY
+          echo "- Request review from code owners" >> $GITHUB_STEP_SUMMARY

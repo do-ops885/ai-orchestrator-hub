@@ -20,6 +20,7 @@ pub struct CpuOptimizer {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct SimdSupport {
     pub avx2: bool,
     pub avx512: bool,
@@ -107,10 +108,8 @@ impl CpuOptimizer {
 }
 
 /// High-performance vectorized operations for semantic processing
-#[allow(dead_code)]
 pub struct VectorizedOps;
 
-#[allow(dead_code)]
 impl VectorizedOps {
     /// Compute dot product using optimal SIMD instructions
     #[must_use]
@@ -138,6 +137,10 @@ impl VectorizedOps {
     }
 
     /// AVX2 optimized dot product (`x86_64`)
+    ///
+    /// # Safety
+    /// This function uses AVX2 intrinsics and requires the target CPU to support AVX2.
+    /// The caller must ensure that both slices have the same length and are properly aligned.
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
     unsafe fn dot_product_avx2(a: &[f32], b: &[f32]) -> f32 {
@@ -173,6 +176,10 @@ impl VectorizedOps {
     }
 
     /// SSE optimized dot product (`x86_64`)
+    ///
+    /// # Safety
+    /// This function uses SSE4.1 intrinsics and requires the target CPU to support SSE4.1.
+    /// The caller must ensure that both slices have the same length and are properly aligned.
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "sse4.1")]
     unsafe fn dot_product_sse(a: &[f32], b: &[f32]) -> f32 {
@@ -286,6 +293,11 @@ impl VectorizedOps {
         }
     }
 
+    /// AVX2 optimized vector addition
+    ///
+    /// # Safety
+    /// This function uses AVX2 intrinsics and requires the target CPU to support AVX2.
+    /// The caller must ensure that all slices have the same length and are properly aligned.
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
     unsafe fn vector_add_avx2(a: &[f32], b: &[f32], result: &mut [f32]) {
@@ -328,10 +340,8 @@ impl VectorizedOps {
 }
 
 /// Quantized neural network operations for memory efficiency
-#[allow(dead_code)]
 pub struct QuantizedOps;
 
-#[allow(dead_code)]
 impl QuantizedOps {
     /// Convert f32 weights to 8-bit quantized representation
     #[must_use]
@@ -366,20 +376,20 @@ impl QuantizedOps {
         assert_eq!(input.len(), cols);
         assert_eq!(output.len(), rows);
 
-        for row in 0..rows {
+        for (row, output_val) in output.iter_mut().enumerate().take(rows) {
             let mut sum = 0i32;
 
-            for col in 0..cols {
+            for (col, &input_val) in input.iter().enumerate().take(cols) {
                 let weight_idx = row * cols + col;
                 let weight_q = i32::from(weights.data[weight_idx]);
                 let input_q =
-                    (input[col] / weights.scale).round() as i32 + i32::from(weights.zero_point);
+                    (input_val / weights.scale).round() as i32 + i32::from(weights.zero_point);
 
                 sum += (weight_q - i32::from(weights.zero_point))
                     * (input_q - i32::from(weights.zero_point));
             }
 
-            output[row] = sum as f32 * weights.scale * weights.scale;
+            *output_val = sum as f32 * weights.scale * weights.scale;
         }
     }
 
@@ -406,7 +416,6 @@ impl QuantizedOps {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[allow(dead_code)]
 pub struct QuantizedWeights {
     pub data: Vec<u8>,
     pub scale: f32,
@@ -414,7 +423,6 @@ pub struct QuantizedWeights {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct QuantizedWeights16 {
     pub data: Vec<u16>,
     pub scale: f32,
@@ -422,10 +430,8 @@ pub struct QuantizedWeights16 {
 }
 
 /// Cache-friendly memory operations
-#[allow(dead_code)]
 pub struct CacheOptimizedOps;
 
-#[allow(dead_code)]
 impl CacheOptimizedOps {
     /// Cache-friendly matrix multiplication with blocking
     #[allow(clippy::many_single_char_names)]
@@ -487,10 +493,8 @@ impl CacheOptimizedOps {
 }
 
 /// Performance benchmarking utilities
-#[allow(dead_code)]
 pub struct CpuBenchmark;
 
-#[allow(dead_code)]
 impl CpuBenchmark {
     #[must_use]
     pub fn benchmark_dot_product(size: usize, iterations: usize) -> f64 {
@@ -543,7 +547,6 @@ impl CpuBenchmark {
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct BenchmarkResults {
     pub dot_product_time_us: f64,
     pub quantization_time_us: f64,
@@ -552,7 +555,6 @@ pub struct BenchmarkResults {
     pub vector_width: usize,
 }
 
-#[allow(dead_code)]
 impl BenchmarkResults {
     pub fn print_report(&self) {
         println!("\n📊 CPU Optimization Benchmark Results");

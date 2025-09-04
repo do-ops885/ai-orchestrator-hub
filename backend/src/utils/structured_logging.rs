@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+
+
 use std::collections::HashMap;
 use tracing::{event, Level};
 use uuid::Uuid;
@@ -180,7 +182,7 @@ impl StructuredLogger {
 }
 
 /// Agent lifecycle event types
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum AgentEventType {
     Created,
     Started,

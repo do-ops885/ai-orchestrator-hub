@@ -1,0 +1,259 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly on Monday at 2 AM UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Comprehensive security scanning
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry/
+          key: ${{ runner.os }}-cargo-security-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run cargo audit
+        run: |
+          cd backend
+          cargo install cargo-audit --version ^0.18 || true
+          cargo audit --format json --output audit.json || echo "::warning::Security vulnerabilities found"
+        continue-on-error: true
+
+      - name: Run cargo outdated
+        run: |
+          cd backend
+          cargo install cargo-outdated --version ^0.15 || true
+          cargo outdated --format json --output outdated.json || echo "::warning::Outdated dependencies found"
+        continue-on-error: true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            backend/audit.json
+            backend/outdated.json
+          retention-days: 30
+
+  # Frontend security scanning
+  frontend-security:
+    name: Frontend Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            frontend/node_modules
+          key: ${{ runner.os }}-node-security-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Run npm audit
+        run: |
+          cd frontend
+          npm audit --audit-level moderate --json > audit-results.json || echo "::warning::NPM security issues found"
+        continue-on-error: true
+
+      - name: Check for vulnerable dependencies
+        run: |
+          cd frontend
+          npx audit-ci --config audit-ci.json || echo "::warning::Vulnerable dependencies detected"
+        continue-on-error: true
+
+      - name: Upload frontend security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-security-reports
+          path: frontend/audit-results.json
+          retention-days: 30
+
+  # CodeQL security analysis
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, rust
+          config-file: ./.github/codeql-config.yml
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript"
+          upload: true
+
+      - name: Perform CodeQL Analysis (Rust)
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:rust"
+          upload: true
+
+  # Dependency review for PRs
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          config-file: ./.github/dependency-review-config.yml
+
+  # Container security scanning (if using containers)
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && contains(github.event.head_commit.modified, 'Dockerfile')
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build container
+        run: |
+          docker build -t multiagent-hive:latest .
+
+      - name: Scan container
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          scan-ref: 'multiagent-hive:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Secrets scanning
+  secrets-scan:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-path: .gitleaks.toml
+
+  # Security summary
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [security-audit, frontend-security, codeql-analysis, dependency-review, container-scan, secrets-scan]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Generate security summary
+        run: |
+          echo "## 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status | Details |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust Audit | ${{ needs.security-audit.result }} | Cargo security vulnerabilities |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Security | ${{ needs.frontend-security.result }} | NPM audit and dependency checks |" >> $GITHUB_STEP_SUMMARY
+          echo "| CodeQL Analysis | ${{ needs.codeql-analysis.result }} | Static analysis for JS/Rust |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Review | ${{ needs.dependency-review.result }} | License and vulnerability checks |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container Scan | ${{ needs.container-scan.result }} | Docker image security |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secrets Scan | ${{ needs.secrets-scan.result }} | Leaked secrets detection |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check if any security checks failed
+          if [[ "${{ needs.security-audit.result }}" == "failure" ]] || \
+             [[ "${{ needs.frontend-security.result }}" == "failure" ]] || \
+             [[ "${{ needs.codeql-analysis.result }}" == "failure" ]] || \
+             [[ "${{ needs.secrets-scan.result }}" == "failure" ]]; then
+            echo "⚠️ **Security issues detected!** Please review the failed checks above." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ **All security checks passed!**" >> $GITHUB_STEP_SUMMARY
+          fi

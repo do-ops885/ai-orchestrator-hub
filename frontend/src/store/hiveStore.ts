@@ -26,6 +26,22 @@ export interface HiveMetrics {
   learning_progress: number;
 }
 
+export interface Task {
+  id: string;
+  description: string;
+  type: string;
+  priority: number;
+  status: string;
+  assigned_agent?: string;
+  created_at: string;
+  completed_at?: string;
+  required_capabilities?: Array<{
+    name: string;
+    min_proficiency: number;
+    weight: number;
+  }>;
+}
+
 export interface HiveStatus {
   hive_id: string;
   created_at: string;
@@ -44,7 +60,7 @@ interface HiveStore {
   // Data
   agents: Agent[];
   hiveStatus: HiveStatus | null;
-  tasks: unknown[];
+  tasks: Task[];
 
   // Actions
   connectWebSocket: (url: string) => void;
@@ -53,6 +69,7 @@ interface HiveStore {
   createTask: (config: unknown) => void;
   updateAgents: (agents: Agent[]) => void;
   updateHiveStatus: (status: HiveStatus) => void;
+  updateTasks: (tasks: Task[]) => void;
 }
 
 export const useHiveStore = create<HiveStore>((set, get) => ({
@@ -109,6 +126,20 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
             case 'task_created':
               console.warn('Created:', message.data)
               break
+            case 'tasks_update':
+              set({ tasks: message.data?.tasks ?? [] })
+              break
+            case 'task_status_update': {
+              const currentTasks = get().tasks
+              const updatedTask = message.data?.task
+              if (updatedTask !== null && updatedTask !== undefined) {
+                const updatedTasks = currentTasks.map(task =>
+                  task.id === updatedTask.id ? { ...task, ...updatedTask } : task
+                )
+                set({ tasks: updatedTasks })
+              }
+              break
+            }
             case 'error':
               console.warn('Hive error:', message.data?.error)
               break
@@ -180,4 +211,5 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
   updateAgents: (agents: Agent[]) => set({ agents }),
   updateHiveStatus: (status: HiveStatus) => set({ hiveStatus: status }),
+  updateTasks: (tasks: Task[]) => set({ tasks }),
 }))

@@ -13,6 +13,8 @@ This Rust-based backend provides the core swarm intelligence engine with:
 - **Model Context Protocol (MCP)** support for tool integration
 - **Extensible agent system** with capability-based matching
 - **Comprehensive monitoring** and metrics collection
+- **Simple verification system** for lightweight task validation
+- **Auto-scaling and intelligent fallback** for resilience
 
 ## Architecture
 
@@ -21,27 +23,51 @@ This Rust-based backend provides the core swarm intelligence engine with:
 ```
 backend/
 ├── src/
-│   ├── main.rs              # Application entry point
+│   ├── main.rs              # Application entry point with Axum server
+│   ├── lib.rs               # Library exports and module declarations
 │   ├── agents/              # Agent system implementation
+│   │   ├── agent.rs         # Core agent logic and behaviors
+│   │   ├── verification.rs  # Simple verification system
+│   │   └── mod.rs
+│   ├── api/                 # API response types and validation
+│   │   ├── responses.rs     # Standardized API responses
+│   │   └── mod.rs
 │   ├── communication/       # WebSocket and MCP handling
 │   ├── core/                # Core swarm intelligence logic
+│   │   ├── hive.rs          # HiveCoordinator - main system coordinator
+│   │   ├── swarm_intelligence.rs # Swarm formation algorithms
+│   │   └── mod.rs
 │   ├── infrastructure/      # Infrastructure and utilities
+│   │   ├── metrics.rs       # Metrics collection system
+│   │   ├── persistence.rs   # Data persistence layer
+│   │   └── mod.rs
 │   ├── neural/              # Neural processing engine
+│   │   ├── core.rs          # Hybrid neural processor
+│   │   ├── nlp.rs           # Natural language processing
+│   │   └── mod.rs
 │   ├── tasks/               # Task management system
+│   │   ├── task.rs          # Task definitions and queue
+│   │   └── mod.rs
 │   └── utils/               # Shared utilities
+│       ├── config.rs        # Configuration management
+│       ├── error.rs         # Error handling types
+│       └── mod.rs
 ├── examples/                # Example applications
 ├── tests/                   # Integration tests
+├── benches/                 # Performance benchmarks
 └── Cargo.toml              # Rust dependencies
 ```
 
 ### Key Features
 
 - **Agent Types**: Worker, Coordinator, Specialist, Learner
-- **Neural Modes**: Basic NLP, Advanced FANN networks, GPU acceleration
+- **Neural Modes**: Basic NLP (default), Advanced FANN networks, GPU acceleration
 - **Communication**: WebSocket real-time updates, REST API, MCP protocol
-- **Persistence**: SQLite/PostgreSQL support with migration system
-- **Security**: JWT authentication, input validation, rate limiting
-- **Monitoring**: Prometheus metrics, structured logging, health checks
+- **Persistence**: SQLite with encryption and backup support
+- **Security**: JWT authentication, input validation, rate limiting, security auditing
+- **Monitoring**: Comprehensive metrics, intelligent alerting, health checks
+- **Verification**: Simple verification system with configurable tiers
+- **Auto-scaling**: Dynamic agent scaling based on workload
 
 ## Quick Start
 
@@ -60,8 +86,63 @@ cd multiagent-hive/backend
 # Build the project
 cargo build
 
-# Run with basic features
+# Run with basic features (default)
 cargo run
+```
+
+### Basic Usage
+
+```rust
+use multiagent_hive::HiveCoordinator;
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Create a new hive coordinator
+    let hive = HiveCoordinator::new().await?;
+
+    // Create an agent
+    let agent_config = json!({
+        "name": "WorkerAgent-1",
+        "type": "worker",
+        "capabilities": [
+            {
+                "name": "data_processing",
+                "proficiency": 0.8,
+                "learning_rate": 0.1
+            }
+        ]
+    });
+    let agent_id = hive.create_agent(agent_config).await?;
+
+    // Create a task
+    let task_config = json!({
+        "description": "Process customer data",
+        "type": "data_processing",
+        "priority": 1,
+        "required_capabilities": [
+            {
+                "name": "data_processing",
+                "min_proficiency": 0.7
+            }
+        ]
+    });
+    let task_id = hive.create_task(task_config).await?;
+
+    // Monitor progress
+    loop {
+        let status = hive.get_task_status(task_id).await?;
+        println!("Task status: {:?}", status);
+
+        if status == serde_json::json!({"status": "completed"}) {
+            break;
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    }
+
+    Ok(())
+}
 ```
 
 ### Basic Usage
@@ -103,40 +184,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Environment Variables
 
-```env
-# Server configuration
-HIVE_PORT=3001
-HIVE_HOST=localhost
-HIVE_WORKERS=4
+The system uses TOML configuration files. Default configuration is in `settings/default.toml`:
 
-# Neural processing
-NEURAL_MODE=basic
-MAX_AGENTS=1000
-LEARNING_RATE=0.1
+```toml
+[server]
+host = "localhost"
+port = 3001
 
-# Database
-DATABASE_URL=hive.db
-DATABASE_POOL_SIZE=10
+[logging]
+level = "info"
+format = "json"
 
-# Security
-JWT_SECRET=your-secret-key
-API_KEY_REQUIRED=false
+[performance]
+cpu_warning_threshold = 70.0
+cpu_critical_threshold = 90.0
+memory_warning_threshold = 80.0
+memory_critical_threshold = 95.0
+metrics_collection_interval_ms = 30000
+alert_check_interval_ms = 60000
 
-# Logging
-LOG_LEVEL=info
-LOG_FORMAT=json
+[neural]
+learning_rate = 0.01
+momentum = 0.9
+decay_factor = 0.95
+min_confidence_threshold = 0.7
+
+[persistence]
+checkpoint_interval_minutes = 5
+max_snapshots = 20
+compression_enabled = true
+encryption_enabled = false
+backup_enabled = true
+backup_retention_days = 7
 ```
 
 ### Feature Flags
 
 ```bash
-# Basic NLP only (recommended)
+# Basic NLP only (default - recommended for most use cases)
 cargo run
 
-# Advanced neural processing
+# Advanced neural processing with FANN networks
 cargo run --features advanced-neural
 
-# GPU acceleration
+# GPU acceleration (requires advanced-neural)
 cargo run --features advanced-neural,gpu-acceleration
 
 # All features
@@ -147,14 +238,19 @@ cargo run --all-features
 
 ### REST Endpoints
 
+#### Core Endpoints
+
+```http
+GET    /                     # Server status message
+GET    /health               # Comprehensive health check
+GET    /metrics              # System metrics and trends
+```
+
 #### Agents
 
 ```http
 GET    /api/agents           # List all agents
 POST   /api/agents           # Create new agent
-GET    /api/agents/{id}      # Get agent details
-PUT    /api/agents/{id}      # Update agent
-DELETE /api/agents/{id}      # Remove agent
 ```
 
 #### Tasks
@@ -162,17 +258,13 @@ DELETE /api/agents/{id}      # Remove agent
 ```http
 GET    /api/tasks            # List all tasks
 POST   /api/tasks            # Create new task
-GET    /api/tasks/{id}       # Get task details
-PUT    /api/tasks/{id}       # Update task
-DELETE /api/tasks/{id}       # Cancel task
 ```
 
-#### Hive Status
+#### Hive Management
 
 ```http
-GET    /api/hive/status      # Get current status
-GET    /api/hive/metrics     # Get performance metrics
-POST   /api/hive/reset       # Reset hive state
+GET    /api/hive/status      # Get current hive status
+GET    /api/resources        # Get resource information
 ```
 
 ### WebSocket Events
@@ -184,20 +276,27 @@ const ws = new WebSocket('ws://localhost:3001/ws');
 
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
-
-    switch (data.type) {
-        case 'hive_status':
-            console.log('Hive status:', data.data);
-            break;
-        case 'agent_created':
-            console.log('New agent:', data.data.agent);
-            break;
-        case 'task_completed':
-            console.log('Task completed:', data.data.task);
-            break;
-    }
+    console.log('Received:', data);
 };
 ```
+
+### API Response Format
+
+All API responses follow a standardized format:
+
+```json
+{
+  "success": true,
+  "data": { ... },
+  "error": null,
+  "timestamp": "2024-01-01T00:00:00Z",
+  "request_id": "uuid-v4"
+}
+```
+
+### MCP Integration
+
+The backend implements MCP 1.0 for external tool integration. MCP tools are available through the communication system.
 
 ### MCP Integration
 
@@ -233,36 +332,49 @@ The backend implements MCP 1.0 for external tool integration:
 src/
 ├── agents/              # Agent implementations
 │   ├── mod.rs
-│   ├── agent.rs         # Core agent logic
-│   ├── adaptive_verification.rs
-│   ├── agent_evolution.rs
+│   ├── agent.rs         # Core agent logic and behaviors
+│   ├── verification.rs  # Simple verification system
+│   ├── verification_engine.rs
+│   ├── verification_strategies.rs
 │   └── ...
+├── api/                 # API response types
+│   ├── mod.rs
+│   ├── responses.rs     # Standardized API responses
+│   └── validation logic
 ├── communication/       # Communication protocols
 │   ├── mod.rs
+│   ├── communication.rs # Communication utilities
 │   ├── websocket.rs     # WebSocket handling
 │   └── mcp.rs          # MCP protocol
 ├── core/               # Core system logic
 │   ├── mod.rs
-│   ├── hive.rs         # Main hive coordinator
-│   └── swarm_intelligence.rs
+│   ├── hive.rs         # HiveCoordinator - main system
+│   ├── swarm_intelligence.rs
+│   ├── auto_scaling.rs # Dynamic agent scaling
+│   └── fallback.rs     # Intelligent fallback system
 ├── infrastructure/     # Infrastructure components
 │   ├── mod.rs
-│   ├── metrics.rs      # Metrics collection
+│   ├── metrics.rs      # Metrics collection system
+│   ├── persistence.rs  # Data persistence layer
 │   ├── cache.rs        # Caching layer
-│   └── security.rs     # Security middleware
+│   ├── monitoring.rs   # System monitoring
+│   └── security_middleware.rs
 ├── neural/            # Neural processing
 │   ├── mod.rs
-│   ├── neural.rs      # Neural network logic
-│   └── nlp.rs         # Natural language processing
+│   ├── core.rs         # Hybrid neural processor
+│   ├── nlp.rs         # Natural language processing
+│   ├── adaptive_learning.rs
+│   └── training.rs
 ├── tasks/             # Task management
 │   ├── mod.rs
-│   ├── task.rs        # Task definitions
+│   ├── task.rs        # Task definitions and queue
 │   └── work_stealing_queue.rs
 └── utils/             # Utilities
     ├── mod.rs
     ├── config.rs      # Configuration management
-    ├── error.rs       # Error handling
-    └── validation.rs  # Input validation
+    ├── error.rs       # Error handling types
+    ├── validation.rs  # Input validation
+    └── structured_logging.rs
 ```
 
 ### Building
@@ -287,10 +399,13 @@ cargo check
 # Run all tests
 cargo test
 
-# Run specific test
-cargo test test_agent_creation
+# Run specific test module
+cargo test agents
 
-# Run with coverage
+# Run integration tests
+cargo test --test comprehensive_test_suite
+
+# Run with coverage (requires cargo-tarpaulin)
 cargo tarpaulin --out Html
 
 # Run benchmarks
@@ -303,11 +418,14 @@ cargo bench
 # Format code
 cargo fmt
 
-# Lint code
+# Lint code (with clippy configuration)
 cargo clippy
 
 # Check documentation
 cargo doc --open
+
+# Generate docs with private items
+cargo doc --document-private-items
 ```
 
 ## Examples
@@ -315,64 +433,70 @@ cargo doc --open
 ### Basic Agent Creation
 
 ```rust
-use multiagent_hive::{Hive, AgentType, Capability};
+use multiagent_hive::HiveCoordinator;
+use serde_json::json;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut hive = Hive::new();
+async fn main() -> anyhow::Result<()> {
+    let hive = HiveCoordinator::new().await?;
 
     // Create agent with capabilities
-    let agent_id = hive.create_agent(
-        "data_processor",
-        AgentType::Worker,
-        vec![
-            Capability::new("data_processing", 0.8, 0.1),
-            Capability::new("analysis", 0.7, 0.15),
+    let agent_config = json!({
+        "name": "DataProcessor-1",
+        "type": "specialist:data_processing",
+        "capabilities": [
+            {
+                "name": "data_processing",
+                "proficiency": 0.8,
+                "learning_rate": 0.1
+            },
+            {
+                "name": "analysis",
+                "proficiency": 0.7,
+                "learning_rate": 0.15
+            }
         ]
-    ).await?;
+    });
 
+    let agent_id = hive.create_agent(agent_config).await?;
     println!("Created agent: {}", agent_id);
     Ok(())
 }
 ```
 
-### Task Processing
+### Task Processing with Simple Verification
 
 ```rust
-use multiagent_hive::{Hive, Priority, TaskRequirements};
+use multiagent_hive::HiveCoordinator;
+use serde_json::json;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut hive = Hive::new();
+async fn main() -> anyhow::Result<()> {
+    let hive = HiveCoordinator::new().await?;
 
     // Create task with requirements
-    let task_id = hive.create_task(
-        "Analyze customer data",
-        Priority::High,
-        TaskRequirements {
-            capabilities: vec!["data_processing".to_string()],
-            min_proficiency: 0.7,
-            estimated_duration: Some(300), // 5 minutes
-        }
-    ).await?;
+    let task_config = json!({
+        "description": "Analyze customer satisfaction data",
+        "type": "data_analysis",
+        "priority": 2,
+        "required_capabilities": [
+            {
+                "name": "data_processing",
+                "min_proficiency": 0.7
+            }
+        ]
+    });
 
-    // Monitor task progress
-    while let Some(status) = hive.get_task_status(task_id).await? {
-        match status {
-            TaskStatus::Completed => {
-                println!("Task completed successfully!");
-                break;
-            }
-            TaskStatus::Failed => {
-                println!("Task failed");
-                break;
-            }
-            _ => {
-                println!("Task status: {:?}", status);
-                tokio::time::sleep(Duration::from_secs(5)).await;
-            }
-        }
-    }
+    let task_id = hive.create_task(task_config).await?;
+
+    // Execute with simple verification
+    let (execution_result, verification_result) = hive
+        .execute_task_with_simple_verification(task_id, Some("Provide actionable insights"))
+        .await?;
+
+    println!("Execution success: {}", execution_result.success);
+    println!("Verification status: {:?}", verification_result.verification_status);
+    println!("Overall score: {:.2}", verification_result.overall_score);
 
     Ok(())
 }
@@ -381,34 +505,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Neural Processing
 
 ```rust
-use multiagent_hive::neural::{NeuralProcessor, ProcessingMode};
+use multiagent_hive::neural::HybridNeuralProcessor;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize neural processor
-    let processor = NeuralProcessor::new(ProcessingMode::Advanced)?;
+async fn main() -> anyhow::Result<()> {
+    // Initialize neural processor (basic mode by default)
+    let processor = HybridNeuralProcessor::new().await?;
 
-    // Process text
-    let result = processor.analyze_text(
-        "The customer data shows interesting patterns in user behavior.",
-        AnalysisType::Sentiment
+    // Process text with NLP
+    let analysis = processor.analyze_text(
+        "The customer data shows interesting patterns in user behavior."
     ).await?;
 
-    println!("Sentiment analysis: {:?}", result);
+    println!("NLP Analysis: {:?}", analysis);
 
     // Pattern recognition
     let patterns = processor.find_patterns(vec![
         "user clicked button",
         "user viewed page",
-        "user purchased item",
-        "user clicked button",
-        "user viewed page"
+        "user purchased item"
     ]).await?;
 
     println!("Detected patterns: {:?}", patterns);
 
     Ok(())
 }
+```
+
+### Running Examples
+
+```bash
+# Simple verification demo
+cargo run --example simple_verification_demo
+
+# Neural processing examples
+cargo run --example neural_comparison
+
+# Advanced persistence demo
+cargo run --example advanced_persistence_demo
+
+# Agent monitoring example
+cargo run --example agent_monitor_example
 ```
 
 ## Performance Tuning
@@ -745,7 +882,7 @@ This project is licensed under the MIT License - see the [LICENSE](../LICENSE) f
 
 ## Support
 
-- **Documentation**: [docs/](../docs/) directory
+- **Documentation**: [docs/](docs/) directory
 - **Issues**: [GitHub Issues](../../issues)
 - **Discussions**: [GitHub Discussions](../../discussions)
 - **Email**: support@multiagent-hive.dev

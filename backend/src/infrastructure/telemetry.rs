@@ -247,7 +247,7 @@ impl TelemetryCollector {
 
     /// Start background cleanup and aggregation
     pub fn start_background_tasks(self: Arc<Self>) {
-        let collector = self.clone();
+        let collector = Arc::clone(&self);
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(300)); // 5 minutes
             loop {

@@ -4,6 +4,8 @@
 //! threshold optimization. Integrates with the existing AdaptiveLearningSystem
 //! to automatically adjust verification thresholds based on historical performance.
 
+#![allow(clippy::unused_async)]
+
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
@@ -127,7 +129,7 @@ pub struct ThresholdRecommendation {
 
 impl AdaptiveVerificationSystem {
     /// Create a new adaptive verification system
-    pub async fn new(
+    pub fn new(
         base_verification: SimpleVerificationSystem,
         learning_system: Arc<tokio::sync::RwLock<AdaptiveLearningSystem>>,
         config: AdaptationConfig,

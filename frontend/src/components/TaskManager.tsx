@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { useHiveStore } from '@/store/hiveStore'
 import { Plus, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
 
-export function TaskManager() {
-  const { createTask } = useHiveStore()
+export const TaskManager = React.memo(function TaskManager() {
+  const { createTask, tasks } = useHiveStore()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newTask, setNewTask] = useState({
     description: '',
@@ -14,15 +14,15 @@ export function TaskManager() {
     required_capabilities: [{ name: '', min_proficiency: 0.5, weight: 1.0 }],
   })
 
-  const handleCreateTask = () => {
+  const handleCreateTask = useCallback(() => {
     // Filter out empty capabilities
     const filteredCapabilities = newTask.required_capabilities.filter(cap => cap.name.trim() !== '')
-    
+
     const taskConfig = {
       ...newTask,
       required_capabilities: filteredCapabilities.length > 0 ? filteredCapabilities : undefined,
     }
-    
+
     createTask(taskConfig)
     setNewTask({
       description: '',
@@ -31,25 +31,29 @@ export function TaskManager() {
       required_capabilities: [{ name: '', min_proficiency: 0.5, weight: 1.0 }],
     })
     setShowCreateForm(false)
-  }
+  }, [createTask, newTask])
 
-  const addRequiredCapability = () => {
-    setNewTask({
-      ...newTask,
-      required_capabilities: [...newTask.required_capabilities, { name: '', min_proficiency: 0.5, weight: 1.0 }],
+  const addRequiredCapability = useCallback(() => {
+    setNewTask(prev => ({
+      ...prev,
+      required_capabilities: [...prev.required_capabilities, { name: '', min_proficiency: 0.5, weight: 1.0 }],
+    }))
+  }, [])
+
+  const updateRequiredCapability = useCallback((index: number, field: string, value: string | number) => {
+    setNewTask(prev => {
+      const updated = [...prev.required_capabilities]
+      updated[index] = { ...updated[index], [field]: value }
+      return { ...prev, required_capabilities: updated }
     })
-  }
+  }, [])
 
-  const updateRequiredCapability = (index: number, field: string, value: string | number) => {
-    const updated = [...newTask.required_capabilities]
-    updated[index] = { ...updated[index], [field]: value }
-    setNewTask({ ...newTask, required_capabilities: updated })
-  }
-
-  const removeRequiredCapability = (index: number) => {
-    const updated = newTask.required_capabilities.filter((_, i) => i !== index)
-    setNewTask({ ...newTask, required_capabilities: updated })
-  }
+  const removeRequiredCapability = useCallback((index: number) => {
+    setNewTask(prev => ({
+      ...prev,
+      required_capabilities: prev.required_capabilities.filter((_, i) => i !== index),
+    }))
+  }, [])
 
   const getPriorityColor = (priority: number) => {
     if (priority >= 8) {return 'bg-red-100 text-red-800'}
@@ -65,36 +69,7 @@ export function TaskManager() {
     return 'Low'
   }
 
-  // Mock task data for demonstration (in real app, this would come from the store)
-  const mockTasks = [
-    {
-      id: '1',
-      description: 'Analyze customer sentiment data',
-      type: 'nlp',
-      priority: 7,
-      status: 'Completed',
-      assigned_agent: 'NLP-Agent-001',
-      created_at: '2024-01-15T10:30:00Z',
-      completed_at: '2024-01-15T10:45:00Z',
-    },
-    {
-      id: '2',
-      description: 'Coordinate swarm movement patterns',
-      type: 'coordination',
-      priority: 6,
-      status: 'InProgress',
-      assigned_agent: 'Coordinator-001',
-      created_at: '2024-01-15T11:00:00Z',
-    },
-    {
-      id: '3',
-      description: 'Process incoming data stream',
-      type: 'data_processing',
-      priority: 5,
-      status: 'Pending',
-      created_at: '2024-01-15T11:15:00Z',
-    },
-  ]
+
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -122,7 +97,7 @@ export function TaskManager() {
       {showCreateForm && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Task</h3>
-          
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -134,7 +109,7 @@ export function TaskManager() {
                 placeholder="Describe what this task should accomplish..."
               />
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Task Type</label>
@@ -151,7 +126,7 @@ export function TaskManager() {
                   <option value="analysis">Analysis</option>
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Priority (1-10)</label>
                 <input
@@ -175,7 +150,7 @@ export function TaskManager() {
                   Add Capability
                 </button>
               </div>
-              
+
               {newTask.required_capabilities.map((cap, index) => (
                 <div key={index} className="grid grid-cols-4 gap-2 mb-2">
                   <input
@@ -235,7 +210,7 @@ export function TaskManager() {
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {mockTasks.map((task) => (
+          {tasks.map((task) => (
             <li key={task.id} className="px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
@@ -259,7 +234,7 @@ export function TaskManager() {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="text-right">
                   <div className="text-sm font-medium text-gray-900">{task.status}</div>
                   {task.completed_at !== null && task.completed_at !== undefined && task.completed_at !== '' && (
@@ -272,8 +247,8 @@ export function TaskManager() {
             </li>
           ))}
         </ul>
-        
-        {mockTasks.length === 0 && (
+
+        {tasks.length === 0 && (
           <div className="text-center py-12">
             <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No tasks</h3>
@@ -283,4 +258,4 @@ export function TaskManager() {
       </div>
     </div>
   )
-}
+})

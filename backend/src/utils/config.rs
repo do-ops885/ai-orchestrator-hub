@@ -1,4 +1,7 @@
 use crate::utils::error::{HiveError, HiveResult};
+
+
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -81,6 +84,7 @@ pub struct PerformanceConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct MonitoringConfig {
     pub monitoring_interval_secs: u64,
     pub metrics_retention_days: u64,

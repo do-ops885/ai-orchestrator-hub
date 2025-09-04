@@ -250,8 +250,8 @@ impl WorkStealingQueue {
         {
             let mut global_queue = self.global_queue.lock().await;
             if let Some(pos) = global_queue.iter().position(|t| t.id == task_id) {
-                let task = global_queue.remove(pos).unwrap();
-                return Some(task);
+                let task = global_queue.remove(pos);
+                return task;
             }
         }
 
@@ -263,8 +263,8 @@ impl WorkStealingQueue {
             {
                 let mut priority_queue = agent_queue.priority_queue.lock().await;
                 if let Some(pos) = priority_queue.iter().position(|t| t.id == task_id) {
-                    let task = priority_queue.remove(pos).unwrap();
-                    return Some(task);
+                    let task = priority_queue.remove(pos);
+                    return task;
                 }
             }
 
@@ -272,8 +272,8 @@ impl WorkStealingQueue {
             {
                 let mut local_queue = agent_queue.local_queue.lock().await;
                 if let Some(pos) = local_queue.iter().position(|t| t.id == task_id) {
-                    let task = local_queue.remove(pos).unwrap();
-                    return Some(task);
+                    let task = local_queue.remove(pos);
+                    return task;
                 }
             }
         }
@@ -426,9 +426,12 @@ pub struct WorkStealingMetrics {
     pub active_agents: usize,
 }
 
+/// Assignment history type
+type AssignmentHistory = Arc<RwLock<Vec<(Uuid, DateTime<Utc>)>>>;
+
 /// Load balancer for optimal task assignment
 pub struct LoadBalancer {
-    pub assignment_history: Arc<RwLock<Vec<(Uuid, DateTime<Utc>)>>>,
+    pub assignment_history: AssignmentHistory,
 }
 
 impl Default for LoadBalancer {
@@ -536,8 +539,8 @@ mod tests {
         if let Some(agent1_queue) = queue_system.agent_queues.get(&agent1_id) {
             for i in 0..5 {
                 let task = Task::new(
-                    format!("task_{}", i),
-                    format!("Task {} description", i),
+                    format!("task_{i}"),
+                    format!("Task {i} description"),
                     "test".to_string(),
                     TaskPriority::Medium,
                     vec![],

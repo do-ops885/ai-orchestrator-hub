@@ -1,0 +1,34 @@
+# CodeQL Configuration for Multi-Agent Hive
+# https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning
+
+name: "CodeQL Configuration"
+
+disable-default-queries: false
+
+queries:
+  # Include security and quality queries
+  - uses: security-and-quality
+  - uses: security-experimental
+
+# Paths to exclude from analysis
+paths-ignore:
+  - frontend/node_modules/
+  - backend/target/
+  - .git/
+  - docs/
+  - "*.md"
+  - "*.txt"
+  - "*.json"
+  - "*.yml"
+  - "*.yaml"
+  - "*.toml"
+  - "*.lock"
+
+# Languages to analyze
+languages:
+  - javascript
+  - rust
+
+# Custom queries (if any)
+# queries:
+#   - uses: ./path/to/custom/queries

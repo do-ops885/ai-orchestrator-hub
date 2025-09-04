@@ -507,7 +507,7 @@ pub async fn auth_middleware(
     >,
 > + Clone {
     move |req: axum::extract::Request, next: axum::middleware::Next| {
-        let auth_manager = auth_manager.clone();
+        let auth_manager = Arc::clone(&auth_manager);
         let required_permission = required_permission.clone();
 
         Box::pin(async move {
@@ -518,9 +518,7 @@ pub async fn auth_middleware(
                 .and_then(|h| h.to_str().ok())
                 .and_then(|h| h.strip_prefix("Bearer "));
 
-            let token = if let Some(token) = auth_header {
-                token
-            } else {
+            let Some(token) = auth_header else {
                 // Check for API key
                 if let Some(api_key) = req.headers().get("X-API-Key").and_then(|h| h.to_str().ok())
                 {
@@ -571,7 +569,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_authentication_flow() {
-        let security_auditor = Arc::new(SecurityAuditor::new(true, 90));
+        let security_auditor = Arc::new(SecurityAuditor::new(true));
         let auth_manager = AuthManager::new(
             "test_secret",
             "test_issuer".to_string(),
@@ -615,7 +613,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_api_key_authentication() {
-        let security_auditor = Arc::new(SecurityAuditor::new(true, 90));
+        let security_auditor = Arc::new(SecurityAuditor::new(true));
         let auth_manager = AuthManager::new(
             "test_secret",
             "test_issuer".to_string(),

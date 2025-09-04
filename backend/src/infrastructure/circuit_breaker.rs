@@ -150,14 +150,14 @@ mod tests {
         // Cause failure to open circuit
         let _ = cb.execute(|| Err::<i32, &str>("error")).await;
 
-        // Wait for recovery timeout
-        sleep(Duration::from_millis(60)).await;
+        // Wait for recovery timeout (add some buffer)
+        sleep(Duration::from_millis(100)).await;
 
         // Should transition to half-open and allow execution
         let result = cb.execute(|| Ok::<i32, &str>(42)).await;
         assert!(result.is_ok());
 
         // Should be closed again after success
-        matches!(cb.get_state().await, CircuitState::Closed);
+        assert!(matches!(cb.get_state().await, CircuitState::Closed));
     }
 }

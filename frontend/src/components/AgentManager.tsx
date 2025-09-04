@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { useHiveStore } from '@/store/hiveStore'
 import { Plus, User, Brain, Settings, Zap } from 'lucide-react'
 
-export function AgentManager() {
+export const AgentManager = React.memo(function AgentManager() {
   const { agents, createAgent } = useHiveStore()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newAgent, setNewAgent] = useState({
@@ -13,7 +13,7 @@ export function AgentManager() {
     capabilities: [{ name: '', proficiency: 0.5, learning_rate: 0.1 }],
   })
 
-  const handleCreateAgent = () => {
+  const handleCreateAgent = useCallback(() => {
     createAgent(newAgent)
     setNewAgent({
       name: '',
@@ -21,20 +21,22 @@ export function AgentManager() {
       capabilities: [{ name: '', proficiency: 0.5, learning_rate: 0.1 }],
     })
     setShowCreateForm(false)
-  }
+  }, [createAgent, newAgent])
 
-  const addCapability = () => {
-    setNewAgent({
-      ...newAgent,
-      capabilities: [...newAgent.capabilities, { name: '', proficiency: 0.5, learning_rate: 0.1 }],
+  const addCapability = useCallback(() => {
+    setNewAgent(prev => ({
+      ...prev,
+      capabilities: [...prev.capabilities, { name: '', proficiency: 0.5, learning_rate: 0.1 }],
+    }))
+  }, [])
+
+  const updateCapability = useCallback((index: number, field: string, value: string | number) => {
+    setNewAgent(prev => {
+      const updated = [...prev.capabilities]
+      updated[index] = { ...updated[index], [field]: value }
+      return { ...prev, capabilities: updated }
     })
-  }
-
-  const updateCapability = (index: number, field: string, value: string | number) => {
-    const updated = [...newAgent.capabilities]
-    updated[index] = { ...updated[index], [field]: value }
-    setNewAgent({ ...newAgent, capabilities: updated })
-  }
+  }, [])
 
   const getAgentIcon = (type: string) => {
     switch (type) {
@@ -70,7 +72,7 @@ export function AgentManager() {
       {showCreateForm && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Agent</h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -82,7 +84,7 @@ export function AgentManager() {
                 placeholder="Agent name"
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
               <select
@@ -110,7 +112,7 @@ export function AgentManager() {
                 Add Capability
               </button>
             </div>
-            
+
             {newAgent.capabilities.map((cap, index) => (
               <div key={index} className="grid grid-cols-3 gap-2 mb-2">
                 <input
@@ -180,7 +182,7 @@ export function AgentManager() {
                     <div className="text-sm text-gray-500">{agent.type}</div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
                     <div className="text-sm text-gray-900 flex items-center">
@@ -191,7 +193,7 @@ export function AgentManager() {
                       {agent.experience_count} experiences
                     </div>
                   </div>
-                  
+
                   <div className="text-right">
                     <div className="text-sm text-gray-900">
                       {agent.capabilities.length} capabilities
@@ -202,7 +204,7 @@ export function AgentManager() {
                   </div>
                 </div>
               </div>
-              
+
               {agent.capabilities.length > 0 && (
                 <div className="mt-3">
                   <div className="text-xs text-gray-500 mb-1">Capabilities:</div>
@@ -221,7 +223,7 @@ export function AgentManager() {
             </li>
           ))}
         </ul>
-        
+
         {agents.length === 0 && (
           <div className="text-center py-12">
             <User className="mx-auto h-12 w-12 text-gray-400" />
@@ -232,4 +234,4 @@ export function AgentManager() {
       </div>
     </div>
   )
-}
+})

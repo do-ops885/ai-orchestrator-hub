@@ -47,6 +47,7 @@ pub struct NLPProcessor {
     pub cpu_optimizer: CpuOptimizer,
 }
 
+#[allow(clippy::unused_self)]
 impl NLPProcessor {
     pub async fn new() -> Result<Self> {
         let optimizer = CpuOptimizer::new();

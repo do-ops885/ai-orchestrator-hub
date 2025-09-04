@@ -159,7 +159,7 @@ macro_rules! hive_error {
 
 /// Helper function to convert anyhow errors to `HiveError`
 #[must_use]
-pub fn anyhow_to_hive_error(err: anyhow::Error, operation: &str) -> HiveError {
+pub fn anyhow_to_hive_error(err: &anyhow::Error, operation: &str) -> HiveError {
     HiveError::OperationFailed {
         reason: format!("{operation} failed: {err}"),
     }

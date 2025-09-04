@@ -197,7 +197,8 @@ impl AdaptiveLearningSystem {
     }
 
     async fn extract_features(&self, agent: &Agent, context: &str) -> anyhow::Result<Vec<f64>> {
-        let mut features = Vec::new();
+        #[allow(clippy::vec_init_then_push)]
+        let mut features = vec![];
 
         // Agent features
         features.push(agent.energy);
@@ -253,9 +254,7 @@ impl AdaptiveLearningSystem {
         features.extend(vector_features.iter());
 
         // Pad with zeros if vector is smaller than 5 dimensions
-        for _ in vector_features.len()..5 {
-            features.push(0.0);
-        }
+        features.extend(std::iter::repeat_n(0.0, 5 - vector_features.len()));
 
         Ok(features)
     }

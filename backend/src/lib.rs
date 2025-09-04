@@ -79,25 +79,54 @@ pub mod tests;
 
 // Re-export core types with explicit imports to avoid ambiguous glob re-exports
 pub use agents::{
-    Agent, AgentBehavior, AgentCapability, AgentMemory, AgentState, AgentType, Discrepancy,
-    DiscrepancySeverity, OverallTaskStatus, VerificationDetails, VerificationLevel,
-    VerificationMethod, VerificationResult, VerificationStatus, VerifiedTaskResult,
+    Agent, AgentBehavior, AgentCapability, AgentMemory, AgentRecoveryManager, AgentState,
+    AgentType, Discrepancy, DiscrepancySeverity, OverallTaskStatus, VerificationDetails,
+    VerificationLevel, VerificationMethod, VerificationResult, VerificationStatus,
+    VerifiedTaskResult,
 };
 pub use communication::handle_websocket;
 pub use communication::mcp::{HiveMCPServer, MCPToolHandler};
 pub use core::{HiveCoordinator, SwarmIntelligenceEngine};
-pub use infrastructure::{MetricsCollector, ResourceManager, TelemetryCollector};
+pub use infrastructure::{
+    CircuitBreaker, IntelligentAlertingSystem, MetricsCollector, PerformanceOptimizer,
+    PersistenceManager, ResourceManager, TelemetryCollector,
+};
 pub use neural::{AdaptiveLearningSystem, HybridNeuralProcessor, NLPProcessor};
 pub use tasks::{Task, TaskPriority, TaskQueue, TaskResult, TaskStatus, WorkStealingQueue};
+pub use utils::{rate_limiter::RateLimiter, SecurityAuditor};
 pub use utils::{HiveConfig, HiveError, HiveResult, InputValidator};
 
 /// Application state shared across the system
 ///
-/// This struct contains the core state that needs to be shared across
+/// This struct contains the comprehensive state that needs to be shared across
 /// different parts of the application, particularly the HTTP handlers
 /// and background tasks.
 #[derive(Clone)]
 pub struct AppState {
     /// The main hive coordinator managing all agents and tasks
     pub hive: std::sync::Arc<tokio::sync::RwLock<HiveCoordinator>>,
+    /// System configuration
+    pub config: std::sync::Arc<HiveConfig>,
+    /// Enhanced metrics collection system with alerting and trend analysis
+    pub metrics: std::sync::Arc<MetricsCollector>,
+    /// Advanced metrics collector with predictive analytics
+    pub advanced_metrics: std::sync::Arc<MetricsCollector>,
+    /// Intelligent alerting system with adaptive thresholds
+    pub intelligent_alerting: std::sync::Arc<IntelligentAlertingSystem>,
+    /// Circuit breaker for resilience
+    pub circuit_breaker: std::sync::Arc<CircuitBreaker>,
+    /// Agent recovery manager for error handling
+    pub recovery_manager: std::sync::Arc<AgentRecoveryManager>,
+    /// Swarm intelligence engine for formation optimization
+    pub swarm_intelligence: std::sync::Arc<tokio::sync::RwLock<SwarmIntelligenceEngine>>,
+    /// Persistence manager for state recovery and checkpointing
+    pub persistence_manager: std::sync::Arc<PersistenceManager>,
+    /// Adaptive learning system for continuous improvement
+    pub adaptive_learning: std::sync::Arc<tokio::sync::RwLock<AdaptiveLearningSystem>>,
+    /// Rate limiter for API protection
+    pub rate_limiter: std::sync::Arc<RateLimiter>,
+    /// Performance optimizer for system optimization
+    pub performance_optimizer: std::sync::Arc<PerformanceOptimizer>,
+    /// Security auditor for security logging
+    pub security_auditor: std::sync::Arc<SecurityAuditor>,
 }

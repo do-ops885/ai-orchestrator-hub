@@ -34,19 +34,13 @@ pub struct SecurityResult {
 pub struct SecurityAuditor {
     /// Enable audit logging
     enabled: bool,
-    /// Audit log retention period in days
-    #[allow(dead_code)]
-    retention_days: u32,
 }
 
 impl SecurityAuditor {
     /// Create a new security auditor
     #[must_use]
-    pub fn new(enabled: bool, retention_days: u32) -> Self {
-        Self {
-            enabled,
-            retention_days,
-        }
+    pub fn new(enabled: bool) -> Self {
+        Self { enabled }
     }
 
     /// Log a security event with comprehensive details
@@ -192,6 +186,7 @@ impl SecurityAuditor {
 
 /// Security configuration for the hive system
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct SecurityConfig {
     /// Enable security audit logging
     pub audit_logging_enabled: bool,
@@ -350,7 +345,7 @@ mod tests {
     fn test_input_sanitization() {
         assert_eq!(
             InputSanitizer::sanitize_string("Hello <script>alert('xss')</script> World"),
-            "Hello scriptalert('xss')/script World"
+            "Hello scriptalertxss/script World"
         );
 
         assert_eq!(

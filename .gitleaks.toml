@@ -1,0 +1,77 @@
+# Gitleaks Configuration for Multi-Agent Hive
+# https://github.com/gitleaks/gitleaks
+
+title = "gitleaks config"
+
+[allowlist]
+  description = "global allow lists"
+  paths = [
+    '''frontend/node_modules/''',
+    '''backend/target/''',
+    '''\.git/''',
+    '''\.github/''',
+    '''docs/''',
+    '''README\.md''',
+    '''CHANGELOG\.md''',
+    '''LICENSE''',
+    '''\.lock''',
+    '''package-lock\.json''',
+    '''Cargo\.lock''',
+  ]
+
+  # Example secrets that are safe to ignore
+  regexes = [
+    '''example''',
+    '''test''',
+    '''sample''',
+    '''dummy''',
+    '''placeholder''',
+  ]
+
+# Custom rules for specific patterns
+[[rules]]
+  id = "generic-api-key"
+  description = "Generic API key"
+  regex = '''(?i)(api[_-]?key|apikey)([\s]*[=:][\s]*['"]?)([a-z0-9]{32,})['"]?'''
+  tags = ["key", "api", "generic"]
+
+[[rules]]
+  id = "slack-webhook"
+  description = "Slack Webhook"
+  regex = '''https://hooks\.slack\.com/services/T[a-zA-Z0-9_]{8}/B[a-zA-Z0-9_]{8}/[a-zA-Z0-9_]{24}'''
+  tags = ["slack"]
+
+[[rules]]
+  id = "aws-access-key"
+  description = "AWS Access Key"
+  regex = '''AKIA[0-9A-Z]{16}'''
+  tags = ["aws"]
+
+[[rules]]
+  id = "aws-secret-key"
+  description = "AWS Secret Key"
+  regex = '''(?i)aws[_-]?secret[_-]?key[\s]*[=:][\s]*['"]?([a-z0-9/+]{40})['"]?'''
+  tags = ["aws"]
+
+[[rules]]
+  id = "private-key"
+  description = "Private Key"
+  regex = '''-----BEGIN [A-Z ]*PRIVATE KEY-----'''
+  tags = ["key", "asymmetric"]
+
+[[rules]]
+  id = "github-token"
+  description = "GitHub Token"
+  regex = '''ghp_[a-zA-Z0-9]{36}'''
+  tags = ["github"]
+
+[[rules]]
+  id = "database-url"
+  description = "Database URL"
+  regex = '''(?i)(database_url|db_url|postgres|mysql|mongodb)[\s]*[=:][\s]*['"]?(postgres|mysql|mongodb)://[^'"\s]+['"]?'''
+  tags = ["database", "url"]
+
+# Extend existing rules
+[extend]
+  # Use default gitleaks rules plus our custom ones
+  useDefault = true

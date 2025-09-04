@@ -16,6 +16,7 @@ use tokio::sync::{RwLock, Semaphore};
 
 /// Performance optimization configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct PerformanceConfig {
     /// Enable connection pooling
     pub connection_pooling_enabled: bool,
@@ -518,9 +519,9 @@ impl CacheManager {
 
 /// Comprehensive performance optimizer combining all optimization strategies
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PerformanceOptimizer {
     /// Configuration
-    #[allow(dead_code)]
     config: PerformanceConfig,
     /// Connection pool
     connection_pool: ConnectionPool,

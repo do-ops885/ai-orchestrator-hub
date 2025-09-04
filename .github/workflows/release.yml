@@ -1,0 +1,358 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Pre-release validation
+  pre-release-check:
+    name: Pre-release Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.npm
+            backend/target/
+            frontend/node_modules
+          key: ${{ runner.os }}-release-${{ hashFiles('**/Cargo.lock', 'frontend/package-lock.json') }}
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Validate builds
+        run: |
+          cd backend
+          cargo check --all-features
+          cd ../frontend
+          npm run build
+
+      - name: Run tests
+        run: |
+          cd backend
+          cargo test --all-features --release
+          cd ../frontend
+          npm test
+
+  # Cross-platform release builds
+  release-build:
+    name: Release Build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    needs: pre-release-check
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+            os: linux
+          - target: x86_64-apple-darwin
+            runner: macos-latest
+            os: macos
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+            os: windows
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-latest
+            os: linux
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache target directory
+        uses: actions/cache@v4
+        with:
+          path: backend/target/
+          key: ${{ runner.os }}-cargo-target-release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock', 'backend/src/**/*.rs') }}
+
+      - name: Install cross-compilation tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build release binary
+        run: |
+          cd backend
+          rustup target add ${{ matrix.target }}
+          cargo build --release --all-features --target ${{ matrix.target }}
+
+      - name: Package binary
+        shell: bash
+        run: |
+          cd backend
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            BINARY_NAME="multiagent-hive.exe"
+            ARCHIVE_NAME="multiagent-hive-${{ needs.pre-release-check.outputs.version }}-${{ matrix.target }}.zip"
+            7z a "$ARCHIVE_NAME" "target/${{ matrix.target }}/release/$BINARY_NAME"
+          else
+            BINARY_NAME="multiagent-hive"
+            ARCHIVE_NAME="multiagent-hive-${{ needs.pre-release-check.outputs.version }}-${{ matrix.target }}.tar.gz"
+            tar -czf "$ARCHIVE_NAME" -C "target/${{ matrix.target }}/release" "$BINARY_NAME"
+          fi
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: |
+            backend/*.tar.gz
+            backend/*.zip
+          retention-days: 30
+
+  # Frontend build and packaging
+  frontend-release:
+    name: Frontend Release Build
+    runs-on: ubuntu-latest
+    needs: pre-release-check
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            frontend/node_modules
+            frontend/.next/cache
+          key: ${{ runner.os }}-node-release-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Package frontend
+        run: |
+          cd frontend
+          tar -czf "../frontend-${{ needs.pre-release-check.outputs.version }}.tar.gz" out/
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-release
+          path: frontend-${{ needs.pre-release-check.outputs.version }}.tar.gz
+          retention-days: 30
+
+  # Create GitHub release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [pre-release-check, release-build, frontend-release]
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Generate changelog
+        run: |
+          # Generate changelog from git history
+          echo "# Release ${{ needs.pre-release-check.outputs.version }}" > changelog.md
+          echo "" >> changelog.md
+          echo "## Changes" >> changelog.md
+          git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 HEAD^)..HEAD >> changelog.md
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.pre-release-check.outputs.tag }}
+          name: Release ${{ needs.pre-release-check.outputs.version }}
+          body_path: changelog.md
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease == 'true' || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          files: |
+            artifacts/release-*/multiagent-hive-${{ needs.pre-release-check.outputs.version }}-*.tar.gz
+            artifacts/release-*/multiagent-hive-${{ needs.pre-release-check.outputs.version }}-*.zip
+            artifacts/frontend-release/frontend-${{ needs.pre-release-check.outputs.version }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Deploy to staging (optional)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: create-release
+    if: github.ref == 'refs/heads/main' && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')
+    timeout-minutes: 20
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-x86_64-unknown-linux-gnu
+          path: staging/
+
+      - name: Deploy to staging server
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          # Add your staging deployment commands here
+          # Example: rsync, docker push, etc.
+          echo "✅ Staging deployment completed"
+
+  # Performance regression check
+  performance-check:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    needs: release-build
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry/
+          key: ${{ runner.os }}-cargo-perf-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache target directory
+        uses: actions/cache@v4
+        with:
+          path: backend/target/
+          key: ${{ runner.os }}-cargo-target-perf-${{ hashFiles('**/Cargo.lock', 'backend/src/**/*.rs') }}
+
+      - name: Run performance benchmarks
+        run: |
+          cd backend
+          cargo bench --all-features
+
+      - name: Compare with baseline
+        run: |
+          # Compare benchmark results with stored baseline
+          # This would require storing previous benchmark results
+          echo "Performance check completed - implement baseline comparison"
+
+  # Release validation
+  release-validation:
+    name: Release Validation
+    runs-on: ubuntu-latest
+    needs: [create-release, deploy-staging, performance-check]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Release validation summary
+        run: |
+          echo "## 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.pre-release-check.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ needs.pre-release-check.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Release builds: ${{ needs.release-build.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Frontend build: ${{ needs.frontend-release.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ GitHub release: ${{ needs.create-release.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚀 Staging deployment: ${{ needs.deploy-staging.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 Performance check: ${{ needs.performance-check.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.create-release.result }}" == "success" ]]; then
+            echo "🎉 **Release ${{ needs.pre-release-check.outputs.version }} successfully created!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Release failed!** Please check the logs above." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

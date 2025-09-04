@@ -44,6 +44,9 @@ coverage/
 *.tgz
 *.bak
 
+# Benchmark outputs
+benchmarks/
+
 # Directories for data storage
 monitoring/*
 training/*

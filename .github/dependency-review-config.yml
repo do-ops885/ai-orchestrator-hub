@@ -1,0 +1,57 @@
+# Dependency Review Configuration
+# https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review
+
+fail_on_severity: moderate
+fail_on_scopes: runtime
+
+vulnerability_check: true
+license_check: true
+dependency_check: true
+
+# Allowed licenses (SPDX license identifiers)
+allow_licenses:
+  - MIT
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - ISC
+  - CC0-1.0
+  - Unlicense
+  - Zlib
+
+# Denied licenses
+deny_licenses:
+  - MS-PL
+  - GPL-2.0
+  - GPL-3.0
+  - LGPL-2.0
+  - LGPL-2.1
+  - LGPL-3.0
+  - AGPL-3.0
+
+# Base ref for comparison (default: main branch)
+base_ref: main
+
+# Configuration for Rust dependencies
+rust:
+  # Check for security vulnerabilities
+  audit: true
+  # Check for outdated dependencies
+  outdated: true
+  # Minimum allowed version for dependencies
+  min_version: "0.1.0"
+
+# Configuration for Node.js dependencies
+nodejs:
+  # Check for security vulnerabilities
+  audit: true
+  # Check for outdated dependencies
+  outdated: true
+  # Minimum allowed version for dependencies
+  min_version: "1.0.0"
+
+# Custom rules (if needed)
+# rules:
+#   - name: "No GPL licenses"
+#     type: license
+#     fail_on: GPL-*

@@ -233,6 +233,7 @@ impl Default for ExperimentTracker {
     }
 }
 
+#[allow(clippy::unused_self)]
 impl ExperimentTracker {
     /// Create a new experiment tracker
     #[must_use]
@@ -392,14 +393,14 @@ impl ExperimentTracker {
     }
 
     /// Fail a run
-    pub fn fail_run(&mut self, run_id: Uuid, error: String) -> Result<()> {
+    pub fn fail_run(&mut self, run_id: Uuid, error: &str) -> Result<()> {
         let run = self
             .runs
             .get_mut(&run_id)
             .ok_or_else(|| anyhow::anyhow!("Run not found"))?;
 
         run.end_time = Some(Utc::now());
-        run.status = RunStatus::Failed(error.clone());
+        run.status = RunStatus::Failed(error.to_string());
 
         // Update experiment metadata
         if let Some(metadata) = self.metadata.get_mut(&run.experiment_id) {
@@ -442,7 +443,7 @@ impl ExperimentTracker {
     /// Compare experiments
     pub fn compare_experiments(
         &mut self,
-        experiment_ids: Vec<String>,
+        experiment_ids: &[String],
         comparison_type: ComparisonType,
     ) -> Result<String> {
         let comparison_id = format!("cmp_{}", Uuid::new_v4().simple());
@@ -456,8 +457,8 @@ impl ExperimentTracker {
 
         // Collect metrics from all experiments
         let mut all_metrics = HashMap::new();
-        for exp_id in &experiment_ids {
-            if let Some(runs) = self.get_experiment_runs(exp_id) {
+        for exp_id in experiment_ids {
+            if let Some(runs) = self.get_experiment_runs(exp_id.as_str()) {
                 let completed_runs: Vec<&ExperimentRun> = runs
                     .iter()
                     .filter(|r| matches!(r.status, RunStatus::Completed))
@@ -466,7 +467,7 @@ impl ExperimentTracker {
 
                 if !completed_runs.is_empty() {
                     let avg_metrics = self.calculate_average_metrics(&completed_runs);
-                    all_metrics.insert(exp_id.clone(), avg_metrics);
+                    all_metrics.insert(exp_id.to_string(), avg_metrics);
                 }
             }
         }
@@ -474,25 +475,25 @@ impl ExperimentTracker {
         // Perform comparison based on type
         match comparison_type {
             ComparisonType::Performance => {
-                self.compare_performance(&experiment_ids, &all_metrics, &mut results)?;
+                self.compare_performance(experiment_ids, &all_metrics, &mut results);
             }
             ComparisonType::Convergence => {
-                self.compare_convergence(&experiment_ids, &mut results)?;
+                self.compare_convergence(experiment_ids, &mut results);
             }
             ComparisonType::ResourceUsage => {
-                self.compare_resource_usage(&experiment_ids, &mut results)?;
+                self.compare_resource_usage(experiment_ids, &mut results);
             }
             ComparisonType::HyperparameterImpact => {
-                self.compare_hyperparameter_impact(&experiment_ids, &mut results)?;
+                self.compare_hyperparameter_impact(experiment_ids, &mut results);
             }
             ComparisonType::AblationStudy => {
-                self.compare_ablation_study(&experiment_ids, &mut results)?;
+                self.compare_ablation_study(experiment_ids, &mut results);
             }
         }
 
         let comparison = ExperimentComparison {
             comparison_id: comparison_id.clone(),
-            experiment_ids: experiment_ids.clone(),
+            experiment_ids: experiment_ids.to_owned(),
             comparison_type,
             results,
             created_at: Utc::now(),
@@ -594,7 +595,7 @@ impl ExperimentTracker {
             .cloned()
             .collect();
 
-        let summary = self.generate_experiment_summary(&runs)?;
+        let summary = self.generate_experiment_summary(&runs);
 
         let recommendations = self.generate_recommendations(&summary);
 
@@ -608,19 +609,16 @@ impl ExperimentTracker {
 
     /// Check if one run is better than another
     fn is_better_run(&self, run: &ExperimentRun, other_run_id: Uuid) -> bool {
-        let other_run = match self.runs.get(&other_run_id) {
-            Some(r) => r,
-            None => return true,
+        let Some(other_run) = self.runs.get(&other_run_id) else {
+            return true;
         };
 
-        let run_metrics = match &run.metrics {
-            Some(m) => m,
-            None => return false,
+        let Some(run_metrics) = &run.metrics else {
+            return false;
         };
 
-        let other_metrics = match &other_run.metrics {
-            Some(m) => m,
-            None => return true,
+        let Some(other_metrics) = &other_run.metrics else {
+            return true;
         };
 
         // Compare final accuracy (higher is better)
@@ -631,6 +629,7 @@ impl ExperimentTracker {
     }
 
     /// Calculate average metrics across runs
+    #[allow(clippy::unused_self)]
     fn calculate_average_metrics(&self, runs: &[&ExperimentRun]) -> HashMap<String, f64> {
         let mut metric_sums = HashMap::new();
         let mut metric_counts = HashMap::new();
@@ -667,7 +666,7 @@ impl ExperimentTracker {
         experiment_ids: &[String],
         metrics: &HashMap<String, HashMap<String, f64>>,
         results: &mut ComparisonResults,
-    ) -> Result<()> {
+    ) {
         for metric_name in &["accuracy", "loss"] {
             let mut metric_comparison = MetricComparison {
                 metric_name: (*metric_name).to_string(),
@@ -696,7 +695,7 @@ impl ExperimentTracker {
 
                         if is_better {
                             best_value = *value;
-                            best_exp = exp_id.clone();
+                            best_exp.clone_from(exp_id);
                         }
                     }
                 }
@@ -707,34 +706,22 @@ impl ExperimentTracker {
                 .metrics_comparison
                 .insert((*metric_name).to_string(), metric_comparison);
         }
-
-        Ok(())
     }
 
     /// Compare convergence across experiments
-    fn compare_convergence(
-        &self,
-        _experiment_ids: &[String],
-        results: &mut ComparisonResults,
-    ) -> Result<()> {
+    fn compare_convergence(&self, _experiment_ids: &[String], results: &mut ComparisonResults) {
         // Implementation for convergence comparison
         results
             .insights
             .push("Convergence analysis completed".to_string());
-        Ok(())
     }
 
     /// Compare resource usage across experiments
-    fn compare_resource_usage(
-        &self,
-        _experiment_ids: &[String],
-        results: &mut ComparisonResults,
-    ) -> Result<()> {
+    fn compare_resource_usage(&self, _experiment_ids: &[String], results: &mut ComparisonResults) {
         // Implementation for resource usage comparison
         results
             .insights
             .push("Resource usage analysis completed".to_string());
-        Ok(())
     }
 
     /// Compare hyperparameter impact
@@ -742,29 +729,23 @@ impl ExperimentTracker {
         &self,
         _experiment_ids: &[String],
         results: &mut ComparisonResults,
-    ) -> Result<()> {
+    ) {
         // Implementation for hyperparameter impact comparison
         results
             .insights
             .push("Hyperparameter impact analysis completed".to_string());
-        Ok(())
     }
 
     /// Compare ablation study results
-    fn compare_ablation_study(
-        &self,
-        _experiment_ids: &[String],
-        results: &mut ComparisonResults,
-    ) -> Result<()> {
+    fn compare_ablation_study(&self, _experiment_ids: &[String], results: &mut ComparisonResults) {
         // Implementation for ablation study comparison
         results
             .insights
             .push("Ablation study analysis completed".to_string());
-        Ok(())
     }
 
     /// Generate experiment summary
-    fn generate_experiment_summary(&self, runs: &[ExperimentRun]) -> Result<ExperimentSummary> {
+    fn generate_experiment_summary(&self, runs: &[ExperimentRun]) -> ExperimentSummary {
         let total_runs = runs.len();
         let successful_runs = runs
             .iter()
@@ -797,7 +778,7 @@ impl ExperimentTracker {
             }
         }
 
-        Ok(ExperimentSummary {
+        ExperimentSummary {
             total_runs,
             successful_runs,
             best_metrics,
@@ -813,7 +794,7 @@ impl ExperimentTracker {
                 average_training_time: 1800.0,  // Mock value
                 compute_efficiency_score: 0.75, // Mock value
             },
-        })
+        }
     }
 
     /// Generate recommendations based on experiment results

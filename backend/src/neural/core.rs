@@ -30,34 +30,29 @@ pub struct NeuralAgent {
 
 /// Advanced neural coordination system that manages cross-agent learning
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct AdvancedNeuralCoordinator {
     /// Neural processor for individual agents
-    #[allow(dead_code)]
     neural_processor: Arc<RwLock<HybridNeuralProcessor>>,
     /// Cross-agent knowledge transfer system
-    #[allow(dead_code)]
     knowledge_transfer: KnowledgeTransferSystem,
     /// Performance prediction engine
-    #[allow(dead_code)]
     performance_predictor: PerformancePredictionEngine,
     /// Emergent behavior detector
     behavior_detector: EmergentBehaviorDetector,
     /// Neural coordination metrics
-    #[allow(dead_code)]
     coordination_metrics: Arc<RwLock<NeuralCoordinationMetrics>>,
 }
 
 /// Knowledge transfer system for sharing learning between agents
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct KnowledgeTransferSystem {
     /// Knowledge patterns learned by agents
-    #[allow(dead_code)]
     knowledge_patterns: HashMap<String, KnowledgePattern>,
     /// Transfer efficiency metrics
-    #[allow(dead_code)]
     transfer_metrics: HashMap<(Uuid, Uuid), TransferMetrics>,
     /// Active knowledge transfer sessions
-    #[allow(dead_code)]
     active_transfers: HashMap<Uuid, KnowledgeTransferSession>,
 }
 
@@ -103,10 +98,9 @@ pub enum TransferStatus {
 
 /// Performance prediction engine
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct PerformancePredictionEngine {
-    #[allow(dead_code)]
     prediction_models: HashMap<String, PredictionModel>,
-    #[allow(dead_code)]
     historical_data: HashMap<Uuid, Vec<PerformanceSnapshot>>,
 }
 
@@ -132,12 +126,10 @@ pub struct PerformanceSnapshot {
 
 /// Emergent behavior detector
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct EmergentBehaviorDetector {
-    #[allow(dead_code)]
     behavior_patterns: HashMap<Uuid, EmergentBehavior>,
-    #[allow(dead_code)]
     detection_threshold: f64,
-    #[allow(dead_code)]
     observation_window: chrono::Duration,
 }
 
@@ -250,6 +242,7 @@ pub struct HybridNeuralProcessor {
     pub neural_agents: HashMap<Uuid, NeuralAgent>,
 }
 
+#[allow(clippy::unused_self)]
 impl HybridNeuralProcessor {
     pub async fn new() -> Result<Self> {
         Ok(Self {
@@ -349,7 +342,7 @@ impl HybridNeuralProcessor {
 
         #[cfg(feature = "advanced-neural")]
         if let NetworkType::FANN(config) = &network_type {
-            let network = self.create_fann_network(&config)?;
+            let network = self.create_fann_network(config);
             self.neural_networks.insert(agent_id, network);
         }
 
@@ -486,12 +479,11 @@ impl HybridNeuralProcessor {
     }
 
     #[cfg(feature = "advanced-neural")]
-    fn create_fann_network(&self, config: &FANNConfig) -> Result<Network<f32>> {
+    fn create_fann_network(&self, config: &FANNConfig) -> Network<f32> {
         let mut network = Network::new(&config.layers);
 
         // Set activation function
         let activation = match config.activation.as_str() {
-            "sigmoid" => ActivationFunction::Sigmoid,
             "tanh" => ActivationFunction::Tanh,
             "relu" => ActivationFunction::Linear, // Approximation
             _ => ActivationFunction::Sigmoid,
@@ -509,7 +501,7 @@ impl HybridNeuralProcessor {
             network.num_outputs()
         );
 
-        Ok(network)
+        network
     }
 
     #[cfg(feature = "advanced-neural")]
@@ -534,7 +526,7 @@ impl HybridNeuralProcessor {
 
                 // Use network output to enhance sentiment analysis
                 if !output.is_empty() {
-                    processed.sentiment = output[0] as f64 * 2.0 - 1.0; // Convert to [-1, 1]
+                    processed.sentiment = f64::from(output[0]) * 2.0 - 1.0; // Convert to [-1, 1]
                 }
             }
         }
@@ -673,14 +665,8 @@ impl HybridNeuralProcessor {
                 let output = network.run(&input);
                 if !output.is_empty() {
                     // Ensure output is in reasonable range [0, 1]
-                    let prediction = output[0] as f64;
-                    let normalized_prediction = if prediction < 0.0 {
-                        0.0
-                    } else if prediction > 1.0 {
-                        1.0
-                    } else {
-                        prediction
-                    };
+                    let prediction = f64::from(output[0]);
+                    let normalized_prediction = prediction.clamp(0.0, 1.0);
 
                     tracing::debug!(
                         "FANN prediction for agent {}: raw={:.3}, normalized={:.3}",
@@ -904,7 +890,7 @@ impl HybridNeuralProcessor {
             .iter()
             .rev()
             .take(5)
-            .cloned()
+            .copied()
             .collect();
         let mean = recent_performance.iter().sum::<f64>() / recent_performance.len() as f64;
         let variance = recent_performance
@@ -940,7 +926,7 @@ impl HybridNeuralProcessor {
         // More epochs for failures to correct mistakes
         let success_multiplier = if success { 1.0 } else { 1.5 };
 
-        ((base_epochs as f64 * trend_multiplier * success_multiplier) as u32).clamp(1, 10)
+        ((f64::from(base_epochs) * trend_multiplier * success_multiplier) as u32).clamp(1, 10)
     }
 
     #[cfg(feature = "advanced-neural")]

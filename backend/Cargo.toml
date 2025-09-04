@@ -56,6 +56,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # Development dependencies
 [dev-dependencies]
 tempfile = "3.8"
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [features]
 default = ["basic-nlp"]
@@ -96,6 +97,31 @@ too_many_lines = "allow"
 cast_precision_loss = "allow"
 cast_possible_truncation = "allow"
 cast_sign_loss = "allow"
+
+# Benchmark configurations
+[[bench]]
+name = "agent_benchmarks"
+harness = false
+
+[[bench]]
+name = "neural_benchmarks"
+harness = false
+
+[[bench]]
+name = "swarm_benchmarks"
+harness = false
+
+[[bench]]
+name = "cpu_benchmarks"
+harness = false
+
+[[bench]]
+name = "memory_benchmarks"
+harness = false
+
+[[bench]]
+name = "io_benchmarks"
+harness = false
 
 [lints.rust]
 # Rust compiler lints

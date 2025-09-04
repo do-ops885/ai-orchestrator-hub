@@ -1,12 +1,13 @@
 'use client'
 
+import React from 'react'
 import { useHiveStore } from '@/store/hiveStore'
 import { SwarmVisualization } from './SwarmVisualization'
 import { MetricsPanel } from './MetricsPanel'
 import { NeuralMetrics } from './NeuralMetrics'
 import { ResourceMonitor } from './ResourceMonitor'
 
-export function HiveDashboard() {
+export const HiveDashboard = React.memo(function HiveDashboard() {
   const { hiveStatus, agents } = useHiveStore()
 
   if (hiveStatus === null || hiveStatus === undefined) {
@@ -58,4 +59,4 @@ export function HiveDashboard() {
       </div>
     </div>
   )
-}
+})

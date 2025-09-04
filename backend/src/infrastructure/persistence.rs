@@ -6,7 +6,7 @@
 use crate::agents::Agent;
 use crate::tasks::Task;
 use crate::utils::error::{HiveError, HiveResult};
-use base64::{engine::general_purpose, Engine as _};
+
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -57,6 +57,7 @@ pub struct SystemMetrics {
 
 /// Persistence configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct PersistenceConfig {
     pub storage_backend: StorageBackend,
     pub checkpoint_interval_minutes: u64,
@@ -108,6 +109,7 @@ pub struct CheckpointStats {
 }
 
 /// Persistence manager for the hive system
+#[allow(dead_code)]
 pub struct PersistenceManager {
     config: PersistenceConfig,
     storage: Box<dyn StorageProvider + Send + Sync>,
@@ -119,6 +121,7 @@ pub struct PersistenceManager {
 
 /// Backup manager for handling backup operations
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BackupManager {
     backup_location: PathBuf,
     retention_days: u32,
@@ -236,6 +239,7 @@ pub trait StorageProvider {
 }
 
 /// `SQLite` storage implementation
+#[allow(dead_code)]
 pub struct SQLiteStorage {
     database_path: PathBuf,
     connection: Arc<Mutex<Connection>>,
@@ -296,6 +300,7 @@ impl StorageProvider for SQLiteStorage {
         static EMPTY_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
         EMPTY_PATH.get_or_init(PathBuf::new)
     }
+    #[allow(clippy::cast_possible_wrap)]
     async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String> {
         let json_data =
             serde_json::to_string(snapshot).map_err(|e| HiveError::OperationFailed {
@@ -323,138 +328,72 @@ impl StorageProvider for SQLiteStorage {
         Ok(snapshot.snapshot_id.to_string())
     }
 
-    async fn save_processed_snapshot(
-        &self,
-        snapshot: &SystemSnapshot,
-        processed: &ProcessedSnapshot,
-    ) -> HiveResult<String> {
-        let conn = self.connection.lock().await;
-
-        // Encode binary data as base64 for storage
-        let encoded_data = general_purpose::STANDARD.encode(&processed.data);
-
-        conn.execute(
-            "INSERT INTO snapshots (id, timestamp, version, size_bytes, agent_count, task_count, description, data)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                snapshot.snapshot_id.to_string(),
-                snapshot.timestamp.to_rfc3339(),
-                snapshot.version,
-                processed.processed_size as i64,
-                snapshot.agents.len() as i64,
-                snapshot.tasks.len() as i64,
-                format!("Processed checkpoint (compressed: {}, encrypted: {})",
-                       processed.is_compressed, processed.is_encrypted),
-                encoded_data
-            ],
-        ).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to save processed snapshot to database: {e}"),
-        })?;
-
-        Ok(snapshot.snapshot_id.to_string())
-    }
-
     async fn load_snapshot(&self, snapshot_id: &str) -> HiveResult<SystemSnapshot> {
         let conn = self.connection.lock().await;
         let mut stmt = conn
             .prepare("SELECT data FROM snapshots WHERE id = ?1")
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to prepare query: {e}"),
+                reason: format!("Failed to prepare load query: {e}"),
             })?;
 
         let json_data: String = stmt
             .query_row(params![snapshot_id], |row| row.get(0))
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to load snapshot from database: {e}"),
+                reason: format!("Failed to load snapshot: {e}"),
             })?;
 
-        serde_json::from_str(&json_data).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to deserialize snapshot: {e}"),
-        })
-    }
-
-    async fn load_processed_snapshot(&self, snapshot_id: &str) -> HiveResult<ProcessedSnapshot> {
-        let conn = self.connection.lock().await;
-        let mut stmt = conn
-            .prepare("SELECT data FROM snapshots WHERE id = ?1")
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to prepare query: {e}"),
+        let snapshot: SystemSnapshot =
+            serde_json::from_str(&json_data).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to deserialize snapshot: {e}"),
             })?;
 
-        let encoded_data: String = stmt
-            .query_row(params![snapshot_id], |row| row.get(0))
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to load processed snapshot from database: {e}"),
-            })?;
-
-        let data = general_purpose::STANDARD
-            .decode(&encoded_data)
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to decode snapshot data: {e}"),
-            })?;
-
-        // Note: In a real implementation, we'd store metadata separately
-        // For now, we'll return a basic ProcessedSnapshot
-        let processed_size = data.len();
-        Ok(ProcessedSnapshot {
-            data,
-            is_compressed: true, // Assume processed data is compressed
-            is_encrypted: true,  // Assume processed data is encrypted
-            original_size: 0,    // Would need to be stored separately
-            processed_size,
-            compression_ratio: 1.0, // Would need to be calculated/stored
-        })
+        Ok(snapshot)
     }
 
     async fn list_snapshots(&self) -> HiveResult<Vec<CheckpointMetadata>> {
         let conn = self.connection.lock().await;
         let mut stmt = conn
-            .prepare(
-                "SELECT id, timestamp, size_bytes, agent_count, task_count, description
-             FROM snapshots ORDER BY timestamp DESC",
-            )
+            .prepare("SELECT id, timestamp, size_bytes, agent_count, task_count, description FROM snapshots ORDER BY timestamp DESC")
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to prepare query: {e}"),
+                reason: format!("Failed to prepare list query: {e}"),
             })?;
 
-        let rows = stmt
-            .query_map([], |row| {
-                let timestamp_str: String = row.get(1)?;
-                let timestamp = DateTime::parse_from_rfc3339(&timestamp_str)
-                    .map_err(|_| {
-                        rusqlite::Error::InvalidColumnType(
-                            1,
-                            "timestamp".to_string(),
-                            rusqlite::types::Type::Text,
-                        )
-                    })?
-                    .with_timezone(&Utc);
-
-                Ok(CheckpointMetadata {
-                    checkpoint_id: Uuid::parse_str(&row.get::<_, String>(0)?).map_err(|_| {
-                        rusqlite::Error::InvalidColumnType(
-                            0,
-                            "id".to_string(),
-                            rusqlite::types::Type::Text,
-                        )
-                    })?,
-                    timestamp,
-                    size_bytes: row.get::<_, i64>(2)? as u64,
-                    compression_ratio: 1.0,
-                    agent_count: row.get::<_, i64>(3)? as usize,
-                    task_count: row.get::<_, i64>(4)? as usize,
-                    description: row.get(5)?,
-                })
-            })
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to query snapshots: {e}"),
-            })?;
+        let mut rows = stmt.query([]).map_err(|e| HiveError::OperationFailed {
+            reason: format!("Failed to execute list query: {e}"),
+        })?;
 
         let mut snapshots = Vec::new();
-        for row in rows {
-            snapshots.push(row.map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to parse snapshot row: {e}"),
-            })?);
+        while let Ok(Some(row)) = rows.next() {
+            let id: String = row.get(0).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to get id: {e}"),
+            })?;
+            let timestamp: String = row.get(1).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to get timestamp: {e}"),
+            })?;
+            let size_bytes: i64 = row.get(2).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to get size_bytes: {e}"),
+            })?;
+            let agent_count: i64 = row.get(3).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to get agent_count: {e}"),
+            })?;
+            let task_count: i64 = row.get(4).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to get task_count: {e}"),
+            })?;
+            let description: String = row.get(5).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to get description: {e}"),
+            })?;
+
+            let checkpoint = CheckpointMetadata {
+                checkpoint_id: uuid::Uuid::parse_str(&id).unwrap_or_else(|_| uuid::Uuid::new_v4()),
+                timestamp: DateTime::parse_from_rfc3339(&timestamp)
+                    .map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc)),
+                size_bytes: size_bytes as u64,
+                compression_ratio: 1.0, // Not stored
+                agent_count: agent_count as usize,
+                task_count: task_count as usize,
+                description,
+            };
+            snapshots.push(checkpoint);
         }
 
         Ok(snapshots)
@@ -469,6 +408,7 @@ impl StorageProvider for SQLiteStorage {
         Ok(())
     }
 
+    #[allow(clippy::cast_possible_wrap)]
     async fn cleanup_old_snapshots(&self, max_count: usize) -> HiveResult<usize> {
         let conn = self.connection.lock().await;
 
@@ -831,8 +771,8 @@ mod tests {
         };
 
         // Test save and load
-        let _id = storage.save_snapshot(&snapshot).await.unwrap();
-        let loaded = storage.load_snapshot(&_id).await.unwrap();
+        let id = storage.save_snapshot(&snapshot).await.unwrap();
+        let loaded = storage.load_snapshot(&id).await.unwrap();
 
         assert_eq!(snapshot.snapshot_id, loaded.snapshot_id);
         assert_eq!(snapshot.version, loaded.version);

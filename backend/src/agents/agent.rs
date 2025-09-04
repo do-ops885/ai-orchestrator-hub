@@ -257,7 +257,6 @@ impl Agent {
 #[async_trait]
 pub trait AgentBehavior {
     async fn execute_task(&mut self, task: Task) -> anyhow::Result<TaskResult>;
-    #[allow(dead_code)]
     async fn communicate(
         &mut self,
         message: &str,

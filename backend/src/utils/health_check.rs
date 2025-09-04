@@ -155,19 +155,17 @@ impl HealthCheck {
     }
 }
 
+/// Health check future type
+type HealthCheckFuture = std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<HashMap<String, String>, String>> + Send>,
+>;
+
+/// Health check function type
+type HealthCheckFn = Arc<dyn Fn() -> HealthCheckFuture + Send + Sync>;
+
 /// Health check function wrapper
 #[derive(Clone)]
-pub struct HealthCheckFunction(
-    pub  Arc<
-        dyn Fn() -> std::pin::Pin<
-                Box<
-                    dyn std::future::Future<Output = Result<HashMap<String, String>, String>>
-                        + Send,
-                >,
-            > + Send
-            + Sync,
-    >,
-);
+pub struct HealthCheckFunction(pub HealthCheckFn);
 
 impl std::fmt::Debug for HealthCheckFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -401,7 +399,6 @@ impl CircuitBreaker {
         let mut state = self.state.write().await;
 
         match state.status {
-            CircuitBreakerStatus::Closed => true,
             CircuitBreakerStatus::Open => {
                 // Check if recovery timeout has passed
                 if let Some(last_failure) = state.last_failure_time {
@@ -416,7 +413,7 @@ impl CircuitBreaker {
                     false
                 }
             }
-            CircuitBreakerStatus::HalfOpen => true,
+            CircuitBreakerStatus::Closed | CircuitBreakerStatus::HalfOpen => true,
         }
     }
 
@@ -449,9 +446,7 @@ impl CircuitBreaker {
         state.failure_count += 1;
         state.last_failure_time = Some(Instant::now());
 
-        if state.failure_count >= self.failure_threshold {
-            state.status = CircuitBreakerStatus::Open;
-        } else if state.status == CircuitBreakerStatus::HalfOpen {
+        if state.failure_count >= self.failure_threshold || state.status == CircuitBreakerStatus::HalfOpen {
             state.status = CircuitBreakerStatus::Open;
         }
     }

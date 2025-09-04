@@ -360,9 +360,7 @@ pub async fn enhanced_security_headers_middleware(request: Request, next: Next) 
     // Feature Policy / Permissions Policy
     headers.insert(
         "Permissions-Policy",
-        "geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), speaker=()"
-            .parse()
-            .unwrap(),
+        axum::http::HeaderValue::from_static("geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), speaker=()"),
     );
 
     response

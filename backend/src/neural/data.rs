@@ -8,6 +8,7 @@ use tokio::sync::RwLock;
 
 /// Data preparation and loading system for neural training
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DataPipeline {
     /// CPU optimizer for vectorized operations
     cpu_optimizer: CpuOptimizer,
@@ -15,7 +16,7 @@ pub struct DataPipeline {
     datasets: HashMap<String, Arc<RwLock<Dataset>>>,
     /// Data loaders
     data_loaders: HashMap<String, Arc<RwLock<DataLoader>>>,
-    /// Preprocessing pipelines
+    /// Data preprocessing pipelines
     preprocessing: HashMap<String, PreprocessingPipeline>,
 }
 
@@ -186,6 +187,7 @@ impl Default for DataPipeline {
     }
 }
 
+#[allow(clippy::unused_self)]
 impl DataPipeline {
     /// Create a new data pipeline
     #[must_use]
@@ -224,11 +226,11 @@ impl DataPipeline {
         batch_size: usize,
         shuffle: bool,
     ) -> Result<String> {
-        let dataset = self
-            .datasets
-            .get(dataset_name)
-            .ok_or_else(|| anyhow::anyhow!("Dataset '{}' not found", dataset_name))?
-            .clone();
+        let dataset = Arc::clone(
+            self.datasets
+                .get(dataset_name)
+                .ok_or_else(|| anyhow::anyhow!("Dataset '{}' not found", dataset_name))?,
+        );
 
         let num_samples = dataset.read().await.features.len();
         let indices: Vec<usize> = (0..num_samples).collect();
@@ -364,6 +366,7 @@ impl DataPipeline {
         let total_samples = dataset.features.len();
         let train_size = (total_samples as f64 * split.train_ratio) as usize;
         let val_size = (total_samples as f64 * split.val_ratio) as usize;
+        #[allow(clippy::no_effect_underscore_binding)]
         let _test_size = total_samples - train_size - val_size;
 
         // Create indices for each split
@@ -378,9 +381,9 @@ impl DataPipeline {
         let test_indices = indices[train_size + val_size..].to_vec();
 
         // Create split datasets
-        let train_dataset = self.create_split_dataset(&dataset, &train_indices, "train")?;
-        let val_dataset = self.create_split_dataset(&dataset, &val_indices, "validation")?;
-        let test_dataset = self.create_split_dataset(&dataset, &test_indices, "test")?;
+        let train_dataset = self.create_split_dataset(&dataset, &train_indices, "train");
+        let val_dataset = self.create_split_dataset(&dataset, &val_indices, "validation");
+        let test_dataset = self.create_split_dataset(&dataset, &test_indices, "test");
 
         Ok(DataSplits {
             train: train_dataset,
@@ -404,15 +407,12 @@ impl DataPipeline {
             for _ in 0..num_features {
                 sample_features.push(rand::random::<f32>() * 2.0 - 1.0);
             }
-            features.push(sample_features);
 
             // Simple classification based on first feature
-            let label = if features.last().unwrap()[0] > 0.0 {
-                1.0
-            } else {
-                0.0
-            };
+            let label = if sample_features[0] > 0.0 { 1.0 } else { 0.0 };
             labels.push(vec![label]);
+
+            features.push(sample_features);
         }
 
         let metadata = DatasetMetadata {
@@ -433,7 +433,7 @@ impl DataPipeline {
     }
 
     /// Shuffle indices for data randomization
-    async fn shuffle_indices(&self, indices: &mut Vec<usize>) -> Result<()> {
+    async fn shuffle_indices(&self, indices: &mut [usize]) -> Result<()> {
         use rand::seq::SliceRandom;
         let mut rng = rand::thread_rng();
         indices.shuffle(&mut rng);
@@ -518,8 +518,7 @@ impl DataPipeline {
     /// Apply L2 normalization
     async fn apply_l2_normalization(&self, dataset: &mut Dataset) -> Result<()> {
         for sample in &mut dataset.features {
-            let l2_norm =
-                VectorizedOps::vector_norm(&sample.iter().map(|&x| x).collect::<Vec<f32>>());
+            let l2_norm = VectorizedOps::vector_norm(&sample.clone());
             if l2_norm > 0.0 {
                 for feature in sample {
                     *feature /= l2_norm;
@@ -736,7 +735,8 @@ impl DataPipeline {
             feature_variances.push((feature_idx, variance));
         }
 
-        feature_variances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        feature_variances
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         let selected_indices: Vec<usize> = feature_variances
             .into_iter()
             .take(k)
@@ -773,7 +773,8 @@ impl DataPipeline {
                 feature_variances.push((feature_idx, variance));
             }
 
-            feature_variances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            feature_variances
+                .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
             if let Some((worst_feature, _)) = feature_variances.first() {
                 remaining_features.retain(|&x| x != *worst_feature);
             }
@@ -810,7 +811,7 @@ impl DataPipeline {
         original: &Dataset,
         indices: &[usize],
         split_name: &str,
-    ) -> Result<Dataset> {
+    ) -> Dataset {
         let mut features = Vec::new();
         let mut labels = Vec::new();
 
@@ -822,12 +823,12 @@ impl DataPipeline {
         let mut metadata = original.metadata.clone();
         metadata.num_samples = indices.len();
 
-        Ok(Dataset {
+        Dataset {
             name: format!("{}_{}", original.name, split_name),
             features,
             labels,
             metadata,
-        })
+        }
     }
 }
 

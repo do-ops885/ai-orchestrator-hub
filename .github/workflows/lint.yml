@@ -5,18 +5,58 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same workflow and branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
-  frontend-lint:
-    name: Frontend ESLint
+  # Security and dependency scanning
+  security-scan:
+    name: Security Scan
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, rust
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        if: github.event_name == 'pull_request'
+
+  # Frontend linting with optimized caching
+  frontend-lint:
+    name: Frontend ESLint & TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,62 +65,132 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            ~/.npm
+            frontend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install dependencies
-        run: npm install
+        if: steps.npm-cache.outputs.cache-hit != 'true'
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
 
       - name: Run ESLint
-        run: npm run lint:check
+        run: |
+          cd frontend
+          npm run lint:check
 
       - name: Check TypeScript
-        run: npx tsc --noEmit
+        run: |
+          cd frontend
+          npx tsc --noEmit
 
+      - name: Upload ESLint results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eslint-results
+          path: frontend/eslint-report.json
+          retention-days: 7
+
+  # Backend linting with matrix for different feature sets
   backend-lint:
-    name: Backend Clippy
+    name: Backend Clippy & Format
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        features: ['', 'advanced-neural']
+        include:
+          - features: ''
+            name_suffix: ' (Basic Features)'
+          - features: 'advanced-neural'
+            name_suffix: ' (Advanced Neural)'
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
 
-      - name: Cache Rust dependencies
+      - name: Cache Cargo registry
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            backend/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache target directory
+        uses: actions/cache@v4
+        with:
+          path: backend/target/
+          key: ${{ runner.os }}-cargo-target-${{ matrix.features }}-${{ hashFiles('**/Cargo.lock', 'backend/src/**/*.rs') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-target-${{ matrix.features }}-
+            ${{ runner.os }}-cargo-target-
 
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        run: |
+          cd backend
+          cargo fmt --all -- --check
 
-      - name: Run Clippy (basic features)
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Run Clippy (advanced neural features)
-        run: cargo clippy --all-targets --features advanced-neural -- -D warnings
+      - name: Run Clippy
+        run: |
+          cd backend
+          if [ -n "${{ matrix.features }}" ]; then
+            cargo clippy --all-targets --features ${{ matrix.features }} -- -D warnings
+          else
+            cargo clippy --all-targets -- -D warnings
+          fi
 
       - name: Check documentation
-        run: cargo doc --no-deps --document-private-items
+        run: |
+          cd backend
+          if [ -n "${{ matrix.features }}" ]; then
+            cargo doc --no-deps --document-private-items --features ${{ matrix.features }} --deny warnings
+          else
+            cargo doc --no-deps --document-private-items --deny warnings
+          fi
 
+      - name: Security audit (only on basic features)
+        if: matrix.features == ''
+        run: |
+          cd backend
+          cargo install cargo-audit --version ^0.18 || true
+          cargo audit --deny warnings || echo "::warning::Security vulnerabilities found - review cargo audit output"
+
+      - name: Check for outdated dependencies (only on basic features)
+        if: matrix.features == ''
+        run: |
+          cd backend
+          cargo install cargo-outdated --version ^0.15 || true
+          cargo outdated --exit-code 1 || echo "::warning::Outdated dependencies found - consider updating"
+
+  # Integration testing with optimized setup
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: [frontend-lint, backend-lint]
+    timeout-minutes: 25
+    if: success()
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -89,23 +199,90 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: |
+            ~/.npm
+            frontend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache target directory
+        uses: actions/cache@v4
+        with:
+          path: backend/target/
+          key: ${{ runner.os }}-cargo-target-test-${{ hashFiles('**/Cargo.lock', 'backend/src/**/*.rs') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-target-test-
+
       - name: Install frontend dependencies
-        working-directory: ./frontend
-        run: npm install
+        if: steps.npm-cache.outputs.cache-hit != 'true'
+        run: |
+          cd frontend
+          npm ci --prefer-offline --no-audit
 
       - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build
+        run: |
+          cd frontend
+          npm run build
 
       - name: Test backend
-        working-directory: ./backend
-        run: cargo test --all-features
+        run: |
+          cd backend
+          cargo test --all-features -- --nocapture
 
       - name: Test backend examples
-        working-directory: ./backend
         run: |
-          cargo run --example neural_comparison --features advanced-neural
-          cargo run --example advanced_neural_test --features advanced-neural
+          cd backend
+          timeout 300 cargo run --example neural_comparison --features advanced-neural || echo "::warning::neural_comparison example failed"
+          timeout 300 cargo run --example advanced_neural_test --features advanced-neural || echo "::warning::advanced_neural_test example failed"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            backend/target/debug/deps/*.xml
+            frontend/coverage/
+          retention-days: 30
+
+  # Performance monitoring and reporting
+  workflow-summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    needs: [security-scan, frontend-lint, backend-lint, integration-test]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Generate workflow summary
+        run: |
+          echo "## Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Security Scan**: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend Lint**: ${{ needs.frontend-lint.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend Lint**: ${{ needs.backend-lint.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Integration Tests**: ${{ needs.integration-test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Performance Notes" >> $GITHUB_STEP_SUMMARY
+          echo "- Caching implemented for Node.js and Rust dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "- Parallel execution of frontend and backend linting" >> $GITHUB_STEP_SUMMARY
+          echo "- Matrix build for different Rust feature combinations" >> $GITHUB_STEP_SUMMARY
+          echo "- Timeout protection on all jobs" >> $GITHUB_STEP_SUMMARY

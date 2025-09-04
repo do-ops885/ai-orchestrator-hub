@@ -1,5 +1,5 @@
 #[cfg(feature = "advanced-neural")]
-use crate::neural::neural::{FANNConfig, LSTMConfig};
+use crate::neural::core::{FANNConfig, LSTMConfig};
 use crate::neural::CpuOptimizer;
 use crate::neural::{AdaptiveLearningConfig, AdaptiveLearningSystem};
 use crate::neural::{HybridNeuralProcessor, NetworkType};
@@ -7,6 +7,7 @@ use crate::neural::{HybridNeuralProcessor, NetworkType};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -14,6 +15,7 @@ use uuid::Uuid;
 
 /// Comprehensive neural training system for the AI Orchestrator Hub
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct NeuralTrainingSystem {
     /// Core neural processor
     neural_processor: Arc<RwLock<HybridNeuralProcessor>>,
@@ -299,6 +301,7 @@ pub enum HPOTrialStatus {
     Failed,
 }
 
+#[allow(clippy::unused_self)]
 impl NeuralTrainingSystem {
     /// Create a new neural training system
     pub async fn new() -> Result<Self> {
@@ -369,26 +372,31 @@ impl NeuralTrainingSystem {
 
     /// Execute training epoch
     pub async fn execute_epoch(&mut self, session_id: Uuid) -> Result<TrainingMetrics> {
-        // Get session data first
-        let _session_data = {
-            let session = self
-                .active_sessions
-                .get(&session_id)
-                .ok_or_else(|| anyhow::anyhow!("Training session not found"))?;
-            (
-                session.config.clone(),
-                session.current_epoch,
-                session.best_loss,
-            )
-        };
-
         let epoch_start = std::time::Instant::now();
 
-        // Execute training and validation steps (need to implement these without borrowing session)
-        // For now, use placeholder values
-        let (loss, accuracy) = (0.5, 0.8); // TODO: Implement actual training step
-        let (val_loss, val_accuracy) = (0.4, 0.85); // TODO: Implement actual validation step
-        let current_lr = 0.001; // TODO: Implement learning rate update
+        // Get session for training steps
+        let session = self
+            .active_sessions
+            .get(&session_id)
+            .ok_or_else(|| anyhow::anyhow!("Training session not found"))?;
+
+        // Execute training and validation steps using the implemented methods
+        let (loss, accuracy) = self.execute_training_step(session).await?;
+        let (val_loss, val_accuracy) = self.execute_validation_step(session).await?;
+        let current_lr = self.update_learning_rate(session).await?;
+
+        // Check early stopping before getting mutable borrow
+        let should_stop_early = {
+            if let Some(session) = self.active_sessions.get(&session_id) {
+                if let Some(early_stop) = &session.config.training.early_stopping {
+                    self.should_early_stop(session, early_stop)
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        };
 
         // Update session
         {
@@ -417,14 +425,10 @@ impl NeuralTrainingSystem {
 
             session.current_epoch += 1;
 
-            // Check early stopping
-            if let Some(_early_stop) = &session.config.training.early_stopping {
-                // TODO: Implement early stopping check
-                let should_stop = false; // Placeholder
-                if should_stop {
-                    session.status = TrainingStatus::Completed;
-                    tracing::info!("🛑 Early stopping triggered for session {}", session_id);
-                }
+            // Apply early stopping decision
+            if should_stop_early {
+                session.status = TrainingStatus::Completed;
+                tracing::info!("🛑 Early stopping triggered for session {}", session_id);
             }
 
             // Check if training is complete
@@ -478,8 +482,14 @@ impl NeuralTrainingSystem {
 
         // Sort trials by objective
         trials.sort_by(|a, b| match hpo_config.objective {
-            HPOObjective::Minimize(_) => a.objective_value.partial_cmp(&b.objective_value).unwrap(),
-            HPOObjective::Maximize(_) => b.objective_value.partial_cmp(&a.objective_value).unwrap(),
+            HPOObjective::Minimize(_) => a
+                .objective_value
+                .partial_cmp(&b.objective_value)
+                .unwrap_or(Ordering::Greater), // Treat NaN as worst (greater)
+            HPOObjective::Maximize(_) => b
+                .objective_value
+                .partial_cmp(&a.objective_value)
+                .unwrap_or(Ordering::Less), // Treat NaN as worst (less)
         });
 
         tracing::info!("✅ Hyperparameter optimization completed");

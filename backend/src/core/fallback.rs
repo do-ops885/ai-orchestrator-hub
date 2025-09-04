@@ -477,6 +477,7 @@ impl IntelligentFallback {
     }
 
     /// Find best agent using direct assignment (no fallback)
+    #[allow(clippy::unused_self)]
     fn find_best_agent_direct<'a>(
         &self,
         task: &Task,

@@ -378,8 +378,10 @@ impl TestHarness {
     }
 
     /// Helper method to create a test agent
-    async fn create_test_agent(&self, _name: &str) -> HiveResult<Uuid> {
+    async fn create_test_agent(&self, name: &str) -> HiveResult<Uuid> {
         // Implementation would create an actual test agent
+        // For now, just return a new UUID (name could be used for logging or identification)
+        let _ = name; // Suppress unused variable warning until implementation is complete
         Ok(Uuid::new_v4())
     }
 }

@@ -79,14 +79,13 @@ pub struct SwarmCoordinationMetrics {
 
 /// Formation optimization engine
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct FormationOptimizationEngine {
     /// Optimization strategies
     strategies: Vec<OptimizationStrategy>,
     /// Historical optimization results
-    #[allow(dead_code)]
     optimization_history: HashMap<Uuid, Vec<OptimizationResult>>,
     /// Current optimization parameters
-    #[allow(dead_code)]
     parameters: OptimizationParameters,
 }
 

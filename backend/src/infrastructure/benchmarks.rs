@@ -135,6 +135,7 @@ pub struct PerformanceSnapshot {
 }
 
 /// Memory leak detection and tracking
+#[allow(dead_code)]
 pub struct MemoryTracker {
     baseline_memory: Arc<RwLock<Option<f64>>>,
     #[allow(clippy::type_complexity)]
@@ -144,6 +145,7 @@ pub struct MemoryTracker {
 }
 
 /// CPU usage tracking and profiling
+#[allow(dead_code)]
 pub struct CpuTracker {
     #[allow(clippy::type_complexity)]
     cpu_samples: Arc<RwLock<Vec<(DateTime<Utc>, f64)>>>,
