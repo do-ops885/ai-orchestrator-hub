@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 use std::collections::HashMap;
 use tracing::{event, Level};
 use uuid::Uuid;

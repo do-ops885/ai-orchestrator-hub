@@ -446,7 +446,9 @@ impl CircuitBreaker {
         state.failure_count += 1;
         state.last_failure_time = Some(Instant::now());
 
-        if state.failure_count >= self.failure_threshold || state.status == CircuitBreakerStatus::HalfOpen {
+        if state.failure_count >= self.failure_threshold
+            || state.status == CircuitBreakerStatus::HalfOpen
+        {
             state.status = CircuitBreakerStatus::Open;
         }
     }
