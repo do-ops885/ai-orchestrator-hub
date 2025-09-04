@@ -4,6 +4,9 @@
     "security-auditor": {
       "model": "chutes/zai-org/GLM-4.5-FP8"
     },
+    "git": {
+      "model": "nvidia/deepseek-ai/deepseek-v3.1"
+    },
     "ml-pipeline-manager": {
       "model": "nvidia/deepseek-ai/deepseek-v3.1"
     },
@@ -12,6 +15,14 @@
     },
   },
   "mcp": {
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "@playwright/mcp@latest"
+      ],
+      "enabled": true
+    },
     "context7": {
       "type": "remote",
       "url": "https://mcp.context7.com/mcp",

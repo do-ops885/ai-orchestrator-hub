@@ -71,7 +71,7 @@ impl AdaptiveLearningSystem {
         outcome: f64,
     ) -> anyhow::Result<()> {
         let features = self.extract_features(agent, context).await?;
-        let pattern_id = self.generate_pattern_id(&features);
+        let pattern_id = Self::generate_pattern_id(&features);
 
         debug!(
             "Learning from interaction for agent {} with outcome {}",
@@ -142,7 +142,7 @@ impl AdaptiveLearningSystem {
 
     pub async fn predict_outcome(&self, agent: &Agent, context: &str) -> anyhow::Result<f64> {
         let features = self.extract_features(agent, context).await?;
-        let pattern_id = self.generate_pattern_id(&features);
+        let pattern_id = Self::generate_pattern_id(&features);
 
         // Check for exact pattern match first
         if let Some(pattern) = self.patterns.get(&pattern_id) {
@@ -260,7 +260,7 @@ impl AdaptiveLearningSystem {
         Ok(features)
     }
 
-    fn generate_pattern_id(&self, features: &[f64]) -> String {
+    fn generate_pattern_id(features: &[f64]) -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 

@@ -193,12 +193,6 @@ impl IntelligentFallback {
         }
     }
 
-    /// Create with default configuration
-    #[must_use]
-    pub fn default() -> Self {
-        Self::new(FallbackConfig::default())
-    }
-
     /// Find the best agent for a task using intelligent fallback
     pub async fn find_agent_with_fallback(
         &mut self,
@@ -292,7 +286,7 @@ impl IntelligentFallback {
         // Filter agents based on tier criteria
         let eligible_agents: Vec<&Agent> = available_agents
             .iter()
-            .filter(|agent| self.is_agent_eligible_for_tier(agent, tier))
+            .filter(|agent| Self::is_agent_eligible_for_tier(agent, tier))
             .collect();
 
         if eligible_agents.is_empty() {
@@ -301,7 +295,7 @@ impl IntelligentFallback {
                 tier: tier.clone(),
                 selected_agent: None,
                 quality_score: 0.0,
-                reason: format!("No agents available for {} tier", self.tier_name(tier)),
+                reason: format!("No agents available for {} tier", Self::tier_name(tier)),
                 timestamp: Utc::now(),
                 context: HashMap::new(),
             };
@@ -314,7 +308,7 @@ impl IntelligentFallback {
 
         for agent in &eligible_agents {
             let (score, reason) =
-                self.calculate_agent_fitness_for_tier(agent, task, tier, task_context);
+                Self::calculate_agent_fitness_for_tier(agent, task, tier, task_context);
 
             if score > best_score {
                 best_score = score;
@@ -342,21 +336,21 @@ impl IntelligentFallback {
                 format!(
                     "Selected agent with score {:.2} in {} tier: {}",
                     best_score,
-                    self.tier_name(tier),
+                    Self::tier_name(tier),
                     best_reason
                 )
             } else {
                 format!(
                     "No agent met quality threshold {:.2} in {} tier (best: {:.2})",
                     quality_threshold * tier.quality_factor(),
-                    self.tier_name(tier),
+                    Self::tier_name(tier),
                     best_score
                 )
             },
             timestamp: Utc::now(),
             context: {
                 let mut ctx = HashMap::new();
-                ctx.insert("tier".to_string(), self.tier_name(tier).to_string());
+                ctx.insert("tier".to_string(), Self::tier_name(tier).to_string());
                 ctx.insert(
                     "eligible_agents".to_string(),
                     eligible_agents.len().to_string(),
@@ -375,7 +369,7 @@ impl IntelligentFallback {
     }
 
     /// Check if an agent is eligible for a specific fallback tier
-    fn is_agent_eligible_for_tier(&self, agent: &Agent, tier: &FallbackTier) -> bool {
+    fn is_agent_eligible_for_tier(agent: &Agent, tier: &FallbackTier) -> bool {
         // Check if agent is available
         if !matches!(agent.state, AgentState::Idle) {
             return false;
@@ -409,7 +403,6 @@ impl IntelligentFallback {
 
     /// Calculate fitness score for an agent in a specific tier
     fn calculate_agent_fitness_for_tier(
-        &self,
         agent: &Agent,
         task: &Task,
         tier: &FallbackTier,
@@ -545,7 +538,7 @@ impl IntelligentFallback {
     }
 
     /// Get human-readable name for a fallback tier
-    fn tier_name(&self, tier: &FallbackTier) -> &'static str {
+    fn tier_name(tier: &FallbackTier) -> &'static str {
         match tier {
             FallbackTier::Primary => "Primary",
             FallbackTier::Secondary => "Secondary",
