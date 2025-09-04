@@ -296,6 +296,7 @@ pub struct ErrorContext {
 
 impl ErrorContext {
     /// Create new error context
+    #[must_use]
     pub fn new(operation: &str, component: &str) -> Self {
         Self {
             operation: operation.to_string(),
@@ -307,18 +308,21 @@ impl ErrorContext {
     }
 
     /// Add agent context
+    #[must_use]
     pub fn with_agent(mut self, agent_id: Uuid) -> Self {
         self.agent_id = Some(agent_id);
         self
     }
 
     /// Add task context
+    #[must_use]
     pub fn with_task(mut self, task_id: Uuid) -> Self {
         self.task_id = Some(task_id);
         self
     }
 
     /// Add additional data
+    #[must_use]
     pub fn with_data(mut self, key: &str, value: &str) -> Self {
         self.additional_data
             .insert(key.to_string(), value.to_string());

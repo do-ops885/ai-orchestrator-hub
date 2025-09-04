@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use uuid::Uuid;
 
 /// Comprehensive monitoring and evaluation system for neural training
 #[derive(Debug)]
@@ -225,8 +226,15 @@ pub enum PlotType {
     Histogram,
 }
 
+impl Default for TrainingMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TrainingMonitor {
     /// Create a new training monitor
+    #[must_use]
     pub fn new() -> Self {
         Self {
             sessions: HashMap::new(),
@@ -292,12 +300,20 @@ impl TrainingMonitor {
 
             session_monitor.metrics_history.push(snapshot);
             session_monitor.last_update = timestamp;
+        }
 
-            // Update performance indicators
-            self.update_performance_indicators(session_monitor).await?;
+        // Update performance indicators and check alerts (separate borrows)
+        {
+            let _session_monitor = self
+                .sessions
+                .get(&session_id)
+                .ok_or_else(|| anyhow::anyhow!("Session monitor not found"))?;
+            self.update_performance_indicators(&session_id.to_string())
+                .await?;
+        }
 
-            // Check for alerts
-            self.check_alerts(session_monitor).await?;
+        {
+            self.check_alerts(&session_id.to_string()).await?;
         }
 
         // Log epoch completion
@@ -315,11 +331,13 @@ impl TrainingMonitor {
     }
 
     /// Get session monitoring data
+    #[must_use]
     pub fn get_session_monitor(&self, session_id: uuid::Uuid) -> Option<&SessionMonitor> {
         self.sessions.get(&session_id)
     }
 
     /// Get all active alerts
+    #[must_use]
     pub fn get_active_alerts(&self) -> Vec<&Alert> {
         self.sessions
             .values()
@@ -377,14 +395,14 @@ impl TrainingMonitor {
             .sum::<f64>()
             / total_epochs as f64;
 
-        let total_training_time = session_monitor
-            .metrics_history
-            .last()
-            .map(|last| {
-                last.timestamp
-                    .signed_duration_since(session_monitor.start_time)
-            })
-            .unwrap_or(chrono::Duration::zero());
+        let total_training_time =
+            session_monitor
+                .metrics_history
+                .last()
+                .map_or(chrono::Duration::zero(), |last| {
+                    last.timestamp
+                        .signed_duration_since(session_monitor.start_time)
+                });
 
         Ok(MonitoringReport {
             session_id,
@@ -417,10 +435,14 @@ impl TrainingMonitor {
     }
 
     /// Update performance indicators
-    async fn update_performance_indicators(
-        &self,
-        session_monitor: &mut SessionMonitor,
-    ) -> Result<()> {
+    async fn update_performance_indicators(&mut self, session_id: &str) -> Result<()> {
+        let session_uuid = session_id
+            .parse::<Uuid>()
+            .map_err(|_| anyhow::anyhow!("Invalid session ID format"))?;
+        let session_monitor = self
+            .sessions
+            .get_mut(&session_uuid)
+            .ok_or_else(|| anyhow::anyhow!("Session monitor not found"))?;
         let history = &session_monitor.metrics_history;
 
         if history.len() < 2 {
@@ -504,75 +526,92 @@ impl TrainingMonitor {
     }
 
     /// Check for alerts
-    async fn check_alerts(&mut self, session_monitor: &mut SessionMonitor) -> Result<()> {
-        let latest_snapshot = session_monitor
-            .metrics_history
-            .last()
-            .ok_or_else(|| anyhow::anyhow!("No metrics snapshots available"))?;
+    async fn check_alerts(&mut self, session_id: &str) -> Result<()> {
+        // Extract data we need first to avoid borrowing conflicts
+        let (latest_snapshot, convergence_rate, loss_data) = {
+            let session_uuid = session_id
+                .parse::<Uuid>()
+                .map_err(|_| anyhow::anyhow!("Invalid session ID format"))?;
+            let session_monitor = self
+                .sessions
+                .get(&session_uuid)
+                .ok_or_else(|| anyhow::anyhow!("Session monitor not found"))?;
+
+            let latest_snapshot = session_monitor
+                .metrics_history
+                .last()
+                .ok_or_else(|| anyhow::anyhow!("No metrics snapshots available"))?
+                .clone();
+
+            let convergence_rate = session_monitor.performance_indicators.convergence_rate;
+
+            let loss_data = if session_monitor.metrics_history.len() >= 2 {
+                let current_loss = latest_snapshot.metrics.loss_history.last().unwrap_or(&0.0);
+                let previous_snapshot =
+                    &session_monitor.metrics_history[session_monitor.metrics_history.len() - 2];
+                let previous_loss = previous_snapshot
+                    .metrics
+                    .loss_history
+                    .last()
+                    .unwrap_or(&0.0);
+                Some((*current_loss, *previous_loss))
+            } else {
+                None
+            };
+
+            (latest_snapshot, convergence_rate, loss_data)
+        };
 
         // Check memory usage
         if latest_snapshot.system_resources.memory_usage > self.alert_thresholds.max_memory_usage {
-            self.create_alert(
-                session_monitor,
+            let alert_message = format!(
+                "Memory usage exceeded threshold: {:.1}%",
+                latest_snapshot.system_resources.memory_usage
+            );
+            self.create_alert_by_id(
+                session_id,
                 AlertType::ResourceExhaustion,
                 AlertSeverity::High,
-                format!(
-                    "Memory usage exceeded threshold: {:.1}%",
-                    latest_snapshot.system_resources.memory_usage
-                ),
+                alert_message,
             )
             .await?;
         }
 
         // Check CPU usage
         if latest_snapshot.system_resources.cpu_usage > self.alert_thresholds.max_cpu_usage {
-            self.create_alert(
-                session_monitor,
+            let alert_message = format!(
+                "CPU usage exceeded threshold: {:.1}%",
+                latest_snapshot.system_resources.cpu_usage
+            );
+            self.create_alert_by_id(
+                session_id,
                 AlertType::ResourceExhaustion,
                 AlertSeverity::Medium,
-                format!(
-                    "CPU usage exceeded threshold: {:.1}%",
-                    latest_snapshot.system_resources.cpu_usage
-                ),
+                alert_message,
             )
             .await?;
         }
 
         // Check convergence
-        if session_monitor.performance_indicators.convergence_rate
-            < self.alert_thresholds.min_convergence_rate
-        {
-            self.create_alert(
-                session_monitor,
+        if convergence_rate < self.alert_thresholds.min_convergence_rate {
+            self.create_alert_by_id(
+                session_id,
                 AlertType::ConvergenceStall,
                 AlertSeverity::Medium,
-                format!(
-                    "Convergence rate too low: {:.4}",
-                    session_monitor.performance_indicators.convergence_rate
-                ),
+                format!("Convergence rate too low: {convergence_rate:.4}"),
             )
             .await?;
         }
 
-        // Check for loss increase
-        if session_monitor.metrics_history.len() >= 2 {
-            let current_loss = latest_snapshot.metrics.loss_history.last().unwrap_or(&0.0);
-            let previous_snapshot =
-                &session_monitor.metrics_history[session_monitor.metrics_history.len() - 2];
-            let previous_loss = previous_snapshot
-                .metrics
-                .loss_history
-                .last()
-                .unwrap_or(&0.0);
-
-            if current_loss > *previous_loss * (1.0 + self.alert_thresholds.max_loss_increase) {
-                self.create_alert(
-                    session_monitor,
+        // Check for training divergence
+        if let Some((current_loss, previous_loss)) = loss_data {
+            if current_loss > previous_loss * (1.0 + self.alert_thresholds.max_loss_increase) {
+                self.create_alert_by_id(
+                    session_id,
                     AlertType::TrainingDivergence,
                     AlertSeverity::High,
                     format!(
-                        "Loss increased significantly: {:.4} -> {:.4}",
-                        previous_loss, current_loss
+                        "Loss increased significantly: {previous_loss:.4} -> {current_loss:.4}"
                     ),
                 )
                 .await?;
@@ -582,7 +621,46 @@ impl TrainingMonitor {
         Ok(())
     }
 
-    /// Create an alert
+    /// Create an alert by session ID
+    async fn create_alert_by_id(
+        &mut self,
+        session_id: &str,
+        alert_type: AlertType,
+        severity: AlertSeverity,
+        message: String,
+    ) -> Result<()> {
+        let alert = Alert {
+            alert_id: uuid::Uuid::new_v4(),
+            timestamp: Utc::now(),
+            alert_type,
+            severity,
+            message,
+            resolved: false,
+        };
+
+        // Add alert to session monitor
+        let session_uuid = session_id.parse::<Uuid>().ok();
+        if let Some(session_uuid) = session_uuid {
+            if let Some(session_monitor) = self.sessions.get_mut(&session_uuid) {
+                session_monitor.alerts.push(alert.clone());
+            }
+        }
+
+        self.log_event(
+            MonitoringEventType::AlertTriggered,
+            session_id.parse().ok(),
+            serde_json::json!({
+                "alert_type": format!("{:?}", alert.alert_type),
+                "severity": format!("{:?}", alert.severity),
+                "message": alert.message
+            }),
+        );
+
+        tracing::warn!("🚨 Alert triggered: {}", alert.message);
+        Ok(())
+    }
+
+    /// Create an alert (legacy method)
     async fn create_alert(
         &mut self,
         session_monitor: &mut SessionMonitor,
@@ -634,8 +712,15 @@ impl TrainingMonitor {
     }
 }
 
+impl Default for ModelEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ModelEvaluator {
     /// Create a new model evaluator
+    #[must_use]
     pub fn new() -> Self {
         Self {
             metrics: HashMap::new(),
@@ -754,7 +839,7 @@ impl ModelEvaluator {
         let mut thresholds = Vec::new();
 
         for i in 0..100 {
-            let threshold = i as f64 / 100.0;
+            let threshold = f64::from(i) / 100.0;
             thresholds.push(threshold);
             fpr.push(threshold * 0.3 + rand::random::<f64>() * 0.1);
             tpr.push(threshold * 0.8 + rand::random::<f64>() * 0.1);
@@ -780,7 +865,7 @@ impl ModelEvaluator {
     ) -> Result<Vec<FeatureImportance>> {
         let mut importance_scores = Vec::new();
 
-        for (_i, feature_name) in _test_data.metadata.feature_names.iter().enumerate() {
+        for feature_name in _test_data.metadata.feature_names.iter() {
             let importance = rand::random::<f64>() * 0.5 + 0.1; // Random importance score
             importance_scores.push((feature_name.clone(), importance));
         }
@@ -802,8 +887,15 @@ impl ModelEvaluator {
     }
 }
 
+impl Default for TrainingVisualizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TrainingVisualizer {
     /// Create a new training visualizer
+    #[must_use]
     pub fn new() -> Self {
         Self {
             plots: HashMap::new(),
@@ -817,7 +909,7 @@ impl TrainingVisualizer {
         session_id: uuid::Uuid,
         metrics: &TrainingMetrics,
     ) -> String {
-        let plot_id = format!("loss_curve_{}", session_id);
+        let plot_id = format!("loss_curve_{session_id}");
 
         let plot = PlotData {
             plot_id: plot_id.clone(),
@@ -839,7 +931,7 @@ impl TrainingVisualizer {
         session_id: uuid::Uuid,
         metrics: &TrainingMetrics,
     ) -> String {
-        let plot_id = format!("accuracy_curve_{}", session_id);
+        let plot_id = format!("accuracy_curve_{session_id}");
 
         let plot = PlotData {
             plot_id: plot_id.clone(),
@@ -863,7 +955,7 @@ impl TrainingVisualizer {
         session_id: uuid::Uuid,
         metrics: &TrainingMetrics,
     ) -> String {
-        let plot_id = format!("lr_schedule_{}", session_id);
+        let plot_id = format!("lr_schedule_{session_id}");
 
         let plot = PlotData {
             plot_id: plot_id.clone(),
@@ -887,7 +979,7 @@ impl TrainingVisualizer {
         session_id: uuid::Uuid,
         snapshots: &[MetricsSnapshot],
     ) -> String {
-        let chart_id = format!("resources_{}", session_id);
+        let chart_id = format!("resources_{session_id}");
 
         let cpu_data: Vec<f64> = snapshots
             .iter()
@@ -921,11 +1013,13 @@ impl TrainingVisualizer {
     }
 
     /// Get plot data
+    #[must_use]
     pub fn get_plot(&self, plot_id: &str) -> Option<&PlotData> {
         self.plots.get(plot_id)
     }
 
     /// Get chart data
+    #[must_use]
     pub fn get_chart(&self, chart_id: &str) -> Option<&ChartData> {
         self.charts.get(chart_id)
     }

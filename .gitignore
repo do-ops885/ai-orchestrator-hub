@@ -43,3 +43,9 @@ coverage/
 # Misc
 *.tgz
 *.bak
+
+# Directories for data storage
+monitoring/*
+training/*
+!monitoring/.gitkeep
+!training/.gitkeep

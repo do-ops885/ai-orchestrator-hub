@@ -36,7 +36,14 @@ pub struct AgentDiscovery {
     last_discovery: Arc<RwLock<DateTime<Utc>>>,
 }
 
+impl Default for AgentDiscovery {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AgentDiscovery {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             agents: Arc::new(RwLock::new(HashMap::new())),
@@ -54,7 +61,14 @@ pub struct HealthMonitor {
     health_history: Arc<RwLock<Vec<HealthSnapshot>>>,
 }
 
+impl Default for HealthMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HealthMonitor {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             agent_health: Arc::new(RwLock::new(HashMap::new())),
@@ -83,6 +97,7 @@ pub struct PerformanceMonitor {
 }
 
 impl PerformanceMonitor {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             agent_performance: Arc::new(RwLock::new(HashMap::new())),
@@ -118,11 +133,10 @@ impl PerformanceMonitor {
             overall_score,
             average_response_time_ms: system_performance.average_response_time_ms,
             throughput_tasks_per_second: system_performance.throughput_tasks_per_second,
-            resource_utilization_percent: (system_performance
-                .resource_utilization
-                .cpu_usage_percent
-                + system_performance.resource_utilization.memory_usage_percent)
-                / 2.0,
+            resource_utilization_percent: f64::midpoint(
+                system_performance.resource_utilization.cpu_usage_percent,
+                system_performance.resource_utilization.memory_usage_percent,
+            ),
         })
     }
 
@@ -1111,11 +1125,10 @@ impl AgentMonitor {
             overall_score: Self::calculate_performance_score(&system_performance).await,
             average_response_time_ms: system_performance.average_response_time_ms,
             throughput_tasks_per_second: system_performance.throughput_tasks_per_second,
-            resource_utilization_percent: (system_performance
-                .resource_utilization
-                .cpu_usage_percent
-                + system_performance.resource_utilization.memory_usage_percent)
-                / 2.0,
+            resource_utilization_percent: f64::midpoint(
+                system_performance.resource_utilization.cpu_usage_percent,
+                system_performance.resource_utilization.memory_usage_percent,
+            ),
         })
     }
 
@@ -1209,7 +1222,7 @@ impl AgentMonitor {
             change_percent: -10.0 + rand::random::<f64>() * 20.0,
             period_hours: hours,
             data_points: (0..24)
-                .map(|i| (i as f64, 100.0 + rand::random::<f64>() * 50.0))
+                .map(|i| (f64::from(i), 100.0 + rand::random::<f64>() * 50.0))
                 .collect(),
         })
     }
@@ -1239,7 +1252,14 @@ pub enum TrendDirection {
     Stable,
 }
 
+impl Default for BehaviorAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BehaviorAnalyzer {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             communication_patterns: Arc::new(RwLock::new(HashMap::new())),
@@ -1584,7 +1604,14 @@ impl BehaviorAnalyzer {
     }
 }
 
+impl Default for Dashboard {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Dashboard {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             widgets: Arc::new(RwLock::new(Vec::new())),
@@ -1720,7 +1747,7 @@ impl Dashboard {
             Ok(())
         } else {
             Err(HiveError::NotFound {
-                resource: format!("Widget {}", widget_id),
+                resource: format!("Widget {widget_id}"),
             })
         }
     }
@@ -1756,7 +1783,7 @@ impl Dashboard {
                 .iter()
                 .find(|w| w.id == widget_id)
                 .ok_or_else(|| HiveError::NotFound {
-                    resource: format!("Widget {}", widget_id),
+                    resource: format!("Widget {widget_id}"),
                 })?;
 
         match widget.widget_type {
@@ -1944,7 +1971,14 @@ pub struct DashboardAlertRule {
     pub severity: String,
 }
 
+impl Default for Diagnostics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Diagnostics {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             agent_diagnostics: Arc::new(RwLock::new(HashMap::new())),
@@ -2001,7 +2035,7 @@ impl Diagnostics {
                 } else {
                     "INFO".to_string()
                 },
-                message: format!("Agent {} log message {}", agent_id, i),
+                message: format!("Agent {agent_id} log message {i}"),
                 source: "agent_core".to_string(),
             });
         }
@@ -2092,7 +2126,7 @@ impl Diagnostics {
         let components = vec!["database", "cache", "network"];
 
         for component_name in components {
-            let health_score = std::env::var(&format!(
+            let health_score = std::env::var(format!(
                 "MONITORING_{}_HEALTH_SCORE",
                 component_name.to_uppercase()
             ))
@@ -2233,7 +2267,7 @@ impl Diagnostics {
     ) -> HiveResult<LogAnalysis> {
         // Simulate log analysis
         let now = Utc::now();
-        let start_time = now - chrono::Duration::hours(time_range_hours as i64);
+        let start_time = now - chrono::Duration::hours(i64::from(time_range_hours));
 
         Ok(LogAnalysis {
             time_range: (start_time, now),
@@ -2291,7 +2325,7 @@ impl Diagnostics {
             let agent_diagnostics = self.agent_diagnostics.read().await;
             for (agent_id, diagnostics) in agent_diagnostics.iter() {
                 sections.push(DiagnosticSection {
-                    title: format!("Agent {} Diagnostics", agent_id),
+                    title: format!("Agent {agent_id} Diagnostics"),
                     content: format!(
                         "Performance bottlenecks: {}",
                         diagnostics.performance_profile.bottlenecks.len()
@@ -2336,7 +2370,7 @@ impl Diagnostics {
         let log = DiagnosticLog {
             timestamp: Utc::now(),
             level: "INFO".to_string(),
-            message: format!("Agent {} lifecycle event: {:?}", agent_id, event),
+            message: format!("Agent {agent_id} lifecycle event: {event:?}"),
             source: "lifecycle_monitor".to_string(),
         };
 
@@ -2386,7 +2420,14 @@ pub struct ConfigurationValidation {
     pub last_validated: DateTime<Utc>,
 }
 
+impl Default for Reporting {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Reporting {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             reports: Arc::new(RwLock::new(Vec::new())),
@@ -2398,7 +2439,7 @@ impl Reporting {
     pub async fn generate_health_report(&self, period_hours: u32) -> HiveResult<MonitoringReport> {
         let report_id = Uuid::new_v4();
         let now = Utc::now();
-        let period_start = now - chrono::Duration::hours(period_hours as i64);
+        let period_start = now - chrono::Duration::hours(i64::from(period_hours));
 
         let summary = ReportSummary {
             overall_score: 0.85, // Would be calculated from actual data
@@ -2449,7 +2490,7 @@ impl Reporting {
         let report = MonitoringReport {
             id: report_id,
             report_type: ReportType::Health,
-            title: format!("Health Report - Last {} Hours", period_hours),
+            title: format!("Health Report - Last {period_hours} Hours"),
             generated_at: now,
             period_start,
             period_end: now,
@@ -2471,7 +2512,7 @@ impl Reporting {
     ) -> HiveResult<MonitoringReport> {
         let report_id = Uuid::new_v4();
         let now = Utc::now();
-        let period_start = now - chrono::Duration::hours(period_hours as i64);
+        let period_start = now - chrono::Duration::hours(i64::from(period_hours));
 
         let summary = ReportSummary {
             overall_score: 0.88,
@@ -2521,7 +2562,7 @@ impl Reporting {
         let report = MonitoringReport {
             id: report_id,
             report_type: ReportType::Performance,
-            title: format!("Performance Report - Last {} Hours", period_hours),
+            title: format!("Performance Report - Last {period_hours} Hours"),
             generated_at: now,
             period_start,
             period_end: now,
@@ -2542,7 +2583,7 @@ impl Reporting {
     ) -> HiveResult<MonitoringReport> {
         let report_id = Uuid::new_v4();
         let now = Utc::now();
-        let period_start = now - chrono::Duration::hours(period_hours as i64);
+        let period_start = now - chrono::Duration::hours(i64::from(period_hours));
 
         let summary = ReportSummary {
             overall_score: 0.82,
@@ -2600,7 +2641,7 @@ impl Reporting {
         let report = MonitoringReport {
             id: report_id,
             report_type: ReportType::Behavior,
-            title: format!("Behavior Report - Last {} Hours", period_hours),
+            title: format!("Behavior Report - Last {period_hours} Hours"),
             generated_at: now,
             period_start,
             period_end: now,
@@ -2621,7 +2662,7 @@ impl Reporting {
     ) -> HiveResult<MonitoringReport> {
         let report_id = Uuid::new_v4();
         let now = Utc::now();
-        let period_start = now - chrono::Duration::hours(period_hours as i64);
+        let period_start = now - chrono::Duration::hours(i64::from(period_hours));
 
         let summary = ReportSummary {
             overall_score: 0.85,
@@ -2697,10 +2738,7 @@ impl Reporting {
         let report = MonitoringReport {
             id: report_id,
             report_type: ReportType::Compliance,
-            title: format!(
-                "Comprehensive Monitoring Report - Last {} Hours",
-                period_hours
-            ),
+            title: format!("Comprehensive Monitoring Report - Last {period_hours} Hours"),
             generated_at: now,
             period_start,
             period_end: now,
@@ -2743,7 +2781,7 @@ impl Reporting {
     /// Delete old reports
     pub async fn cleanup_old_reports(&self, max_age_days: u32) -> HiveResult<usize> {
         let mut reports = self.reports.write().await;
-        let cutoff_date = Utc::now() - chrono::Duration::days(max_age_days as i64);
+        let cutoff_date = Utc::now() - chrono::Duration::days(i64::from(max_age_days));
         let initial_count = reports.len();
 
         reports.retain(|report| report.generated_at > cutoff_date);
@@ -2777,7 +2815,7 @@ impl Reporting {
         let template = templates
             .get(template_name)
             .ok_or_else(|| HiveError::NotFound {
-                resource: format!("Report template {}", template_name),
+                resource: format!("Report template {template_name}"),
             })?;
 
         // Generate report based on template
@@ -2799,7 +2837,7 @@ impl Reporting {
             .get_report(report_id)
             .await?
             .ok_or_else(|| HiveError::NotFound {
-                resource: format!("Report {}", report_id),
+                resource: format!("Report {report_id}"),
             })?;
 
         let export_data = serde_json::json!({
@@ -2862,7 +2900,14 @@ pub struct ReportingStats {
     pub average_generation_time_ms: f64,
 }
 
+impl Default for Automation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Automation {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             tasks: Arc::new(RwLock::new(Vec::new())),
@@ -3215,7 +3260,14 @@ pub struct AutomationStats {
     pub enabled_schedules: usize,
 }
 
+impl Default for Integration {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Integration {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             integrations: Arc::new(RwLock::new(HashMap::new())),
@@ -3364,7 +3416,7 @@ impl Integration {
         let integration = ExternalIntegration {
             name: "email".to_string(),
             integration_type: IntegrationType::Email,
-            endpoint: format!("{}:{}", smtp_server, smtp_port),
+            endpoint: format!("{smtp_server}:{smtp_port}"),
             config: {
                 let mut config = HashMap::new();
                 config.insert("username".to_string(), username.to_string());
@@ -3395,16 +3447,15 @@ impl Integration {
         let mut prometheus_output = String::new();
 
         // System metrics
-        let system_metrics = match agent_monitor
+        let system_metrics = if let Ok(metrics) = agent_monitor
             .metrics_collector
             .collect_system_metrics()
             .await
         {
-            Ok(metrics) => metrics,
-            Err(_) => {
-                println!("📊 Failed to collect system metrics");
-                return Ok(String::new());
-            }
+            metrics
+        } else {
+            println!("📊 Failed to collect system metrics");
+            return Ok(String::new());
         };
         prometheus_output
             .push_str("# HELP ai_orchestrator_system_health Overall system health score\n");
@@ -3540,7 +3591,7 @@ impl Integration {
         let sanitized_title = alert.title.chars().take(100).collect::<String>();
         let sanitized_description = alert.description.chars().take(1000).collect::<String>();
 
-        let subject = format!("AI Orchestrator Alert: {}", sanitized_title);
+        let subject = format!("AI Orchestrator Alert: {sanitized_title}");
         let _body = format!(
             "Alert Level: {:?}\n\n{}\n\nTime: {}\n\nThis is an automated message from the AI Orchestrator monitoring system.",
             alert.level, sanitized_description, alert.timestamp.to_rfc3339()
@@ -3716,7 +3767,7 @@ impl Integration {
             })
         } else {
             Err(HiveError::NotFound {
-                resource: format!("Integration {}", integration_name),
+                resource: format!("Integration {integration_name}"),
             })
         }
     }

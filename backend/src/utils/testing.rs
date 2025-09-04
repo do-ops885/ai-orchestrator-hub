@@ -48,7 +48,7 @@ impl TestHarness {
                 0 => AgentType::Worker,
                 1 => AgentType::Coordinator,
                 2 => AgentType::Learner,
-                _ => AgentType::Specialist(format!("test_specialist_{}", i)),
+                _ => AgentType::Specialist(format!("test_specialist_{i}")),
             };
 
             let payload = json!({
@@ -192,7 +192,10 @@ impl TestHarness {
 
         // Check metrics consistency
         if let Some(metrics) = status.get("metrics") {
-            if let Some(total_agents) = metrics.get("total_agents").and_then(|ta| ta.as_u64()) {
+            if let Some(total_agents) = metrics
+                .get("total_agents")
+                .and_then(serde_json::Value::as_u64)
+            {
                 if total_agents as usize == report.total_agents {
                     report.metrics_consistent = true;
                 }
@@ -248,40 +251,41 @@ pub struct ConsistencyReport {
 
 impl LoadTestResults {
     /// Calculate performance statistics
+    #[must_use]
     pub fn calculate_stats(&self) -> LoadTestStats {
         let total_operations = self.agents_created + self.tasks_created;
         let total_failures = self.agent_creation_failures + self.task_creation_failures;
 
         let success_rate = if total_operations + total_failures > 0 {
-            total_operations as f64 / (total_operations + total_failures) as f64
+            f64::from(total_operations) / f64::from(total_operations + total_failures)
         } else {
             0.0
         };
 
         let ops_per_second = if self.duration_secs > 0 {
-            total_operations as f64 / self.duration_secs as f64
+            f64::from(total_operations) / self.duration_secs as f64
         } else {
             0.0
         };
 
-        let avg_cpu = if !self.performance_samples.is_empty() {
+        let avg_cpu = if self.performance_samples.is_empty() {
+            0.0
+        } else {
             self.performance_samples
                 .iter()
                 .map(|s| s.cpu_usage)
                 .sum::<f64>()
                 / self.performance_samples.len() as f64
-        } else {
-            0.0
         };
 
-        let avg_memory = if !self.performance_samples.is_empty() {
+        let avg_memory = if self.performance_samples.is_empty() {
+            0.0
+        } else {
             self.performance_samples
                 .iter()
                 .map(|s| s.memory_usage)
                 .sum::<f64>()
                 / self.performance_samples.len() as f64
-        } else {
-            0.0
         };
 
         LoadTestStats {

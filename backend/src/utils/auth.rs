@@ -54,6 +54,7 @@ pub enum Role {
 
 impl Role {
     /// Get all permissions for a role
+    #[must_use]
     pub fn permissions(&self) -> Vec<Permission> {
         match self {
             Role::SuperAdmin => vec![
@@ -166,6 +167,7 @@ pub struct AuthManager {
 
 impl AuthManager {
     /// Create a new authentication manager
+    #[must_use]
     pub fn new(
         jwt_secret: &str,
         issuer: String,
@@ -228,8 +230,8 @@ impl AuthManager {
             iat: now.timestamp() as usize,
             iss: self.issuer.clone(),
             aud: self.audience.clone(),
-            roles: roles.iter().map(|r| format!("{:?}", r)).collect(),
-            permissions: permissions.iter().map(|p| format!("{:?}", p)).collect(),
+            roles: roles.iter().map(|r| format!("{r:?}")).collect(),
+            permissions: permissions.iter().map(|p| format!("{p:?}")).collect(),
             session_id: session_id.clone(),
             client_type,
         };
@@ -237,7 +239,7 @@ impl AuthManager {
         // Generate JWT token
         let token = encode(&Header::default(), &claims, &self.encoding_key).map_err(|e| {
             HiveError::AuthenticationError {
-                reason: format!("Failed to generate JWT: {}", e),
+                reason: format!("Failed to generate JWT: {e}"),
             }
         })?;
 
@@ -260,7 +262,7 @@ impl AuthManager {
 
         let token_data = decode::<Claims>(token, &self.decoding_key, &validation).map_err(|e| {
             HiveError::AuthenticationError {
-                reason: format!("Invalid JWT token: {}", e),
+                reason: format!("Invalid JWT token: {e}"),
             }
         })?;
 
@@ -331,11 +333,11 @@ impl AuthManager {
             iat: now.timestamp() as usize,
             iss: self.issuer.clone(),
             aud: self.audience.clone(),
-            roles: session.roles.iter().map(|r| format!("{:?}", r)).collect(),
+            roles: session.roles.iter().map(|r| format!("{r:?}")).collect(),
             permissions: session
                 .permissions
                 .iter()
-                .map(|p| format!("{:?}", p))
+                .map(|p| format!("{p:?}"))
                 .collect(),
             session_id: session.session_id.clone(),
             client_type: session.client_type.clone(),
@@ -344,7 +346,7 @@ impl AuthManager {
         // Generate new JWT token
         let token = encode(&Header::default(), &claims, &self.encoding_key).map_err(|e| {
             HiveError::AuthenticationError {
-                reason: format!("Failed to generate JWT: {}", e),
+                reason: format!("Failed to generate JWT: {e}"),
             }
         })?;
 
@@ -477,10 +479,10 @@ impl AuthManager {
         }
 
         // Check for admin endpoints
-        if endpoint.contains("/admin") || endpoint.contains("/system") {
-            if threat_level == ThreatLevel::Low {
-                threat_level = ThreatLevel::Medium;
-            }
+        if (endpoint.contains("/admin") || endpoint.contains("/system"))
+            && threat_level == ThreatLevel::Low
+        {
+            threat_level = ThreatLevel::Medium;
         }
 
         Ok(SecurityResult {
@@ -516,27 +518,25 @@ pub async fn auth_middleware(
                 .and_then(|h| h.to_str().ok())
                 .and_then(|h| h.strip_prefix("Bearer "));
 
-            let token = match auth_header {
-                Some(token) => token,
-                None => {
-                    // Check for API key
-                    if let Some(api_key) =
-                        req.headers().get("X-API-Key").and_then(|h| h.to_str().ok())
-                    {
-                        match auth_manager.validate_api_key(api_key).await {
-                            Ok(permissions) => {
-                                if let Some(required) = &required_permission {
-                                    if !permissions.contains(required) {
-                                        return Err(axum::http::StatusCode::FORBIDDEN);
-                                    }
+            let token = if let Some(token) = auth_header {
+                token
+            } else {
+                // Check for API key
+                if let Some(api_key) = req.headers().get("X-API-Key").and_then(|h| h.to_str().ok())
+                {
+                    match auth_manager.validate_api_key(api_key).await {
+                        Ok(permissions) => {
+                            if let Some(required) = &required_permission {
+                                if !permissions.contains(required) {
+                                    return Err(axum::http::StatusCode::FORBIDDEN);
                                 }
-                                return Ok(next.run(req).await);
                             }
-                            Err(_) => return Err(axum::http::StatusCode::UNAUTHORIZED),
+                            return Ok(next.run(req).await);
                         }
+                        Err(_) => return Err(axum::http::StatusCode::UNAUTHORIZED),
                     }
-                    return Err(axum::http::StatusCode::UNAUTHORIZED);
                 }
+                return Err(axum::http::StatusCode::UNAUTHORIZED);
             };
 
             // Validate JWT token

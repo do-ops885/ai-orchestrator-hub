@@ -65,7 +65,14 @@ pub struct TaskQueue {
     pub failed_tasks: Vec<TaskResult>,
 }
 
+impl Default for TaskQueue {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskQueue {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             pending_tasks: VecDeque::new(),
@@ -116,26 +123,32 @@ impl TaskQueue {
         }
     }
 
+    #[must_use]
     pub fn get_task_by_agent(&self, agent_id: &Uuid) -> Option<&Task> {
         self.assigned_tasks.get(agent_id)
     }
 
+    #[must_use]
     pub fn get_pending_count(&self) -> usize {
         self.pending_tasks.len()
     }
 
+    #[must_use]
     pub fn get_assigned_count(&self) -> usize {
         self.assigned_tasks.len()
     }
 
+    #[must_use]
     pub fn get_completed_count(&self) -> usize {
         self.completed_tasks.len()
     }
 
+    #[must_use]
     pub fn get_failed_count(&self) -> usize {
         self.failed_tasks.len()
     }
 
+    #[must_use]
     pub fn find_suitable_tasks(
         &self,
         capabilities: &[crate::agents::AgentCapability],
@@ -155,6 +168,7 @@ impl TaskQueue {
 }
 
 impl Task {
+    #[must_use]
     pub fn new(
         title: String,
         description: String,
@@ -181,26 +195,31 @@ impl Task {
         }
     }
 
+    #[must_use]
     pub fn with_deadline(mut self, deadline: DateTime<Utc>) -> Self {
         self.deadline = Some(deadline);
         self
     }
 
+    #[must_use]
     pub fn with_duration(mut self, duration_seconds: u64) -> Self {
         self.estimated_duration = Some(duration_seconds);
         self
     }
 
+    #[must_use]
     pub fn with_context(mut self, key: String, value: String) -> Self {
         self.context.insert(key, value);
         self
     }
 
+    #[must_use]
     pub fn with_dependencies(mut self, dependencies: Vec<Uuid>) -> Self {
         self.dependencies = dependencies;
         self
     }
 
+    #[must_use]
     pub fn is_ready_to_execute(&self, completed_tasks: &[TaskResult]) -> bool {
         if self.dependencies.is_empty() {
             return true;
@@ -219,6 +238,7 @@ impl Task {
 }
 
 impl TaskResult {
+    #[must_use]
     pub fn success(task_id: Uuid, agent_id: Uuid, output: String, execution_time: u64) -> Self {
         Self {
             task_id,
@@ -233,6 +253,7 @@ impl TaskResult {
         }
     }
 
+    #[must_use]
     pub fn failure(
         task_id: Uuid,
         agent_id: Uuid,
@@ -252,11 +273,13 @@ impl TaskResult {
         }
     }
 
+    #[must_use]
     pub fn with_quality_score(mut self, score: f64) -> Self {
         self.quality_score = Some(score.clamp(0.0, 1.0));
         self
     }
 
+    #[must_use]
     pub fn with_insights(mut self, insights: Vec<String>) -> Self {
         self.learned_insights = insights;
         self

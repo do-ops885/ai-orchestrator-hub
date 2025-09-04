@@ -1,5 +1,9 @@
 #![allow(unsafe_code)]
-use std::arch::x86_64::*;
+use std::arch::x86_64::{
+    _mm256_add_ps, _mm256_castps256_ps128, _mm256_extractf128_ps, _mm256_loadu_ps, _mm256_mul_ps,
+    _mm256_setzero_ps, _mm256_storeu_ps, _mm_add_ps, _mm_add_ss, _mm_cvtss_f32, _mm_loadu_ps,
+    _mm_movehl_ps, _mm_mul_ps, _mm_setzero_ps, _mm_shuffle_ps,
+};
 
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
@@ -23,7 +27,14 @@ pub struct SimdSupport {
     pub neon: bool,
 }
 
+impl Default for CpuOptimizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CpuOptimizer {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             simd_support: Self::detect_simd_support(),
@@ -102,6 +113,7 @@ pub struct VectorizedOps;
 #[allow(dead_code)]
 impl VectorizedOps {
     /// Compute dot product using optimal SIMD instructions
+    #[must_use]
     pub fn dot_product(a: &[f32], b: &[f32]) -> f32 {
         assert_eq!(a.len(), b.len());
 
@@ -125,7 +137,7 @@ impl VectorizedOps {
         Self::dot_product_scalar(a, b)
     }
 
-    /// AVX2 optimized dot product (x86_64)
+    /// AVX2 optimized dot product (`x86_64`)
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
     unsafe fn dot_product_avx2(a: &[f32], b: &[f32]) -> f32 {
@@ -160,7 +172,7 @@ impl VectorizedOps {
         result
     }
 
-    /// SSE optimized dot product (x86_64)
+    /// SSE optimized dot product (`x86_64`)
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "sse4.1")]
     unsafe fn dot_product_sse(a: &[f32], b: &[f32]) -> f32 {
@@ -228,6 +240,7 @@ impl VectorizedOps {
     }
 
     /// Vectorized cosine similarity
+    #[must_use]
     pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
         let dot = Self::dot_product(a, b);
         let norm_a = Self::vector_norm(a);
@@ -241,6 +254,7 @@ impl VectorizedOps {
     }
 
     /// Vectorized L2 norm calculation
+    #[must_use]
     pub fn vector_norm(v: &[f32]) -> f32 {
         Self::dot_product(v, v).sqrt()
     }
@@ -320,6 +334,7 @@ pub struct QuantizedOps;
 #[allow(dead_code)]
 impl QuantizedOps {
     /// Convert f32 weights to 8-bit quantized representation
+    #[must_use]
     pub fn quantize_weights(weights: &[f32]) -> QuantizedWeights {
         let min_val = weights.iter().fold(f32::INFINITY, |a, &b| a.min(b));
         let max_val = weights.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
@@ -329,7 +344,7 @@ impl QuantizedOps {
 
         let quantized: Vec<u8> = weights
             .iter()
-            .map(|&w| ((w / scale).round() as i32 + zero_point as i32).clamp(0, 255) as u8)
+            .map(|&w| ((w / scale).round() as i32 + i32::from(zero_point)).clamp(0, 255) as u8)
             .collect();
 
         QuantizedWeights {
@@ -356,12 +371,12 @@ impl QuantizedOps {
 
             for col in 0..cols {
                 let weight_idx = row * cols + col;
-                let weight_q = weights.data[weight_idx] as i32;
+                let weight_q = i32::from(weights.data[weight_idx]);
                 let input_q =
-                    (input[col] / weights.scale).round() as i32 + weights.zero_point as i32;
+                    (input[col] / weights.scale).round() as i32 + i32::from(weights.zero_point);
 
-                sum +=
-                    (weight_q - weights.zero_point as i32) * (input_q - weights.zero_point as i32);
+                sum += (weight_q - i32::from(weights.zero_point))
+                    * (input_q - i32::from(weights.zero_point));
             }
 
             output[row] = sum as f32 * weights.scale * weights.scale;
@@ -369,6 +384,7 @@ impl QuantizedOps {
     }
 
     /// 16-bit quantization for higher precision
+    #[must_use]
     pub fn quantize_weights_16bit(weights: &[f32]) -> QuantizedWeights16 {
         let min_val = weights.iter().fold(f32::INFINITY, |a, &b| a.min(b));
         let max_val = weights.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
@@ -378,7 +394,7 @@ impl QuantizedOps {
 
         let quantized: Vec<u16> = weights
             .iter()
-            .map(|&w| ((w / scale).round() as i32 + zero_point as i32).clamp(0, 65535) as u16)
+            .map(|&w| ((w / scale).round() as i32 + i32::from(zero_point)).clamp(0, 65535) as u16)
             .collect();
 
         QuantizedWeights16 {
@@ -449,19 +465,19 @@ impl CacheOptimizedOps {
         unsafe {
             match locality {
                 0 => std::arch::x86_64::_mm_prefetch(
-                    ptr as *const i8,
+                    ptr.cast::<i8>(),
                     std::arch::x86_64::_MM_HINT_NTA,
                 ),
                 1 => std::arch::x86_64::_mm_prefetch(
-                    ptr as *const i8,
+                    ptr.cast::<i8>(),
                     std::arch::x86_64::_MM_HINT_T2,
                 ),
                 2 => std::arch::x86_64::_mm_prefetch(
-                    ptr as *const i8,
+                    ptr.cast::<i8>(),
                     std::arch::x86_64::_MM_HINT_T1,
                 ),
                 3 => std::arch::x86_64::_mm_prefetch(
-                    ptr as *const i8,
+                    ptr.cast::<i8>(),
                     std::arch::x86_64::_MM_HINT_T0,
                 ),
                 _ => {}
@@ -476,6 +492,7 @@ pub struct CpuBenchmark;
 
 #[allow(dead_code)]
 impl CpuBenchmark {
+    #[must_use]
     pub fn benchmark_dot_product(size: usize, iterations: usize) -> f64 {
         let a: Vec<f32> = (0..size).map(|i| i as f32).collect();
         let b: Vec<f32> = (0..size).map(|i| (i * 2) as f32).collect();
@@ -490,6 +507,7 @@ impl CpuBenchmark {
         elapsed.as_secs_f64() / iterations as f64
     }
 
+    #[must_use]
     pub fn benchmark_quantization(size: usize, iterations: usize) -> f64 {
         let weights: Vec<f32> = (0..size)
             .map(|i| (i as f32 - size as f32 / 2.0) / 100.0)
@@ -505,6 +523,7 @@ impl CpuBenchmark {
         elapsed.as_secs_f64() / iterations as f64
     }
 
+    #[must_use]
     pub fn run_comprehensive_benchmark() -> BenchmarkResults {
         println!("🚀 Running CPU Optimization Benchmarks...");
 
@@ -578,7 +597,7 @@ impl BenchmarkResults {
             "1x (Scalar)"
         };
 
-        println!("\n⚡ Estimated Speedup: {}", estimated_speedup);
+        println!("\n⚡ Estimated Speedup: {estimated_speedup}");
     }
 }
 

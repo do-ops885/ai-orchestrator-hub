@@ -263,11 +263,11 @@ impl HiveConfig {
     pub fn from_file<P: AsRef<Path>>(path: P) -> HiveResult<Self> {
         let content =
             fs::read_to_string(path.as_ref()).map_err(|e| HiveError::ConfigurationError {
-                reason: format!("Failed to read config file: {}", e),
+                reason: format!("Failed to read config file: {e}"),
             })?;
 
         let config: Self = toml::from_str(&content).map_err(|e| HiveError::ConfigurationError {
-            reason: format!("Failed to parse config file: {}", e),
+            reason: format!("Failed to parse config file: {e}"),
         })?;
 
         config.validate()?;
@@ -289,7 +289,7 @@ impl HiveConfig {
         }
 
         // Load environment-specific settings
-        let env_path_str = format!("settings/{}.toml", environment);
+        let env_path_str = format!("settings/{environment}.toml");
         let env_path = Path::new(&env_path_str);
         if env_path.exists() {
             let env_config = Self::from_file(env_path)?;
@@ -333,40 +333,40 @@ impl HiveConfig {
 
     fn merge_server_config(base: ServerConfig, override_config: ServerConfig) -> ServerConfig {
         ServerConfig {
-            host: if override_config.host != "0.0.0.0" {
-                override_config.host
-            } else {
+            host: if override_config.host == "0.0.0.0" {
                 base.host
-            },
-            port: if override_config.port != 3001 {
-                override_config.port
             } else {
+                override_config.host
+            },
+            port: if override_config.port == 3001 {
                 base.port
-            },
-            cors_origins: if !override_config.cors_origins.is_empty() {
-                override_config.cors_origins
             } else {
+                override_config.port
+            },
+            cors_origins: if override_config.cors_origins.is_empty() {
                 base.cors_origins
-            },
-            websocket_timeout_secs: if override_config.websocket_timeout_secs != 300 {
-                override_config.websocket_timeout_secs
             } else {
+                override_config.cors_origins
+            },
+            websocket_timeout_secs: if override_config.websocket_timeout_secs == 300 {
                 base.websocket_timeout_secs
-            },
-            max_connections: if override_config.max_connections != 1000 {
-                override_config.max_connections
             } else {
+                override_config.websocket_timeout_secs
+            },
+            max_connections: if override_config.max_connections == 1000 {
                 base.max_connections
+            } else {
+                override_config.max_connections
             },
         }
     }
 
     fn merge_agent_config(base: AgentConfig, override_config: AgentConfig) -> AgentConfig {
         AgentConfig {
-            max_agents: if override_config.max_agents != 100 {
-                override_config.max_agents
-            } else {
+            max_agents: if override_config.max_agents == 100 {
                 base.max_agents
+            } else {
+                override_config.max_agents
             },
             default_energy: if (override_config.default_energy - 100.0).abs() > f64::EPSILON {
                 override_config.default_energy
@@ -383,35 +383,35 @@ impl HiveConfig {
             } else {
                 base.learning_rate
             },
-            max_memory_size: if override_config.max_memory_size != 1000 {
-                override_config.max_memory_size
-            } else {
+            max_memory_size: if override_config.max_memory_size == 1000 {
                 base.max_memory_size
+            } else {
+                override_config.max_memory_size
             },
         }
     }
 
     fn merge_task_config(base: TaskConfig, override_config: TaskConfig) -> TaskConfig {
         TaskConfig {
-            max_concurrent_tasks: if override_config.max_concurrent_tasks != 50 {
-                override_config.max_concurrent_tasks
-            } else {
+            max_concurrent_tasks: if override_config.max_concurrent_tasks == 50 {
                 base.max_concurrent_tasks
-            },
-            task_timeout_secs: if override_config.task_timeout_secs != 300 {
-                override_config.task_timeout_secs
             } else {
+                override_config.max_concurrent_tasks
+            },
+            task_timeout_secs: if override_config.task_timeout_secs == 300 {
                 base.task_timeout_secs
-            },
-            retry_attempts: if override_config.retry_attempts != 3 {
-                override_config.retry_attempts
             } else {
+                override_config.task_timeout_secs
+            },
+            retry_attempts: if override_config.retry_attempts == 3 {
                 base.retry_attempts
-            },
-            priority_levels: if override_config.priority_levels != 4 {
-                override_config.priority_levels
             } else {
+                override_config.retry_attempts
+            },
+            priority_levels: if override_config.priority_levels == 4 {
                 base.priority_levels
+            } else {
+                override_config.priority_levels
             },
         }
     }
@@ -432,10 +432,10 @@ impl HiveConfig {
                 base.memory_threshold
             },
             auto_scaling_enabled: override_config.auto_scaling_enabled, // Always use override value
-            monitoring_interval_secs: if override_config.monitoring_interval_secs != 30 {
-                override_config.monitoring_interval_secs
-            } else {
+            monitoring_interval_secs: if override_config.monitoring_interval_secs == 30 {
                 base.monitoring_interval_secs
+            } else {
+                override_config.monitoring_interval_secs
             },
         }
     }
@@ -443,41 +443,41 @@ impl HiveConfig {
     fn merge_neural_config(base: NeuralConfig, override_config: NeuralConfig) -> NeuralConfig {
         NeuralConfig {
             enable_advanced_neural: override_config.enable_advanced_neural,
-            batch_size: if override_config.batch_size != 32 {
-                override_config.batch_size
-            } else {
+            batch_size: if override_config.batch_size == 32 {
                 base.batch_size
+            } else {
+                override_config.batch_size
             },
             learning_rate: if (override_config.learning_rate - 0.001).abs() > f64::EPSILON {
                 override_config.learning_rate
             } else {
                 base.learning_rate
             },
-            max_iterations: if override_config.max_iterations != 1000 {
-                override_config.max_iterations
-            } else {
+            max_iterations: if override_config.max_iterations == 1000 {
                 base.max_iterations
+            } else {
+                override_config.max_iterations
             },
         }
     }
 
     fn merge_logging_config(base: LoggingConfig, override_config: LoggingConfig) -> LoggingConfig {
         LoggingConfig {
-            level: if override_config.level != "info" {
-                override_config.level
-            } else {
+            level: if override_config.level == "info" {
                 base.level
-            },
-            format: if override_config.format != "json" {
-                override_config.format
             } else {
+                override_config.level
+            },
+            format: if override_config.format == "json" {
                 base.format
+            } else {
+                override_config.format
             },
             file_path: override_config.file_path.or(base.file_path),
-            max_file_size_mb: if override_config.max_file_size_mb != 100 {
-                override_config.max_file_size_mb
-            } else {
+            max_file_size_mb: if override_config.max_file_size_mb == 100 {
                 base.max_file_size_mb
+            } else {
+                override_config.max_file_size_mb
             },
         }
     }
@@ -500,31 +500,31 @@ impl HiveConfig {
                 .memory_critical_threshold
                 .or(base.memory_critical_threshold),
             metrics_collection_interval_ms: if override_config.metrics_collection_interval_ms
-                != 5000
+                == 5000
             {
-                override_config.metrics_collection_interval_ms
-            } else {
                 base.metrics_collection_interval_ms
-            },
-            alert_check_interval_ms: if override_config.alert_check_interval_ms != 30000 {
-                override_config.alert_check_interval_ms
             } else {
+                override_config.metrics_collection_interval_ms
+            },
+            alert_check_interval_ms: if override_config.alert_check_interval_ms == 30000 {
                 base.alert_check_interval_ms
+            } else {
+                override_config.alert_check_interval_ms
             },
             circuit_breaker_failure_threshold: if override_config.circuit_breaker_failure_threshold
-                != 5
+                == 5
             {
-                override_config.circuit_breaker_failure_threshold
-            } else {
                 base.circuit_breaker_failure_threshold
+            } else {
+                override_config.circuit_breaker_failure_threshold
             },
             circuit_breaker_recovery_timeout_ms: if override_config
                 .circuit_breaker_recovery_timeout_ms
-                != 30000
+                == 30000
             {
-                override_config.circuit_breaker_recovery_timeout_ms
-            } else {
                 base.circuit_breaker_recovery_timeout_ms
+            } else {
+                override_config.circuit_breaker_recovery_timeout_ms
             },
         }
     }
@@ -534,31 +534,31 @@ impl HiveConfig {
         override_config: MonitoringConfig,
     ) -> MonitoringConfig {
         MonitoringConfig {
-            monitoring_interval_secs: if override_config.monitoring_interval_secs != 5 {
-                override_config.monitoring_interval_secs
-            } else {
+            monitoring_interval_secs: if override_config.monitoring_interval_secs == 5 {
                 base.monitoring_interval_secs
-            },
-            metrics_retention_days: if override_config.metrics_retention_days != 7 {
-                override_config.metrics_retention_days
             } else {
+                override_config.monitoring_interval_secs
+            },
+            metrics_retention_days: if override_config.metrics_retention_days == 7 {
                 base.metrics_retention_days
+            } else {
+                override_config.metrics_retention_days
             },
             alert_threshold: if (override_config.alert_threshold - 0.8).abs() > f64::EPSILON {
                 override_config.alert_threshold
             } else {
                 base.alert_threshold
             },
-            metrics_endpoint: if override_config.metrics_endpoint != "http://localhost:8000/metrics"
+            metrics_endpoint: if override_config.metrics_endpoint == "http://localhost:8000/metrics"
             {
-                override_config.metrics_endpoint
-            } else {
                 base.metrics_endpoint
-            },
-            health_endpoint: if override_config.health_endpoint != "http://localhost:8000/health" {
-                override_config.health_endpoint
             } else {
+                override_config.metrics_endpoint
+            },
+            health_endpoint: if override_config.health_endpoint == "http://localhost:8000/health" {
                 base.health_endpoint
+            } else {
+                override_config.health_endpoint
             },
             enable_agent_discovery: override_config.enable_agent_discovery,
             enable_health_monitoring: override_config.enable_health_monitoring,
@@ -600,10 +600,10 @@ impl HiveConfig {
             component_health_scores: merged_health_scores,
             component_issues: merged_issues,
             component_recommendations: merged_recommendations,
-            network_components: if !override_config.network_components.is_empty() {
-                override_config.network_components
-            } else {
+            network_components: if override_config.network_components.is_empty() {
                 base.network_components
+            } else {
+                override_config.network_components
             },
             default_health_score: if (override_config.default_health_score - 0.85).abs()
                 > f64::EPSILON
@@ -612,15 +612,15 @@ impl HiveConfig {
             } else {
                 base.default_health_score
             },
-            performance_bottlenecks: if !override_config.performance_bottlenecks.is_empty() {
-                override_config.performance_bottlenecks
-            } else {
+            performance_bottlenecks: if override_config.performance_bottlenecks.is_empty() {
                 base.performance_bottlenecks
-            },
-            optimization_opportunities: if !override_config.optimization_opportunities.is_empty() {
-                override_config.optimization_opportunities
             } else {
+                override_config.performance_bottlenecks
+            },
+            optimization_opportunities: if override_config.optimization_opportunities.is_empty() {
                 base.optimization_opportunities
+            } else {
+                override_config.optimization_opportunities
             },
         }
     }
@@ -633,7 +633,7 @@ impl HiveConfig {
         }
         if let Ok(port) = env::var("HIVE_PORT") {
             self.server.port = port.parse().map_err(|_| HiveError::ConfigurationError {
-                reason: format!("Invalid port number: {}", port),
+                reason: format!("Invalid port number: {port}"),
             })?;
         }
 
@@ -643,7 +643,7 @@ impl HiveConfig {
                 max_agents
                     .parse()
                     .map_err(|_| HiveError::ConfigurationError {
-                        reason: format!("Invalid max_agents value: {}", max_agents),
+                        reason: format!("Invalid max_agents value: {max_agents}"),
                     })?;
         }
 
@@ -725,11 +725,11 @@ impl HiveConfig {
     /// Save configuration to a TOML file
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> HiveResult<()> {
         let content = toml::to_string_pretty(self).map_err(|e| HiveError::ConfigurationError {
-            reason: format!("Failed to serialize config: {}", e),
+            reason: format!("Failed to serialize config: {e}"),
         })?;
 
         fs::write(path.as_ref(), content).map_err(|e| HiveError::ConfigurationError {
-            reason: format!("Failed to write config file: {}", e),
+            reason: format!("Failed to write config file: {e}"),
         })?;
 
         Ok(())

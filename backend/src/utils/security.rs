@@ -41,6 +41,7 @@ pub struct SecurityAuditor {
 
 impl SecurityAuditor {
     /// Create a new security auditor
+    #[must_use]
     pub fn new(enabled: bool, retention_days: u32) -> Self {
         Self {
             enabled,
@@ -236,6 +237,7 @@ pub struct InputSanitizer;
 
 impl InputSanitizer {
     /// Sanitize string input to prevent injection attacks
+    #[must_use]
     pub fn sanitize_string(input: &str) -> String {
         input
             .chars()
@@ -258,7 +260,7 @@ impl InputSanitizer {
         }
 
         // Check for suspicious patterns
-        if sanitized.contains("script") || sanitized.contains("<") || sanitized.contains(">") {
+        if sanitized.contains("script") || sanitized.contains('<') || sanitized.contains('>') {
             return Err(HiveError::ValidationError {
                 field: "email".to_string(),
                 reason: "Email contains suspicious content".to_string(),
@@ -305,6 +307,7 @@ pub struct SecurityHeaders;
 
 impl SecurityHeaders {
     /// Get default security headers
+    #[must_use]
     pub fn default_headers() -> HashMap<String, String> {
         let mut headers = HashMap::new();
 

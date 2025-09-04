@@ -121,14 +121,14 @@ impl NLPProcessor {
         // Check against learned failure patterns
         let patterns = self.learned_patterns.read().await;
         for pattern in patterns.values() {
-            if matches!(pattern.pattern_type, PatternType::FailureIndicator) {
-                if self.text_matches_pattern(&processed, pattern) {
-                    suggestions.push(format!(
-                        "Consider avoiding patterns similar to '{}' which have a {}% failure rate",
-                        pattern.keywords.join(" "),
-                        (1.0 - pattern.success_rate) * 100.0
-                    ));
-                }
+            if matches!(pattern.pattern_type, PatternType::FailureIndicator)
+                && self.text_matches_pattern(&processed, pattern)
+            {
+                suggestions.push(format!(
+                    "Consider avoiding patterns similar to '{}' which have a {}% failure rate",
+                    pattern.keywords.join(" "),
+                    (1.0 - pattern.success_rate) * 100.0
+                ));
             }
         }
 
@@ -198,7 +198,7 @@ impl NLPProcessor {
 
         // Use vectorized norm calculation
         let dimensions_f32: Vec<f32> = dimensions.iter().map(|&x| x as f32).collect();
-        let magnitude = VectorizedOps::vector_norm(&dimensions_f32) as f64;
+        let magnitude = f64::from(VectorizedOps::vector_norm(&dimensions_f32));
 
         SemanticVector {
             dimensions,
@@ -245,7 +245,10 @@ impl NLPProcessor {
     }
 
     pub async fn extract_keywords(&self, text: &str, limit: usize) -> Vec<String> {
-        let tokens: Vec<String> = text.split_whitespace().map(|s| s.to_string()).collect();
+        let tokens: Vec<String> = text
+            .split_whitespace()
+            .map(std::string::ToString::to_string)
+            .collect();
         let vocabulary = self.vocabulary.read().await;
         let mut keyword_scores: Vec<(String, f64)> = tokens
             .iter()
@@ -386,7 +389,7 @@ impl NLPProcessor {
         let vec2_f32: Vec<f32> = vec2.dimensions.iter().map(|&x| x as f32).collect();
 
         let similarity = VectorizedOps::cosine_similarity(&vec1_f32, &vec2_f32);
-        similarity as f64
+        f64::from(similarity)
     }
 
     async fn text_to_semantic_vector(&self, text: &str) -> SemanticVector {

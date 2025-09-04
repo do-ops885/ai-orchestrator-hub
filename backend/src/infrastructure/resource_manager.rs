@@ -122,7 +122,7 @@ impl ResourceManager {
 
         // Auto-optimize if enabled
         if self.auto_optimization {
-            self.auto_optimize(&*resources).await?;
+            self.auto_optimize(&resources).await?;
         }
 
         Ok(())

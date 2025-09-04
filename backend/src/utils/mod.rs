@@ -12,7 +12,7 @@ pub mod rate_limiter;
 pub mod security;
 /// Structured logging and observability
 pub mod structured_logging;
-/// Legacy testing utilities (deprecated - use testing_framework)
+/// Legacy testing utilities (deprecated - use `testing_framework`)
 pub mod testing;
 /// Comprehensive testing framework with benchmarking
 pub mod testing_framework;

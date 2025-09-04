@@ -72,7 +72,7 @@ impl TestHarness {
         let hive = HiveCoordinator::new()
             .await
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to create test hive: {}", e),
+                reason: format!("Failed to create test hive: {e}"),
             })?;
 
         Ok(Self {
@@ -190,12 +190,12 @@ impl TestHarness {
         match self.create_test_agent("test-agent").await {
             Ok(agent_id) => TestResult::success(
                 "Agent Creation",
-                format!("Created agent: {}", agent_id),
+                format!("Created agent: {agent_id}"),
                 start.elapsed(),
             ),
             Err(e) => TestResult::failure(
                 "Agent Creation",
-                format!("Failed to create agent: {}", e),
+                format!("Failed to create agent: {e}"),
                 start.elapsed(),
             ),
         }
@@ -398,6 +398,7 @@ pub struct TestResult {
 }
 
 impl TestResult {
+    #[must_use]
     pub fn success(name: &str, message: String, duration: Duration) -> Self {
         Self {
             name: name.to_string(),
@@ -407,6 +408,7 @@ impl TestResult {
         }
     }
 
+    #[must_use]
     pub fn failure(name: &str, message: String, duration: Duration) -> Self {
         Self {
             name: name.to_string(),
@@ -429,6 +431,7 @@ pub struct TestResults {
 }
 
 impl TestResults {
+    #[must_use]
     pub fn new(suite_name: &str) -> Self {
         Self {
             suite_name: suite_name.to_string(),
@@ -442,14 +445,17 @@ impl TestResults {
         self.results.push(result);
     }
 
+    #[must_use]
     pub fn passed_count(&self) -> usize {
         self.results.iter().filter(|r| r.passed).count()
     }
 
+    #[must_use]
     pub fn failed_count(&self) -> usize {
         self.results.iter().filter(|r| !r.passed).count()
     }
 
+    #[must_use]
     pub fn success_rate(&self) -> f64 {
         if self.results.is_empty() {
             0.0
@@ -474,7 +480,14 @@ pub struct TestReport {
     pub total_duration: Duration,
 }
 
+impl Default for TestReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestReport {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             unit_tests: TestResults::new("Unit Tests"),
@@ -486,6 +499,7 @@ impl TestReport {
     }
 
     /// Calculate overall success rate
+    #[must_use]
     pub fn overall_success_rate(&self) -> f64 {
         let mut total_tests = 0;
         let mut passed_tests = 0;
@@ -514,6 +528,7 @@ impl TestReport {
     }
 
     /// Generate a summary report
+    #[must_use]
     pub fn summary(&self) -> String {
         format!(
             "Test Report Summary:\n\

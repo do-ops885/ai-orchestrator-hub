@@ -13,6 +13,7 @@ pub struct HealthCheckManager {
 
 impl HealthCheckManager {
     /// Create a new health check manager
+    #[must_use]
     pub fn new() -> Self {
         Self {
             checks: Arc::new(RwLock::new(HashMap::new())),
@@ -75,10 +76,10 @@ impl HealthCheckManager {
                 let report = self.run_all_checks().await;
 
                 // Log health status changes
-                if report.overall_status != HealthStatus::Healthy {
-                    tracing::warn!("System health check failed: {:?}", report);
-                } else {
+                if report.overall_status == HealthStatus::Healthy {
                     tracing::debug!("System health check passed");
+                } else {
+                    tracing::warn!("System health check failed: {:?}", report);
                 }
             }
         });
@@ -103,6 +104,7 @@ pub struct HealthCheck {
 
 impl HealthCheck {
     /// Create a new health check
+    #[must_use]
     pub fn new(
         name: String,
         description: String,
@@ -227,6 +229,7 @@ pub struct StandardHealthChecks;
 
 impl StandardHealthChecks {
     /// Database connectivity health check
+    #[must_use]
     pub fn database_check() -> HealthCheck {
         HealthCheck::new(
             "database".to_string(),
@@ -246,6 +249,7 @@ impl StandardHealthChecks {
     }
 
     /// Memory usage health check
+    #[must_use]
     pub fn memory_check() -> HealthCheck {
         HealthCheck::new(
             "memory".to_string(),
@@ -270,6 +274,7 @@ impl StandardHealthChecks {
     }
 
     /// Agent system health check
+    #[must_use]
     pub fn agent_system_check() -> HealthCheck {
         HealthCheck::new(
             "agent_system".to_string(),
@@ -288,6 +293,7 @@ impl StandardHealthChecks {
     }
 
     /// Neural network health check
+    #[must_use]
     pub fn neural_network_check() -> HealthCheck {
         HealthCheck::new(
             "neural_network".to_string(),
@@ -306,6 +312,7 @@ impl StandardHealthChecks {
     }
 
     /// WebSocket connectivity health check
+    #[must_use]
     pub fn websocket_check() -> HealthCheck {
         HealthCheck::new(
             "websocket".to_string(),
@@ -351,6 +358,7 @@ pub enum CircuitBreakerStatus {
 
 impl CircuitBreaker {
     /// Create a new circuit breaker
+    #[must_use]
     pub fn new(name: String, failure_threshold: u32, recovery_timeout: Duration) -> Self {
         Self {
             name,
@@ -465,7 +473,7 @@ impl<E: std::fmt::Display> std::fmt::Display for CircuitBreakerError<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CircuitBreakerError::CircuitOpen => write!(f, "Circuit breaker is open"),
-            CircuitBreakerError::OperationFailed(e) => write!(f, "Operation failed: {}", e),
+            CircuitBreakerError::OperationFailed(e) => write!(f, "Operation failed: {e}"),
         }
     }
 }

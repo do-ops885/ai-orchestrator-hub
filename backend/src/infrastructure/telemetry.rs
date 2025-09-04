@@ -86,7 +86,7 @@ impl TelemetrySubscriber for ConsoleTelemetrySubscriber {
         Ok(())
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "console"
     }
 }
@@ -98,6 +98,7 @@ pub struct WebhookTelemetrySubscriber {
 }
 
 impl WebhookTelemetrySubscriber {
+    #[must_use]
     pub fn new(url: String) -> Self {
         Self {
             url,
@@ -117,13 +118,14 @@ impl TelemetrySubscriber for WebhookTelemetrySubscriber {
         Ok(())
     }
 
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "webhook"
     }
 }
 
 impl TelemetryCollector {
     /// Create a new telemetry collector
+    #[must_use]
     pub fn new(max_events: usize) -> Self {
         let start_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -184,10 +186,10 @@ impl TelemetryCollector {
             metrics.total_events += 1;
             metrics.last_event_timestamp = event.timestamp;
 
-            let type_key = format!("{:?}", event_type);
+            let type_key = format!("{event_type:?}");
             *metrics.events_by_type.entry(type_key).or_insert(0) += 1;
 
-            let severity_key = format!("{:?}", severity);
+            let severity_key = format!("{severity:?}");
             *metrics.events_by_severity.entry(severity_key).or_insert(0) += 1;
 
             // Calculate uptime and events per minute

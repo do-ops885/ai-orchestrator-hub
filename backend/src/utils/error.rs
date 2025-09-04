@@ -112,6 +112,7 @@ pub struct ErrorContext {
 
 impl ErrorContext {
     /// Create a new error context
+    #[must_use]
     pub fn new(operation: &str, component: &str) -> Self {
         Self {
             operation: operation.to_string(),
@@ -124,6 +125,7 @@ impl ErrorContext {
     }
 
     /// Add additional information to the error context
+    #[must_use]
     pub fn with_info(mut self, key: &str, value: &str) -> Self {
         self.additional_info
             .insert(key.to_string(), value.to_string());
@@ -131,12 +133,14 @@ impl ErrorContext {
     }
 
     /// Add request ID for tracing
+    #[must_use]
     pub fn with_request_id(mut self, request_id: String) -> Self {
         self.request_id = Some(request_id);
         self
     }
 
     /// Add user ID for user-specific errors
+    #[must_use]
     pub fn with_user_id(mut self, user_id: String) -> Self {
         self.user_id = Some(user_id);
         self
@@ -153,10 +157,11 @@ macro_rules! hive_error {
     };
 }
 
-/// Helper function to convert anyhow errors to HiveError
+/// Helper function to convert anyhow errors to `HiveError`
+#[must_use]
 pub fn anyhow_to_hive_error(err: anyhow::Error, operation: &str) -> HiveError {
     HiveError::OperationFailed {
-        reason: format!("{} failed: {}", operation, err),
+        reason: format!("{operation} failed: {err}"),
     }
 }
 
@@ -171,7 +176,7 @@ where
 {
     fn with_context(self, operation: &str, component: &str) -> Result<T, HiveError> {
         self.map_err(|e| HiveError::OperationFailed {
-            reason: format!("{} in {}: {}", operation, component, e),
+            reason: format!("{operation} in {component}: {e}"),
         })
     }
 }

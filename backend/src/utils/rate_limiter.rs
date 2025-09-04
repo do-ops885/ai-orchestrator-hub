@@ -36,6 +36,7 @@ impl RateLimiter {
     /// // Allow 100 requests per minute
     /// let limiter = RateLimiter::new(100, Duration::from_secs(60));
     /// ```
+    #[must_use]
     pub fn new(max_requests: u32, window_duration: Duration) -> Self {
         Self {
             max_requests,
@@ -186,6 +187,7 @@ pub struct RateLimiters {
 
 impl RateLimiters {
     /// Create new rate limiters with sensible defaults
+    #[must_use]
     pub fn new() -> Self {
         let api = Arc::new(RateLimiter::new(100, Duration::from_secs(60)));
         let agent_creation = Arc::new(RateLimiter::new(10, Duration::from_secs(60)));

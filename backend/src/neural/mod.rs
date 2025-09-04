@@ -37,4 +37,4 @@ pub use training::{
 
 // Re-export advanced neural features if available
 #[cfg(feature = "advanced-neural")]
-pub use neural::{FANNConfig, LSTMConfig, NeuralConfig};
+pub use neural::{FANNConfig, LSTMConfig};

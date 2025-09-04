@@ -57,6 +57,7 @@ pub struct AgentTaskQueue {
 }
 
 impl AgentTaskQueue {
+    #[must_use]
     pub fn new(agent_id: Uuid) -> Self {
         Self {
             agent_id,
@@ -183,7 +184,14 @@ pub struct WorkStealingQueue {
     pub notification: Arc<Notify>, // For waking up idle workers
 }
 
+impl Default for WorkStealingQueue {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WorkStealingQueue {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             agent_queues: Arc::new(DashMap::new()),
@@ -423,7 +431,14 @@ pub struct LoadBalancer {
     pub assignment_history: Arc<RwLock<Vec<(Uuid, DateTime<Utc>)>>>,
 }
 
+impl Default for LoadBalancer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LoadBalancer {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             assignment_history: Arc::new(RwLock::new(Vec::new())),
@@ -438,7 +453,7 @@ impl LoadBalancer {
         let mut best_agent = None;
         let mut best_score = f64::INFINITY;
 
-        for entry in agent_queues.iter() {
+        for entry in agent_queues {
             let agent_id = *entry.key();
             let queue = entry.value();
 

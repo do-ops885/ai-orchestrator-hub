@@ -1,7 +1,7 @@
+#[cfg(feature = "advanced-neural")]
+use crate::neural::neural::{FANNConfig, LSTMConfig};
 use crate::neural::CpuOptimizer;
 use crate::neural::{AdaptiveLearningConfig, AdaptiveLearningSystem};
-#[cfg(feature = "advanced-neural")]
-use crate::neural::{FANNConfig, LSTMConfig};
 use crate::neural::{HybridNeuralProcessor, NetworkType};
 
 use anyhow::Result;
@@ -56,7 +56,9 @@ pub enum ArchitectureConfig {
     CNN(CNNConfig),
     RNN(RNNConfig),
     GNN(GNNConfig),
+    #[cfg(feature = "advanced-neural")]
     FANN(FANNConfig),
+    #[cfg(feature = "advanced-neural")]
     LSTM(LSTMConfig),
 }
 
@@ -368,7 +370,7 @@ impl NeuralTrainingSystem {
     /// Execute training epoch
     pub async fn execute_epoch(&mut self, session_id: Uuid) -> Result<TrainingMetrics> {
         // Get session data first
-        let session_data = {
+        let _session_data = {
             let session = self
                 .active_sessions
                 .get(&session_id)
@@ -416,7 +418,7 @@ impl NeuralTrainingSystem {
             session.current_epoch += 1;
 
             // Check early stopping
-            if let Some(early_stop) = &session.config.training.early_stopping {
+            if let Some(_early_stop) = &session.config.training.early_stopping {
                 // TODO: Implement early stopping check
                 let should_stop = false; // Placeholder
                 if should_stop {
@@ -432,6 +434,11 @@ impl NeuralTrainingSystem {
             }
         }
 
+        // Get session metrics for return
+        let session = self
+            .active_sessions
+            .get(&session_id)
+            .ok_or_else(|| anyhow::anyhow!("Training session not found"))?;
         Ok(session.metrics.clone())
     }
 
@@ -480,11 +487,13 @@ impl NeuralTrainingSystem {
     }
 
     /// Get training session status
+    #[must_use]
     pub fn get_session_status(&self, session_id: Uuid) -> Option<&TrainingSession> {
         self.active_sessions.get(&session_id)
     }
 
     /// Get training metrics
+    #[must_use]
     pub fn get_training_metrics(&self, session_id: Uuid) -> Option<&TrainingMetrics> {
         self.active_sessions.get(&session_id).map(|s| &s.metrics)
     }
@@ -557,7 +566,9 @@ impl NeuralTrainingSystem {
         let agent_id = Uuid::new_v4();
 
         let _network_type = match &config.architecture {
+            #[cfg(feature = "advanced-neural")]
             ArchitectureConfig::FANN(fann_config) => NetworkType::FANN(fann_config.clone()),
+            #[cfg(feature = "advanced-neural")]
             ArchitectureConfig::LSTM(lstm_config) => NetworkType::LSTM(lstm_config.clone()),
             _ => NetworkType::Basic, // For now, use basic for other architectures
         };
@@ -727,7 +738,7 @@ impl NeuralTrainingSystem {
         Ok(model_path)
     }
 
-    /// Export to PyTorch format
+    /// Export to `PyTorch` format
     async fn export_to_pytorch(&self, session: &TrainingSession) -> Result<String> {
         // In a real implementation, this would save the model in PyTorch format
         let model_path = format!("/models/{}.pth", session.session_id);
@@ -748,10 +759,31 @@ impl Default for TrainingConfig {
     fn default() -> Self {
         Self {
             model_type: ModelType::FeedForward,
+            #[cfg(feature = "advanced-neural")]
             architecture: ArchitectureConfig::FANN(FANNConfig {
                 layers: vec![100, 64, 32, 1],
                 activation: "tanh".to_string(),
                 training_algorithm: "rprop".to_string(),
+            }),
+            #[cfg(not(feature = "advanced-neural"))]
+            architecture: ArchitectureConfig::CNN(CNNConfig {
+                layers: vec![
+                    ConvLayerConfig {
+                        filters: 32,
+                        kernel_size: (3, 3),
+                        stride: (1, 1),
+                        padding: (1, 1),
+                        activation: ActivationFunction::ReLU,
+                    },
+                    ConvLayerConfig {
+                        filters: 64,
+                        kernel_size: (3, 3),
+                        stride: (1, 1),
+                        padding: (1, 1),
+                        activation: ActivationFunction::ReLU,
+                    },
+                ],
+                fully_connected: vec![128, 10],
             }),
             training: TrainingParams {
                 optimizer: OptimizerType::Adam,

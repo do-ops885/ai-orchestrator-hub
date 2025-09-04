@@ -227,8 +227,15 @@ pub struct ResourceAnalysis {
     pub compute_efficiency_score: f64,
 }
 
+impl Default for ExperimentTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExperimentTracker {
     /// Create a new experiment tracker
+    #[must_use]
     pub fn new() -> Self {
         Self {
             experiments: HashMap::new(),
@@ -337,25 +344,46 @@ impl ExperimentTracker {
         metrics: TrainingMetrics,
         evaluation_results: Option<EvaluationResults>,
     ) -> Result<()> {
-        let run = self
-            .runs
-            .get_mut(&run_id)
-            .ok_or_else(|| anyhow::anyhow!("Run not found"))?;
+        // Extract experiment_id before borrowing mutably
+        let experiment_id = {
+            let run = self
+                .runs
+                .get(&run_id)
+                .ok_or_else(|| anyhow::anyhow!("Run not found"))?;
+            run.experiment_id.clone()
+        };
 
-        run.end_time = Some(Utc::now());
-        run.status = RunStatus::Completed;
-        run.metrics = Some(metrics);
-        run.evaluation_results = evaluation_results;
+        // Update run status
+        let run_clone = {
+            let run = self
+                .runs
+                .get_mut(&run_id)
+                .ok_or_else(|| anyhow::anyhow!("Run not found"))?;
+
+            run.end_time = Some(Utc::now());
+            run.status = RunStatus::Completed;
+            run.metrics = Some(metrics);
+            run.evaluation_results = evaluation_results;
+            run.clone()
+        };
 
         // Update experiment metadata
-        if let Some(metadata) = self.metadata.get_mut(&run.experiment_id) {
+        if let Some(metadata) = self.metadata.get_mut(&experiment_id) {
             metadata.completed_runs += 1;
 
             // Update best run
-            if metadata.best_run_id.is_none()
-                || self.is_better_run(run, metadata.best_run_id.unwrap())
-            {
-                metadata.best_run_id = Some(run_id);
+            let should_update_best = if let Some(best_run_id) = metadata.best_run_id {
+                // Release the mutable borrow before calling is_better_run
+                drop(metadata);
+                self.is_better_run(&run_clone, best_run_id)
+            } else {
+                true
+            };
+
+            if should_update_best {
+                if let Some(metadata) = self.metadata.get_mut(&experiment_id) {
+                    metadata.best_run_id = Some(run_id);
+                }
             }
         }
 
@@ -433,7 +461,7 @@ impl ExperimentTracker {
                 let completed_runs: Vec<&ExperimentRun> = runs
                     .iter()
                     .filter(|r| matches!(r.status, RunStatus::Completed))
-                    .map(|r| *r)
+                    .copied()
                     .collect();
 
                 if !completed_runs.is_empty() {
@@ -464,7 +492,7 @@ impl ExperimentTracker {
 
         let comparison = ExperimentComparison {
             comparison_id: comparison_id.clone(),
-            experiment_ids,
+            experiment_ids: experiment_ids.clone(),
             comparison_type,
             results,
             created_at: Utc::now(),
@@ -481,16 +509,19 @@ impl ExperimentTracker {
     }
 
     /// Get experiment by ID
+    #[must_use]
     pub fn get_experiment(&self, experiment_id: &str) -> Option<&Experiment> {
         self.experiments.get(experiment_id)
     }
 
     /// Get run by ID
+    #[must_use]
     pub fn get_run(&self, run_id: Uuid) -> Option<&ExperimentRun> {
         self.runs.get(&run_id)
     }
 
     /// Get all runs for an experiment
+    #[must_use]
     pub fn get_experiment_runs(&self, experiment_id: &str) -> Option<Vec<&ExperimentRun>> {
         let runs: Vec<&ExperimentRun> = self
             .runs
@@ -506,6 +537,7 @@ impl ExperimentTracker {
     }
 
     /// Search experiments
+    #[must_use]
     pub fn search_experiments(&self, query: &ExperimentQuery) -> Vec<&Experiment> {
         self.experiments
             .values()
@@ -531,10 +563,8 @@ impl ExperimentTracker {
                 }
 
                 // Status filter
-                if !query.status_filter.is_empty() {
-                    if !query.status_filter.contains(&exp.status) {
-                        return false;
-                    }
+                if !query.status_filter.is_empty() && !query.status_filter.contains(&exp.status) {
+                    return false;
                 }
 
                 // Date range filter
@@ -624,7 +654,7 @@ impl ExperimentTracker {
         let mut averages = HashMap::new();
         for (metric, sum) in metric_sums {
             if let Some(count) = metric_counts.get(&metric) {
-                averages.insert(metric, sum / *count as f64);
+                averages.insert(metric, sum / f64::from(*count));
             }
         }
 
@@ -640,7 +670,7 @@ impl ExperimentTracker {
     ) -> Result<()> {
         for metric_name in &["accuracy", "loss"] {
             let mut metric_comparison = MetricComparison {
-                metric_name: metric_name.to_string(),
+                metric_name: (*metric_name).to_string(),
                 values: HashMap::new(),
                 best_experiment: String::new(),
                 improvement_percentage: 0.0,
@@ -675,7 +705,7 @@ impl ExperimentTracker {
             metric_comparison.best_experiment = best_exp;
             results
                 .metrics_comparison
-                .insert(metric_name.to_string(), metric_comparison);
+                .insert((*metric_name).to_string(), metric_comparison);
         }
 
         Ok(())
@@ -697,7 +727,7 @@ impl ExperimentTracker {
     /// Compare resource usage across experiments
     fn compare_resource_usage(
         &self,
-        experiment_ids: &[String],
+        _experiment_ids: &[String],
         results: &mut ComparisonResults,
     ) -> Result<()> {
         // Implementation for resource usage comparison
@@ -710,7 +740,7 @@ impl ExperimentTracker {
     /// Compare hyperparameter impact
     fn compare_hyperparameter_impact(
         &self,
-        experiment_ids: &[String],
+        _experiment_ids: &[String],
         results: &mut ComparisonResults,
     ) -> Result<()> {
         // Implementation for hyperparameter impact comparison
@@ -723,7 +753,7 @@ impl ExperimentTracker {
     /// Compare ablation study results
     fn compare_ablation_study(
         &self,
-        experiment_ids: &[String],
+        _experiment_ids: &[String],
         results: &mut ComparisonResults,
     ) -> Result<()> {
         // Implementation for ablation study comparison

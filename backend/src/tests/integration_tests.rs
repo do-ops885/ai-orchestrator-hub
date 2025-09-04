@@ -7,7 +7,7 @@
 mod tests {
     use tokio::time::Duration;
 
-    use crate::agents::AgentState;
+    use crate::agents::{agent::AgentBehavior, AgentState};
     use crate::core::HiveCoordinator;
     use crate::tasks::TaskPriority;
     use crate::tests::test_utils::{

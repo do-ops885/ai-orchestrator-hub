@@ -682,8 +682,7 @@ impl HiveCoordinator {
                             fallback_decision
                                 .attempts
                                 .last()
-                                .map(|r| format!("{:?}", r.tier))
-                                .unwrap_or_else(|| "Unknown".to_string()),
+                                .map_or_else(|| "Unknown".to_string(), |r| format!("{:?}", r.tier)),
                             fallback_decision.quality_degradation,
                             fallback_decision.attempts.len()
                         );
@@ -1259,13 +1258,13 @@ impl HiveCoordinator {
         let tier_distribution: std::collections::HashMap<String, u64> = stats
             .tier_distribution
             .iter()
-            .map(|(tier, count)| (format!("{:?}", tier), *count))
+            .map(|(tier, count)| (format!("{tier:?}"), *count))
             .collect();
 
         let tier_success_rates: std::collections::HashMap<String, f64> = stats
             .tier_success_rates
             .iter()
-            .map(|(tier, rate)| (format!("{:?}", tier), *rate))
+            .map(|(tier, rate)| (format!("{tier:?}"), *rate))
             .collect();
 
         serde_json::json!({
@@ -1334,31 +1333,31 @@ impl HiveCoordinator {
         let new_config = FallbackConfig {
             enabled: config
                 .get("enabled")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(true),
             max_fallback_attempts: config
                 .get("max_fallback_attempts")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(3) as usize,
             min_quality_threshold: config
                 .get("min_quality_threshold")
-                .and_then(|v| v.as_f64())
+                .and_then(serde_json::Value::as_f64)
                 .unwrap_or(0.6),
             emergency_quality_threshold: config
                 .get("emergency_quality_threshold")
-                .and_then(|v| v.as_f64())
+                .and_then(serde_json::Value::as_f64)
                 .unwrap_or(0.3),
             enable_emergency_generalization: config
                 .get("enable_emergency_generalization")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(true),
             availability_check_window: config
                 .get("availability_check_window")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(300),
             detailed_logging: config
                 .get("detailed_logging")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(true),
         };
 

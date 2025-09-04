@@ -180,8 +180,15 @@ pub struct DataSplits {
     pub test: Dataset,
 }
 
+impl Default for DataPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DataPipeline {
     /// Create a new data pipeline
+    #[must_use]
     pub fn new() -> Self {
         Self {
             cpu_optimizer: CpuOptimizer::new(),
@@ -234,7 +241,7 @@ impl DataPipeline {
             indices,
         };
 
-        let loader_id = format!("{}_loader", dataset_name);
+        let loader_id = format!("{dataset_name}_loader");
         self.data_loaders
             .insert(loader_id.clone(), Arc::new(RwLock::new(loader)));
 
@@ -278,7 +285,7 @@ impl DataPipeline {
             (batch_features, batch_labels, sample_indices)
         };
 
-        let total_batches = (loader.indices.len() + loader.batch_size - 1) / loader.batch_size;
+        let total_batches = loader.indices.len().div_ceil(loader.batch_size);
         let batch_index = loader.current_index / loader.batch_size;
 
         loader.current_index = end_idx;
@@ -412,10 +419,8 @@ impl DataPipeline {
             num_samples,
             num_features,
             num_classes,
-            feature_names: (0..num_features)
-                .map(|i| format!("feature_{}", i))
-                .collect(),
-            class_names: (0..num_classes).map(|i| format!("class_{}", i)).collect(),
+            feature_names: (0..num_features).map(|i| format!("feature_{i}")).collect(),
+            class_names: (0..num_classes).map(|i| format!("class_{i}")).collect(),
             data_type,
         };
 
@@ -514,7 +519,7 @@ impl DataPipeline {
     async fn apply_l2_normalization(&self, dataset: &mut Dataset) -> Result<()> {
         for sample in &mut dataset.features {
             let l2_norm =
-                VectorizedOps::vector_norm(&sample.iter().map(|&x| x as f32).collect::<Vec<f32>>());
+                VectorizedOps::vector_norm(&sample.iter().map(|&x| x).collect::<Vec<f32>>());
             if l2_norm > 0.0 {
                 for feature in sample {
                     *feature /= l2_norm;
@@ -632,18 +637,15 @@ impl DataPipeline {
             // Apply augmentation with given probability
             if rand::random::<f64>() < config.probability {
                 for technique in &config.techniques {
-                    match technique {
-                        AugmentationTechnique::Noise { std } => {
-                            let mut augmented = features.clone();
-                            for feature in &mut augmented {
-                                *feature += rand::random::<f32>() * *std;
-                            }
-                            augmented_features.push(augmented);
-                            augmented_labels.push(labels.clone());
+                    if let AugmentationTechnique::Noise { std } = technique {
+                        let mut augmented = features.clone();
+                        for feature in &mut augmented {
+                            *feature += rand::random::<f32>() * *std;
                         }
-                        _ => {
-                            // Other augmentation techniques would be implemented for specific data types
-                        }
+                        augmented_features.push(augmented);
+                        augmented_labels.push(labels.clone());
+                    } else {
+                        // Other augmentation techniques would be implemented for specific data types
                     }
                 }
             }

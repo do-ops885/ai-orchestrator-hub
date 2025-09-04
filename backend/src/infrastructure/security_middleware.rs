@@ -194,10 +194,7 @@ async fn handle_authentication(
                                 iss: "hive_system".to_string(),
                                 aud: "api".to_string(),
                                 roles: vec!["Service".to_string()],
-                                permissions: permissions
-                                    .iter()
-                                    .map(|p| format!("{:?}", p))
-                                    .collect(),
+                                permissions: permissions.iter().map(|p| format!("{p:?}")).collect(),
                                 session_id: "api_key_session".to_string(),
                                 client_type: crate::utils::auth::ClientType::Service,
                             };
@@ -213,7 +210,7 @@ async fn handle_authentication(
                         iss: "hive_system".to_string(),
                         aud: "api".to_string(),
                         roles: vec!["Service".to_string()],
-                        permissions: permissions.iter().map(|p| format!("{:?}", p)).collect(),
+                        permissions: permissions.iter().map(|p| format!("{p:?}")).collect(),
                         session_id: "api_key_session".to_string(),
                         client_type: crate::utils::auth::ClientType::Service,
                     };

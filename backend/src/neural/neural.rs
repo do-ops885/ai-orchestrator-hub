@@ -972,7 +972,7 @@ impl HybridNeuralProcessor {
         let consistency = (1.0 - variance.min(0.25)) * 4.0; // Scale to [0, 1]
 
         // Factor in training level (more training = higher confidence)
-        let training_factor = (agent.training_epochs as f64 / 100.0).min(1.0);
+        let training_factor = (f64::from(agent.training_epochs) / 100.0).min(1.0);
 
         // Factor in performance level
         let performance_factor = mean;
@@ -981,13 +981,12 @@ impl HybridNeuralProcessor {
         let trend_stability = 1.0 - agent.last_performance_trend.abs().min(0.5) * 2.0;
 
         // Weighted combination
-        let confidence = (consistency * 0.4
+
+        (consistency * 0.4
             + training_factor * 0.2
             + performance_factor * 0.3
             + trend_stability * 0.1)
-            .clamp(0.0, 1.0);
-
-        confidence
+            .clamp(0.0, 1.0)
     }
 }
 
@@ -1062,7 +1061,14 @@ impl AdvancedNeuralCoordinator {
     }
 }
 
+impl Default for KnowledgeTransferSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KnowledgeTransferSystem {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             knowledge_patterns: HashMap::new(),
@@ -1072,7 +1078,14 @@ impl KnowledgeTransferSystem {
     }
 }
 
+impl Default for PerformancePredictionEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformancePredictionEngine {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             prediction_models: HashMap::new(),
@@ -1081,7 +1094,14 @@ impl PerformancePredictionEngine {
     }
 }
 
+impl Default for EmergentBehaviorDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EmergentBehaviorDetector {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             behavior_patterns: HashMap::new(),

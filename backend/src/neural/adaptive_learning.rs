@@ -1,5 +1,4 @@
 use crate::agents::agent::Agent;
-use crate::agents::agent::AgentMemory;
 use crate::neural::NLPProcessor;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -79,11 +78,7 @@ impl AdaptiveLearningSystem {
             agent.id, outcome
         );
 
-        let confidence_before = self
-            .patterns
-            .get(&pattern_id)
-            .map(|p| p.confidence)
-            .unwrap_or(0.5);
+        let confidence_before = self.patterns.get(&pattern_id).map_or(0.5, |p| p.confidence);
 
         let pattern = self
             .patterns
@@ -108,17 +103,17 @@ impl AdaptiveLearningSystem {
         // Calculate learning factor separately to avoid borrowing conflicts
         let learning_factor = {
             let base_rate = self.config.learning_rate;
-            base_rate / (1.0 + (frequency as f64 * 0.1))
+            base_rate / (1.0 + (f64::from(frequency) * 0.1))
         };
 
         pattern.confidence =
             (pattern.confidence * (1.0 - learning_factor)) + (success_rate * learning_factor);
 
         // Update expected output with weighted average
-        if !pattern.expected_output.is_empty() {
-            pattern.expected_output[0] = (pattern.expected_output[0] * 0.8) + (outcome * 0.2);
-        } else {
+        if pattern.expected_output.is_empty() {
             pattern.expected_output = vec![outcome];
+        } else {
+            pattern.expected_output[0] = (pattern.expected_output[0] * 0.8) + (outcome * 0.2);
         }
 
         // Record learning event
@@ -180,10 +175,10 @@ impl AdaptiveLearningSystem {
             .filter(|p| p.confidence >= self.config.min_confidence_threshold)
             .count();
 
-        let average_confidence = if !agent_patterns.is_empty() {
-            agent_patterns.iter().map(|p| p.confidence).sum::<f64>() / agent_patterns.len() as f64
-        } else {
+        let average_confidence = if agent_patterns.is_empty() {
             0.0
+        } else {
+            agent_patterns.iter().map(|p| p.confidence).sum::<f64>() / agent_patterns.len() as f64
         };
 
         let recent_learning_events = self
@@ -223,7 +218,10 @@ impl AdaptiveLearningSystem {
         features.push(agent.position.1);
 
         // Capability features (average proficiency and learning rate)
-        if !agent.capabilities.is_empty() {
+        if agent.capabilities.is_empty() {
+            features.push(0.0);
+            features.push(0.0);
+        } else {
             let avg_proficiency = agent
                 .capabilities
                 .iter()
@@ -239,9 +237,6 @@ impl AdaptiveLearningSystem {
 
             features.push(avg_proficiency);
             features.push(avg_learning_rate);
-        } else {
-            features.push(0.0);
-            features.push(0.0);
         }
 
         // Context features (basic NLP processing)
@@ -282,7 +277,7 @@ impl AdaptiveLearningSystem {
     fn calculate_learning_factor(&self, frequency: u32) -> f64 {
         // Higher frequency patterns should have lower learning rates (more stable)
         let base_rate = self.config.learning_rate;
-        base_rate / (1.0 + (frequency as f64 * 0.1))
+        base_rate / (1.0 + (f64::from(frequency) * 0.1))
     }
 
     fn calculate_learning_velocity(&self) -> f64 {
@@ -300,8 +295,8 @@ impl AdaptiveLearningSystem {
     }
 
     pub fn cleanup_old_patterns(&mut self) {
-        let cutoff =
-            chrono::Utc::now() - chrono::Duration::days(self.config.pattern_retention_days as i64);
+        let cutoff = chrono::Utc::now()
+            - chrono::Duration::days(i64::from(self.config.pattern_retention_days));
         let initial_count = self.patterns.len();
 
         self.patterns
@@ -376,7 +371,7 @@ pub struct PatternStatistics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agents::agent::{AgentCapability, AgentState, AgentType};
+    use crate::agents::agent::{AgentCapability, AgentMemory, AgentState, AgentType};
     use uuid::Uuid;
 
     fn create_test_agent() -> Agent {

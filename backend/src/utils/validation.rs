@@ -54,8 +54,7 @@ impl InputValidator {
             if !valid_types.contains(&agent_type) && !is_specialist {
                 return Err(HiveError::AgentCreationFailed {
                     reason: format!(
-                        "Invalid agent type: {}. Valid types: worker, coordinator, learner, specialist:<type>",
-                        agent_type
+                        "Invalid agent type: {agent_type}. Valid types: worker, coordinator, learner, specialist:<type>"
                     ),
                 });
             }
@@ -124,8 +123,7 @@ impl InputValidator {
                 if !valid_priorities.contains(&priority_str) {
                     return Err(HiveError::TaskCreationFailed {
                         reason: format!(
-                            "Invalid priority: {}. Valid priorities: low, medium, high, critical",
-                            priority_str
+                            "Invalid priority: {priority_str}. Valid priorities: low, medium, high, critical"
                         ),
                     });
                 }
@@ -166,7 +164,10 @@ impl InputValidator {
             });
         }
 
-        if let Some(proficiency) = capability.get("proficiency").and_then(|p| p.as_f64()) {
+        if let Some(proficiency) = capability
+            .get("proficiency")
+            .and_then(serde_json::Value::as_f64)
+        {
             if !(0.0..=1.0).contains(&proficiency) {
                 return Err(HiveError::AgentCreationFailed {
                     reason: "Capability proficiency must be between 0.0 and 1.0".to_string(),
@@ -174,7 +175,10 @@ impl InputValidator {
             }
         }
 
-        if let Some(learning_rate) = capability.get("learning_rate").and_then(|lr| lr.as_f64()) {
+        if let Some(learning_rate) = capability
+            .get("learning_rate")
+            .and_then(serde_json::Value::as_f64)
+        {
             if !(0.0..=1.0).contains(&learning_rate) {
                 return Err(HiveError::AgentCreationFailed {
                     reason: "Learning rate must be between 0.0 and 1.0".to_string(),
@@ -201,7 +205,7 @@ impl InputValidator {
 
         if let Some(min_proficiency) = capability
             .get("minimum_proficiency")
-            .and_then(|mp| mp.as_f64())
+            .and_then(serde_json::Value::as_f64)
         {
             if !(0.0..=1.0).contains(&min_proficiency) {
                 return Err(HiveError::TaskCreationFailed {
@@ -216,7 +220,7 @@ impl InputValidator {
     /// Validate UUID string
     pub fn validate_uuid(uuid_str: &str) -> HiveResult<uuid::Uuid> {
         uuid::Uuid::parse_str(uuid_str).map_err(|_| HiveError::ConfigurationError {
-            reason: format!("Invalid UUID format: {}", uuid_str),
+            reason: format!("Invalid UUID format: {uuid_str}"),
         })
     }
 
@@ -225,8 +229,9 @@ impl InputValidator {
     /// # Security Features
     /// - Removes potentially dangerous characters
     /// - Prevents injection attacks
-    /// - Limits length to prevent DoS
+    /// - Limits length to prevent `DoS`
     /// - Normalizes whitespace
+    #[must_use]
     pub fn sanitize_string(input: &str) -> String {
         // Prevent excessively long inputs (DoS protection)
         let truncated = if input.len() > 10000 {

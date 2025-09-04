@@ -76,6 +76,7 @@ pub enum FallbackTier {
 
 impl FallbackTier {
     /// Get the priority level of the tier (lower number = higher priority)
+    #[must_use]
     pub fn priority(&self) -> u8 {
         match self {
             FallbackTier::Primary => 1,
@@ -86,6 +87,7 @@ impl FallbackTier {
     }
 
     /// Get the quality degradation factor for this tier
+    #[must_use]
     pub fn quality_factor(&self) -> f64 {
         match self {
             FallbackTier::Primary => 1.0,
@@ -173,6 +175,7 @@ pub struct IntelligentFallback {
 
 impl IntelligentFallback {
     /// Create a new intelligent fallback system
+    #[must_use]
     pub fn new(config: FallbackConfig) -> Self {
         Self {
             config,
@@ -191,6 +194,7 @@ impl IntelligentFallback {
     }
 
     /// Create with default configuration
+    #[must_use]
     pub fn default() -> Self {
         Self::new(FallbackConfig::default())
     }
@@ -449,8 +453,8 @@ impl IntelligentFallback {
             }
             FallbackTier::Tertiary => {
                 // Boost agents with diverse capabilities
-                let diversity_bonus = (agent.capabilities.len() as f64 / 5.0).min(1.2);
-                diversity_bonus
+
+                (agent.capabilities.len() as f64 / 5.0).min(1.2)
             }
             FallbackTier::Emergency => {
                 // Emergency: prioritize availability over specialization
@@ -551,16 +555,19 @@ impl IntelligentFallback {
     }
 
     /// Get current fallback statistics
+    #[must_use]
     pub fn get_stats(&self) -> &FallbackStats {
         &self.stats
     }
 
     /// Get recent fallback decisions
+    #[must_use]
     pub fn get_recent_decisions(&self, limit: usize) -> Vec<&FallbackDecision> {
         self.decision_history.iter().rev().take(limit).collect()
     }
 
     /// Get active fallback decisions
+    #[must_use]
     pub fn get_active_decisions(&self) -> Vec<&FallbackDecision> {
         self.active_decisions.values().collect()
     }
@@ -569,7 +576,7 @@ impl IntelligentFallback {
     pub fn cleanup_completed_decisions(&mut self) {
         let now = Utc::now();
         self.active_decisions.retain(|_, decision| {
-            decision.completed_at.map_or(true, |completed| {
+            decision.completed_at.is_none_or(|completed| {
                 (now - completed).num_seconds() < 3600 // Keep for 1 hour
             })
         });
@@ -581,6 +588,7 @@ impl IntelligentFallback {
     }
 
     /// Get current configuration
+    #[must_use]
     pub fn get_config(&self) -> &FallbackConfig {
         &self.config
     }

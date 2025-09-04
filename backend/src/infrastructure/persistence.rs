@@ -4,28 +4,17 @@
 //! with multiple storage backends and automatic backup strategies.
 
 use crate::agents::Agent;
-use crate::core::HiveCoordinator;
 use crate::tasks::Task;
 use crate::utils::error::{HiveError, HiveResult};
-use aes_gcm::{
-    aead::{Aead, KeyInit},
-    Aes256Gcm, Key, Nonce,
-};
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
-use flate2::{read::GzDecoder, write::GzEncoder, Compression};
-use pbkdf2::hmac;
-use pbkdf2::pbkdf2;
-use ring::rand::SecureRandom;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
 use tokio::sync::{Mutex, RwLock};
-use tracing::{error, info, warn};
 use uuid::Uuid;
 
 /// Complete system state snapshot
@@ -151,1057 +140,27 @@ pub struct ProcessedSnapshot {
 #[async_trait::async_trait]
 pub trait StorageProvider {
     async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String>;
-    async fn save_processed_snapshot(
-        &self,
-        snapshot: &SystemSnapshot,
-        processed: &ProcessedSnapshot,
-    ) -> HiveResult<String>;
     async fn load_snapshot(&self, snapshot_id: &str) -> HiveResult<SystemSnapshot>;
-    async fn load_processed_snapshot(&self, snapshot_id: &str) -> HiveResult<ProcessedSnapshot>;
     async fn list_snapshots(&self) -> HiveResult<Vec<CheckpointMetadata>>;
     async fn delete_snapshot(&self, snapshot_id: &str) -> HiveResult<()>;
-    async fn cleanup_old_snapshots(&self, max_count: usize) -> HiveResult<usize>;
-}
-
-impl PersistenceManager {
-    /// Create a new persistence manager
-    pub async fn new(config: PersistenceConfig) -> HiveResult<Self> {
-        let storage: Box<dyn StorageProvider + Send + Sync> = match &config.storage_backend {
-            StorageBackend::FileSystem { base_path } => {
-                Box::new(FileSystemStorage::new(base_path.clone()).await?)
-            }
-            StorageBackend::SQLite { database_path } => {
-                Box::new(SQLiteStorage::new(database_path.clone()).await?)
-            }
-            StorageBackend::Memory { max_snapshots } => {
-                Box::new(MemoryStorage::new(*max_snapshots))
-            }
-        };
-
-        // Initialize encryption key if encryption is enabled
-        let encryption_key = if config.encryption_enabled {
-            Some(Self::derive_encryption_key(&config.encryption_key)?)
-        } else {
-            None
-        };
-
-        // Initialize backup manager if backup is enabled
-        let backup_manager = if config.backup_enabled {
-            Some(BackupManager {
-                backup_location: config
-                    .backup_location
-                    .clone()
-                    .unwrap_or_else(|| config.storage_path.join("backups")),
-                retention_days: config.backup_retention_days,
-                incremental: config.incremental_backup,
-            })
-        } else {
-            None
-        };
-
-        Ok(Self {
-            config,
-            storage,
-            checkpoint_history: Arc::new(RwLock::new(Vec::new())),
-            last_checkpoint: Arc::new(RwLock::new(None)),
-            encryption_key,
-            backup_manager,
-        })
-    }
-
-    /// Derive encryption key from configuration with PBKDF2 key stretching
-    fn derive_encryption_key(key_config: &Option<String>) -> HiveResult<[u8; 32]> {
-        match key_config {
-            Some(key_str) => {
-                // Check if it's a hex-encoded key (64 characters for 32 bytes)
-                if key_str.len() == 64 {
-                    hex::decode(key_str)
-                        .map_err(|e| HiveError::OperationFailed {
-                            reason: format!("Invalid hex encryption key: {}", e),
-                        })
-                        .and_then(|decoded| {
-                            if decoded.len() == 32 {
-                                let mut key = [0u8; 32];
-                                key.copy_from_slice(&decoded);
-                                Ok(key)
-                            } else {
-                                Err(HiveError::OperationFailed {
-                                    reason: "Hex encryption key must decode to 32 bytes"
-                                        .to_string(),
-                                })
-                            }
-                        })
-                } else if key_str.len() == 44 {
-                    // Base64-encoded key (44 chars for 32 bytes + padding)
-                    use base64::{engine::general_purpose, Engine as _};
-                    general_purpose::STANDARD
-                        .decode(key_str)
-                        .map_err(|e| HiveError::OperationFailed {
-                            reason: format!("Invalid base64 encryption key: {}", e),
-                        })
-                        .and_then(|decoded| {
-                            if decoded.len() == 32 {
-                                let mut key = [0u8; 32];
-                                key.copy_from_slice(&decoded);
-                                Ok(key)
-                            } else {
-                                Err(HiveError::OperationFailed {
-                                    reason: "Base64 encryption key must decode to 32 bytes"
-                                        .to_string(),
-                                })
-                            }
-                        })
-                } else {
-                    // Use PBKDF2 to derive a strong key from the provided password/key
-                    let salt = b"hive_persistence_salt"; // In production, use a random salt per key
-                    let mut key = [0u8; 32];
-
-                    pbkdf2::<pbkdf2::hmac::Hmac<sha2::Sha256>>(
-                        key_str.as_bytes(),
-                        salt,
-                        100_000, // 100k iterations for good security
-                        &mut key,
-                    )
-                    .map_err(|e| HiveError::OperationFailed {
-                        reason: format!("Failed to derive encryption key: {:?}", e),
-                    })?;
-
-                    Ok(key)
-                }
-            }
-            None => {
-                // Generate a cryptographically secure random key
-                let mut key = [0u8; 32];
-                ring::rand::SystemRandom::new()
-                    .fill(&mut key)
-                    .map_err(|e| HiveError::OperationFailed {
-                        reason: format!("Failed to generate encryption key: {:?}", e),
-                    })?;
-
-                tracing::warn!(
-                    "Generated random encryption key - save this for recovery: {}",
-                    hex::encode(&key)
-                );
-                tracing::warn!("For production use, set HIVE_ENCRYPTION_KEY environment variable");
-
-                Ok(key)
-            }
-        }
-    }
-
-    /// Process snapshot data with compression and encryption
-    async fn process_snapshot_data(
-        &self,
-        snapshot: &SystemSnapshot,
-    ) -> HiveResult<ProcessedSnapshot> {
-        let json_data =
-            serde_json::to_string(snapshot).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to serialize snapshot: {}", e),
-            })?;
-
-        let original_size = json_data.len();
-        let mut data = json_data.into_bytes();
-        let mut is_compressed = false;
-        let mut is_encrypted = false;
-
-        // Apply compression if enabled
-        if self.config.compression_enabled {
-            data = self.compress_data(&data)?;
-            is_compressed = true;
-        }
-
-        // Apply encryption if enabled
-        if self.config.encryption_enabled && self.encryption_key.is_some() {
-            data = self.encrypt_data(&data)?;
-            is_encrypted = true;
-        }
-
-        let processed_size = data.len();
-        let compression_ratio = if is_compressed {
-            original_size as f64 / processed_size as f64
-        } else {
-            1.0
-        };
-
-        Ok(ProcessedSnapshot {
-            data,
-            is_compressed,
-            is_encrypted,
-            original_size,
-            processed_size,
-            compression_ratio,
-        })
-    }
-
-    /// Decompress and decrypt snapshot data
-    async fn unprocess_snapshot_data(
-        &self,
-        processed: &ProcessedSnapshot,
-    ) -> HiveResult<SystemSnapshot> {
-        let mut data = processed.data.clone();
-
-        // Decrypt if encrypted
-        if processed.is_encrypted {
-            data = self.decrypt_data(&data)?;
-        }
-
-        // Decompress if compressed
-        if processed.is_compressed {
-            data = self.decompress_data(&data)?;
-        }
-
-        let json_str = String::from_utf8(data).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to convert data to string: {}", e),
-        })?;
-
-        serde_json::from_str(&json_str).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to deserialize snapshot: {}", e),
-        })
-    }
-
-    /// Compress data using gzip
-    fn compress_data(&self, data: &[u8]) -> HiveResult<Vec<u8>> {
-        let mut encoder =
-            GzEncoder::new(Vec::new(), Compression::new(self.config.compression_level));
-        encoder
-            .write_all(data)
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to write data for compression: {}", e),
-            })?;
-        encoder.finish().map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to compress data: {}", e),
-        })
-    }
-
-    /// Decompress gzip data
-    fn decompress_data(&self, data: &[u8]) -> HiveResult<Vec<u8>> {
-        let mut decoder = GzDecoder::new(data);
-        let mut decompressed = Vec::new();
-        decoder
-            .read_to_end(&mut decompressed)
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to decompress data: {}", e),
-            })?;
-        Ok(decompressed)
-    }
-
-    /// Encrypt data using AES-256-GCM
-    fn encrypt_data(&self, data: &[u8]) -> HiveResult<Vec<u8>> {
-        let key = self
-            .encryption_key
-            .as_ref()
-            .ok_or_else(|| HiveError::OperationFailed {
-                reason: "Encryption key not available".to_string(),
-            })?;
-
-        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
-
-        // Generate random nonce
-        let rng = ring::rand::SystemRandom::new();
-        let mut nonce_bytes = [0u8; 12];
-        rng.fill(&mut nonce_bytes)
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to generate nonce: {:?}", e),
-            })?;
-        let nonce = Nonce::from_slice(&nonce_bytes);
-
-        let ciphertext = cipher
-            .encrypt(nonce, data)
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to encrypt data: {}", e),
-            })?;
-
-        // Prepend nonce to ciphertext
-        let mut result = Vec::with_capacity(12 + ciphertext.len());
-        result.extend_from_slice(&nonce_bytes);
-        result.extend_from_slice(&ciphertext);
-        Ok(result)
-    }
-
-    /// Decrypt data using AES-256-GCM
-    fn decrypt_data(&self, data: &[u8]) -> HiveResult<Vec<u8>> {
-        if data.len() < 12 {
-            return Err(HiveError::OperationFailed {
-                reason: "Encrypted data too short".to_string(),
-            });
-        }
-
-        let key = self
-            .encryption_key
-            .as_ref()
-            .ok_or_else(|| HiveError::OperationFailed {
-                reason: "Encryption key not available".to_string(),
-            })?;
-
-        let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
-
-        // Extract nonce and ciphertext
-        let (nonce_bytes, ciphertext) = data.split_at(12);
-        let nonce = Nonce::from_slice(nonce_bytes);
-
-        cipher
-            .decrypt(nonce, ciphertext)
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to decrypt data: {}", e),
-            })
-    }
-
-    /// Rotate encryption key for existing data
-    ///
-    /// This method re-encrypts all existing snapshots with a new key
-    /// while maintaining data integrity and availability.
-    pub async fn rotate_encryption_key(
-        &mut self,
-        new_key_config: Option<String>,
-    ) -> HiveResult<()> {
-        info!("Starting encryption key rotation...");
-
-        // Derive new encryption key
-        let new_key = Self::derive_encryption_key(&new_key_config)?;
-
-        // Get all existing snapshots
-        let snapshots = self.storage.list_snapshots().await?;
-        info!("Found {} snapshots to re-encrypt", snapshots.len());
-
-        for metadata in snapshots {
-            info!("Re-encrypting snapshot: {}", metadata.checkpoint_id);
-
-            // Load the snapshot
-            let processed = self
-                .storage
-                .load_processed_snapshot(&metadata.checkpoint_id.to_string())
-                .await?;
-
-            // Decrypt with old key
-            let decrypted_data = if processed.is_encrypted {
-                self.decrypt_data(&processed.data)?
-            } else {
-                processed.data
-            };
-
-            // Decompress if needed
-            let decompressed_data = if processed.is_compressed {
-                self.decompress_data(&decrypted_data)?
-            } else {
-                decrypted_data
-            };
-
-            // Deserialize back to SystemSnapshot
-            let json_str =
-                String::from_utf8(decompressed_data).map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to convert decompressed data to string: {}", e),
-                })?;
-            let snapshot: SystemSnapshot =
-                serde_json::from_str(&json_str).map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to deserialize snapshot: {}", e),
-                })?;
-
-            // Update encryption key
-            self.encryption_key = Some(new_key);
-
-            // Re-process with new key
-            let reprocessed = self.process_snapshot_data(&snapshot).await?;
-
-            // Save with new encryption
-            self.storage
-                .save_processed_snapshot(&snapshot, &reprocessed)
-                .await?;
-
-            info!(
-                "Successfully re-encrypted snapshot: {}",
-                metadata.checkpoint_id
-            );
-        }
-
-        // Update the key in memory
-        self.encryption_key = Some(new_key);
-
-        info!("Encryption key rotation completed successfully");
-        Ok(())
-    }
-
-    /// Load encryption key from secure sources
-    ///
-    /// Attempts to load encryption key from:
-    /// 1. Environment variable HIVE_ENCRYPTION_KEY
-    /// 2. Key file at configured path
-    /// 3. Generate new key (development only)
-    pub fn load_encryption_key() -> Option<String> {
-        // Try environment variable first
-        if let Ok(key) = std::env::var("HIVE_ENCRYPTION_KEY") {
-            if !key.is_empty() {
-                info!("Loaded encryption key from environment variable");
-                return Some(key);
-            }
-        }
-
-        // Try key file
-        let key_paths = [
-            "./config/encryption.key",
-            "/etc/hive/encryption.key",
-            "./data/encryption.key",
-        ];
-
-        for path in &key_paths {
-            if let Ok(key_data) = std::fs::read_to_string(path) {
-                let key = key_data.trim();
-                if !key.is_empty() {
-                    info!("Loaded encryption key from file: {}", path);
-                    return Some(key.to_string());
-                }
-            }
-        }
-
-        // For development/demo purposes only
-        if cfg!(debug_assertions) {
-            warn!("No encryption key found - using development mode");
-            None
-        } else {
-            error!("No encryption key found - encryption disabled for security");
-            None
-        }
-    }
-
-    /// Create a checkpoint of the current system state
-    pub async fn create_checkpoint(
-        &self,
-        hive: &HiveCoordinator,
-        description: Option<String>,
-    ) -> HiveResult<Uuid> {
-        info!("Creating system checkpoint...");
-
-        let snapshot = self.capture_system_state(hive).await?;
-        let snapshot_id = snapshot.snapshot_id;
-
-        // Save the snapshot
-        let _storage_id = self.storage.save_snapshot(&snapshot).await?;
-
-        // Update checkpoint history
-        let metadata = CheckpointMetadata {
-            checkpoint_id: snapshot_id,
-            timestamp: snapshot.timestamp,
-            size_bytes: self.estimate_snapshot_size(&snapshot),
-            compression_ratio: if self.config.compression_enabled {
-                0.3
-            } else {
-                1.0
-            },
-            agent_count: snapshot.agents.len(),
-            task_count: snapshot.tasks.len(),
-            description: description.unwrap_or_else(|| "Automatic checkpoint".to_string()),
-        };
-
-        {
-            let mut history = self.checkpoint_history.write().await;
-            history.push(metadata);
-
-            // Cleanup old checkpoints if needed
-            if history.len() > self.config.max_snapshots {
-                let removed = self
-                    .storage
-                    .cleanup_old_snapshots(self.config.max_snapshots)
-                    .await?;
-                history.truncate(self.config.max_snapshots);
-                info!("Cleaned up {} old checkpoints", removed);
-            }
-        }
-
-        {
-            let mut last = self.last_checkpoint.write().await;
-            *last = Some(Utc::now());
-        }
-
-        info!("Checkpoint {} created successfully", snapshot_id);
-        Ok(snapshot_id)
-    }
-
-    /// Create backup of snapshot
-    async fn create_backup(
-        &self,
-        snapshot: &SystemSnapshot,
-        processed: &ProcessedSnapshot,
-        backup_manager: &BackupManager,
-    ) -> HiveResult<()> {
-        // Create backup directory if it doesn't exist
-        fs::create_dir_all(&backup_manager.backup_location)
-            .await
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to create backup directory: {}", e),
-            })?;
-
-        let backup_filename = format!(
-            "backup_{}_{}.bin",
-            snapshot.snapshot_id,
-            snapshot.timestamp.format("%Y%m%d_%H%M%S")
-        );
-        let backup_path = backup_manager.backup_location.join(&backup_filename);
-
-        // Write processed data to backup file
-        fs::write(&backup_path, &processed.data)
-            .await
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to write backup file: {}", e),
-            })?;
-
-        // Create metadata file
-        let metadata_filename = format!(
-            "backup_{}_{}.meta",
-            snapshot.snapshot_id,
-            snapshot.timestamp.format("%Y%m%d_%H%M%S")
-        );
-        let metadata_path = backup_manager.backup_location.join(&metadata_filename);
-
-        let backup_metadata = serde_json::json!({
-            "snapshot_id": snapshot.snapshot_id,
-            "timestamp": snapshot.timestamp,
-            "original_size": processed.original_size,
-            "processed_size": processed.processed_size,
-            "is_compressed": processed.is_compressed,
-            "is_encrypted": processed.is_encrypted,
-            "compression_ratio": processed.compression_ratio,
-            "agent_count": snapshot.agents.len(),
-            "task_count": snapshot.tasks.len(),
-        });
-
-        fs::write(
-            &metadata_path,
-            serde_json::to_string_pretty(&backup_metadata).map_err(|e| {
-                HiveError::ValidationError {
-                    field: "backup_metadata".to_string(),
-                    reason: format!("Failed to serialize: {}", e),
-                }
-            })?,
-        )
-        .await
-        .map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to write backup metadata: {}", e),
-        })?;
-
-        info!("Created backup: {}", backup_filename);
-
-        // Cleanup old backups if needed
-        if let Err(e) = self.cleanup_old_backups(backup_manager).await {
-            warn!("Failed to cleanup old backups: {}", e);
-        }
-
-        Ok(())
-    }
-
-    /// Cleanup old backup files
-    async fn cleanup_old_backups(&self, backup_manager: &BackupManager) -> HiveResult<()> {
-        let cutoff_date = Utc::now() - chrono::Duration::days(backup_manager.retention_days as i64);
-
-        let mut entries = fs::read_dir(&backup_manager.backup_location)
-            .await
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to read backup directory: {}", e),
-            })?;
-
-        let mut removed_count = 0;
-        while let Some(entry) =
-            entries
-                .next_entry()
-                .await
-                .map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to read directory entry: {}", e),
-                })?
-        {
-            let path = entry.path();
-            if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                if filename.starts_with("backup_")
-                    && (filename.ends_with(".bin") || filename.ends_with(".meta"))
-                {
-                    if let Ok(metadata) = entry.metadata().await {
-                        if let Ok(modified) = metadata.modified() {
-                            let modified_datetime: DateTime<Utc> = modified.into();
-                            if modified_datetime < cutoff_date {
-                                if let Err(e) = fs::remove_file(&path).await {
-                                    warn!("Failed to remove old backup file {}: {}", filename, e);
-                                } else {
-                                    removed_count += 1;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if removed_count > 0 {
-            info!("Cleaned up {} old backup files", removed_count);
-        }
-
-        Ok(())
-    }
-
-    /// Restore system state from a checkpoint
-    pub async fn restore_from_checkpoint(
-        &self,
-        snapshot_id: &str,
-        hive: &mut HiveCoordinator,
-    ) -> HiveResult<()> {
-        info!("Restoring system from checkpoint: {}", snapshot_id);
-
-        let snapshot = self.storage.load_snapshot(snapshot_id).await?;
-
-        // Restore hive state
-        self.restore_hive_state(hive, &snapshot).await?;
-
-        // Restore agents
-        self.restore_agents(hive, &snapshot.agents).await?;
-
-        // Restore tasks
-        self.restore_tasks(hive, &snapshot.tasks).await?;
-
-        info!(
-            "System restored successfully from checkpoint {}",
-            snapshot_id
-        );
-        Ok(())
-    }
-
-    /// Start automatic checkpointing
-    pub async fn start_auto_checkpointing(&self, hive: Arc<RwLock<HiveCoordinator>>) {
-        let interval_minutes = self.config.checkpoint_interval_minutes;
-        let persistence = Arc::new(self.clone());
-
-        tokio::spawn(async move {
-            let mut interval =
-                tokio::time::interval(tokio::time::Duration::from_secs(interval_minutes * 60));
-
-            loop {
-                interval.tick().await;
-
-                let hive_guard = hive.read().await;
-                if let Err(e) = persistence.create_checkpoint(&*hive_guard, None).await {
-                    error!("Automatic checkpoint failed: {}", e);
-                } else {
-                    info!("Automatic checkpoint completed");
-                }
-            }
-        });
-
-        info!(
-            "Automatic checkpointing started (interval: {} minutes)",
-            interval_minutes
-        );
-    }
-
-    /// Get checkpoint history
-    pub async fn get_checkpoint_history(&self) -> Vec<CheckpointMetadata> {
-        self.checkpoint_history.read().await.clone()
-    }
-
-    /// Capture current system state
-    async fn capture_system_state(&self, hive: &HiveCoordinator) -> HiveResult<SystemSnapshot> {
-        let agents: Vec<Agent> = hive
-            .agents
-            .iter()
-            .map(|entry| entry.value().clone())
-            .collect();
-
-        // Collect tasks from hive
-        let tasks_info = hive.get_tasks_info().await;
-        let tasks: Vec<Task> = Vec::new(); // For now, we'll collect basic task info
-
-        let hive_status = hive.get_status().await;
-        let default_map = serde_json::Map::new();
-        let tasks_metrics = tasks_info
-            .get("legacy_queue")
-            .and_then(|q| q.as_object())
-            .unwrap_or(&default_map);
-
-        let metrics = SystemMetrics {
-            total_agents: agents.len(),
-            active_agents: agents
-                .iter()
-                .filter(|a| !matches!(a.state, crate::agents::AgentState::Idle))
-                .count(),
-            completed_tasks: tasks_metrics
-                .get("completed_tasks")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0),
-            failed_tasks: tasks_metrics
-                .get("failed_tasks")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0),
-            average_performance: hive_status
-                .get("metrics")
-                .and_then(|m| m.get("average_performance"))
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0),
-            swarm_cohesion: hive_status
-                .get("metrics")
-                .and_then(|m| m.get("swarm_cohesion"))
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0),
-            learning_progress: hive_status
-                .get("metrics")
-                .and_then(|m| m.get("learning_progress"))
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0),
-            uptime_seconds: (Utc::now() - hive.created_at).num_seconds() as u64,
-        };
-
-        Ok(SystemSnapshot {
-            snapshot_id: Uuid::new_v4(),
-            timestamp: Utc::now(),
-            version: "1.0.0".to_string(),
-            hive_state: HiveState {
-                hive_id: hive_status
-                    .get("hive_id")
-                    .and_then(|v| v.as_str())
-                    .and_then(|s| Uuid::parse_str(s).ok())
-                    .unwrap_or_else(Uuid::new_v4),
-                created_at: Utc::now(), // TODO: Get actual creation time
-                last_update: Utc::now(),
-                total_energy: hive_status
-                    .get("total_energy")
-                    .and_then(|v| v.as_f64())
-                    .unwrap_or(0.0),
-                swarm_center: hive_status
-                    .get("swarm_center")
-                    .and_then(|v| v.as_array())
-                    .and_then(|arr| {
-                        if arr.len() >= 2 {
-                            Some((
-                                arr[0].as_f64().unwrap_or(0.0),
-                                arr[1].as_f64().unwrap_or(0.0),
-                            ))
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or((0.0, 0.0)),
-                auto_scaling_enabled: true,
-                learning_enabled: true,
-            },
-            agents,
-            tasks,
-            metrics,
-            configuration: serde_json::json!({
-                "max_agents": 1000,
-                "task_timeout_seconds": 300,
-                "auto_scaling_enabled": true,
-                "neural_processing_enabled": true
-            }),
-        })
-    }
-
-    /// Restore hive state
-    async fn restore_hive_state(
-        &self,
-        hive: &mut HiveCoordinator,
-        snapshot: &SystemSnapshot,
-    ) -> HiveResult<()> {
-        info!(
-            "Restoring hive state for hive {}",
-            snapshot.hive_state.hive_id
-        );
-
-        // Restore agents
-        for agent in &snapshot.agents {
-            if let Err(e) = hive
-                .create_agent(serde_json::json!({
-                    "name": agent.name,
-                    "type": agent.agent_type,
-                    "capabilities": agent.capabilities,
-                    "initial_energy": agent.energy
-                }))
-                .await
-            {
-                warn!("Failed to restore agent {}: {}", agent.id, e);
-            }
-        }
-
-        // Restore tasks
-        for task in &snapshot.tasks {
-            if let Err(e) = hive
-                .create_task(serde_json::json!({
-                    "title": task.description, // Use description as title for now
-                    "description": task.description,
-                    "task_type": "General", // Default task type
-                    "priority": task.priority,
-                    "required_capabilities": task.required_capabilities
-                }))
-                .await
-            {
-                warn!("Failed to restore task {}: {}", task.id, e);
-            }
-        }
-
-        info!(
-            "Successfully restored {} agents and {} tasks",
-            snapshot.agents.len(),
-            snapshot.tasks.len()
-        );
-        Ok(())
-    }
-
-    /// Restore agents
-    async fn restore_agents(&self, hive: &mut HiveCoordinator, agents: &[Agent]) -> HiveResult<()> {
-        info!("Restoring {} agents", agents.len());
-
-        for agent in agents {
-            hive.agents.insert(agent.id, agent.clone());
-        }
-
-        Ok(())
-    }
-
-    /// Restore tasks
-    async fn restore_tasks(&self, _hive: &mut HiveCoordinator, tasks: &[Task]) -> HiveResult<()> {
-        info!("Restoring {} tasks", tasks.len());
-        // TODO: Implement task restoration
-        Ok(())
-    }
-
-    /// Start automatic checkpoint scheduling
-    pub async fn start_automatic_checkpoints(
-        &self,
-        hive: Arc<HiveCoordinator>,
-    ) -> HiveResult<tokio::task::JoinHandle<()>> {
-        let interval_minutes = self.config.checkpoint_interval_minutes;
-        let persistence_manager = self.clone();
-
-        let handle = tokio::spawn(async move {
-            let mut interval =
-                tokio::time::interval(std::time::Duration::from_secs(interval_minutes * 60));
-
-            loop {
-                interval.tick().await;
-
-                match persistence_manager
-                    .create_checkpoint(&hive, Some("Automatic checkpoint".to_string()))
-                    .await
-                {
-                    Ok(checkpoint_id) => {
-                        info!("Created automatic checkpoint: {}", checkpoint_id);
-
-                        // Cleanup old snapshots
-                        if let Err(e) = persistence_manager
-                            .storage
-                            .cleanup_old_snapshots(persistence_manager.config.max_snapshots)
-                            .await
-                        {
-                            warn!("Failed to cleanup old snapshots: {}", e);
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to create automatic checkpoint: {}", e);
-                    }
-                }
-            }
-        });
-
-        Ok(handle)
-    }
-
-    /// List all snapshots
-    pub async fn list_snapshots(&self) -> HiveResult<Vec<CheckpointMetadata>> {
-        self.storage.list_snapshots().await
-    }
-
-    /// Cleanup old snapshots
-    pub async fn cleanup_old_snapshots(&self, max_count: usize) -> HiveResult<usize> {
-        self.storage.cleanup_old_snapshots(max_count).await
-    }
-
-    /// Get checkpoint statistics
-    pub async fn get_checkpoint_stats(&self) -> HiveResult<CheckpointStats> {
-        let snapshots = self.storage.list_snapshots().await?;
-
-        let total_size: u64 = snapshots.iter().map(|s| s.size_bytes).sum();
-        let avg_size = if snapshots.is_empty() {
-            0.0
-        } else {
-            total_size as f64 / snapshots.len() as f64
-        };
-
-        // Calculate compression savings
-        let total_compression_ratio: f64 = snapshots.iter().map(|s| s.compression_ratio).sum();
-        let avg_compression_ratio = if snapshots.is_empty() {
-            1.0
-        } else {
-            total_compression_ratio / snapshots.len() as f64
-        };
-        let compression_savings = if avg_compression_ratio > 1.0 {
-            (1.0 - (1.0 / avg_compression_ratio)) * 100.0
-        } else {
-            0.0
-        };
-
-        // Count encrypted snapshots (simplified - in real implementation, track this)
-        let encrypted_snapshots = if self.config.encryption_enabled {
-            snapshots.len()
-        } else {
-            0
-        };
-
-        // Count backup files
-        let backup_count = if let Some(backup_manager) = &self.backup_manager {
-            self.count_backup_files(backup_manager).await.unwrap_or(0)
-        } else {
-            0
-        };
-
-        Ok(CheckpointStats {
-            total_snapshots: snapshots.len(),
-            total_size_bytes: total_size,
-            average_size_bytes: avg_size,
-            oldest_snapshot: snapshots.iter().map(|s| s.timestamp).min(),
-            newest_snapshot: snapshots.iter().map(|s| s.timestamp).max(),
-            last_checkpoint: *self.last_checkpoint.read().await,
-            compression_savings,
-            encrypted_snapshots,
-            backup_count,
-            last_backup: None, // TODO: Track last backup time
-        })
-    }
-
-    /// Count backup files
-    async fn count_backup_files(&self, backup_manager: &BackupManager) -> HiveResult<usize> {
-        if !backup_manager.backup_location.exists() {
-            return Ok(0);
-        }
-
-        let mut entries = fs::read_dir(&backup_manager.backup_location)
-            .await
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to read backup directory: {}", e),
-            })?;
-
-        let mut count = 0;
-        while let Some(entry) =
-            entries
-                .next_entry()
-                .await
-                .map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to read directory entry: {}", e),
-                })?
-        {
-            if let Some(filename) = entry.file_name().to_str() {
-                if filename.starts_with("backup_") && filename.ends_with(".bin") {
-                    count += 1;
-                }
-            }
-        }
-
-        Ok(count)
-    }
-
-    /// Estimate snapshot size
-    fn estimate_snapshot_size(&self, snapshot: &SystemSnapshot) -> u64 {
-        // Rough estimation based on serialized JSON size
-        serde_json::to_string(snapshot)
-            .map(|s| s.len() as u64)
-            .unwrap_or(0)
-    }
-}
-
-impl Clone for PersistenceManager {
-    fn clone(&self) -> Self {
-        // Note: This is a simplified clone that doesn't clone the storage provider
-        // In a real implementation, you'd need to handle this properly
-        Self {
-            config: self.config.clone(),
-            storage: Box::new(MemoryStorage::new(100)), // Fallback storage
-            checkpoint_history: self.checkpoint_history.clone(),
-            last_checkpoint: self.last_checkpoint.clone(),
-            encryption_key: self.encryption_key,
-            backup_manager: self.backup_manager.clone(),
-        }
-    }
-}
-
-/// File system storage implementation
-pub struct FileSystemStorage {
-    base_path: PathBuf,
-}
-
-impl FileSystemStorage {
-    pub async fn new(base_path: PathBuf) -> HiveResult<Self> {
-        fs::create_dir_all(&base_path)
-            .await
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to create storage directory: {}", e),
-            })?;
-
-        Ok(Self { base_path })
-    }
-}
-
-#[async_trait::async_trait]
-impl StorageProvider for FileSystemStorage {
-    async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String> {
-        let filename = format!("snapshot_{}.json", snapshot.snapshot_id);
-        let file_path = self.base_path.join(&filename);
-
-        let json_data =
-            serde_json::to_string_pretty(snapshot).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to serialize snapshot: {}", e),
-            })?;
-
-        fs::write(&file_path, json_data)
-            .await
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to write snapshot file: {}", e),
-            })?;
-
-        Ok(filename)
-    }
-
-    async fn load_snapshot(&self, snapshot_id: &str) -> HiveResult<SystemSnapshot> {
-        let file_path = self
-            .base_path
-            .join(format!("snapshot_{}.json", snapshot_id));
-
-        let json_data =
-            fs::read_to_string(&file_path)
-                .await
-                .map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to read snapshot file: {}", e),
-                })?;
-
-        serde_json::from_str(&json_data).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to deserialize snapshot: {}", e),
-        })
-    }
-
-    async fn list_snapshots(&self) -> HiveResult<Vec<CheckpointMetadata>> {
-        // TODO: Implement file system snapshot listing
-        Ok(Vec::new())
-    }
-
-    async fn delete_snapshot(&self, snapshot_id: &str) -> HiveResult<()> {
-        let file_path = self
-            .base_path
-            .join(format!("snapshot_{}.json", snapshot_id));
-        fs::remove_file(&file_path)
-            .await
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to delete snapshot file: {}", e),
-            })
-    }
-
     async fn save_processed_snapshot(
         &self,
         snapshot: &SystemSnapshot,
         processed: &ProcessedSnapshot,
     ) -> HiveResult<String> {
         let filename = format!("snapshot_{}.bin", snapshot.snapshot_id);
-        let file_path = self.base_path.join(&filename);
+        let file_path = self.base_path().join(&filename);
 
         // Write processed binary data
         fs::write(&file_path, &processed.data)
             .await
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to write processed snapshot file: {}", e),
+                reason: format!("Failed to write processed snapshot file: {e}"),
             })?;
 
         // Write metadata
         let metadata_filename = format!("snapshot_{}.meta", snapshot.snapshot_id);
-        let metadata_path = self.base_path.join(&metadata_filename);
+        let metadata_path = self.base_path().join(&metadata_filename);
 
         let metadata = serde_json::json!({
             "snapshot_id": snapshot.snapshot_id,
@@ -1217,28 +176,28 @@ impl StorageProvider for FileSystemStorage {
             &metadata_path,
             serde_json::to_string_pretty(&metadata).map_err(|e| HiveError::ValidationError {
                 field: "metadata".to_string(),
-                reason: format!("Failed to serialize: {}", e),
+                reason: format!("Failed to serialize: {e}"),
             })?,
         )
         .await
         .map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to write metadata file: {}", e),
+            reason: format!("Failed to write metadata file: {e}"),
         })?;
 
         Ok(filename)
     }
 
     async fn load_processed_snapshot(&self, snapshot_id: &str) -> HiveResult<ProcessedSnapshot> {
-        let file_path = self.base_path.join(format!("snapshot_{}.bin", snapshot_id));
+        let file_path = self.base_path().join(format!("snapshot_{snapshot_id}.bin"));
         let metadata_path = self
-            .base_path
-            .join(format!("snapshot_{}.meta", snapshot_id));
+            .base_path()
+            .join(format!("snapshot_{snapshot_id}.meta"));
 
         // Load binary data
         let data = fs::read(&file_path)
             .await
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to read processed snapshot file: {}", e),
+                reason: format!("Failed to read processed snapshot file: {e}"),
             })?;
 
         // Load metadata
@@ -1246,12 +205,12 @@ impl StorageProvider for FileSystemStorage {
             fs::read_to_string(&metadata_path)
                 .await
                 .map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to read metadata file: {}", e),
+                    reason: format!("Failed to read metadata file: {e}"),
                 })?;
 
         let metadata: serde_json::Value =
             serde_json::from_str(&metadata_str).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to parse metadata: {}", e),
+                reason: format!("Failed to parse metadata: {e}"),
             })?;
 
         Ok(ProcessedSnapshot {
@@ -1264,13 +223,19 @@ impl StorageProvider for FileSystemStorage {
         })
     }
 
-    async fn cleanup_old_snapshots(&self, max_count: usize) -> HiveResult<usize> {
+    async fn cleanup_old_snapshots(&self, _max_count: usize) -> HiveResult<usize> {
         // TODO: Implement cleanup logic
         Ok(0)
     }
+
+    fn base_path(&self) -> &PathBuf {
+        // Default implementation returns empty path - concrete implementations should override
+        static EMPTY_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+        EMPTY_PATH.get_or_init(PathBuf::new)
+    }
 }
 
-/// SQLite storage implementation
+/// `SQLite` storage implementation
 pub struct SQLiteStorage {
     database_path: PathBuf,
     connection: Arc<Mutex<Connection>>,
@@ -1283,12 +248,12 @@ impl SQLiteStorage {
             tokio::fs::create_dir_all(parent)
                 .await
                 .map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to create database directory: {}", e),
+                    reason: format!("Failed to create database directory: {e}"),
                 })?;
         }
 
         let conn = Connection::open(&database_path).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to open SQLite database: {}", e),
+            reason: format!("Failed to open SQLite database: {e}"),
         })?;
 
         // Initialize database schema
@@ -1306,7 +271,7 @@ impl SQLiteStorage {
             [],
         )
         .map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to create snapshots table: {}", e),
+            reason: format!("Failed to create snapshots table: {e}"),
         })?;
 
         conn.execute(
@@ -1314,7 +279,7 @@ impl SQLiteStorage {
             [],
         )
         .map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to create timestamp index: {}", e),
+            reason: format!("Failed to create timestamp index: {e}"),
         })?;
 
         Ok(Self {
@@ -1326,10 +291,15 @@ impl SQLiteStorage {
 
 #[async_trait::async_trait]
 impl StorageProvider for SQLiteStorage {
+    fn base_path(&self) -> &PathBuf {
+        // SQLite storage doesn't use filesystem paths
+        static EMPTY_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+        EMPTY_PATH.get_or_init(PathBuf::new)
+    }
     async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String> {
         let json_data =
             serde_json::to_string(snapshot).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to serialize snapshot: {}", e),
+                reason: format!("Failed to serialize snapshot: {e}"),
             })?;
 
         let conn = self.connection.lock().await;
@@ -1347,7 +317,7 @@ impl StorageProvider for SQLiteStorage {
                 json_data
             ],
         ).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to save snapshot to database: {}", e),
+            reason: format!("Failed to save snapshot to database: {e}"),
         })?;
 
         Ok(snapshot.snapshot_id.to_string())
@@ -1378,7 +348,7 @@ impl StorageProvider for SQLiteStorage {
                 encoded_data
             ],
         ).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to save processed snapshot to database: {}", e),
+            reason: format!("Failed to save processed snapshot to database: {e}"),
         })?;
 
         Ok(snapshot.snapshot_id.to_string())
@@ -1389,17 +359,17 @@ impl StorageProvider for SQLiteStorage {
         let mut stmt = conn
             .prepare("SELECT data FROM snapshots WHERE id = ?1")
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to prepare query: {}", e),
+                reason: format!("Failed to prepare query: {e}"),
             })?;
 
         let json_data: String = stmt
-            .query_row(params![snapshot_id], |row| Ok(row.get(0)?))
+            .query_row(params![snapshot_id], |row| row.get(0))
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to load snapshot from database: {}", e),
+                reason: format!("Failed to load snapshot from database: {e}"),
             })?;
 
         serde_json::from_str(&json_data).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to deserialize snapshot: {}", e),
+            reason: format!("Failed to deserialize snapshot: {e}"),
         })
     }
 
@@ -1408,19 +378,19 @@ impl StorageProvider for SQLiteStorage {
         let mut stmt = conn
             .prepare("SELECT data FROM snapshots WHERE id = ?1")
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to prepare query: {}", e),
+                reason: format!("Failed to prepare query: {e}"),
             })?;
 
         let encoded_data: String = stmt
-            .query_row(params![snapshot_id], |row| Ok(row.get(0)?))
+            .query_row(params![snapshot_id], |row| row.get(0))
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to load processed snapshot from database: {}", e),
+                reason: format!("Failed to load processed snapshot from database: {e}"),
             })?;
 
         let data = general_purpose::STANDARD
             .decode(&encoded_data)
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to decode snapshot data: {}", e),
+                reason: format!("Failed to decode snapshot data: {e}"),
             })?;
 
         // Note: In a real implementation, we'd store metadata separately
@@ -1444,7 +414,7 @@ impl StorageProvider for SQLiteStorage {
              FROM snapshots ORDER BY timestamp DESC",
             )
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to prepare query: {}", e),
+                reason: format!("Failed to prepare query: {e}"),
             })?;
 
         let rows = stmt
@@ -1477,13 +447,13 @@ impl StorageProvider for SQLiteStorage {
                 })
             })
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to query snapshots: {}", e),
+                reason: format!("Failed to query snapshots: {e}"),
             })?;
 
         let mut snapshots = Vec::new();
         for row in rows {
             snapshots.push(row.map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to parse snapshot row: {}", e),
+                reason: format!("Failed to parse snapshot row: {e}"),
             })?);
         }
 
@@ -1494,7 +464,7 @@ impl StorageProvider for SQLiteStorage {
         let conn = self.connection.lock().await;
         conn.execute("DELETE FROM snapshots WHERE id = ?1", params![snapshot_id])
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to delete snapshot: {}", e),
+                reason: format!("Failed to delete snapshot: {e}"),
             })?;
         Ok(())
     }
@@ -1506,14 +476,14 @@ impl StorageProvider for SQLiteStorage {
         let mut count_stmt = conn
             .prepare("SELECT COUNT(*) FROM snapshots")
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to prepare count query: {}", e),
+                reason: format!("Failed to prepare count query: {e}"),
             })?;
 
         let total_count: i64 =
             count_stmt
                 .query_row([], |row| row.get(0))
                 .map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to get snapshot count: {}", e),
+                    reason: format!("Failed to get snapshot count: {e}"),
                 })?;
 
         if total_count <= max_count as i64 {
@@ -1530,10 +500,131 @@ impl StorageProvider for SQLiteStorage {
             params![to_delete],
         )
         .map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to cleanup old snapshots: {}", e),
+            reason: format!("Failed to cleanup old snapshots: {e}"),
         })?;
 
         Ok(to_delete as usize)
+    }
+}
+
+/// File system storage implementation
+pub struct FileSystemStorage {
+    base_path: PathBuf,
+}
+
+impl FileSystemStorage {
+    pub async fn new(base_path: PathBuf) -> HiveResult<Self> {
+        // Create directory if it doesn't exist
+        tokio::fs::create_dir_all(&base_path)
+            .await
+            .map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to create storage directory: {e}"),
+            })?;
+
+        Ok(Self { base_path })
+    }
+}
+
+#[async_trait::async_trait]
+impl StorageProvider for FileSystemStorage {
+    async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String> {
+        let json_data =
+            serde_json::to_string(snapshot).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to serialize snapshot: {e}"),
+            })?;
+
+        let filename = format!("snapshot_{}.json", snapshot.snapshot_id);
+        let file_path = self.base_path.join(&filename);
+
+        fs::write(&file_path, &json_data)
+            .await
+            .map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to write snapshot file: {e}"),
+            })?;
+
+        Ok(snapshot.snapshot_id.to_string())
+    }
+
+    async fn load_snapshot(&self, snapshot_id: &str) -> HiveResult<SystemSnapshot> {
+        let filename = format!("snapshot_{snapshot_id}.json");
+        let file_path = self.base_path.join(&filename);
+
+        let json_data =
+            fs::read_to_string(&file_path)
+                .await
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to read snapshot file: {e}"),
+                })?;
+
+        serde_json::from_str(&json_data).map_err(|e| HiveError::OperationFailed {
+            reason: format!("Failed to deserialize snapshot: {e}"),
+        })
+    }
+
+    async fn list_snapshots(&self) -> HiveResult<Vec<CheckpointMetadata>> {
+        let mut entries =
+            fs::read_dir(&self.base_path)
+                .await
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to read storage directory: {e}"),
+                })?;
+
+        let mut snapshots = Vec::new();
+        while let Some(entry) =
+            entries
+                .next_entry()
+                .await
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to read directory entry: {e}"),
+                })?
+        {
+            let path = entry.path();
+            if let Some(extension) = path.extension() {
+                if extension == "json" {
+                    if let Some(filename) = path.file_stem() {
+                        if let Some(filename_str) = filename.to_str() {
+                            if filename_str.starts_with("snapshot_") {
+                                if let Some(uuid_str) = filename_str.strip_prefix("snapshot_") {
+                                    if let Ok(uuid) = Uuid::parse_str(uuid_str) {
+                                        // Load the snapshot to get metadata
+                                        if let Ok(snapshot) = self.load_snapshot(uuid_str).await {
+                                            snapshots.push(CheckpointMetadata {
+                                                checkpoint_id: uuid,
+                                                timestamp: snapshot.timestamp,
+                                                size_bytes: 0, // Would need to get file size
+                                                compression_ratio: 1.0,
+                                                agent_count: snapshot.agents.len(),
+                                                task_count: snapshot.tasks.len(),
+                                                description: "File system snapshot".to_string(),
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(snapshots)
+    }
+
+    async fn delete_snapshot(&self, snapshot_id: &str) -> HiveResult<()> {
+        let filename = format!("snapshot_{snapshot_id}.json");
+        let file_path = self.base_path.join(&filename);
+
+        fs::remove_file(&file_path)
+            .await
+            .map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to delete snapshot file: {e}"),
+            })?;
+
+        Ok(())
+    }
+
+    fn base_path(&self) -> &PathBuf {
+        &self.base_path
     }
 }
 
@@ -1544,6 +635,7 @@ pub struct MemoryStorage {
 }
 
 impl MemoryStorage {
+    #[must_use]
     pub fn new(max_snapshots: usize) -> Self {
         Self {
             snapshots: Arc::new(RwLock::new(HashMap::new())),
@@ -1554,6 +646,11 @@ impl MemoryStorage {
 
 #[async_trait::async_trait]
 impl StorageProvider for MemoryStorage {
+    fn base_path(&self) -> &PathBuf {
+        // Memory storage doesn't use filesystem paths
+        static EMPTY_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+        EMPTY_PATH.get_or_init(PathBuf::new)
+    }
     async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String> {
         let mut snapshots = self.snapshots.write().await;
         let id = snapshot.snapshot_id.to_string();
@@ -1573,7 +670,7 @@ impl StorageProvider for MemoryStorage {
     async fn save_processed_snapshot(
         &self,
         snapshot: &SystemSnapshot,
-        processed: &ProcessedSnapshot,
+        _processed: &ProcessedSnapshot,
     ) -> HiveResult<String> {
         let mut snapshots = self.snapshots.write().await;
         let id = snapshot.snapshot_id.to_string();
@@ -1599,7 +696,7 @@ impl StorageProvider for MemoryStorage {
             .get(snapshot_id)
             .cloned()
             .ok_or_else(|| HiveError::OperationFailed {
-                reason: format!("Snapshot {} not found", snapshot_id),
+                reason: format!("Snapshot {snapshot_id} not found"),
             })
     }
 
@@ -1608,13 +705,13 @@ impl StorageProvider for MemoryStorage {
         let snapshot = snapshots
             .get(snapshot_id)
             .ok_or_else(|| HiveError::OperationFailed {
-                reason: format!("Snapshot {} not found", snapshot_id),
+                reason: format!("Snapshot {snapshot_id} not found"),
             })?;
 
         // Convert snapshot back to processed format (simplified)
         let json_data =
             serde_json::to_string(snapshot).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to serialize snapshot: {}", e),
+                reason: format!("Failed to serialize snapshot: {e}"),
             })?;
 
         let data = json_data.into_bytes();
@@ -1734,8 +831,8 @@ mod tests {
         };
 
         // Test save and load
-        let id = storage.save_snapshot(&snapshot).await.unwrap();
-        let loaded = storage.load_snapshot(&id).await.unwrap();
+        let _id = storage.save_snapshot(&snapshot).await.unwrap();
+        let loaded = storage.load_snapshot(&_id).await.unwrap();
 
         assert_eq!(snapshot.snapshot_id, loaded.snapshot_id);
         assert_eq!(snapshot.version, loaded.version);
@@ -1778,7 +875,7 @@ mod tests {
         };
 
         // Test save and load
-        let id = storage.save_snapshot(&snapshot).await.unwrap();
+        let _id = storage.save_snapshot(&snapshot).await.unwrap();
         let loaded = storage
             .load_snapshot(&snapshot.snapshot_id.to_string())
             .await

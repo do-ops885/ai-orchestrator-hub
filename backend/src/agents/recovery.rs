@@ -1,4 +1,4 @@
-use crate::agents::agent::{Agent, AgentMemory, AgentState};
+use crate::agents::agent::{Agent, AgentState};
 use crate::utils::error::{HiveError, HiveResult};
 use std::time::Duration;
 use tokio::time::sleep;
@@ -232,6 +232,7 @@ impl Default for AgentRecoveryManager {
 mod tests {
     use super::*;
     use crate::agents::agent::{AgentCapability, AgentType};
+    use crate::agents::{Agent, AgentMemory, AgentState};
     use uuid::Uuid;
 
     fn create_test_agent() -> Agent {
