@@ -102,27 +102,23 @@ jobs:
             sudo apt-get install -y gcc-aarch64-linux-gnu
           fi
 
-      - name: Build release binary
-        run: |
-          cd backend
-          if [ "${{ matrix.target }}" = "x86_64-unknown-linux-gnu" ]; then
-            cargo build --release --all-features
-          else
-            rustup target add ${{ matrix.target }}
-            cargo build --release --all-features --target ${{ matrix.target }}
-          fi
+       - name: Build release binary
+         run: |
+           cd backend
+           rustup target add ${{ matrix.target }} || true
+           cargo build --release --all-features --target ${{ matrix.target }}
 
       - name: Run tests
         run: |
           cd backend
           cargo test --all-features --release -- --nocapture
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: rust-binary-${{ matrix.target }}
-          path: backend/target/${{ matrix.target }}/release/multiagent-hive
-          retention-days: 30
+       - name: Upload build artifacts
+         uses: actions/upload-artifact@v4
+         with:
+           name: rust-binary-${{ matrix.target }}
+           path: backend/target/${{ matrix.target }}/release/multiagent-hive${{ contains(matrix.target, 'windows') && '.exe' || '' }}
+           retention-days: 30
 
   # Optimized frontend build
   frontend-build:
@@ -186,12 +182,12 @@ jobs:
           retention-days: 30
 
   # Performance benchmarking
-  benchmark:
-    name: Performance Benchmarks
-    runs-on: ubuntu-latest
-    needs: [rust-build, frontend-build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    timeout-minutes: 45
+   benchmark:
+     name: Performance Benchmarks
+     runs-on: ubuntu-latest
+     needs: [rust-build, frontend-build]
+     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+     timeout-minutes: 45
 
     steps:
       - name: Checkout code
@@ -234,16 +230,17 @@ jobs:
     needs: [rust-build, frontend-build]
     timeout-minutes: 25
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+     services:
+       postgres:
+         image: postgres:15
+         env:
+           POSTGRES_PASSWORD: postgres
+           POSTGRES_DB: test
+         options: >-
+           --health-cmd pg_isready
+           --health-interval 10s
+           --health-timeout 5s
+           --health-retries 5
 
     steps:
       - name: Checkout code

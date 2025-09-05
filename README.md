@@ -6,7 +6,7 @@ A sophisticated **hybrid neural multiagent orchestration system** implementing a
 [![TypeScript](https://img.shields.io/badge/typescript-5.6+-blue.svg)](https://www.typescriptlang.org)
 [![Next.js](https://img.shields.io/badge/next.js-15.0+-black.svg)](https://nextjs.org)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![CI](https://github.com/do-ops885/ai-orchestrator-hub/actions/workflows/lint.yml/badge.svg)](https://github.com/do-ops885/ai-orchestrator-hub/actions/workflows/lint.yml)
+[![CI](https://github.com/do-ops885/ai-orchestrator-hub/actions/workflows/build.yml/badge.svg)](https://github.com/do-ops885/ai-orchestrator-hub/actions/workflows/build.yml)
 [![GitHub issues](https://img.shields.io/github/issues/do-ops885/ai-orchestrator-hub)](https://github.com/do-ops885/ai-orchestrator-hub/issues)
 [![GitHub stars](https://img.shields.io/github/stars/do-ops885/ai-orchestrator-hub)](https://github.com/do-ops885/ai-orchestrator-hub/stargazers)
 

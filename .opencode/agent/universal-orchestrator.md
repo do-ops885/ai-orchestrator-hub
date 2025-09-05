@@ -4,6 +4,7 @@ mode: primary
 tools:
   write: false
   edit: false
+  task: true
   bash: false
   read: true
   grep: true

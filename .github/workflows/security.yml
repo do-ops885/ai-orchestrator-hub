@@ -177,11 +177,11 @@ jobs:
           config-file: ./.github/dependency-review-config.yml
 
   # Container security scanning (if using containers)
-  container-scan:
-    name: Container Security Scan
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && contains(github.event.head_commit.modified, 'Dockerfile')
-    timeout-minutes: 15
+   container-scan:
+     name: Container Security Scan
+     runs-on: ubuntu-latest
+     if: github.event_name == 'push' && contains(join(github.event.head_commit.modified, ','), 'Dockerfile')
+     timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -191,13 +191,13 @@ jobs:
         run: |
           docker build -t multiagent-hive:latest .
 
-      - name: Scan container
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'image'
-          scan-ref: 'multiagent-hive:latest'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+       - name: Scan container
+         uses: aquasecurity/trivy-action@0.24.0
+         with:
+           scan-type: 'image'
+           scan-ref: 'multiagent-hive:latest'
+           format: 'sarif'
+           output: 'trivy-results.sarif'
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
