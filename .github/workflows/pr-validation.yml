@@ -2,7 +2,7 @@ name: PR Validation
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened]
     branches: [ main, develop ]
 
 concurrency:
@@ -327,16 +327,16 @@ jobs:
           cd backend
           cargo bench --all-features -- --save-baseline pr-${{ github.event.pull_request.number }}
 
-       - name: Compare with main branch
-         run: |
+      - name: Compare with main branch
+        run: |
            cd backend
            git fetch origin main
            git checkout origin/main
            cargo bench --all-features -- --save-baseline main-branch
            git checkout -
 
-          # Compare benchmarks (this would need more sophisticated comparison)
-          echo "Performance comparison completed"
+           # Compare benchmarks (this would need more sophisticated comparison)
+           echo "Performance comparison completed"
 
       - name: Performance summary
         run: |
