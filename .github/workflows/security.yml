@@ -13,7 +13,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
+ jobs:
   # Comprehensive security scanning
   security-audit:
     name: Security Audit
@@ -177,19 +177,19 @@ jobs:
           config-file: ./.github/dependency-review-config.yml
 
   # Container security scanning (if using containers)
-   container-scan:
+  container-scan:
      name: Container Security Scan
      runs-on: ubuntu-latest
      if: github.event_name == 'push' && contains(join(github.event.head_commit.modified, ','), 'Dockerfile')
      timeout-minutes: 15
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
 
-      - name: Build container
-        run: |
-          docker build -t multiagent-hive:latest .
+       - name: Build container
+         run: |
+           docker build -t multiagent-hive:latest .
 
        - name: Scan container
          uses: aquasecurity/trivy-action@0.24.0

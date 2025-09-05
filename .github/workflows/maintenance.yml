@@ -61,9 +61,9 @@ jobs:
           cargo check --all-features --message-format=json > check_output.json || true
           # Parse check output for breaking changes
 
-       - name: Create maintenance PR
-         if: github.event_name == 'schedule'
-         uses: peter-evans/create-pull-request@v7
+      - name: Create maintenance PR
+        if: github.event_name == 'schedule'
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: weekly dependency updates"
@@ -92,11 +92,11 @@ jobs:
 
   # Cache cleanup and optimization
   cache-maintenance:
-    name: Cache Maintenance
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+     name: Cache Maintenance
+     runs-on: ubuntu-latest
+     timeout-minutes: 15
 
-    steps:
+     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -204,9 +204,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
 
        - name: Setup Node.js
          uses: actions/setup-node@v4
@@ -216,7 +216,7 @@ jobs:
        - name: Setup Rust
          uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache dependencies
+       - name: Cache dependencies
         uses: actions/cache@v4
         with:
           path: |

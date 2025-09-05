@@ -24,21 +24,21 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
-jobs:
+ jobs:
   # Pre-release validation
   pre-release-check:
-    name: Pre-release Validation
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag: ${{ steps.version.outputs.tag }}
+     name: Pre-release Validation
+     runs-on: ubuntu-latest
+     timeout-minutes: 15
+     outputs:
+       version: ${{ steps.version.outputs.version }}
+       tag: ${{ steps.version.outputs.tag }}
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
+         with:
+           fetch-depth: 0
 
        - name: Determine version
          id: version
@@ -264,7 +264,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Deploy to staging (optional)
+   # Deploy to staging (optional)
    deploy-staging:
      name: Deploy to Staging
      runs-on: ubuntu-latest
