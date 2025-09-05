@@ -5,16 +5,6 @@ on:
     tags:
       - 'v*.*.*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version'
-        required: true
-        type: string
-      prerelease:
-        description: 'Mark as prerelease'
-        required: false
-        type: boolean
-        default: false
 
 concurrency:
   group: release-${{ github.ref }}
