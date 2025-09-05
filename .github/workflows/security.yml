@@ -172,7 +172,7 @@ concurrency:
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         with:
-          config-file: ./.github/dependency-review-config.yml
+         config-file: ./.github/dependency-review-config.yml
 
   # Container security scanning (if using containers)
   container-scan:
@@ -183,19 +183,19 @@ concurrency:
 
     steps:
       - name: Checkout code
-         uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
-       - name: Build container
-         run: |
+      - name: Build container
+        run: |
            docker build -t multiagent-hive:latest .
 
-       - name: Scan container
-         uses: aquasecurity/trivy-action@0.24.0
-         with:
-           scan-type: 'image'
-           scan-ref: 'multiagent-hive:latest'
-           format: 'sarif'
-           output: 'trivy-results.sarif'
+      - name: Scan container
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+         scan-type: 'image'
+         scan-ref: 'multiagent-hive:latest'
+         format: 'sarif'
+         output: 'trivy-results.sarif'
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
