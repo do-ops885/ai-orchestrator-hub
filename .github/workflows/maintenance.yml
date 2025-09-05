@@ -92,11 +92,11 @@ jobs:
 
   # Cache cleanup and optimization
   cache-maintenance:
-     name: Cache Maintenance
-     runs-on: ubuntu-latest
-     timeout-minutes: 15
+    name: Cache Maintenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
-     steps:
+    steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -204,7 +204,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-     steps:
+    steps:
        - name: Checkout code
          uses: actions/checkout@v4
 
