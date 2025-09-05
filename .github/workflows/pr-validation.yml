@@ -56,12 +56,12 @@ concurrency:
 
   # Code quality checks
   code-quality:
-     name: Code Quality
-     runs-on: ubuntu-latest
-     timeout-minutes: 15
-     if: github.event.pull_request.draft == false
+    name: Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.pull_request.draft == false
 
-     steps:
+    steps:
        - name: Checkout code
          uses: actions/checkout@v4
 

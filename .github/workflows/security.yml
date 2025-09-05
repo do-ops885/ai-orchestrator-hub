@@ -178,12 +178,12 @@ concurrency:
 
   # Container security scanning (if using containers)
   container-scan:
-     name: Container Security Scan
-     runs-on: ubuntu-latest
-     if: github.event_name == 'push' && contains(join(github.event.head_commit.modified, ','), 'Dockerfile')
-     timeout-minutes: 15
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && contains(join(github.event.head_commit.modified, ','), 'Dockerfile')
+    timeout-minutes: 15
 
-     steps:
+    steps:
        - name: Checkout code
          uses: actions/checkout@v4
 
