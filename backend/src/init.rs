@@ -8,11 +8,10 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn, Level};
 
 use crate::infrastructure::persistence::PersistenceConfig;
-use crate::infrastructure::{
-    IntelligentAlertConfig, PerformanceConfig, SecurityConfig, StorageBackend,
-};
+use crate::infrastructure::{IntelligentAlertConfig, StorageBackend};
 use crate::neural::AdaptiveLearningConfig;
-use crate::utils::config::HiveConfig;
+use crate::utils::config::{HiveConfig, PerformanceConfig};
+use crate::utils::security::SecurityConfig;
 use crate::utils::structured_logging::{SecurityEventDetails, SecurityEventType, StructuredLogger};
 use multiagent_hive::{
     AdaptiveLearningSystem, AgentRecoveryManager, AppState, CircuitBreaker, HiveCoordinator,

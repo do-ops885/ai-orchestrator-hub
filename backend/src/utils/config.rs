@@ -69,7 +69,7 @@ pub struct LoggingConfig {
     pub max_file_size_mb: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PerformanceConfig {
     pub cpu_warning_threshold: Option<f64>,
     pub cpu_critical_threshold: Option<f64>,

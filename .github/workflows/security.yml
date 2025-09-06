@@ -11,7 +11,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
- jobs:
+jobs:
   # Comprehensive security scanning
   security-audit:
     name: Security Audit
@@ -172,7 +172,7 @@ concurrency:
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         with:
-         config-file: ./.github/dependency-review-config.yml
+          config-file: ./.github/dependency-review-config.yml
 
   # Container security scanning (if using containers)
   container-scan:
@@ -192,10 +192,10 @@ concurrency:
       - name: Scan container
         uses: aquasecurity/trivy-action@0.24.0
         with:
-         scan-type: 'image'
-         scan-ref: 'multiagent-hive:latest'
-         format: 'sarif'
-         output: 'trivy-results.sarif'
+          scan-type: 'image'
+          scan-ref: 'multiagent-hive:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3

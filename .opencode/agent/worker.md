@@ -2,14 +2,15 @@
 description: The Worker Agent is a general-purpose agent designed for executing a wide variety of tasks within the multiagent hive system. It handles routine operations, data processing, and task completion with adaptive learning capabilities.
 mode: subagent
 tools:
-  write: true
-  edit: true
-  bash: true
+  write: false
+  edit: false
+  bash: false
   read: true
   grep: true
   glob: true
   list: true
-  patch: true
+  patch: false
+  task: true
   todowrite: true
   todoread: true
   webfetch: true
