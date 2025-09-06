@@ -186,7 +186,7 @@ impl SimpleVerificationSystem {
         let tier = SimpleVerificationSystem::determine_verification_tier(task, result);
 
         let verification_result = match tier {
-            VerificationTier::Quick => self.quick_verification(task, result, original_goal).await?,
+            VerificationTier::Quick => self.quick_verification(task, result, original_goal)?,
             VerificationTier::Standard => {
                 self.standard_verification(task, result, original_goal)
                     .await?
@@ -243,7 +243,7 @@ impl SimpleVerificationSystem {
     }
 
     /// Quick verification using basic rules and regex
-    async fn quick_verification(
+    fn quick_verification(
         &self,
         task: &Task,
         result: &TaskResult,
@@ -292,7 +292,7 @@ impl SimpleVerificationSystem {
 
         // Basic goal alignment if provided
         let goal_alignment_score = if let Some(goal) = original_goal {
-            self.basic_goal_alignment(&result.output, goal).await
+            self.basic_goal_alignment(&result.output, goal)
         } else {
             1.0
         };
@@ -344,7 +344,7 @@ impl SimpleVerificationSystem {
                 }
                 RuleType::SentimentCheck { min_sentiment } => {
                     self.sentiment_check(&result.output, *min_sentiment, &mut issues)
-                        .await
+                        
                 }
                 RuleType::StructureCheck { expected_sections } => {
                     SimpleVerificationSystem::structure_check(
@@ -454,7 +454,7 @@ impl SimpleVerificationSystem {
     }
 
     /// Basic goal alignment using simple text similarity
-    async fn basic_goal_alignment(&self, output: &str, goal: &str) -> f64 {
+    fn basic_goal_alignment(&self, output: &str, goal: &str) -> f64 {
         // Simple word overlap calculation
         let output_words: std::collections::HashSet<String> = output
             .to_lowercase()
@@ -538,7 +538,7 @@ impl SimpleVerificationSystem {
                 / (output_processed.semantic_vector.magnitude
                     * goal_processed.semantic_vector.magnitude)
         } else {
-            self.basic_goal_alignment(output, goal).await
+            self.basic_goal_alignment(output, goal)
         };
 
         if similarity < 0.7 {
@@ -560,7 +560,7 @@ impl SimpleVerificationSystem {
     }
 
     /// Sentiment analysis check
-    async fn sentiment_check(
+    fn sentiment_check(
         &self,
         output: &str,
         min_sentiment: f64,

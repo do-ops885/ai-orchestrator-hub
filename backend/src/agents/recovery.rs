@@ -78,7 +78,7 @@ impl AgentRecoveryManager {
         })
     }
 
-    async fn attempt_recovery(&self, agent: &mut Agent) -> HiveResult<()> {
+    fn attempt_recovery(&self, agent: &mut Agent) -> HiveResult<()> {
         // Reset agent state
         agent.energy = agent.energy.max(0.1); // Minimum energy to function
 
@@ -91,7 +91,7 @@ impl AgentRecoveryManager {
         Self::validate_and_repair_capabilities(agent);
 
         // Validate agent can perform basic operations
-        self.validate_agent_health(agent).await?;
+        self.validate_agent_health(agent)?;
 
         info!("Agent {} recovery attempt successful", agent.id);
         Ok(())
@@ -114,7 +114,7 @@ impl AgentRecoveryManager {
         }
     }
 
-    async fn validate_agent_health(&self, agent: &Agent) -> HiveResult<()> {
+    fn validate_agent_health(&self, agent: &Agent) -> HiveResult<()> {
         // Basic health checks
         if agent.energy <= 0.0 {
             return Err(HiveError::AgentExecutionFailed {
@@ -147,7 +147,7 @@ impl AgentRecoveryManager {
         Ok(())
     }
 
-    pub async fn emergency_reset(&self, agent: &mut Agent) -> HiveResult<()> {
+    pub fn emergency_reset(&self, agent: &mut Agent) -> HiveResult<()> {
         use crate::agents::agent::AgentCapability;
         warn!("Performing emergency reset for agent {}", agent.id);
 
@@ -184,7 +184,8 @@ impl AgentRecoveryManager {
         }
     }
 
-    pub async fn diagnose_agent(&self, agent: &Agent) -> Vec<String> {
+    #[must_use]
+    pub fn diagnose_agent(&self, agent: &Agent) -> Vec<String> {
         let mut issues = Vec::new();
 
         if agent.energy <= 0.1 {
@@ -282,7 +283,7 @@ mod tests {
         let mut agent = create_test_agent();
         agent.position = (f64::NAN, f64::NAN);
 
-        let result = recovery_manager.emergency_reset(&mut agent).await;
+        let result = recovery_manager.emergency_reset(&mut agent);
         assert!(result.is_ok());
         assert_eq!(agent.state, AgentState::Idle);
         assert_eq!(agent.position, (0.0, 0.0));
@@ -296,7 +297,7 @@ mod tests {
         agent.energy = 0.05; // Low energy
         agent.position = (f64::NAN, 1.0); // Invalid position
 
-        let issues = recovery_manager.diagnose_agent(&agent).await;
+        let issues = recovery_manager.diagnose_agent(&agent);
         assert!(issues.len() >= 2); // Should detect low energy and invalid position
     }
 }

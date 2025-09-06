@@ -284,7 +284,7 @@ impl SkillEvolutionSystem {
                 }
 
                 // Check if policy triggers apply to this agent
-                if Self::should_trigger_learning(&agent, policy, &library).await? {
+                if Self::should_trigger_learning(&agent, policy, &library)? {
                     info!(
                         "Learning policy '{}' triggered for agent {}",
                         policy.name, agent_id
@@ -292,7 +292,7 @@ impl SkillEvolutionSystem {
 
                     // Select skill to learn
                     if let Some(skill_to_learn) =
-                        Self::select_skill_to_learn(&agent, policy, &library, nlp_processor).await?
+                        Self::select_skill_to_learn(&agent, policy, &library, nlp_processor)?
                     {
                         // Execute learning
                         let learning_result = Self::execute_skill_learning(
@@ -302,14 +302,14 @@ impl SkillEvolutionSystem {
                             &library,
                             config,
                         )
-                        .await;
+                        ;
 
                         // Record learning event
                         let mut history = learning_history.write().await;
                         let learning_event = LearningEvent {
                             event_id: Uuid::new_v4(),
                             agent_id,
-                            skill_id: skill_to_learn.clone(),
+                            skill_id: skill_to_learn.to_string(),
                             event_type: LearningEventType::Acquisition,
                             timestamp: Utc::now(),
                             proficiency_before: 0.0,
@@ -335,7 +335,7 @@ impl SkillEvolutionSystem {
                             // Update agent with new skill
                             if let Some(mut agent_ref) = agents.get_mut(&agent_id) {
                                 let new_capability = AgentCapability {
-                                    name: skill_to_learn,
+                                    name: skill_to_learn.to_string(),
                                     proficiency: result.new_proficiency,
                                     learning_rate: result.learning_rate,
                                 };
@@ -362,7 +362,7 @@ impl SkillEvolutionSystem {
     }
 
     /// Check if learning should be triggered for an agent
-    async fn should_trigger_learning(
+    fn should_trigger_learning(
         agent: &Agent,
         policy: &EvolutionPolicy,
         _library: &SkillLibrary,
@@ -425,7 +425,7 @@ impl SkillEvolutionSystem {
     }
 
     /// Select which skill an agent should learn
-    async fn select_skill_to_learn(
+    fn select_skill_to_learn(
         agent: &Agent,
         policy: &EvolutionPolicy,
         library: &SkillLibrary,
@@ -510,7 +510,7 @@ impl SkillEvolutionSystem {
     }
 
     /// Execute the skill learning process
-    async fn execute_skill_learning(
+    fn execute_skill_learning(
         _agent_id: Uuid,
         skill_id: &str,
         learning_params: &LearningParameters,

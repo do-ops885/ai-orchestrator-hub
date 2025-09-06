@@ -320,14 +320,14 @@ impl HiveConfig {
     fn merge_configs(base: Self, override_config: Self) -> Self {
         Self {
             server: Self::merge_server_config(base.server, override_config.server),
-            agents: Self::merge_agent_config(base.agents, override_config.agents),
-            tasks: Self::merge_task_config(base.tasks, override_config.tasks),
-            resources: Self::merge_resource_config(base.resources, override_config.resources),
-            neural: Self::merge_neural_config(base.neural, override_config.neural),
+            agents: Self::merge_agent_config(&base.agents, &override_config.agents),
+            tasks: Self::merge_task_config(&base.tasks, &override_config.tasks),
+            resources: Self::merge_resource_config(&base.resources, &override_config.resources),
+            neural: Self::merge_neural_config(&base.neural, &override_config.neural),
             logging: Self::merge_logging_config(base.logging, override_config.logging),
             performance: Self::merge_performance_config(
-                base.performance,
-                override_config.performance,
+                &base.performance,
+                &override_config.performance,
             ),
             monitoring: Self::merge_monitoring_config(base.monitoring, override_config.monitoring),
         }
@@ -363,7 +363,7 @@ impl HiveConfig {
         }
     }
 
-    fn merge_agent_config(base: AgentConfig, override_config: AgentConfig) -> AgentConfig {
+    fn merge_agent_config(base: &AgentConfig, override_config: &AgentConfig) -> AgentConfig {
         AgentConfig {
             max_agents: if override_config.max_agents == 100 {
                 base.max_agents
@@ -393,7 +393,7 @@ impl HiveConfig {
         }
     }
 
-    fn merge_task_config(base: TaskConfig, override_config: TaskConfig) -> TaskConfig {
+    fn merge_task_config(base: &TaskConfig, override_config: &TaskConfig) -> TaskConfig {
         TaskConfig {
             max_concurrent_tasks: if override_config.max_concurrent_tasks == 50 {
                 base.max_concurrent_tasks
@@ -419,8 +419,8 @@ impl HiveConfig {
     }
 
     fn merge_resource_config(
-        base: ResourceConfig,
-        override_config: ResourceConfig,
+        base: &ResourceConfig,
+        override_config: &ResourceConfig,
     ) -> ResourceConfig {
         ResourceConfig {
             cpu_threshold: if (override_config.cpu_threshold - 80.0).abs() > f64::EPSILON {
@@ -442,7 +442,7 @@ impl HiveConfig {
         }
     }
 
-    fn merge_neural_config(base: NeuralConfig, override_config: NeuralConfig) -> NeuralConfig {
+    fn merge_neural_config(base: &NeuralConfig, override_config: &NeuralConfig) -> NeuralConfig {
         NeuralConfig {
             enable_advanced_neural: override_config.enable_advanced_neural,
             batch_size: if override_config.batch_size == 32 {
@@ -485,8 +485,8 @@ impl HiveConfig {
     }
 
     fn merge_performance_config(
-        base: PerformanceConfig,
-        override_config: PerformanceConfig,
+        base: &PerformanceConfig,
+        override_config: &PerformanceConfig,
     ) -> PerformanceConfig {
         PerformanceConfig {
             cpu_warning_threshold: override_config

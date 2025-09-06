@@ -46,7 +46,7 @@ impl SecurityAuditor {
     /// Log a security event with comprehensive details
     pub fn log_security_event(
         &self,
-        event_type: SecurityEventType,
+        event_type: &SecurityEventType,
         client_id: String,
         endpoint: String,
         user_agent: Option<String>,
@@ -66,7 +66,7 @@ impl SecurityAuditor {
             additional_info,
         };
 
-        StructuredLogger::log_security_event(event_type, details);
+        StructuredLogger::log_security_event(&event_type, &details);
     }
 
     /// Log authentication attempt

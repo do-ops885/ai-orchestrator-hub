@@ -197,26 +197,23 @@ impl AdaptiveLearningSystem {
     }
 
     async fn extract_features(&self, agent: &Agent, context: &str) -> anyhow::Result<Vec<f64>> {
-        #[allow(clippy::vec_init_then_push)]
-        let mut features = vec![];
-
         // Agent features
-        features.push(agent.energy);
-        features.push(agent.capabilities.len() as f64);
-        features.push(agent.memory.experiences.len() as f64);
-        features.push(agent.memory.social_connections.len() as f64);
-
-        // Agent type encoding
-        features.push(match agent.agent_type {
-            crate::agents::agent::AgentType::Worker => 0.0,
-            crate::agents::agent::AgentType::Coordinator => 1.0,
-            crate::agents::agent::AgentType::Specialist(_) => 2.0,
-            crate::agents::agent::AgentType::Learner => 3.0,
-        });
-
-        // Position features
-        features.push(agent.position.0);
-        features.push(agent.position.1);
+        let mut features = vec![
+            agent.energy,
+            agent.capabilities.len() as f64,
+            agent.memory.experiences.len() as f64,
+            agent.memory.social_connections.len() as f64,
+            // Agent type encoding
+            match agent.agent_type {
+                crate::agents::agent::AgentType::Worker => 0.0,
+                crate::agents::agent::AgentType::Coordinator => 1.0,
+                crate::agents::agent::AgentType::Specialist(_) => 2.0,
+                crate::agents::agent::AgentType::Learner => 3.0,
+            },
+            // Position features
+            agent.position.0,
+            agent.position.1,
+        ];
 
         // Capability features (average proficiency and learning rate)
         if agent.capabilities.is_empty() {

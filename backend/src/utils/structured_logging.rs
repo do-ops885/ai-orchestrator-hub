@@ -9,7 +9,7 @@ pub struct StructuredLogger;
 
 impl StructuredLogger {
     /// Log agent lifecycle events with structured data
-    pub fn log_agent_event(event_type: AgentEventType, agent_id: Uuid, details: AgentEventDetails) {
+    pub fn log_agent_event(event_type: AgentEventType, agent_id: Uuid, details: &AgentEventDetails) {
         event!(
             Level::INFO,
             agent_id = %agent_id,
@@ -23,7 +23,7 @@ impl StructuredLogger {
     }
 
     /// Log task execution events with performance metrics
-    pub fn log_task_event(event_type: TaskEventType, task_id: Uuid, details: TaskEventDetails) {
+    pub fn log_task_event(event_type: &TaskEventType, task_id: Uuid, details: &TaskEventDetails) {
         event!(
             Level::INFO,
             task_id = %task_id,
@@ -38,7 +38,7 @@ impl StructuredLogger {
     }
 
     /// Log system performance metrics
-    pub fn log_performance_metrics(metrics: PerformanceMetrics) {
+    pub fn log_performance_metrics(metrics: &PerformanceMetrics) {
         event!(
             Level::INFO,
             cpu_usage = metrics.cpu_usage,
@@ -53,7 +53,7 @@ impl StructuredLogger {
     }
 
     /// Log security events for audit trails
-    pub fn log_security_event(event_type: SecurityEventType, details: SecurityEventDetails) {
+    pub fn log_security_event(event_type: &SecurityEventType, details: &SecurityEventDetails) {
         match event_type {
             SecurityEventType::RateLimitExceeded | SecurityEventType::InvalidInput => {
                 event!(
@@ -151,7 +151,7 @@ impl StructuredLogger {
     }
 
     /// Log neural network training events
-    pub fn log_neural_event(event_type: NeuralEventType, details: NeuralEventDetails) {
+    pub fn log_neural_event(event_type: &NeuralEventType, details: &NeuralEventDetails) {
         event!(
             Level::INFO,
             event_type = ?event_type,
@@ -166,7 +166,7 @@ impl StructuredLogger {
     }
 
     /// Log errors with context for better debugging
-    pub fn log_error_with_context(error: &dyn std::error::Error, context: ErrorContext) {
+    pub fn log_error_with_context(error: &dyn std::error::Error, context: &ErrorContext) {
         event!(
             Level::ERROR,
             error = %error,
