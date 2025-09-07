@@ -521,6 +521,9 @@ mod tests {
         // Submit task
         queue_system.submit_task(task).await.unwrap();
 
+        // Wait a bit for task distribution
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
         // Agent should be able to get the task
         let retrieved_task = queue_system.get_task_for_agent(agent1_id).await;
         assert!(retrieved_task.is_some());
