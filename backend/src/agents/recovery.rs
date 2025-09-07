@@ -91,7 +91,7 @@ impl AgentRecoveryManager {
         Self::validate_and_repair_capabilities(agent);
 
         // Validate agent can perform basic operations
-        self.validate_agent_health(agent)?;
+        Self::validate_agent_health(agent)?;
 
         info!("Agent {} recovery attempt successful", agent.id);
         Ok(())
