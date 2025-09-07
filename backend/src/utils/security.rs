@@ -66,7 +66,7 @@ impl SecurityAuditor {
             additional_info,
         };
 
-        StructuredLogger::log_security_event(&event_type, &details);
+        StructuredLogger::log_security_event(event_type, &details);
     }
 
     /// Log authentication attempt
@@ -86,9 +86,9 @@ impl SecurityAuditor {
 
         self.log_security_event(
             if success {
-                SecurityEventType::AuthenticationSuccess
+                &SecurityEventType::AuthenticationSuccess
             } else {
-                SecurityEventType::UnauthorizedAccess
+                &SecurityEventType::UnauthorizedAccess
             },
             client_id,
             "authentication".to_string(),
@@ -117,9 +117,9 @@ impl SecurityAuditor {
 
         self.log_security_event(
             if granted {
-                SecurityEventType::AuthenticationSuccess
+                &SecurityEventType::AuthenticationSuccess
             } else {
-                SecurityEventType::UnauthorizedAccess
+                &SecurityEventType::UnauthorizedAccess
             },
             client_id,
             resource,
@@ -144,7 +144,7 @@ impl SecurityAuditor {
         additional_info.insert("severity".to_string(), severity);
 
         self.log_security_event(
-            SecurityEventType::SuspiciousActivity,
+            &SecurityEventType::SuspiciousActivity,
             client_id,
             "suspicious_activity".to_string(),
             user_agent,
@@ -171,9 +171,9 @@ impl SecurityAuditor {
 
         self.log_security_event(
             if success {
-                SecurityEventType::AuthenticationSuccess
+                &SecurityEventType::AuthenticationSuccess
             } else {
-                SecurityEventType::UnauthorizedAccess
+                &SecurityEventType::UnauthorizedAccess
             },
             client_id,
             resource,

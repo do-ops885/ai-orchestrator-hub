@@ -3,17 +3,19 @@
 //! This module handles the initialization of all system components,
 //! configuration loading, and dependency injection setup.
 
+use anyhow::Context;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn, Level};
 
+use crate::infrastructure::performance_optimizer::PerformanceConfig;
 use crate::infrastructure::persistence::PersistenceConfig;
 use crate::infrastructure::{IntelligentAlertConfig, StorageBackend};
 use crate::neural::AdaptiveLearningConfig;
-use crate::utils::config::{HiveConfig, PerformanceConfig};
+use crate::utils::config::HiveConfig;
 use crate::utils::security::SecurityConfig;
 use crate::utils::structured_logging::{SecurityEventDetails, SecurityEventType, StructuredLogger};
-use multiagent_hive::{
+use crate::{
     AdaptiveLearningSystem, AgentRecoveryManager, AppState, CircuitBreaker, HiveCoordinator,
     IntelligentAlertingSystem, MetricsCollector, PerformanceOptimizer, PersistenceManager,
     RateLimiter, SecurityAuditor, SwarmIntelligenceEngine,
@@ -80,8 +82,8 @@ pub async fn initialize_system() -> anyhow::Result<AppState> {
 
     // Log security event for system startup
     StructuredLogger::log_security_event(
-        SecurityEventType::AuthenticationSuccess,
-        SecurityEventDetails {
+        &SecurityEventType::AuthenticationSuccess,
+        &SecurityEventDetails {
             client_id: "system".to_string(),
             endpoint: "startup".to_string(),
             user_agent: None,
@@ -139,7 +141,7 @@ async fn initialize_metrics(config: &HiveConfig) -> anyhow::Result<Arc<MetricsCo
 
 /// Initialize intelligent alerting system
 async fn initialize_alerting(
-    metrics: &Arc<MetricsCollector>,
+    _metrics: &Arc<MetricsCollector>,
 ) -> anyhow::Result<Arc<IntelligentAlertingSystem>> {
     // Initialize advanced metrics collector with predictive analytics
     let advanced_metrics = Arc::new(MetricsCollector::new(2000));
@@ -202,7 +204,7 @@ async fn initialize_swarm_intelligence() -> anyhow::Result<Arc<RwLock<SwarmIntel
 }
 
 /// Initialize persistence system
-async fn initialize_persistence(config: &HiveConfig) -> anyhow::Result<Arc<PersistenceManager>> {
+async fn initialize_persistence(_config: &HiveConfig) -> anyhow::Result<Arc<PersistenceManager>> {
     // Load encryption key from secure sources
     let encryption_key = PersistenceManager::load_encryption_key();
     let encryption_enabled = encryption_key.is_some();

@@ -344,7 +344,6 @@ impl SimpleVerificationSystem {
                 }
                 RuleType::SentimentCheck { min_sentiment } => {
                     self.sentiment_check(&result.output, *min_sentiment, &mut issues)
-                        
                 }
                 RuleType::StructureCheck { expected_sections } => {
                     SimpleVerificationSystem::structure_check(

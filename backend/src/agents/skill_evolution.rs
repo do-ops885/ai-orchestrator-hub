@@ -301,8 +301,7 @@ impl SkillEvolutionSystem {
                             &policy.learning_parameters,
                             &library,
                             config,
-                        )
-                        ;
+                        );
 
                         // Record learning event
                         let mut history = learning_history.write().await;

@@ -40,7 +40,7 @@ impl AgentRecoveryManager {
         let mut delay = self.base_retry_delay;
 
         while attempts < self.max_retry_attempts {
-            match self.attempt_recovery(agent).await {
+            match self.attempt_recovery(agent) {
                 Ok(()) => {
                     agent.state = AgentState::Idle;
                     info!(
@@ -114,7 +114,7 @@ impl AgentRecoveryManager {
         }
     }
 
-    fn validate_agent_health(&self, agent: &Agent) -> HiveResult<()> {
+    fn validate_agent_health(agent: &Agent) -> HiveResult<()> {
         // Basic health checks
         if agent.energy <= 0.0 {
             return Err(HiveError::AgentExecutionFailed {

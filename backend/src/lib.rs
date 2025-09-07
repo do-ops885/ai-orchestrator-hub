@@ -74,6 +74,12 @@ pub mod tasks;
 /// Utility functions and configuration
 pub mod utils;
 
+/// Server setup and routing
+pub mod server;
+
+/// System initialization
+pub mod init;
+
 /// Comprehensive unit and integration tests
 pub mod tests;
 
@@ -95,6 +101,10 @@ pub use neural::{AdaptiveLearningSystem, HybridNeuralProcessor, NLPProcessor};
 pub use tasks::{Task, TaskPriority, TaskQueue, TaskResult, TaskStatus, WorkStealingQueue};
 pub use utils::{rate_limiter::RateLimiter, SecurityAuditor};
 pub use utils::{HiveConfig, HiveError, HiveResult, InputValidator};
+
+// Server functions
+pub use crate::init::initialize_system;
+pub use crate::server::{create_router, start_background_tasks};
 
 /// Application state shared across the system
 ///

@@ -9,7 +9,11 @@ pub struct StructuredLogger;
 
 impl StructuredLogger {
     /// Log agent lifecycle events with structured data
-    pub fn log_agent_event(event_type: AgentEventType, agent_id: Uuid, details: &AgentEventDetails) {
+    pub fn log_agent_event(
+        event_type: AgentEventType,
+        agent_id: Uuid,
+        details: &AgentEventDetails,
+    ) {
         event!(
             Level::INFO,
             agent_id = %agent_id,

@@ -9,16 +9,7 @@
 //! - Comprehensive monitoring and observability
 //! - Production-ready error handling and configuration
 
-mod agents;
-mod communication;
-mod core;
-mod infrastructure;
-mod init;
-mod neural;
-mod server;
-mod tasks;
-mod utils;
-
+use multiagent_hive::*;
 use tracing::info;
 
 #[tokio::main]
@@ -30,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     server::start_background_tasks(app_state.clone()).await;
 
     // Create the application router
-    let app = server::create_router(app_state);
+    let app = server::create_router(app_state.clone());
 
     // Start the server
     let bind_addr = format!(

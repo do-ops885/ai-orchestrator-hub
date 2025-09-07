@@ -119,6 +119,46 @@ pub struct PersistenceManager {
     backup_manager: Option<BackupManager>,
 }
 
+impl PersistenceManager {
+    /// Load encryption key from environment or secure storage
+    #[must_use]
+    pub fn load_encryption_key() -> Option<String> {
+        std::env::var("HIVE_ENCRYPTION_KEY").ok()
+    }
+
+    /// Create a new persistence manager
+    pub async fn new(config: PersistenceConfig) -> HiveResult<Self> {
+        let encryption_key = config.encryption_key.as_ref().map(|s| {
+            let mut key = [0u8; 32];
+            let bytes = s.as_bytes();
+            let len = bytes.len().min(32);
+            key[..len].copy_from_slice(&bytes[..len]);
+            key
+        });
+
+        let storage: Box<dyn StorageProvider + Send + Sync> = match &config.storage_backend {
+            StorageBackend::SQLite { database_path } => {
+                Box::new(SQLiteStorage::new(database_path.clone()).await?)
+            }
+            StorageBackend::FileSystem { base_path } => {
+                Box::new(FileSystemStorage::new(base_path.clone()).await?)
+            }
+            StorageBackend::Memory { max_snapshots } => {
+                Box::new(MemoryStorage::new(*max_snapshots))
+            }
+        };
+
+        Ok(Self {
+            config,
+            storage,
+            checkpoint_history: Arc::new(RwLock::new(Vec::new())),
+            last_checkpoint: Arc::new(RwLock::new(None)),
+            encryption_key,
+            backup_manager: None,
+        })
+    }
+}
+
 /// Backup manager for handling backup operations
 #[derive(Debug, Clone)]
 #[allow(dead_code)]

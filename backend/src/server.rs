@@ -10,8 +10,7 @@ use axum::{
     routing::get,
     Router,
 };
-use std::sync::Arc;
-use tokio::sync::RwLock;
+// Removed unused imports
 use tower_http::cors::CorsLayer;
 use tracing::{debug, error, info, warn};
 
@@ -20,7 +19,7 @@ use crate::infrastructure::metrics::{AgentMetrics, AlertLevel, TaskMetrics};
 use crate::infrastructure::middleware::security_headers_middleware;
 use crate::utils::structured_logging::{SecurityEventDetails, SecurityEventType, StructuredLogger};
 use crate::utils::validation::InputValidator;
-use multiagent_hive::{AppState, HiveCoordinator, IntelligentAlertingSystem, MetricsCollector};
+use crate::AppState;
 
 use chrono::Utc;
 use serde_json::json;
@@ -324,8 +323,8 @@ async fn create_agent(
 
             // Log security event for agent creation
             StructuredLogger::log_security_event(
-                SecurityEventType::AuthenticationSuccess,
-                SecurityEventDetails {
+                &SecurityEventType::AuthenticationSuccess,
+                &SecurityEventDetails {
                     client_id: "api".to_string(),
                     endpoint: format!("agent:{}", agent_id),
                     user_agent: None,
@@ -414,8 +413,8 @@ async fn create_task(
 
             // Log security event for task creation
             StructuredLogger::log_security_event(
-                SecurityEventType::AuthenticationSuccess,
-                SecurityEventDetails {
+                &SecurityEventType::AuthenticationSuccess,
+                &SecurityEventDetails {
                     client_id: "api".to_string(),
                     endpoint: format!("task:{}", task_id),
                     user_agent: None,
