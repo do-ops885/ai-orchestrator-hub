@@ -1,6 +1,7 @@
 module.exports = {
   extends: [
-    'next',
+    'next/core-web-vitals',
+    'plugin:@typescript-eslint/recommended',
   ],
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint', 'react-refresh', 'vitest'],
@@ -11,6 +12,9 @@ module.exports = {
     '@typescript-eslint/no-non-null-assertion': 'warn',
     '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
     '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: true, variables: true, typedefs: false }],
+    '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+    '@typescript-eslint/no-inferrable-types': 'error',
+    '@typescript-eslint/prefer-as-const': 'error',
 
     // General rules
     'prefer-const': 'error',
