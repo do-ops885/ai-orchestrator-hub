@@ -45,7 +45,7 @@ jobs:
               --arg job "$GITHUB_JOB" \
               --arg run_id "$GITHUB_RUN_ID" \
               --arg correlation_id "$CORRELATION_ID" \
-              --argjson extra "$extra" \
+              --arg extra "$extra" \
               '{
                 timestamp: $timestamp,
                 level: $level,
@@ -173,7 +173,7 @@ jobs:
               --arg job "$GITHUB_JOB" \
               --arg run_id "$GITHUB_RUN_ID" \
               --arg correlation_id "$CORRELATION_ID" \
-              --argjson extra "$extra" \
+              --arg extra "$extra" \
               '{
                 timestamp: $timestamp,
                 level: $level,
@@ -422,7 +422,7 @@ jobs:
               --arg job "$GITHUB_JOB" \
               --arg run_id "$GITHUB_RUN_ID" \
               --arg correlation_id "$CORRELATION_ID" \
-              --argjson extra "$extra" \
+              --arg extra "$extra" \
               '{
                 timestamp: $timestamp,
                 level: $level,
@@ -544,7 +544,7 @@ jobs:
               --arg job "$GITHUB_JOB" \
               --arg run_id "$GITHUB_RUN_ID" \
               --arg correlation_id "$CORRELATION_ID" \
-              --argjson extra "$extra" \
+              --arg extra "$extra" \
               '{
                 timestamp: $timestamp,
                 level: $level,
@@ -666,7 +666,7 @@ jobs:
               --arg job "$GITHUB_JOB" \
               --arg run_id "$GITHUB_RUN_ID" \
               --arg correlation_id "$CORRELATION_ID" \
-              --argjson extra "$extra" \
+              --arg extra "$extra" \
               '{
                 timestamp: $timestamp,
                 level: $level,
