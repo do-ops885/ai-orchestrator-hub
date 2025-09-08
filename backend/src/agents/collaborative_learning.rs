@@ -220,7 +220,12 @@ impl CollaborativeLearningSystem {
         }
 
         // Sort by relevance score
-        relevant_knowledge.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        relevant_knowledge.sort_by(|a, b| {
+            b.1.partial_cmp(&a.1).unwrap_or_else(|| {
+                tracing::warn!("Failed to compare relevance scores, treating as equal");
+                std::cmp::Ordering::Equal
+            })
+        });
 
         Ok(relevant_knowledge
             .into_iter()
@@ -388,7 +393,12 @@ impl CollaborativeLearningSystem {
         }
 
         // Sort by relevance
-        relevant_items.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        relevant_items.sort_by(|a, b| {
+            b.1.partial_cmp(&a.1).unwrap_or_else(|| {
+                tracing::warn!("Failed to compare relevance scores in synthesis, treating as equal");
+                std::cmp::Ordering::Equal
+            })
+        });
 
         // Synthesize solution from top items
         let mut solution_parts = Vec::new();

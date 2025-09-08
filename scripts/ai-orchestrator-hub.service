@@ -1,0 +1,36 @@
+[Unit]
+Description=AI Orchestrator Hub MCP Server
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=ai-orchestrator
+Group=ai-orchestrator
+WorkingDirectory=/opt/ai-orchestrator-hub/backend
+ExecStart=/opt/ai-orchestrator-hub/backend/target/release/multiagent-hive
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ai-orchestrator-hub
+
+# Environment variables
+Environment=RUST_LOG=info
+Environment=RUST_BACKTRACE=1
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/ai-orchestrator-hub/logs /opt/ai-orchestrator-hub/data
+ProtectHome=yes
+PrivateDevices=yes
+
+# Resource limits
+MemoryLimit=1G
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

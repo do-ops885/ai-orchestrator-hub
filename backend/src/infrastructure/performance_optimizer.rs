@@ -610,8 +610,14 @@ mod tests {
     async fn test_connection_pool() {
         let pool = ConnectionPool::new(2, Duration::from_secs(30));
 
-        let conn1 = pool.acquire_connection().await.unwrap();
-        let conn2 = pool.acquire_connection().await.unwrap();
+        let conn1 = match pool.acquire_connection().await {
+            Ok(conn) => conn,
+            Err(e) => panic!("Failed to acquire connection 1: {}", e),
+        };
+        let conn2 = match pool.acquire_connection().await {
+            Ok(conn) => conn,
+            Err(e) => panic!("Failed to acquire connection 2: {}", e),
+        };
 
         let stats = pool.get_stats().await;
         assert_eq!(stats.active_count, 2);
@@ -636,8 +642,14 @@ mod tests {
         assert!(cache.get(&key).await.is_none());
 
         // Test cache put and hit
-        cache.put(key.clone(), data.clone()).await.unwrap();
-        let cached_data = cache.get(&key).await.unwrap();
+        match cache.put(key.clone(), data.clone()).await {
+            Ok(()) => {}
+            Err(e) => panic!("Failed to put data in cache: {}", e),
+        }
+        let cached_data = match cache.get(&key).await {
+            Some(data) => data,
+            None => panic!("Expected to get cached data, but got None"),
+        };
         assert_eq!(cached_data, data);
 
         let stats = cache.get_stats().await;
@@ -650,13 +662,16 @@ mod tests {
         let config = PerformanceConfig::default();
         let optimizer = CpuOptimizer::new(config);
 
-        let result = optimizer
+        let result = match optimizer
             .execute_optimized_task(|| {
                 // Simulate CPU-intensive work
                 (0..1000).sum::<i32>()
             })
             .await
-            .unwrap();
+        {
+            Ok(res) => res,
+            Err(e) => panic!("Failed to execute optimized task: {}", e),
+        };
 
         assert_eq!(result, 499_500);
 

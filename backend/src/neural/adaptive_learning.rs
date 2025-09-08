@@ -393,7 +393,7 @@ mod tests {
     async fn test_learning_from_interaction() {
         let mut learning_system = AdaptiveLearningSystem::new(AdaptiveLearningConfig::default())
             .await
-            .unwrap();
+            .expect("Failed to create AdaptiveLearningSystem");
         let agent = create_test_agent();
 
         let result = learning_system
@@ -407,7 +407,7 @@ mod tests {
     async fn test_pattern_confidence_update() {
         let mut learning_system = AdaptiveLearningSystem::new(AdaptiveLearningConfig::default())
             .await
-            .unwrap();
+            .expect("Failed to create AdaptiveLearningSystem");
         let agent = create_test_agent();
 
         // Learn from multiple interactions
@@ -416,13 +416,13 @@ mod tests {
             learning_system
                 .learn_from_interaction(&agent, "consistent context", outcome)
                 .await
-                .unwrap();
+                .expect("Failed to learn from interaction");
         }
 
         let prediction = learning_system
             .predict_outcome(&agent, "consistent context")
             .await
-            .unwrap();
+            .expect("Failed to predict outcome");
         assert!(prediction > 0.5); // Should predict success
     }
 
@@ -432,13 +432,15 @@ mod tests {
             pattern_retention_days: 0, // Immediate cleanup
             ..Default::default()
         };
-        let mut learning_system = AdaptiveLearningSystem::new(config).await.unwrap();
+        let mut learning_system = AdaptiveLearningSystem::new(config)
+            .await
+            .expect("Failed to create AdaptiveLearningSystem");
         let agent = create_test_agent();
 
         learning_system
             .learn_from_interaction(&agent, "test", 0.5)
             .await
-            .unwrap();
+            .expect("Failed to learn from interaction");
         assert_eq!(learning_system.patterns.len(), 1);
 
         learning_system.cleanup_old_patterns();

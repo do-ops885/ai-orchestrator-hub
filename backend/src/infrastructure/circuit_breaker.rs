@@ -123,7 +123,8 @@ mod tests {
 
         let result = cb.execute(|| Ok::<i32, &str>(42)).await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        let value = result.expect("Expected Ok, got Err");
+        assert_eq!(value, 42);
     }
 
     #[tokio::test]

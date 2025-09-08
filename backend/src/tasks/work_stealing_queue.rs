@@ -506,8 +506,14 @@ mod tests {
         let agent2_id = Uuid::new_v4();
 
         // Register agents
-        queue_system.register_agent(agent1_id).await.unwrap();
-        queue_system.register_agent(agent2_id).await.unwrap();
+        match queue_system.register_agent(agent1_id).await {
+            Ok(()) => {}
+            Err(e) => panic!("Failed to register agent1: {}", e),
+        }
+        match queue_system.register_agent(agent2_id).await {
+            Ok(()) => {}
+            Err(e) => panic!("Failed to register agent2: {}", e),
+        }
 
         // Create test task
         let task = Task::new(
@@ -519,14 +525,20 @@ mod tests {
         );
 
         // Submit task
-        queue_system.submit_task(task).await.unwrap();
+        match queue_system.submit_task(task).await {
+            Ok(()) => {}
+            Err(e) => panic!("Failed to submit task: {}", e),
+        }
 
         // Wait a bit for task distribution
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
         // Agent should be able to get the task
         let retrieved_task = queue_system.get_task_for_agent(agent1_id).await;
-        assert!(retrieved_task.is_some());
+        assert!(
+            retrieved_task.is_some(),
+            "Expected to retrieve a task, but got None"
+        );
     }
 
     #[tokio::test]
@@ -535,8 +547,14 @@ mod tests {
         let agent1_id = Uuid::new_v4();
         let agent2_id = Uuid::new_v4();
 
-        queue_system.register_agent(agent1_id).await.unwrap();
-        queue_system.register_agent(agent2_id).await.unwrap();
+        match queue_system.register_agent(agent1_id).await {
+            Ok(()) => {}
+            Err(e) => panic!("Failed to register agent1: {}", e),
+        }
+        match queue_system.register_agent(agent2_id).await {
+            Ok(()) => {}
+            Err(e) => panic!("Failed to register agent2: {}", e),
+        }
 
         // Add multiple tasks to agent1's queue
         if let Some(agent1_queue) = queue_system.agent_queues.get(&agent1_id) {
@@ -548,17 +566,26 @@ mod tests {
                     TaskPriority::Medium,
                     vec![],
                 );
-                agent1_queue.push_task(task).await.unwrap();
+                match agent1_queue.push_task(task).await {
+                    Ok(()) => {}
+                    Err(e) => panic!("Failed to push task {}: {}", i, e),
+                }
             }
         }
 
         // Agent2 should be able to steal work from agent1
         let stolen_task = queue_system.get_task_for_agent(agent2_id).await;
-        assert!(stolen_task.is_some());
+        assert!(
+            stolen_task.is_some(),
+            "Expected to steal a task, but got None"
+        );
 
         // Check metrics
         let metrics = queue_system.get_metrics().await;
-        assert!(metrics.system_metrics.steal_attempts > 0);
+        assert!(
+            metrics.system_metrics.steal_attempts > 0,
+            "Expected steal attempts to be greater than 0"
+        );
     }
 
     #[tokio::test]
@@ -573,7 +600,10 @@ mod tests {
             TaskPriority::Low,
             vec![],
         );
-        agent_queue.push_task(low_task).await.unwrap();
+        match agent_queue.push_task(low_task).await {
+            Ok(()) => {}
+            Err(e) => panic!("Failed to push low task: {}", e),
+        }
 
         // Add high priority task
         let high_task = Task::new(
@@ -583,13 +613,22 @@ mod tests {
             TaskPriority::High,
             vec![],
         );
-        agent_queue.push_task(high_task).await.unwrap();
+        match agent_queue.push_task(high_task).await {
+            Ok(()) => {}
+            Err(e) => panic!("Failed to push high task: {}", e),
+        }
 
         // High priority task should be retrieved first
-        let first_task = agent_queue.pop_task().await.unwrap();
-        assert_eq!(first_task.title, "high_task");
+        let first_task = agent_queue.pop_task().await;
+        match first_task {
+            Some(task) => assert_eq!(task.title, "high_task", "Expected high priority task first"),
+            None => panic!("Expected first task, got None"),
+        }
 
-        let second_task = agent_queue.pop_task().await.unwrap();
-        assert_eq!(second_task.title, "low_task");
+        let second_task = agent_queue.pop_task().await;
+        match second_task {
+            Some(task) => assert_eq!(task.title, "low_task", "Expected low priority task second"),
+            None => panic!("Expected second task, got None"),
+        }
     }
 }

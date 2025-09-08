@@ -40,7 +40,7 @@ impl AgentRecoveryManager {
         let mut delay = self.base_retry_delay;
 
         while attempts < self.max_retry_attempts {
-            match self.attempt_recovery(agent) {
+            match Self::attempt_recovery(agent) {
                 Ok(()) => {
                     agent.state = AgentState::Idle;
                     info!(
@@ -78,7 +78,7 @@ impl AgentRecoveryManager {
         })
     }
 
-    fn attempt_recovery(&self, agent: &mut Agent) -> HiveResult<()> {
+    fn attempt_recovery(agent: &mut Agent) -> HiveResult<()> {
         // Reset agent state
         agent.energy = agent.energy.max(0.1); // Minimum energy to function
 

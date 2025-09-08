@@ -33,12 +33,18 @@ async fn main() -> anyhow::Result<()> {
     info!("🌐 Server running on http://{}", bind_addr);
     info!("📡 WebSocket endpoint: ws://{}/ws", bind_addr);
     info!("🔧 API endpoints: /api/agents, /api/tasks, /api/hive/status, /api/resources");
+    info!("🤖 MCP HTTP endpoint: http://{}/api/mcp", bind_addr);
+    info!("🔍 MCP health check: http://{}/api/mcp/health", bind_addr);
 
     // Graceful shutdown handling
     let shutdown_signal = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("Failed to install CTRL+C signal handler");
+        match tokio::signal::ctrl_c().await {
+            Ok(()) => {}
+            Err(e) => {
+                eprintln!("Failed to install CTRL+C signal handler: {}", e);
+                std::process::exit(1);
+            }
+        }
         info!("🛑 Shutdown signal received, gracefully stopping...");
     };
 

@@ -811,8 +811,14 @@ mod tests {
         };
 
         // Test save and load
-        let id = storage.save_snapshot(&snapshot).await.unwrap();
-        let loaded = storage.load_snapshot(&id).await.unwrap();
+        let id = storage
+            .save_snapshot(&snapshot)
+            .await
+            .expect("Failed to save snapshot");
+        let loaded = storage
+            .load_snapshot(&id)
+            .await
+            .expect("Failed to load snapshot");
 
         assert_eq!(snapshot.snapshot_id, loaded.snapshot_id);
         assert_eq!(snapshot.version, loaded.version);
@@ -820,10 +826,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_filesystem_storage() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let storage = FileSystemStorage::new(temp_dir.path().to_path_buf())
             .await
-            .unwrap();
+            .expect("Failed to create FileSystemStorage");
 
         // Create a test snapshot
         let snapshot = SystemSnapshot {
@@ -855,11 +861,14 @@ mod tests {
         };
 
         // Test save and load
-        let _id = storage.save_snapshot(&snapshot).await.unwrap();
+        let _id = storage
+            .save_snapshot(&snapshot)
+            .await
+            .expect("Failed to save snapshot");
         let loaded = storage
             .load_snapshot(&snapshot.snapshot_id.to_string())
             .await
-            .unwrap();
+            .expect("Failed to load snapshot");
 
         assert_eq!(snapshot.snapshot_id, loaded.snapshot_id);
         assert_eq!(snapshot.version, loaded.version);

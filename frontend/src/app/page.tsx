@@ -13,8 +13,9 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true)
-    // Use the correct backend URL
-    connectWebSocket('ws://localhost:3001/ws')
+    // Use the correct backend URL from environment variable
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:3001/ws'
+    connectWebSocket(wsUrl)
 
     return () => {
       disconnect()

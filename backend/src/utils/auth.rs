@@ -9,6 +9,10 @@
 
 use crate::utils::error::{HiveError, HiveResult};
 use crate::utils::security::SecurityAuditor;
+use argon2::{
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Algorithm as Argon2Algorithm, Argon2, Params, Version,
+};
 use chrono::{DateTime, Duration, Utc};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
@@ -190,6 +194,43 @@ impl AuthManager {
         }
     }
 
+    /// Hash an API key using Argon2id with OWASP-recommended parameters
+    fn hash_api_key(api_key: &str) -> HiveResult<String> {
+        let salt = SaltString::generate(&mut OsRng);
+        let params = Params::new(
+            19456, // 19 MiB memory (19456 KiB)
+            2,     // 2 iterations
+            1,     // 1 degree of parallelism
+            None,
+        )
+        .map_err(|e| HiveError::AuthenticationError {
+            reason: format!("Failed to create Argon2 parameters: {e}"),
+        })?;
+
+        let argon2 = Argon2::new(Argon2Algorithm::Argon2id, Version::V0x13, params);
+
+        let password_hash = argon2
+            .hash_password(api_key.as_bytes(), &salt)
+            .map_err(|e| HiveError::AuthenticationError {
+                reason: format!("Failed to hash API key: {e}"),
+            })?
+            .to_string();
+
+        Ok(password_hash)
+    }
+
+    /// Verify an API key against a hash using Argon2id
+    fn verify_api_key(api_key: &str, hash: &str) -> HiveResult<bool> {
+        let parsed_hash = PasswordHash::new(hash).map_err(|e| HiveError::AuthenticationError {
+            reason: format!("Invalid password hash format: {e}"),
+        })?;
+
+        let argon2 = Argon2::default();
+        Ok(argon2
+            .verify_password(api_key.as_bytes(), &parsed_hash)
+            .is_ok())
+    }
+
     /// Authenticate user and create session
     pub async fn authenticate_user(
         &self,
@@ -363,7 +404,7 @@ impl AuthManager {
     ) -> HiveResult<(String, String)> {
         let key_id = Uuid::new_v4().to_string();
         let api_key = Uuid::new_v4().to_string();
-        let key_hash = format!("{:x}", md5::compute(&api_key));
+        let key_hash = Self::hash_api_key(&api_key)?;
 
         let api_key_obj = ApiKey {
             key_id: key_id.clone(),
@@ -385,11 +426,10 @@ impl AuthManager {
 
     /// Validate API key
     pub async fn validate_api_key(&self, api_key: &str) -> HiveResult<HashSet<Permission>> {
-        let key_hash = format!("{:x}", md5::compute(api_key));
         let mut api_keys = self.api_keys.write().await;
 
         for (_, key_obj) in api_keys.iter_mut() {
-            if key_obj.key_hash == key_hash {
+            if Self::verify_api_key(api_key, &key_obj.key_hash)? {
                 // Check expiration
                 if let Some(expires_at) = key_obj.expires_at {
                     if expires_at < Utc::now() {
@@ -584,16 +624,19 @@ mod tests {
                 vec![Role::Developer],
                 ClientType::Human,
                 Some("127.0.0.1".to_string()),
-                Some("test_agent".to_string()),
+                Some("test-agent".to_string()),
             )
             .await
-            .unwrap();
+            .expect("Failed to authenticate user");
 
         assert!(!token.is_empty());
         assert!(!session_id.is_empty());
 
         // Test token validation
-        let claims = auth_manager.validate_token(&token).await.unwrap();
+        let claims = auth_manager
+            .validate_token(&token)
+            .await
+            .expect("Failed to validate token");
         assert_eq!(claims.sub, "test_user");
         assert_eq!(claims.session_id, session_id);
 
@@ -601,11 +644,14 @@ mod tests {
         let has_permission = auth_manager
             .check_permission(&session_id, Permission::AgentManagement)
             .await
-            .unwrap();
+            .expect("Failed to check permission");
         assert!(has_permission);
 
         // Test logout
-        auth_manager.logout(&session_id).await.unwrap();
+        auth_manager
+            .logout(&session_id)
+            .await
+            .expect("Failed to logout");
 
         // Session should be gone
         assert!(auth_manager.get_session_info(&session_id).await.is_none());
@@ -634,13 +680,62 @@ mod tests {
                 Some(1000),
             )
             .await
-            .unwrap();
+            .expect("Failed to create API key");
 
         assert!(!key_id.is_empty());
         assert!(!api_key.is_empty());
 
         // Validate API key
-        let validated_permissions = auth_manager.validate_api_key(&api_key).await.unwrap();
+        let validated_permissions = auth_manager
+            .validate_api_key(&api_key)
+            .await
+            .expect("Failed to validate API key");
         assert_eq!(validated_permissions, permissions);
+    }
+
+    #[test]
+    fn test_argon2id_password_hashing() {
+        // Test that Argon2id hashing works with OWASP-recommended parameters
+        let api_key = "test_api_key_123";
+        let hash = AuthManager::hash_api_key(api_key).expect("Failed to hash API key");
+
+        // Verify the hash is in PHC string format
+        assert!(hash.starts_with("$argon2id$"));
+
+        // Verify the password against the hash
+        let is_valid =
+            AuthManager::verify_api_key(api_key, &hash).expect("Failed to verify API key");
+        assert!(is_valid);
+
+        // Verify that wrong password fails
+        let is_valid_wrong =
+            AuthManager::verify_api_key("wrong_password", &hash).expect("Failed to verify API key");
+        assert!(!is_valid_wrong);
+    }
+
+    #[test]
+    fn test_argon2id_hashing_security() {
+        // Test that Argon2id hashing produces different hashes for the same input (due to salting)
+        let api_key = "test_api_key_security";
+
+        // Hash the same password multiple times
+        let hash1 = AuthManager::hash_api_key(api_key).expect("Failed to hash API key");
+        let hash2 = AuthManager::hash_api_key(api_key).expect("Failed to hash API key");
+
+        // Hashes should be different due to different salts
+        assert_ne!(hash1, hash2);
+
+        // But both should verify correctly
+        let is_valid1 =
+            AuthManager::verify_api_key(api_key, &hash1).expect("Failed to verify API key");
+        let is_valid2 =
+            AuthManager::verify_api_key(api_key, &hash2).expect("Failed to verify API key");
+
+        assert!(is_valid1);
+        assert!(is_valid2);
+
+        // Verify it's using Argon2id algorithm
+        assert!(hash1.starts_with("$argon2id$"));
+        assert!(hash2.starts_with("$argon2id$"));
     }
 }

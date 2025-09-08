@@ -292,7 +292,7 @@ impl SimpleVerificationSystem {
 
         // Basic goal alignment if provided
         let goal_alignment_score = if let Some(goal) = original_goal {
-            self.basic_goal_alignment(&result.output, goal)
+            Self::basic_goal_alignment(&result.output, goal)
         } else {
             1.0
         };
@@ -453,7 +453,7 @@ impl SimpleVerificationSystem {
     }
 
     /// Basic goal alignment using simple text similarity
-    fn basic_goal_alignment(&self, output: &str, goal: &str) -> f64 {
+    fn basic_goal_alignment(output: &str, goal: &str) -> f64 {
         // Simple word overlap calculation
         let output_words: std::collections::HashSet<String> = output
             .to_lowercase()
@@ -537,7 +537,7 @@ impl SimpleVerificationSystem {
                 / (output_processed.semantic_vector.magnitude
                     * goal_processed.semantic_vector.magnitude)
         } else {
-            self.basic_goal_alignment(output, goal)
+            SimpleVerificationSystem::basic_goal_alignment(output, goal)
         };
 
         if similarity < 0.7 {

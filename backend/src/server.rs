@@ -15,6 +15,7 @@ use tower_http::cors::CorsLayer;
 use tracing::{debug, error, info, warn};
 
 use crate::communication;
+use crate::communication::mcp_http;
 use crate::infrastructure::metrics::{AgentMetrics, AlertLevel, TaskMetrics};
 use crate::infrastructure::middleware::security_headers_middleware;
 use crate::utils::structured_logging::{SecurityEventDetails, SecurityEventType, StructuredLogger};
@@ -247,6 +248,9 @@ pub async fn start_background_tasks(app_state: AppState) {
         }
     });
 
+    // Start MCP HTTP service
+    mcp_http::start_mcp_background_service(app_state.clone()).await;
+
     info!("🔄 Background monitoring tasks started");
 }
 
@@ -264,6 +268,7 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/api/tasks", get(get_tasks).post(create_task))
         .route("/api/hive/status", get(get_hive_status))
         .route("/api/resources", get(get_resource_info))
+        .nest("/api/mcp", mcp_http::create_mcp_router())
         .layer(axum::middleware::from_fn(security_headers_middleware))
         .layer(CorsLayer::permissive())
         .with_state(app_state)

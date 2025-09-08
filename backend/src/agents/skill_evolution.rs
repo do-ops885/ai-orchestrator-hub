@@ -284,7 +284,7 @@ impl SkillEvolutionSystem {
                 }
 
                 // Check if policy triggers apply to this agent
-                if Self::should_trigger_learning(&agent, policy, &library)? {
+                if Self::should_trigger_learning(&agent, policy, &library) {
                     info!(
                         "Learning policy '{}' triggered for agent {}",
                         policy.name, agent_id
@@ -292,7 +292,7 @@ impl SkillEvolutionSystem {
 
                     // Select skill to learn
                     if let Some(skill_to_learn) =
-                        Self::select_skill_to_learn(&agent, policy, &library, nlp_processor)?
+                        Self::select_skill_to_learn(&agent, policy, &library, nlp_processor)
                     {
                         // Execute learning
                         let learning_result = Self::execute_skill_learning(
@@ -365,7 +365,7 @@ impl SkillEvolutionSystem {
         agent: &Agent,
         policy: &EvolutionPolicy,
         _library: &SkillLibrary,
-    ) -> Result<bool> {
+    ) -> bool {
         for trigger in &policy.triggers {
             match trigger {
                 LearningTrigger::TaskFailureThreshold { failure_rate, .. } => {
@@ -383,7 +383,7 @@ impl SkillEvolutionSystem {
                     if recent_tasks > 0 {
                         let agent_failure_rate = recent_failures as f64 / recent_tasks as f64;
                         if agent_failure_rate > *failure_rate {
-                            return Ok(true);
+                             return true;
                         }
                     }
                 }
@@ -393,20 +393,20 @@ impl SkillEvolutionSystem {
                     // Check if performance has plateaued
                     let hours_since_improvement = 24.0; // Placeholder calculation
                     if hours_since_improvement > *stagnation_period_hours {
-                        return Ok(true);
+                        return true;
                     }
                 }
                 LearningTrigger::NewTaskType { .. }
                 | LearningTrigger::CollaborationOpportunity { .. } => {
                     // Check if agent has encountered new task types or collaboration opportunities
                     // This would analyze recent task patterns or opportunities
-                    return Ok(false); // Placeholder
+                    return false; // Placeholder
                 }
                 LearningTrigger::ScheduledLearning { interval_hours } => {
                     // Check if it's time for scheduled learning
                     let hours_since_last_learning = 25.0; // Placeholder calculation
                     if hours_since_last_learning >= *interval_hours {
-                        return Ok(true);
+                        return true;
                     }
                 }
                 LearningTrigger::PeerComparison {
@@ -415,12 +415,12 @@ impl SkillEvolutionSystem {
                     // Compare with peer agents
                     let skill_gap = 0.3; // Placeholder calculation
                     if skill_gap > *skill_gap_threshold {
-                        return Ok(true);
+                        return true;
                     }
                 }
             }
         }
-        Ok(false)
+        false
     }
 
     /// Select which skill an agent should learn
@@ -429,7 +429,7 @@ impl SkillEvolutionSystem {
         policy: &EvolutionPolicy,
         library: &SkillLibrary,
         _nlp_processor: &Arc<NLPProcessor>,
-    ) -> Result<Option<String>> {
+    ) -> Option<String> {
         let existing_skills: Vec<String> = agent
             .capabilities
             .iter()
@@ -447,7 +447,7 @@ impl SkillEvolutionSystem {
                             .iter()
                             .all(|prereq| existing_skills.contains(prereq))
                         {
-                            return Ok(Some(skill_id.clone()));
+                            return Some(skill_id.clone());
                         }
                     }
                 }
@@ -472,7 +472,7 @@ impl SkillEvolutionSystem {
                                         .iter()
                                         .all(|prereq| existing_skills.contains(prereq))
                                     {
-                                        return Ok(Some(related_skill.clone()));
+                                        return Some(related_skill.clone());
                                     }
                                 }
                             }
@@ -483,11 +483,11 @@ impl SkillEvolutionSystem {
             SkillSelectionStrategy::TaskDemandBased => {
                 // Analyze recent task patterns to determine needed skills
                 // This would use NLP to analyze task descriptions
-                return Ok(Some("task_analysis".to_string())); // Placeholder
+                return Some("task_analysis".to_string()); // Placeholder
             }
             SkillSelectionStrategy::CollaborationFocused => {
                 // Select skills that enable better collaboration
-                return Ok(Some("communication".to_string())); // Placeholder
+                return Some("communication".to_string()); // Placeholder
             }
             SkillSelectionStrategy::RandomExploration { .. } => {
                 // Randomly select an available skill
@@ -500,12 +500,12 @@ impl SkillEvolutionSystem {
 
                 if !available_skills.is_empty() {
                     let random_index = rand::random::<usize>() % available_skills.len();
-                    return Ok(Some(available_skills[random_index].clone()));
+                    return Some(available_skills[random_index].clone());
                 }
             }
         }
 
-        Ok(None)
+        None
     }
 
     /// Execute the skill learning process

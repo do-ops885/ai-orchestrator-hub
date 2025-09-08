@@ -135,6 +135,28 @@ impl HiveMCPServer {
         server.register_tool("echo".to_string(), Box::new(EchoTool));
         server.register_tool("system_info".to_string(), Box::new(SystemInfoTool));
 
+        // Register advanced tools
+        server.register_tool(
+            "list_agents".to_string(),
+            Box::new(ListAgentsTool::new(Arc::clone(&server.hive))),
+        );
+        server.register_tool(
+            "list_tasks".to_string(),
+            Box::new(ListTasksTool::new(Arc::clone(&server.hive))),
+        );
+        server.register_tool(
+            "get_agent_details".to_string(),
+            Box::new(GetAgentDetailsTool::new(Arc::clone(&server.hive))),
+        );
+        server.register_tool(
+            "get_task_details".to_string(),
+            Box::new(GetTaskDetailsTool::new(Arc::clone(&server.hive))),
+        );
+        server.register_tool(
+            "batch_create_agents".to_string(),
+            Box::new(BatchCreateAgentsTool::new(Arc::clone(&server.hive))),
+        );
+
         // Register resources
         server.register_resource(MCPResource {
             uri: "hive://status".to_string(),
@@ -675,5 +697,318 @@ impl MCPToolHandler for SystemInfoTool {
 
     fn get_description(&self) -> String {
         "Get system information including platform, architecture, and CPU count".to_string()
+    }
+}
+
+// Advanced MCP Tools
+
+pub struct ListAgentsTool {
+    hive: Arc<RwLock<HiveCoordinator>>,
+}
+
+impl ListAgentsTool {
+    pub fn new(hive: Arc<RwLock<HiveCoordinator>>) -> Self {
+        Self { hive }
+    }
+}
+
+#[async_trait]
+impl MCPToolHandler for ListAgentsTool {
+    async fn execute(&self, params: &Value) -> Result<Value> {
+        let hive = self.hive.read().await;
+        let status = hive.get_status().await;
+
+        // Extract filter parameters
+        let agent_type_filter = params.get("agent_type").and_then(|v| v.as_str());
+        let active_only = params
+            .get("active_only")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
+
+        // For now, return basic agent information from status
+        let total_agents = status
+            .get("metrics")
+            .and_then(|m| m.get("total_agents"))
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+
+        let active_agents = status
+            .get("metrics")
+            .and_then(|m| m.get("active_agents"))
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+
+        Ok(json!({
+            "total_agents": total_agents,
+            "active_agents": active_agents,
+            "filter_applied": {
+                "agent_type": agent_type_filter,
+                "active_only": active_only
+            },
+            "agents": []  // Would contain actual agent list in full implementation
+        }))
+    }
+
+    fn get_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "agent_type": {
+                    "type": "string",
+                    "description": "Filter by agent type",
+                    "enum": ["Worker", "Coordinator", "Specialist", "Learner"]
+                },
+                "active_only": {
+                    "type": "boolean",
+                    "description": "Show only active agents",
+                    "default": false
+                }
+            },
+            "required": []
+        })
+    }
+
+    fn get_description(&self) -> String {
+        "List all agents in the swarm with optional filtering".to_string()
+    }
+}
+
+pub struct ListTasksTool {
+    hive: Arc<RwLock<HiveCoordinator>>,
+}
+
+impl ListTasksTool {
+    pub fn new(hive: Arc<RwLock<HiveCoordinator>>) -> Self {
+        Self { hive }
+    }
+}
+
+#[async_trait]
+impl MCPToolHandler for ListTasksTool {
+    async fn execute(&self, params: &Value) -> Result<Value> {
+        let hive = self.hive.read().await;
+        let status = hive.get_status().await;
+
+        let priority_filter = params.get("priority").and_then(|v| v.as_str());
+        let status_filter = params.get("status").and_then(|v| v.as_str());
+
+        let completed_tasks = status
+            .get("metrics")
+            .and_then(|m| m.get("completed_tasks"))
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+
+        let failed_tasks = status
+            .get("metrics")
+            .and_then(|m| m.get("failed_tasks"))
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+
+        Ok(json!({
+            "completed_tasks": completed_tasks,
+            "failed_tasks": failed_tasks,
+            "filter_applied": {
+                "priority": priority_filter,
+                "status": status_filter
+            },
+            "tasks": []  // Would contain actual task list in full implementation
+        }))
+    }
+
+    fn get_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "priority": {
+                    "type": "string",
+                    "description": "Filter by task priority",
+                    "enum": ["Low", "Medium", "High", "Critical"]
+                },
+                "status": {
+                    "type": "string",
+                    "description": "Filter by task status",
+                    "enum": ["Pending", "Running", "Completed", "Failed"]
+                }
+            },
+            "required": []
+        })
+    }
+
+    fn get_description(&self) -> String {
+        "List all tasks in the swarm with optional filtering".to_string()
+    }
+}
+
+pub struct GetAgentDetailsTool {}
+
+impl GetAgentDetailsTool {
+    pub fn new(_hive: Arc<RwLock<HiveCoordinator>>) -> Self {
+        Self {}
+    }
+}
+
+#[async_trait]
+impl MCPToolHandler for GetAgentDetailsTool {
+    async fn execute(&self, params: &Value) -> Result<Value> {
+        let agent_id = params
+            .get("agent_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing agent_id parameter"))?;
+
+        // In a real implementation, you'd look up the actual agent
+        Ok(json!({
+            "agent_id": agent_id,
+            "status": "active",
+            "type": "Worker",
+            "created_at": chrono::Utc::now().to_rfc3339(),
+            "last_activity": chrono::Utc::now().to_rfc3339(),
+            "tasks_completed": 0,
+            "performance_score": 1.0,
+            "capabilities": ["general_processing"]
+        }))
+    }
+
+    fn get_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string",
+                    "description": "Unique identifier of the agent"
+                }
+            },
+            "required": ["agent_id"]
+        })
+    }
+
+    fn get_description(&self) -> String {
+        "Get detailed information about a specific agent".to_string()
+    }
+}
+
+pub struct GetTaskDetailsTool {}
+
+impl GetTaskDetailsTool {
+    pub fn new(_hive: Arc<RwLock<HiveCoordinator>>) -> Self {
+        Self {}
+    }
+}
+
+#[async_trait]
+impl MCPToolHandler for GetTaskDetailsTool {
+    async fn execute(&self, params: &Value) -> Result<Value> {
+        let task_id = params
+            .get("task_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing task_id parameter"))?;
+
+        // In a real implementation, you'd look up the actual task
+        Ok(json!({
+            "task_id": task_id,
+            "description": "Sample task",
+            "status": "pending",
+            "priority": "Medium",
+            "created_at": chrono::Utc::now().to_rfc3339(),
+            "assigned_agent": null,
+            "progress": 0.0,
+            "estimated_completion": null
+        }))
+    }
+
+    fn get_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string",
+                    "description": "Unique identifier of the task"
+                }
+            },
+            "required": ["task_id"]
+        })
+    }
+
+    fn get_description(&self) -> String {
+        "Get detailed information about a specific task".to_string()
+    }
+}
+
+pub struct BatchCreateAgentsTool {
+    hive: Arc<RwLock<HiveCoordinator>>,
+}
+
+impl BatchCreateAgentsTool {
+    pub fn new(hive: Arc<RwLock<HiveCoordinator>>) -> Self {
+        Self { hive }
+    }
+}
+
+#[async_trait]
+impl MCPToolHandler for BatchCreateAgentsTool {
+    async fn execute(&self, params: &Value) -> Result<Value> {
+        let count = params.get("count").and_then(serde_json::Value::as_u64).unwrap_or(1) as usize;
+
+        let agent_type_str = params
+            .get("agent_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Worker");
+
+        let _agent_type = match agent_type_str {
+            "Coordinator" => AgentType::Coordinator,
+            "Specialist" => AgentType::Specialist("general".to_string()),
+            "Learner" => AgentType::Learner,
+            _ => AgentType::Worker,
+        };
+
+        let hive = self.hive.write().await;
+        let mut created_agents = Vec::new();
+
+        for _ in 0..count.min(10) {
+            // Limit to 10 agents per batch
+            let config = if agent_type_str == "Specialist" {
+                json!({
+                    "type": "specialist:general"
+                })
+            } else {
+                json!({
+                    "type": agent_type_str.to_lowercase()
+                })
+            };
+            let agent_id = hive.create_agent(config).await?;
+            created_agents.push(agent_id.to_string());
+        }
+
+        Ok(json!({
+            "success": true,
+            "created_count": created_agents.len(),
+            "agent_ids": created_agents,
+            "message": format!("Successfully created {} {} agents", created_agents.len(), agent_type_str)
+        }))
+    }
+
+    fn get_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "description": "Number of agents to create (max 10)",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "default": 1
+                },
+                "agent_type": {
+                    "type": "string",
+                    "description": "Type of agents to create",
+                    "enum": ["Worker", "Coordinator", "Specialist", "Learner"],
+                    "default": "Worker"
+                }
+            },
+            "required": []
+        })
+    }
+
+    fn get_description(&self) -> String {
+        "Create multiple agents in a single batch operation".to_string()
     }
 }

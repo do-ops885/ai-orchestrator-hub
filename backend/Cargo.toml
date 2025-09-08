@@ -14,7 +14,7 @@ anyhow = "1.0"
 
 # Authentication and security
 jsonwebtoken = "9.2"
-md5 = "0.7"
+argon2 = "0.5"
 thiserror = "1.0"
 toml = "0.8"
 tracing = "0.1"

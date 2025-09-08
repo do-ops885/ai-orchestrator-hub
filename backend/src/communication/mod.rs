@@ -1,4 +1,5 @@
 pub mod mcp;
+pub mod mcp_http;
 
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::{SinkExt, StreamExt};
