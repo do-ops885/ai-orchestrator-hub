@@ -274,10 +274,10 @@ cargo test -- --nocapture --test-threads=1
 async fn test_new_functionality() {
     // Arrange
     let hive = HiveCoordinator::new().await.unwrap();
-    
+
     // Act
     let result = hive.some_operation().await;
-    
+
     // Assert
     assert!(result.is_ok());
     assert_eq!(expected_value, actual_value);

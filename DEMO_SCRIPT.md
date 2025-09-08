@@ -29,7 +29,7 @@ This script demonstrates the key features of your hybrid neural multiagent hive 
 
 #### 1.1 Dashboard Overview
 - **Navigate to Dashboard**: "Here's our hive control center"
-- **Point out key metrics**: 
+- **Point out key metrics**:
   - Total agents, active agents, completed tasks
   - Swarm visualization with real-time positioning
   - Neural processing metrics
@@ -107,7 +107,7 @@ This script demonstrates the key features of your hybrid neural multiagent hive 
   ```
 
 #### 3.3 Hybrid Architecture Benefits
-- **Explain adaptive approach**: 
+- **Explain adaptive approach**:
   - "Start simple with basic processing"
   - "Upgrade specific agents for complex tasks"
   - "Best of both worlds - efficiency and power"
@@ -124,7 +124,7 @@ This script demonstrates the key features of your hybrid neural multiagent hive 
 
 #### 4.2 Emergent Behavior
 - **Create more agents**: "Let's add more agents and watch the swarm grow"
-- **Show coordination**: 
+- **Show coordination**:
   - "No central control - pure emergent behavior"
   - "Each agent follows simple rules"
   - "Complex coordination emerges naturally"
@@ -165,7 +165,7 @@ This script demonstrates the key features of your hybrid neural multiagent hive 
 **"What makes this system special:"**
 
 1. **🧠 Hybrid Intelligence**: Choose the right processing power for each task
-2. **🐝 True Swarm Behavior**: Emergent coordination without central control  
+2. **🐝 True Swarm Behavior**: Emergent coordination without central control
 3. **📈 Adaptive Learning**: Agents improve through experience
 4. **🚀 Production Ready**: From prototype to enterprise deployment
 5. **🔮 Future Proof**: Modular architecture that evolves with your needs
