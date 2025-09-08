@@ -471,7 +471,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_knowledge_contribution() {
+    async fn test_knowledge_contribution() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = CollaborativeLearningSystem::new();
         let agent_id = Uuid::new_v4();
 
@@ -481,14 +481,15 @@ mod tests {
             "Test solution content".to_string(),
             0.8,
             vec!["test".to_string(), "solution".to_string()],
-        ).await.unwrap();
+        ).await?;
 
         assert!(system.knowledge_base.contains_key(&knowledge_id));
         assert_eq!(system.learning_metrics.total_knowledge_items, 1);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_knowledge_search() {
+    async fn test_knowledge_search() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = CollaborativeLearningSystem::new();
         let agent_id = Uuid::new_v4();
 
@@ -498,20 +499,21 @@ mod tests {
             "Performance optimization techniques".to_string(),
             0.9,
             vec!["performance".to_string(), "optimization".to_string()],
-        ).await.unwrap();
+        ).await?;
 
         let results = system.find_relevant_knowledge(
             "performance optimization",
             Uuid::new_v4(), // Different agent
             5,
-        ).await.unwrap();
+        ).await?;
 
         assert!(!results.is_empty());
         assert!(results[0].content.contains("optimization"));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_collaborative_session() {
+    async fn test_collaborative_session() -> Result<(), Box<dyn std::error::Error>> {
         let mut system = CollaborativeLearningSystem::new();
         let participants = vec![Uuid::new_v4(), Uuid::new_v4()];
 
@@ -519,9 +521,10 @@ mod tests {
             participants.clone(),
             "Test problem".to_string(),
             SessionType::ProblemSolving,
-        ).await.unwrap();
+        ).await?;
 
         assert!(system.active_sessions.contains_key(&session_id));
         assert_eq!(system.learning_metrics.collaborative_sessions, 1);
+        Ok(())
     }
 }
