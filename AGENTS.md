@@ -1,5 +1,44 @@
 # Development Guidelines for Agentic Coding Agents
 
+## Available Agents
+
+### Core Agents
+- **security-auditor**: Security analysis and vulnerability assessment
+- **plan**: Project planning and task management
+- **git**: Git operations and version control
+- **learner**: Learning and adaptation capabilities
+- **github**: GitHub repository management
+- **swarm-coordinator**: Swarm intelligence and multi-agent coordination
+
+### Swarm Coordinator Agent
+The `swarm-coordinator` agent is specialized for multi-agent systems and swarm intelligence operations. It has access to the following MCP tools:
+
+#### Multiagent Hive Tools
+- `create_swarm_agent`: Create new agents (Worker, Coordinator, Specialist, Learner)
+- `batch_create_agents`: Create multiple agents simultaneously
+- `assign_swarm_task`: Create tasks with priority levels
+- `get_swarm_status`: Monitor hive metrics and performance
+- `list_agents`: List and filter agents
+- `list_tasks`: List and filter tasks
+- `get_agent_details`: Get detailed agent information
+- `get_task_details`: Get detailed task information
+- `coordinate_agents`: Apply coordination strategies
+- `analyze_with_nlp`: Text analysis capabilities
+- `system_info`: System information retrieval
+- `echo`: Simple echo tool for testing
+
+#### Usage Examples
+```bash
+# Create a swarm coordinator agent
+opencode swarm-coordinator "Create 5 worker agents and assign them a code review task"
+
+# Monitor swarm status
+opencode swarm-coordinator "Check the current status of the multiagent hive"
+
+# Coordinate agents
+opencode swarm-coordinator "Apply balanced coordination strategy to optimize task distribution"
+```
+
 ## Build/Lint/Test Commands
 
 ### Backend (Rust)

@@ -2,14 +2,14 @@
 description: Handles local git operations including commits, branches, merges, status checks, and repository management
 mode: subagent
 tools:
-  write: true
-  edit: true
+  write: false
+  edit: false
   bash: true
   read: true
   grep: true
   glob: true
   list: true
-  patch: true
+  patch: false
   todowrite: true
   todoread: true
   task: true

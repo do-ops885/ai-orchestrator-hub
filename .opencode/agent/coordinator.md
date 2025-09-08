@@ -2,14 +2,14 @@
 description: The Coordinator Agent serves as a leadership entity that manages and directs other agents within the swarm. It handles task distribution, resource allocation, and maintains swarm cohesion through intelligent coordination.
 mode: subagent
 tools:
-  write: true
-  edit: true
+  write: false
+  edit: false
   bash: true
   read: true
   grep: true
   glob: true
   list: true
-  patch: true
+  patch: false
   todowrite: true
   todoread: true
   webfetch: true
