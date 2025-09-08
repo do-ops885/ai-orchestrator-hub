@@ -253,4 +253,6 @@ describe('ResourceMonitor', () => {
     // Should not display CPU Optimizations section
     expect(screen.queryByText('🔧 CPU Optimizations')).not.toBeInTheDocument()
   })
+
+
 })
