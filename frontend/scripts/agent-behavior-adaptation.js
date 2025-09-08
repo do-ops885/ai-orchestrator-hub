@@ -6,7 +6,8 @@ const fs = require('fs')
 const path = require('path')
 
 async function analyzeAdaptationBehavior() {
-  const outputPath = process.argv[2] || path.join(process.cwd(), '..', 'monitoring', 'adaptation-metrics.json')
+  const outputPath =
+    process.argv[2] || path.join(process.cwd(), '..', 'monitoring', 'adaptation-metrics.json')
   const registryUrl = process.argv[3] || 'http://localhost:8000'
 
   try {
@@ -49,9 +50,11 @@ async function analyzeAdaptationBehavior() {
 
     // Extract system-level adaptation metrics
     if (statusData.metrics) {
-      adaptationMetrics.system_adaptation.learning_progress = statusData.metrics.learning_progress || 0
+      adaptationMetrics.system_adaptation.learning_progress =
+        statusData.metrics.learning_progress || 0
       adaptationMetrics.system_adaptation.swarm_cohesion = statusData.metrics.swarm_cohesion || 0
-      adaptationMetrics.system_adaptation.adaptation_events = statusData.metrics.adaptation_events || 0
+      adaptationMetrics.system_adaptation.adaptation_events =
+        statusData.metrics.adaptation_events || 0
     }
 
     // Analyze individual agent adaptation
@@ -96,11 +99,14 @@ async function analyzeAdaptationBehavior() {
       // Calculate averages
       const agentList = Object.values(adaptationMetrics.agent_adaptation)
       if (agentList.length > 0) {
-        adaptationMetrics.metrics.average_adaptation_score = agentList.reduce((sum, agent) =>
-          sum + (agent.adaptation_score || 0), 0) / agentList.length
+        adaptationMetrics.metrics.average_adaptation_score =
+          agentList.reduce((sum, agent) => sum + (agent.adaptation_score || 0), 0) /
+          agentList.length
 
-        const totalImprovement = agentList.reduce((sum, agent) =>
-          sum + (agent.improvement_rate || 0), 0)
+        const totalImprovement = agentList.reduce(
+          (sum, agent) => sum + (agent.improvement_rate || 0),
+          0,
+        )
         adaptationMetrics.adaptation_patterns.improvement_rate = totalImprovement / agentList.length
       }
 
@@ -133,15 +139,28 @@ async function analyzeAdaptationBehavior() {
     console.log('\n📊 Adaptation Analysis Summary:')
     console.log(`   Total Agents: ${adaptationMetrics.metrics.total_agents}`)
     console.log(`   Adapting Agents: ${adaptationMetrics.metrics.adapting_agents}`)
-    console.log(`   Adaptation Success Rate: ${adaptationMetrics.metrics.adaptation_success_rate.toFixed(2)}%`)
-    console.log(`   Average Adaptation Score: ${adaptationMetrics.metrics.average_adaptation_score.toFixed(2)}`)
-    console.log(`   System Learning Progress: ${adaptationMetrics.system_adaptation.learning_progress.toFixed(2)}`)
-    console.log(`   Swarm Cohesion: ${adaptationMetrics.system_adaptation.swarm_cohesion.toFixed(2)}`)
+    console.log(
+      `   Adaptation Success Rate: ${adaptationMetrics.metrics.adaptation_success_rate.toFixed(2)}%`,
+    )
+    console.log(
+      `   Average Adaptation Score: ${adaptationMetrics.metrics.average_adaptation_score.toFixed(2)}`,
+    )
+    console.log(
+      `   System Learning Progress: ${adaptationMetrics.system_adaptation.learning_progress.toFixed(2)}`,
+    )
+    console.log(
+      `   Swarm Cohesion: ${adaptationMetrics.system_adaptation.swarm_cohesion.toFixed(2)}`,
+    )
     console.log(`   Performance Trend: ${adaptationMetrics.system_adaptation.performance_trend}`)
-    console.log(`   Adaptive Agents: ${adaptationMetrics.adaptation_patterns.adaptive_agents.length}`)
-    console.log(`   Learning Agents: ${adaptationMetrics.adaptation_patterns.learning_agents.length}`)
-    console.log(`   Stagnant Agents: ${adaptationMetrics.adaptation_patterns.stagnant_agents.length}`)
-
+    console.log(
+      `   Adaptive Agents: ${adaptationMetrics.adaptation_patterns.adaptive_agents.length}`,
+    )
+    console.log(
+      `   Learning Agents: ${adaptationMetrics.adaptation_patterns.learning_agents.length}`,
+    )
+    console.log(
+      `   Stagnant Agents: ${adaptationMetrics.adaptation_patterns.stagnant_agents.length}`,
+    )
   } catch (error) {
     console.error('❌ Adaptation behavior analysis failed:', error.message)
     process.exit(1)

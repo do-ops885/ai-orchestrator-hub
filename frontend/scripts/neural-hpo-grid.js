@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-
 /**
  * Neural Hyperparameter Optimization Grid Search Script
  */
@@ -74,13 +73,20 @@ if (!fs.existsSync(outputDir)) {
 }
 
 const resultsFile = path.join(outputDir, 'hpo_grid_results.json')
-fs.writeFileSync(resultsFile, JSON.stringify({
-  parameter: param,
-  values: values.map(v => parseFloat(v)),
-  results,
-  best_value: results[0].value,
-  best_accuracy: results[0].accuracy,
-  timestamp: new Date().toISOString(),
-}, null, 2))
+fs.writeFileSync(
+  resultsFile,
+  JSON.stringify(
+    {
+      parameter: param,
+      values: values.map(v => parseFloat(v)),
+      results,
+      best_value: results[0].value,
+      best_accuracy: results[0].accuracy,
+      timestamp: new Date().toISOString(),
+    },
+    null,
+    2,
+  ),
+)
 
 console.log(`📄 Results saved to: ${resultsFile}`)

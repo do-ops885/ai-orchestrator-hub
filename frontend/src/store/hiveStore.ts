@@ -1,75 +1,75 @@
 import { create } from 'zustand'
 
 export interface Agent {
-  id: string;
-  name: string;
-  type: string;
-  state: string;
+  id: string
+  name: string
+  type: string
+  state: string
   capabilities: Array<{
-    name: string;
-    proficiency: number;
-    learning_rate: number;
-  }>;
-  position: [number, number];
-  energy: number;
-  experience_count: number;
-  social_connections: number;
+    name: string
+    proficiency: number
+    learning_rate: number
+  }>
+  position: [number, number]
+  energy: number
+  experience_count: number
+  social_connections: number
 }
 
 export interface HiveMetrics {
-  total_agents: number;
-  active_agents: number;
-  completed_tasks: number;
-  failed_tasks: number;
-  average_performance: number;
-  swarm_cohesion: number;
-  learning_progress: number;
+  total_agents: number
+  active_agents: number
+  completed_tasks: number
+  failed_tasks: number
+  average_performance: number
+  swarm_cohesion: number
+  learning_progress: number
 }
 
 export interface Task {
-  id: string;
-  description: string;
-  type: string;
-  priority: number;
-  status: string;
-  assigned_agent?: string;
-  created_at: string;
-  completed_at?: string;
+  id: string
+  description: string
+  type: string
+  priority: number
+  status: string
+  assigned_agent?: string
+  created_at: string
+  completed_at?: string
   required_capabilities?: Array<{
-    name: string;
-    min_proficiency: number;
-    weight: number;
-  }>;
+    name: string
+    min_proficiency: number
+    weight: number
+  }>
 }
 
 export interface HiveStatus {
-  hive_id: string;
-  created_at: string;
-  last_update: string;
-  metrics: HiveMetrics;
-  swarm_center: [number, number];
-  total_energy: number;
+  hive_id: string
+  created_at: string
+  last_update: string
+  metrics: HiveMetrics
+  swarm_center: [number, number]
+  total_energy: number
 }
 
 interface HiveStore {
   // Connection state
-  isConnected: boolean;
-  socket: WebSocket | null;
-  connectionAttempts: number;
+  isConnected: boolean
+  socket: WebSocket | null
+  connectionAttempts: number
 
   // Data
-  agents: Agent[];
-  hiveStatus: HiveStatus | null;
-  tasks: Task[];
+  agents: Agent[]
+  hiveStatus: HiveStatus | null
+  tasks: Task[]
 
   // Actions
-  connectWebSocket: (url: string) => void;
-  disconnect: () => void;
-  createAgent: (config: unknown) => void;
-  createTask: (config: unknown) => void;
-  updateAgents: (agents: Agent[]) => void;
-  updateHiveStatus: (status: HiveStatus) => void;
-  updateTasks: (tasks: Task[]) => void;
+  connectWebSocket: (url: string) => void
+  disconnect: () => void
+  createAgent: (config: unknown) => void
+  createTask: (config: unknown) => void
+  updateAgents: (agents: Agent[]) => void
+  updateHiveStatus: (status: HiveStatus) => void
+  updateTasks: (tasks: Task[]) => void
 }
 
 export const useHiveStore = create<HiveStore>((set, get) => ({
@@ -96,7 +96,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       set({ isConnected: true, socket, connectionAttempts: 0 })
     }
 
-    socket.onmessage = (event) => {
+    socket.onmessage = event => {
       try {
         const message = JSON.parse(event.data)
 
@@ -110,7 +110,12 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
               break
             case 'metrics_update': {
               const currentStatus = get().hiveStatus
-              if (currentStatus !== null && currentStatus !== undefined && message.data?.metrics !== null && message.data?.metrics !== undefined) {
+              if (
+                currentStatus !== null &&
+                currentStatus !== undefined &&
+                message.data?.metrics !== null &&
+                message.data?.metrics !== undefined
+              ) {
                 set({
                   hiveStatus: {
                     ...currentStatus,
@@ -134,7 +139,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
               const updatedTask = message.data?.task
               if (updatedTask !== null && updatedTask !== undefined) {
                 const updatedTasks = currentTasks.map(task =>
-                  task.id === updatedTask.id ? { ...task, ...updatedTask } : task
+                  task.id === updatedTask.id ? { ...task, ...updatedTask } : task,
                 )
                 set({ tasks: updatedTasks })
               }
@@ -150,15 +155,20 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       }
     }
 
-    socket.onclose = (event) => {
+    socket.onclose = event => {
       const attempts = get().connectionAttempts
-      console.warn(`🔌 WebSocket disconnected (code: ${event.code}, reason: ${event.reason !== '' ? event.reason : 'Unknown'})`)
+      console.warn(
+        `🔌 WebSocket disconnected (code: ${event.code}, reason: ${event.reason !== '' ? event.reason : 'Unknown'})`,
+      )
       set({ isConnected: false, socket: null })
 
       // Auto-retry with exponential backoff (max 5 attempts)
-      if (attempts < 5 && event.code !== 1000) { // Don't retry on normal closure
+      if (attempts < 5 && event.code !== 1000) {
+        // Don't retry on normal closure
         const retryDelay = Math.min(1000 * Math.pow(2, attempts), 10000) // Max 10 seconds
-        console.warn(`🔄 Retrying WebSocket connection in ${retryDelay}ms... (attempt ${attempts + 1}/5)`)
+        console.warn(
+          `🔄 Retrying WebSocket connection in ${retryDelay}ms... (attempt ${attempts + 1}/5)`,
+        )
         setTimeout(() => {
           set({ connectionAttempts: attempts + 1 })
           get().connectWebSocket(url)
@@ -168,8 +178,11 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       }
     }
 
-    socket.onerror = (error) => {
-      console.warn('WebSocket connection error - this is normal during development. Retrying...', error)
+    socket.onerror = error => {
+      console.warn(
+        'WebSocket connection error - this is normal during development. Retrying...',
+        error,
+      )
       set({ isConnected: false })
       // Auto-retry connection after 3 seconds
       setTimeout(() => {
@@ -192,20 +205,24 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   createAgent: (config: unknown) => {
     const { socket } = get()
     if (socket !== null && socket !== undefined && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({
-        action: 'create_agent',
-        payload: config,
-      }))
+      socket.send(
+        JSON.stringify({
+          action: 'create_agent',
+          payload: config,
+        }),
+      )
     }
   },
 
   createTask: (config: unknown) => {
     const { socket } = get()
     if (socket !== null && socket !== undefined && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({
-        action: 'create_task',
-        payload: config,
-      }))
+      socket.send(
+        JSON.stringify({
+          action: 'create_task',
+          payload: config,
+        }),
+      )
     }
   },
 

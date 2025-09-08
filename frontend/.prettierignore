@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+.vercel/
+*.min.js
+coverage/
+*.log
+.DS_Store
+*.lock
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

@@ -44,8 +44,14 @@ describe('NeuralMetrics', () => {
   it('displays processing overview with correct counts', () => {
     render(<NeuralMetrics agents={mockAgents} />)
 
-    expect(screen.getByText('1')).toBeInTheDocument() // Basic NLP (agent with undefined neural_type)
-    expect(screen.getByText('2')).toBeInTheDocument() // Advanced Neural (fann + lstm)
+    // Check that we have the correct counts - should have 2 Basic NLP and 2 Advanced Neural
+    const basicElements = screen.getAllByText('Basic NLP')
+    const advancedElements = screen.getAllByText('Advanced Neural')
+    const countElements = screen.getAllByText('2')
+
+    expect(basicElements).toHaveLength(3) // 1 in overview + 2 in agent list
+    expect(advancedElements).toHaveLength(1) // 1 in overview
+    expect(countElements).toHaveLength(2) // Both counts should be 2
   })
 
   it('displays performance metrics correctly', () => {
@@ -68,9 +74,10 @@ describe('NeuralMetrics', () => {
   it('displays correct neural types for different agent types', () => {
     render(<NeuralMetrics agents={mockAgents} />)
 
-    expect(screen.getByText('LSTM')).toBeInTheDocument() // Learner -> LSTM
-    expect(screen.getByText('FANN')).toBeInTheDocument() // Coordinator with fann -> FANN
-    expect(screen.getByText('Basic NLP')).toBeInTheDocument() // Worker with basic -> Basic NLP
+    // Check specific neural types in the agent list
+    expect(screen.getByText('LSTM')).toBeInTheDocument() // NLP-Agent-001 (Learner type)
+    expect(screen.getByText('FANN')).toBeInTheDocument() // Specialist-001 (Specialist type)
+    expect(screen.getAllByText('Basic NLP')).toHaveLength(3) // 2 in agent list + 1 in overview
   })
 
   it('displays performance insights', () => {
@@ -88,7 +95,9 @@ describe('NeuralMetrics', () => {
   it('shows recommendation based on advanced agents count', () => {
     render(<NeuralMetrics agents={mockAgents} />)
 
-    expect(screen.getByText(/Advanced agents are handling complex tasks efficiently/)).toBeInTheDocument()
+    expect(
+      screen.getByText(/Advanced agents are handling complex tasks efficiently/),
+    ).toBeInTheDocument()
   })
 
   it('shows different recommendation when no advanced agents', () => {
@@ -134,17 +143,19 @@ describe('NeuralMetrics', () => {
     render(<NeuralMetrics agents={[]} />)
 
     expect(screen.getByText('Neural Processing Metrics')).toBeInTheDocument()
-    expect(screen.getByText('0')).toBeInTheDocument() // Both basic and advanced should be 0
+    expect(screen.getAllByText('0')).toHaveLength(2) // Both basic and advanced should be 0
   })
 
   it('calculates performance colors correctly', () => {
-    const highEnergyAgent = [{
-      id: '1',
-      name: 'High-Energy-Agent',
-      type: 'Worker',
-      energy: 95, // Should be green
-      neural_type: undefined,
-    }]
+    const highEnergyAgent = [
+      {
+        id: '1',
+        name: 'High-Energy-Agent',
+        type: 'Worker',
+        energy: 95, // Should be green
+        neural_type: undefined,
+      },
+    ]
 
     render(<NeuralMetrics agents={highEnergyAgent} />)
 
@@ -164,7 +175,7 @@ describe('NeuralMetrics', () => {
 
     render(<NeuralMetrics agents={mixedAgents} />)
 
-    expect(screen.getByText('3')).toBeInTheDocument() // 1 basic + 2 advanced
-    expect(screen.getByText('1')).toBeInTheDocument() // 1 basic
+    expect(screen.getByText('1')).toBeInTheDocument() // 1 basic (null neural_type)
+    expect(screen.getByText('2')).toBeInTheDocument() // 2 advanced (fann + lstm)
   })
 })

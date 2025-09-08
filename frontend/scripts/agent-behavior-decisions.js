@@ -6,7 +6,8 @@ const fs = require('fs')
 const path = require('path')
 
 async function analyzeDecisionPatterns() {
-  const outputPath = process.argv[2] || path.join(process.cwd(), '..', 'monitoring', 'decision-patterns.json')
+  const outputPath =
+    process.argv[2] || path.join(process.cwd(), '..', 'monitoring', 'decision-patterns.json')
   const registryUrl = process.argv[3] || 'http://localhost:8000'
 
   console.log('🧠 Analyzing agent decision patterns...')
@@ -60,7 +61,8 @@ async function analyzeDecisionPatterns() {
       tasksData.tasks.forEach(task => {
         // Categorize decision types
         const decisionType = task.type || 'task_execution'
-        decisionPatterns.decision_types[decisionType] = (decisionPatterns.decision_types[decisionType] || 0) + 1
+        decisionPatterns.decision_types[decisionType] =
+          (decisionPatterns.decision_types[decisionType] || 0) + 1
 
         // Track agent decision profiles
         const agent = task.assigned_agent || 'system'
@@ -97,13 +99,15 @@ async function analyzeDecisionPatterns() {
 
           // Track decision trends by hour
           const hour = created.getHours()
-          decisionPatterns.decision_trends.by_hour[hour] = (decisionPatterns.decision_trends.by_hour[hour] || 0) + 1
+          decisionPatterns.decision_trends.by_hour[hour] =
+            (decisionPatterns.decision_trends.by_hour[hour] || 0) + 1
         }
 
         // Track by day
         if (task.created_at) {
           const [day] = new Date(task.created_at).toISOString().split('T')
-          decisionPatterns.decision_trends.by_day[day] = (decisionPatterns.decision_trends.by_day[day] || 0) + 1
+          decisionPatterns.decision_trends.by_day[day] =
+            (decisionPatterns.decision_trends.by_day[day] || 0) + 1
         }
       })
 
@@ -114,7 +118,9 @@ async function analyzeDecisionPatterns() {
 
       if (decisionPatterns.decision_metrics.total_decisions > 0) {
         decisionPatterns.decision_metrics.decision_success_rate =
-          (decisionPatterns.decision_metrics.successful_decisions / decisionPatterns.decision_metrics.total_decisions) * 100
+          (decisionPatterns.decision_metrics.successful_decisions /
+            decisionPatterns.decision_metrics.total_decisions) *
+          100
       }
 
       // Calculate agent averages
@@ -131,7 +137,9 @@ async function analyzeDecisionPatterns() {
       // Most decisive agent
       decisionPatterns.patterns.most_decisive_agent = agents.reduce((max, agent) =>
         decisionPatterns.agent_decision_profiles[agent].total_decisions >
-        decisionPatterns.agent_decision_profiles[max].total_decisions ? agent : max
+        decisionPatterns.agent_decision_profiles[max].total_decisions
+          ? agent
+          : max,
       )
 
       // Fastest decision maker
@@ -143,18 +151,29 @@ async function analyzeDecisionPatterns() {
 
       // Most reliable decision maker
       decisionPatterns.patterns.most_reliable_decision_maker = agents.reduce((max, agent) => {
-        const currentRate = decisionPatterns.agent_decision_profiles[agent].total_decisions > 0 ?
-          (decisionPatterns.agent_decision_profiles[agent].successful / decisionPatterns.agent_decision_profiles[agent].total_decisions) * 100 : 0
-        const maxRate = decisionPatterns.agent_decision_profiles[max].total_decisions > 0 ?
-          (decisionPatterns.agent_decision_profiles[max].successful / decisionPatterns.agent_decision_profiles[max].total_decisions) * 100 : 0
+        const currentRate =
+          decisionPatterns.agent_decision_profiles[agent].total_decisions > 0
+            ? (decisionPatterns.agent_decision_profiles[agent].successful /
+                decisionPatterns.agent_decision_profiles[agent].total_decisions) *
+              100
+            : 0
+        const maxRate =
+          decisionPatterns.agent_decision_profiles[max].total_decisions > 0
+            ? (decisionPatterns.agent_decision_profiles[max].successful /
+                decisionPatterns.agent_decision_profiles[max].total_decisions) *
+              100
+            : 0
         return currentRate > maxRate ? agent : max
       })
     }
 
     // Find peak decision hours
-    const hourEntries = Object.entries(decisionPatterns.decision_trends.by_hour)
-      .sort(([,a], [,b]) => b - a)
-    decisionPatterns.patterns.peak_decision_hours = hourEntries.slice(0, 3).map(([hour]) => parseInt(hour))
+    const hourEntries = Object.entries(decisionPatterns.decision_trends.by_hour).sort(
+      ([, a], [, b]) => b - a,
+    )
+    decisionPatterns.patterns.peak_decision_hours = hourEntries
+      .slice(0, 3)
+      .map(([hour]) => parseInt(hour))
 
     // Ensure output directory exists
     const outputDir = path.dirname(outputPath)
@@ -170,13 +189,22 @@ async function analyzeDecisionPatterns() {
     // Display summary
     console.log('\n📊 Decision Analysis Summary:')
     console.log(`   Total Decisions: ${decisionPatterns.decision_metrics.total_decisions}`)
-    console.log(`   Success Rate: ${decisionPatterns.decision_metrics.decision_success_rate.toFixed(2)}%`)
-    console.log(`   Average Decision Time: ${(decisionPatterns.decision_metrics.average_decision_time / 1000).toFixed(2)}s`)
-    console.log(`   Most Decisive Agent: ${decisionPatterns.patterns.most_decisive_agent || 'None'}`)
-    console.log(`   Fastest Decision Maker: ${decisionPatterns.patterns.fastest_decision_maker || 'None'}`)
-    console.log(`   Most Reliable: ${decisionPatterns.patterns.most_reliable_decision_maker || 'None'}`)
+    console.log(
+      `   Success Rate: ${decisionPatterns.decision_metrics.decision_success_rate.toFixed(2)}%`,
+    )
+    console.log(
+      `   Average Decision Time: ${(decisionPatterns.decision_metrics.average_decision_time / 1000).toFixed(2)}s`,
+    )
+    console.log(
+      `   Most Decisive Agent: ${decisionPatterns.patterns.most_decisive_agent || 'None'}`,
+    )
+    console.log(
+      `   Fastest Decision Maker: ${decisionPatterns.patterns.fastest_decision_maker || 'None'}`,
+    )
+    console.log(
+      `   Most Reliable: ${decisionPatterns.patterns.most_reliable_decision_maker || 'None'}`,
+    )
     console.log(`   Peak Hours: ${decisionPatterns.patterns.peak_decision_hours.join(', ')}`)
-
   } catch (error) {
     console.error('❌ Decision pattern analysis failed:', error.message)
     process.exit(1)

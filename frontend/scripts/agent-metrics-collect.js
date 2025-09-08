@@ -46,7 +46,7 @@ async function collectAgentMetrics() {
         if (agentsData.agents && Array.isArray(agentsData.agents)) {
           metrics.summary.total_agents = agentsData.agents.length
           metrics.summary.active_agents = agentsData.agents.filter(a =>
-            ['active', 'running', 'idle'].includes((a.state || '').toLowerCase())
+            ['active', 'running', 'idle'].includes((a.state || '').toLowerCase()),
           ).length
 
           agentsData.agents.forEach(agent => {
@@ -69,14 +69,18 @@ async function collectAgentMetrics() {
       // Calculate summary metrics
       const agentList = Object.values(metrics.agents)
       if (agentList.length > 0) {
-        metrics.summary.average_response_time = agentList.reduce((sum, agent) =>
-          sum + (agent.response_time_ms || 0), 0) / agentList.length
-        metrics.summary.total_throughput = agentList.reduce((sum, agent) =>
-          sum + (agent.tasks_completed || 0), 0)
+        metrics.summary.average_response_time =
+          agentList.reduce((sum, agent) => sum + (agent.response_time_ms || 0), 0) /
+          agentList.length
+        metrics.summary.total_throughput = agentList.reduce(
+          (sum, agent) => sum + (agent.tasks_completed || 0),
+          0,
+        )
       }
 
-      console.log(`✅ Metrics collected - ${metrics.summary.active_agents}/${metrics.summary.total_agents} active agents`)
-
+      console.log(
+        `✅ Metrics collected - ${metrics.summary.active_agents}/${metrics.summary.total_agents} active agents`,
+      )
     } catch (error) {
       console.error(`❌ Metrics collection failed: ${error.message}`)
     }

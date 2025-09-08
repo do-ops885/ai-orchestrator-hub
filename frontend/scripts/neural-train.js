@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-
 /**
  * Neural Training Script
  * Interfaces with the Rust neural training system
@@ -47,7 +46,7 @@ if (configArg) {
 // Set data path
 let dataPath = 'processed/'
 if (dataArg) {
-  [, dataPath] = dataArg.split('=')
+  ;[, dataPath] = dataArg.split('=')
 }
 
 // Build Rust project if needed
@@ -73,9 +72,11 @@ console.log(`📁 Data path: ${dataPath}`)
 const simulateTraining = () => {
   console.log('\n📈 Training Progress:')
   for (let epoch = 1; epoch <= (config.training?.epochs || 10); epoch++) {
-    const loss = (1 / epoch * Math.random() * 0.5 + 0.1).toFixed(4)
+    const loss = ((1 / epoch) * Math.random() * 0.5 + 0.1).toFixed(4)
     const accuracy = (0.5 + epoch * 0.03 + Math.random() * 0.1).toFixed(4)
-    console.log(`Epoch ${epoch}/${config.training?.epochs || 10} - Loss: ${loss}, Accuracy: ${accuracy}`)
+    console.log(
+      `Epoch ${epoch}/${config.training?.epochs || 10} - Loss: ${loss}, Accuracy: ${accuracy}`,
+    )
 
     // Simulate some processing time
     const delay = Math.random() * 1000 + 500

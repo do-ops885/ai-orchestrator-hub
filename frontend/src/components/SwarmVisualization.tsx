@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Agent } from '@/store/hiveStore'
+import type { Agent } from '@/store/hiveStore'
 
 interface SwarmVisualizationProps {
-  agents: Agent[];
-  swarmCenter: [number, number];
+  agents: Agent[]
+  swarmCenter: [number, number]
 }
 
 export function SwarmVisualization({ agents, swarmCenter }: SwarmVisualizationProps) {
@@ -13,10 +13,14 @@ export function SwarmVisualization({ agents, swarmCenter }: SwarmVisualizationPr
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (canvas === null) {return}
+    if (canvas === null) {
+      return
+    }
 
     const ctx = canvas.getContext('2d')
-    if (ctx === null) {return}
+    if (ctx === null) {
+      return
+    }
 
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -46,13 +50,7 @@ export function SwarmVisualization({ agents, swarmCenter }: SwarmVisualizationPr
     // Draw swarm center
     ctx.fillStyle = '#ff6b6b'
     ctx.beginPath()
-    ctx.arc(
-      centerX + swarmCenter[0] * scale,
-      centerY + swarmCenter[1] * scale,
-      8,
-      0,
-      2 * Math.PI,
-    )
+    ctx.arc(centerX + swarmCenter[0] * scale, centerY + swarmCenter[1] * scale, 8, 0, 2 * Math.PI)
     ctx.fill()
 
     // Draw center label
@@ -65,7 +63,7 @@ export function SwarmVisualization({ agents, swarmCenter }: SwarmVisualizationPr
     )
 
     // Draw agents
-    agents.forEach((agent) => {
+    agents.forEach(agent => {
       const x = centerX + agent.position[0] * scale
       const y = centerY + agent.position[1] * scale
 
@@ -120,7 +118,8 @@ export function SwarmVisualization({ agents, swarmCenter }: SwarmVisualizationPr
       ctx.globalAlpha = 1.0
 
       // Draw agent name on hover (simplified - always show for now)
-      if (agents.length <= 10) { // Only show names if not too crowded
+      if (agents.length <= 10) {
+        // Only show names if not too crowded
         ctx.fillStyle = '#333'
         ctx.font = '10px sans-serif'
         ctx.fillText(agent.name, x + 12, y + 4)
@@ -150,15 +149,12 @@ export function SwarmVisualization({ agents, swarmCenter }: SwarmVisualizationPr
       ctx.fillStyle = '#333'
       ctx.fillText(type.name, 45, y + 4)
     })
-
   }, [agents, swarmCenter])
 
   return (
     <div className="bg-white overflow-hidden shadow rounded-lg">
       <div className="px-4 py-5 sm:p-6">
-        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-          Swarm Visualization
-        </h3>
+        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Swarm Visualization</h3>
         <canvas
           ref={canvasRef}
           width={600}

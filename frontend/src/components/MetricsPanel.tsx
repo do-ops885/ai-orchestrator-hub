@@ -1,9 +1,9 @@
 'use client'
 
-import { HiveMetrics } from '@/store/hiveStore'
+import type { HiveMetrics } from '@/store/hiveStore'
 
 interface MetricsPanelProps {
-  metrics: HiveMetrics;
+  metrics: HiveMetrics
 }
 
 export function MetricsPanel({ metrics }: MetricsPanelProps) {
@@ -30,9 +30,12 @@ export function MetricsPanel({ metrics }: MetricsPanelProps) {
     },
     {
       label: 'Task Success Rate',
-      value: metrics.completed_tasks + metrics.failed_tasks > 0
-        ? formatPercentage(metrics.completed_tasks / (metrics.completed_tasks + metrics.failed_tasks))
-        : '0%',
+      value:
+        metrics.completed_tasks + metrics.failed_tasks > 0
+          ? formatPercentage(
+            metrics.completed_tasks / (metrics.completed_tasks + metrics.failed_tasks),
+          )
+          : '0%',
       color: 'yellow',
       description: 'Ratio of successful to total completed tasks',
     },
@@ -51,9 +54,7 @@ export function MetricsPanel({ metrics }: MetricsPanelProps) {
   return (
     <div className="bg-white overflow-hidden shadow rounded-lg">
       <div className="px-4 py-5 sm:p-6">
-        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-          Hive Metrics
-        </h3>
+        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Hive Metrics</h3>
 
         <div className="space-y-4">
           {metricItems.map((item, index) => (

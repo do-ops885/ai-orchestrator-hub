@@ -10,9 +10,15 @@ async function monitorResourceUsage() {
   const monitorNetwork = resources.includes('--network') || resources.length === 0
 
   console.log('🔍 Monitoring resource usage...')
-  if (monitorCpu) {console.log('   📊 CPU usage')}
-  if (monitorMemory) {console.log('   🧠 Memory usage')}
-  if (monitorNetwork) {console.log('   🌐 Network usage')}
+  if (monitorCpu) {
+    console.log('   📊 CPU usage')
+  }
+  if (monitorMemory) {
+    console.log('   🧠 Memory usage')
+  }
+  if (monitorNetwork) {
+    console.log('   🌐 Network usage')
+  }
 
   try {
     // Get system resource information
@@ -90,7 +96,6 @@ async function monitorResourceUsage() {
     } else {
       console.log('\n✅ All resources within normal limits')
     }
-
   } catch (error) {
     console.error('❌ Resource monitoring failed:', error.message)
     process.exit(1)

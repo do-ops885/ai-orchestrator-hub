@@ -6,7 +6,8 @@ const fs = require('fs')
 const path = require('path')
 
 async function analyzeCommunicationPatterns() {
-  const outputPath = process.argv[2] || path.join(process.cwd(), '..', 'monitoring', 'comm-patterns.json')
+  const outputPath =
+    process.argv[2] || path.join(process.cwd(), '..', 'monitoring', 'comm-patterns.json')
   const registryUrl = process.argv[3] || 'http://localhost:8000'
 
   console.log('📡 Analyzing agent communication patterns...')
@@ -112,8 +113,9 @@ async function analyzeCommunicationPatterns() {
     commPatterns.patterns.most_collaborative_pair = mostCollaborativePair
 
     // Find isolated agents
-    commPatterns.patterns.isolated_agents = Object.keys(commPatterns.interaction_frequency)
-      .filter(agent => commPatterns.interaction_frequency[agent] === 0)
+    commPatterns.patterns.isolated_agents = Object.keys(commPatterns.interaction_frequency).filter(
+      agent => commPatterns.interaction_frequency[agent] === 0,
+    )
 
     // Ensure output directory exists
     const outputDir = path.dirname(outputPath)
@@ -130,10 +132,11 @@ async function analyzeCommunicationPatterns() {
     console.log('\n📊 Communication Analysis Summary:')
     console.log(`   Total Agents: ${commPatterns.total_agents}`)
     console.log(`   Most Active Agent: ${commPatterns.patterns.most_active_agent || 'None'}`)
-    console.log(`   Most Collaborative Pair: ${commPatterns.patterns.most_collaborative_pair || 'None'}`)
+    console.log(
+      `   Most Collaborative Pair: ${commPatterns.patterns.most_collaborative_pair || 'None'}`,
+    )
     console.log(`   Isolated Agents: ${commPatterns.patterns.isolated_agents.length}`)
     console.log(`   Network Links: ${commPatterns.collaboration_network.links.length}`)
-
   } catch (error) {
     console.error('❌ Communication pattern analysis failed:', error.message)
     process.exit(1)

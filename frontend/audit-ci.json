@@ -9,9 +9,7 @@
       "GHSA-1234-5678-9abc": "Example vulnerability ID to allow"
     }
   ],
-  "path-allowlist": [
-    "/node_modules/example-package/"
-  ],
+  "path-allowlist": ["/node_modules/example-package/"],
   "summary": true,
   "report": {
     "type": "full",

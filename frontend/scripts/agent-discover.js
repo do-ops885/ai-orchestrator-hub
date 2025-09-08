@@ -35,7 +35,6 @@ async function discoverAgents() {
 
     fs.writeFileSync(outputFile, JSON.stringify(data, null, 2))
     console.log(`💾 Discovery results saved to ${outputFile}`)
-
   } catch (error) {
     console.error('❌ Agent discovery failed:', error.message)
     process.exit(1)

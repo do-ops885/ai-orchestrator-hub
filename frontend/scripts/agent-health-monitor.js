@@ -65,7 +65,9 @@ async function monitorAgentHealth() {
       }
 
       // Log health status
-      log(`📊 Health Check - Total: ${totalAgents}, Healthy: ${healthyAgents}, Unhealthy: ${unhealthyAgents}`)
+      log(
+        `📊 Health Check - Total: ${totalAgents}, Healthy: ${healthyAgents}, Unhealthy: ${unhealthyAgents}`,
+      )
 
       if (healthData) {
         const overallStatus = healthData.status
@@ -86,7 +88,6 @@ async function monitorAgentHealth() {
       if (unhealthyAgents > 0) {
         log(`🚨 ALERT: ${unhealthyAgents} unhealthy agents detected`)
       }
-
     } catch (error) {
       log(`❌ Health check failed: ${error.message}`)
     }

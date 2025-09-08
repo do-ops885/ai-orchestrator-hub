@@ -6,7 +6,8 @@ const fs = require('fs')
 const path = require('path')
 
 async function mapAgentRelationships() {
-  const outputPath = process.argv[2] || path.join(process.cwd(), '..', 'monitoring', 'agent-map.json')
+  const outputPath =
+    process.argv[2] || path.join(process.cwd(), '..', 'monitoring', 'agent-map.json')
 
   console.log('🗺️  Mapping agent relationships...')
 
@@ -16,10 +17,7 @@ async function mapAgentRelationships() {
     const agentsUrl = `${registryUrl}/api/agents`
     const tasksUrl = `${registryUrl}/api/tasks`
 
-    const [agentsResponse, tasksResponse] = await Promise.all([
-      fetch(agentsUrl),
-      fetch(tasksUrl),
-    ])
+    const [agentsResponse, tasksResponse] = await Promise.all([fetch(agentsUrl), fetch(tasksUrl)])
 
     if (!agentsResponse.ok || !tasksResponse.ok) {
       throw new Error('Failed to fetch data from API')
@@ -107,9 +105,10 @@ async function mapAgentRelationships() {
     })
 
     agentMap.network_stats.total_connections = totalConnections
-    agentMap.network_stats.average_connections_per_agent = Object.keys(agentMap.agents).length > 0
-      ? totalConnections / Object.keys(agentMap.agents).length
-      : 0
+    agentMap.network_stats.average_connections_per_agent =
+      Object.keys(agentMap.agents).length > 0
+        ? totalConnections / Object.keys(agentMap.agents).length
+        : 0
     agentMap.network_stats.most_connected_agent = mostConnected
     agentMap.network_stats.isolated_agents = isolatedAgents
 
@@ -128,10 +127,11 @@ async function mapAgentRelationships() {
     console.log('\n📊 Network Statistics:')
     console.log(`   Total Agents: ${Object.keys(agentMap.agents).length}`)
     console.log(`   Total Connections: ${agentMap.network_stats.total_connections}`)
-    console.log(`   Average Connections: ${agentMap.network_stats.average_connections_per_agent.toFixed(2)}`)
+    console.log(
+      `   Average Connections: ${agentMap.network_stats.average_connections_per_agent.toFixed(2)}`,
+    )
     console.log(`   Most Connected: ${agentMap.network_stats.most_connected_agent || 'None'}`)
     console.log(`   Isolated Agents: ${agentMap.network_stats.isolated_agents.length}`)
-
   } catch (error) {
     console.error('❌ Agent mapping failed:', error.message)
     process.exit(1)

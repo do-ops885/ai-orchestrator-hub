@@ -50,7 +50,6 @@ async function checkAgentHealth() {
         })
 
         console.log(`${status} ${endpoint.name}: ${responseTime}ms (${response.status})`)
-
       } catch (error) {
         const responseTime = Date.now() - endpointStart
         results.push({
@@ -69,7 +68,10 @@ async function checkAgentHealth() {
     // Overall assessment
     const totalTime = Date.now() - startTime
     const healthyCount = results.filter(r => r.status.includes('Healthy')).length
-    const overallStatus = healthyCount === endpoints.length ? '✅ All Healthy' : `⚠️ ${healthyCount}/${endpoints.length} Healthy`
+    const overallStatus =
+      healthyCount === endpoints.length
+        ? '✅ All Healthy'
+        : `⚠️ ${healthyCount}/${endpoints.length} Healthy`
 
     console.log(`\n📊 Overall Status: ${overallStatus}`)
     console.log(`⏱️  Total Check Time: ${totalTime}ms`)
@@ -87,7 +89,6 @@ async function checkAgentHealth() {
     if (healthyCount < endpoints.length) {
       process.exit(1)
     }
-
   } catch (error) {
     console.error('❌ Health check failed:', error.message)
     process.exit(1)

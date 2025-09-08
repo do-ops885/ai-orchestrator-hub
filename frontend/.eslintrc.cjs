@@ -1,32 +1,39 @@
 module.exports = {
-  extends: [
-    'next',
-  ],
+  extends: ['next/core-web-vitals', 'plugin:@typescript-eslint/recommended', 'prettier'],
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint', 'react-refresh', 'vitest'],
   rules: {
     // TypeScript rules
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+    ],
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/no-non-null-assertion': 'warn',
     '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
-    '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: true, variables: true, typedefs: false }],
+    '@typescript-eslint/no-use-before-define': [
+      'error',
+      { functions: false, classes: true, variables: true, typedefs: false },
+    ],
+    '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+    '@typescript-eslint/no-inferrable-types': 'error',
+    '@typescript-eslint/prefer-as-const': 'error',
 
     // General rules
     'prefer-const': 'error',
     'no-var': 'error',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
-    'eqeqeq': ['error', 'always'],
-    'curly': ['error', 'all'],
+    eqeqeq: ['error', 'always'],
+    curly: ['error', 'all'],
     'no-unused-vars': 'off', // Handled by TypeScript
     'no-undef': 'off',
     'object-shorthand': 'error',
     'prefer-template': 'error',
     'template-curly-spacing': ['error', 'never'],
-    'quotes': ['error', 'single', { avoidEscape: true }],
-    'semi': ['error', 'never'],
+    quotes: ['error', 'single', { avoidEscape: true }],
+    semi: ['error', 'never'],
     'comma-dangle': ['error', 'always-multiline'],
-    'indent': ['error', 2, { SwitchCase: 1 }],
+    indent: ['error', 2, { SwitchCase: 1 }],
     'linebreak-style': ['error', 'unix'],
     'no-duplicate-imports': 'error',
     'no-useless-rename': 'error',
@@ -57,7 +64,10 @@ module.exports = {
         tsconfigRootDir: __dirname,
       },
       rules: {
-        '@typescript-eslint/strict-boolean-expressions': ['error', { allowString: false, allowNumber: false, allowNullableObject: false }],
+        '@typescript-eslint/strict-boolean-expressions': [
+          'error',
+          { allowString: false, allowNumber: false, allowNullableObject: false },
+        ],
       },
     },
     {
@@ -76,7 +86,6 @@ module.exports = {
         'vitest/prefer-to-have-length': 'error',
         'vitest/prefer-to-contain': 'error',
       },
-
     },
     {
       files: ['*.config.{js,ts}', '*.config.*.{js,ts}'],
@@ -90,7 +99,22 @@ module.exports = {
       files: ['scripts/neural-*.js'],
       rules: {
         'no-console': 'off',
-        'semi': 'off',
+        semi: 'off',
+        'comma-dangle': 'off',
+        'object-shorthand': 'off',
+        'prefer-template': 'off',
+        'prefer-destructuring': 'off',
+        'no-empty': 'off',
+        '@typescript-eslint/no-unused-vars': 'off',
+      },
+    },
+    {
+      files: ['scripts/*.js'],
+      rules: {
+        'no-console': 'off',
+        '@typescript-eslint/no-require-imports': 'off',
+        '@typescript-eslint/no-var-requires': 'off',
+        semi: 'off',
         'comma-dangle': 'off',
         'object-shorthand': 'off',
         'prefer-template': 'off',
@@ -109,5 +133,6 @@ module.exports = {
     '.vercel/**',
     '*.min.js',
     'coverage/**',
+    'next-env.d.ts',
   ],
 }

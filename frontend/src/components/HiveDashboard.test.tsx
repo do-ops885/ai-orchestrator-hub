@@ -8,7 +8,13 @@ vi.mock('@/store/hiveStore')
 
 // Mock the child components
 vi.mock('./SwarmVisualization', () => ({
-  SwarmVisualization: ({ agents, swarmCenter }: { agents: any[], swarmCenter: [number, number] }) => (
+  SwarmVisualization: ({
+    agents,
+    swarmCenter,
+  }: {
+    agents: any[]
+    swarmCenter: [number, number]
+  }) => (
     <div data-testid="swarm-visualization">
       SwarmVisualization - {agents.length} agents, center: {swarmCenter.join(',')}
     </div>
@@ -25,18 +31,12 @@ vi.mock('./MetricsPanel', () => ({
 
 vi.mock('./NeuralMetrics', () => ({
   NeuralMetrics: ({ agents }: { agents: any[] }) => (
-    <div data-testid="neural-metrics">
-      NeuralMetrics - {agents.length} agents
-    </div>
+    <div data-testid="neural-metrics">NeuralMetrics - {agents.length} agents</div>
   ),
 }))
 
 vi.mock('./ResourceMonitor', () => ({
-  ResourceMonitor: () => (
-    <div data-testid="resource-monitor">
-      ResourceMonitor
-    </div>
-  ),
+  ResourceMonitor: () => <div data-testid="resource-monitor">ResourceMonitor</div>,
 }))
 
 const mockUseHiveStore = useHiveStore as unknown as MockedFunction<typeof useHiveStore>
@@ -65,9 +65,7 @@ describe('HiveDashboard', () => {
       name: 'Worker-001',
       type: 'Worker',
       state: 'Working',
-      capabilities: [
-        { name: 'Coding', proficiency: 0.8, learning_rate: 0.1 },
-      ],
+      capabilities: [{ name: 'Coding', proficiency: 0.8, learning_rate: 0.1 }],
       position: [5, 10] as [number, number],
       energy: 85,
       experience_count: 42,
@@ -78,9 +76,7 @@ describe('HiveDashboard', () => {
       name: 'Coordinator-001',
       type: 'Coordinator',
       state: 'Working',
-      capabilities: [
-        { name: 'Coordination', proficiency: 0.9, learning_rate: 0.05 },
-      ],
+      capabilities: [{ name: 'Coordination', proficiency: 0.9, learning_rate: 0.05 }],
       position: [15, 25] as [number, number],
       energy: 92,
       experience_count: 67,

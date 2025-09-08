@@ -165,14 +165,14 @@ const nextConfig = {
 
   // Bundle analyzer (optional)
   ...(process.env.ANALYZE === 'true' && {
-    webpack: (config) => {
+    webpack: config => {
       // Add bundle analyzer
-      return config;
+      return config
     },
   }),
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig
 ```
 
 ## Key Components
@@ -340,26 +340,26 @@ export function AgentManager() {
 
 ```typescript
 // store/hiveStore.ts
-import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
+import { create } from 'zustand'
+import { subscribeWithSelector } from 'zustand/middleware'
 
 interface HiveState {
   // State
-  status: HiveStatus | null;
-  agents: Agent[];
-  tasks: Task[];
-  metrics: Metrics | null;
-  isConnected: boolean;
+  status: HiveStatus | null
+  agents: Agent[]
+  tasks: Task[]
+  metrics: Metrics | null
+  isConnected: boolean
 
   // Actions
-  connect: () => void;
-  disconnect: () => void;
-  createAgent: (agent: CreateAgentRequest) => Promise<void>;
-  updateAgent: (id: string, updates: UpdateAgentRequest) => Promise<void>;
-  deleteAgent: (id: string) => Promise<void>;
-  createTask: (task: CreateTaskRequest) => Promise<void>;
-  updateTask: (id: string, updates: UpdateTaskRequest) => Promise<void>;
-  deleteTask: (id: string) => Promise<void>;
+  connect: () => void
+  disconnect: () => void
+  createAgent: (agent: CreateAgentRequest) => Promise<void>
+  updateAgent: (id: string, updates: UpdateAgentRequest) => Promise<void>
+  deleteAgent: (id: string) => Promise<void>
+  createTask: (task: CreateTaskRequest) => Promise<void>
+  updateTask: (id: string, updates: UpdateTaskRequest) => Promise<void>
+  deleteTask: (id: string) => Promise<void>
 }
 
 export const useHiveStore = create<HiveState>()(
@@ -373,43 +373,43 @@ export const useHiveStore = create<HiveState>()(
 
     // WebSocket connection
     connect: () => {
-      const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL!);
+      const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL!)
 
       ws.onopen = () => {
-        set({ isConnected: true });
-      };
+        set({ isConnected: true })
+      }
 
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        handleWebSocketMessage(data, set);
-      };
+      ws.onmessage = event => {
+        const data = JSON.parse(event.data)
+        handleWebSocketMessage(data, set)
+      }
 
       ws.onclose = () => {
-        set({ isConnected: false });
-      };
+        set({ isConnected: false })
+      }
 
       // Store WebSocket instance for cleanup
-      (window as any).hiveWebSocket = ws;
+      ;(window as any).hiveWebSocket = ws
     },
 
     disconnect: () => {
-      const ws = (window as any).hiveWebSocket;
+      const ws = (window as any).hiveWebSocket
       if (ws) {
-        ws.close();
+        ws.close()
       }
-      set({ isConnected: false });
+      set({ isConnected: false })
     },
 
     // Agent actions
-    createAgent: async (agent) => {
+    createAgent: async agent => {
       const response = await fetch('/api/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(agent)
-      });
+        body: JSON.stringify(agent),
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to create agent');
+        throw new Error('Failed to create agent')
       }
     },
 
@@ -417,34 +417,34 @@ export const useHiveStore = create<HiveState>()(
       const response = await fetch(`/api/agents/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
+        body: JSON.stringify(updates),
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to update agent');
+        throw new Error('Failed to update agent')
       }
     },
 
-    deleteAgent: async (id) => {
+    deleteAgent: async id => {
       const response = await fetch(`/api/agents/${id}`, {
-        method: 'DELETE'
-      });
+        method: 'DELETE',
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to delete agent');
+        throw new Error('Failed to delete agent')
       }
     },
 
     // Task actions
-    createTask: async (task) => {
+    createTask: async task => {
       const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(task)
-      });
+        body: JSON.stringify(task),
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to create task');
+        throw new Error('Failed to create task')
       }
     },
 
@@ -452,48 +452,46 @@ export const useHiveStore = create<HiveState>()(
       const response = await fetch(`/api/tasks/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
+        body: JSON.stringify(updates),
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to update task');
+        throw new Error('Failed to update task')
       }
     },
 
-    deleteTask: async (id) => {
+    deleteTask: async id => {
       const response = await fetch(`/api/tasks/${id}`, {
-        method: 'DELETE'
-      });
+        method: 'DELETE',
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to delete task');
+        throw new Error('Failed to delete task')
       }
-    }
-  }))
-);
+    },
+  })),
+)
 
 // WebSocket message handler
 function handleWebSocketMessage(data: any, set: any) {
   switch (data.type) {
     case 'hive_status':
-      set({ status: data.data });
-      break;
+      set({ status: data.data })
+      break
     case 'agents_update':
-      set({ agents: data.data.agents });
-      break;
+      set({ agents: data.data.agents })
+      break
     case 'task_update':
       // Update specific task in the list
       set((state: HiveState) => ({
         tasks: state.tasks.map(task =>
-          task.id === data.data.task_id
-            ? { ...task, ...data.data }
-            : task
-        )
-      }));
-      break;
+          task.id === data.data.task_id ? { ...task, ...data.data } : task,
+        ),
+      }))
+      break
     case 'metrics_update':
-      set({ metrics: data.data });
-      break;
+      set({ metrics: data.data })
+      break
   }
 }
 ```
@@ -504,112 +502,109 @@ function handleWebSocketMessage(data: any, set: any) {
 
 ```typescript
 // lib/api.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 class ApiClient {
-  private baseURL: string;
+  private baseURL: string
 
   constructor(baseURL: string) {
-    this.baseURL = baseURL;
+    this.baseURL = baseURL
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const url = `${this.baseURL}${endpoint}`
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
       ...options,
-    };
-
-    const response = await fetch(url, config);
-
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
     }
 
-    return response.json();
+    const response = await fetch(url, config)
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.statusText}`)
+    }
+
+    return response.json()
   }
 
   // Agent endpoints
   async getAgents(): Promise<Agent[]> {
-    return this.request('/api/agents');
+    return this.request('/api/agents')
   }
 
   async createAgent(agent: CreateAgentRequest): Promise<Agent> {
     return this.request('/api/agents', {
       method: 'POST',
       body: JSON.stringify(agent),
-    });
+    })
   }
 
   async getAgent(id: string): Promise<Agent> {
-    return this.request(`/api/agents/${id}`);
+    return this.request(`/api/agents/${id}`)
   }
 
   async updateAgent(id: string, updates: UpdateAgentRequest): Promise<Agent> {
     return this.request(`/api/agents/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
-    });
+    })
   }
 
   async deleteAgent(id: string): Promise<void> {
     return this.request(`/api/agents/${id}`, {
       method: 'DELETE',
-    });
+    })
   }
 
   // Task endpoints
   async getTasks(): Promise<Task[]> {
-    return this.request('/api/tasks');
+    return this.request('/api/tasks')
   }
 
   async createTask(task: CreateTaskRequest): Promise<Task> {
     return this.request('/api/tasks', {
       method: 'POST',
       body: JSON.stringify(task),
-    });
+    })
   }
 
   async getTask(id: string): Promise<Task> {
-    return this.request(`/api/tasks/${id}`);
+    return this.request(`/api/tasks/${id}`)
   }
 
   async updateTask(id: string, updates: UpdateTaskRequest): Promise<Task> {
     return this.request(`/api/tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
-    });
+    })
   }
 
   async deleteTask(id: string): Promise<void> {
     return this.request(`/api/tasks/${id}`, {
       method: 'DELETE',
-    });
+    })
   }
 
   // Hive endpoints
   async getHiveStatus(): Promise<HiveStatus> {
-    return this.request('/api/hive/status');
+    return this.request('/api/hive/status')
   }
 
   async getHiveMetrics(): Promise<Metrics> {
-    return this.request('/api/hive/metrics');
+    return this.request('/api/hive/metrics')
   }
 
   async resetHive(): Promise<void> {
     return this.request('/api/hive/reset', {
       method: 'POST',
-    });
+    })
   }
 }
 
-export const apiClient = new ApiClient(API_BASE_URL);
+export const apiClient = new ApiClient(API_BASE_URL)
 ```
 
 ## Styling
@@ -647,7 +642,7 @@ module.exports = {
     },
   },
   plugins: [],
-};
+}
 ```
 
 ### Global Styles
@@ -800,7 +795,7 @@ const nextConfig = {
   ...(process.env.ANALYZE && {
     webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
       // Add webpack bundle analyzer
-      return config;
+      return config
     },
   }),
 
@@ -809,9 +804,9 @@ const nextConfig = {
 
   // CDN support
   assetPrefix: process.env.CDN_URL,
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig
 ```
 
 ### Docker Deployment
@@ -849,9 +844,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig
 ```
 
 ## Performance
@@ -940,20 +935,20 @@ useEffect(() => {
     if (event.ctrlKey || event.metaKey) {
       switch (event.key) {
         case '/':
-          event.preventDefault();
-          openHelpPanel();
-          break;
+          event.preventDefault()
+          openHelpPanel()
+          break
         case 'n':
-          event.preventDefault();
-          openCreateAgentModal();
-          break;
+          event.preventDefault()
+          openCreateAgentModal()
+          break
       }
     }
-  };
+  }
 
-  document.addEventListener('keydown', handleKeyDown);
-  return () => document.removeEventListener('keydown', handleKeyDown);
-}, []);
+  document.addEventListener('keydown', handleKeyDown)
+  return () => document.removeEventListener('keydown', handleKeyDown)
+}, [])
 ```
 
 ## Troubleshooting
@@ -991,9 +986,9 @@ localStorage.setItem('debug', 'true');
 
 ```javascript
 // Test WebSocket connection
-const ws = new WebSocket('ws://localhost:3001/ws');
-ws.onopen = () => console.log('Connected');
-ws.onerror = (error) => console.error('WebSocket error:', error);
+const ws = new WebSocket('ws://localhost:3001/ws')
+ws.onopen = () => console.log('Connected')
+ws.onerror = error => console.error('WebSocket error:', error)
 ```
 
 ### Performance Issues

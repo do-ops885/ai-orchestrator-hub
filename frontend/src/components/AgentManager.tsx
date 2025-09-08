@@ -40,19 +40,27 @@ export const AgentManager = React.memo(function AgentManager() {
 
   const getAgentIcon = (type: string) => {
     switch (type) {
-      case 'Coordinator': return <Settings className="w-5 h-5" />
-      case 'Learner': return <Brain className="w-5 h-5" />
-      default: return <User className="w-5 h-5" />
+      case 'Coordinator':
+        return <Settings className="w-5 h-5" />
+      case 'Learner':
+        return <Brain className="w-5 h-5" />
+      default:
+        return <User className="w-5 h-5" />
     }
   }
 
   const getStateColor = (state: string) => {
     switch (state) {
-      case 'Working': return 'bg-green-100 text-green-800'
-      case 'Learning': return 'bg-blue-100 text-blue-800'
-      case 'Idle': return 'bg-gray-100 text-gray-800'
-      case 'Failed': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'Working':
+        return 'bg-green-100 text-green-800'
+      case 'Learning':
+        return 'bg-blue-100 text-blue-800'
+      case 'Idle':
+        return 'bg-gray-100 text-gray-800'
+      case 'Failed':
+        return 'bg-red-100 text-red-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -79,7 +87,7 @@ export const AgentManager = React.memo(function AgentManager() {
               <input
                 type="text"
                 value={newAgent.name}
-                onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
+                onChange={e => setNewAgent({ ...newAgent, name: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Agent name"
               />
@@ -89,7 +97,7 @@ export const AgentManager = React.memo(function AgentManager() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
               <select
                 value={newAgent.type}
-                onChange={(e) => setNewAgent({ ...newAgent, type: e.target.value })}
+                onChange={e => setNewAgent({ ...newAgent, type: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="Worker">Worker</option>
@@ -105,10 +113,7 @@ export const AgentManager = React.memo(function AgentManager() {
           <div className="mb-4">
             <div className="flex justify-between items-center mb-2">
               <label className="block text-sm font-medium text-gray-700">Capabilities</label>
-              <button
-                onClick={addCapability}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
+              <button onClick={addCapability} className="text-sm text-blue-600 hover:text-blue-800">
                 Add Capability
               </button>
             </div>
@@ -118,7 +123,7 @@ export const AgentManager = React.memo(function AgentManager() {
                 <input
                   type="text"
                   value={cap.name}
-                  onChange={(e) => updateCapability(index, 'name', e.target.value)}
+                  onChange={e => updateCapability(index, 'name', e.target.value)}
                   placeholder="Capability name"
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -128,7 +133,7 @@ export const AgentManager = React.memo(function AgentManager() {
                   max="1"
                   step="0.1"
                   value={cap.proficiency}
-                  onChange={(e) => updateCapability(index, 'proficiency', parseFloat(e.target.value))}
+                  onChange={e => updateCapability(index, 'proficiency', parseFloat(e.target.value))}
                   placeholder="Proficiency (0-1)"
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -138,7 +143,9 @@ export const AgentManager = React.memo(function AgentManager() {
                   max="1"
                   step="0.01"
                   value={cap.learning_rate}
-                  onChange={(e) => updateCapability(index, 'learning_rate', parseFloat(e.target.value))}
+                  onChange={e =>
+                    updateCapability(index, 'learning_rate', parseFloat(e.target.value))
+                  }
                   placeholder="Learning rate"
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -165,17 +172,17 @@ export const AgentManager = React.memo(function AgentManager() {
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {agents.map((agent) => (
+          {agents.map(agent => (
             <li key={agent.id} className="px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    {getAgentIcon(agent.type)}
-                  </div>
+                  <div className="flex-shrink-0">{getAgentIcon(agent.type)}</div>
                   <div className="ml-4">
                     <div className="flex items-center">
                       <div className="text-sm font-medium text-gray-900">{agent.name}</div>
-                      <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStateColor(agent.state)}`}>
+                      <span
+                        className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStateColor(agent.state)}`}
+                      >
                         {agent.state}
                       </span>
                     </div>

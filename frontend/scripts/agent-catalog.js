@@ -6,7 +6,8 @@ const fs = require('fs')
 const path = require('path')
 
 async function catalogAgents() {
-  const outputPath = process.argv[2] || path.join(process.cwd(), '..', 'monitoring', 'agent-catalog.json')
+  const outputPath =
+    process.argv[2] || path.join(process.cwd(), '..', 'monitoring', 'agent-catalog.json')
 
   console.log('📚 Creating agent catalog...')
 
@@ -77,7 +78,6 @@ async function catalogAgents() {
     console.log(`   Total Agents: ${catalog.total_agents}`)
     console.log('   Agent Types:', JSON.stringify(catalog.agent_types, null, 2))
     console.log('   Agent States:', JSON.stringify(catalog.agent_states, null, 2))
-
   } catch (error) {
     console.error('❌ Agent catalog creation failed:', error.message)
     process.exit(1)

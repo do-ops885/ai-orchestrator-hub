@@ -5,12 +5,12 @@ import { Brain, Cpu, Zap, TrendingUp } from 'lucide-react'
 
 interface NeuralMetricsProps {
   agents: Array<{
-    id: string;
-    name: string;
-    type: string;
-    energy: number;
-    neural_type?: string;
-  }>;
+    id: string
+    name: string
+    type: string
+    energy: number
+    neural_type?: string
+  }>
 }
 
 export function NeuralMetrics({ agents }: NeuralMetricsProps) {
@@ -19,8 +19,11 @@ export function NeuralMetrics({ agents }: NeuralMetricsProps) {
   // Mock neural performance data (in real app, this would come from backend)
   const neuralData = {
     processing_mode: 'hybrid',
-    basic_agents: agents.filter(a => a.neural_type === undefined || a.neural_type === null || a.neural_type === 'basic').length,
-    advanced_agents: agents.filter(a => a.neural_type === 'fann' || a.neural_type === 'lstm').length,
+    basic_agents: agents.filter(
+      a => a.neural_type === undefined || a.neural_type === null || a.neural_type === 'basic',
+    ).length,
+    advanced_agents: agents.filter(a => a.neural_type === 'fann' || a.neural_type === 'lstm')
+      .length,
     avg_prediction_accuracy: 0.847,
     learning_rate: 0.023,
     neural_efficiency: 0.92,
@@ -28,14 +31,22 @@ export function NeuralMetrics({ agents }: NeuralMetricsProps) {
 
   const getAgentNeuralType = (agent: { type: string; neural_type?: string }) => {
     // Mock neural type detection
-    if (agent.type === 'Learner') {return 'LSTM'}
-    if (agent.type === 'Specialist') {return 'FANN'}
+    if (agent.type === 'Learner') {
+      return 'LSTM'
+    }
+    if (agent.type === 'Specialist') {
+      return 'FANN'
+    }
     return 'Basic NLP'
   }
 
   const getPerformanceColor = (performance: number) => {
-    if (performance >= 0.8) {return 'text-green-600'}
-    if (performance >= 0.6) {return 'text-yellow-600'}
+    if (performance >= 0.8) {
+      return 'text-green-600'
+    }
+    if (performance >= 0.6) {
+      return 'text-yellow-600'
+    }
     return 'text-red-600'
   }
 
@@ -87,11 +98,13 @@ export function NeuralMetrics({ agents }: NeuralMetricsProps) {
       <div className="mb-4">
         <h4 className="text-sm font-medium text-gray-700 mb-2">Agent Neural Capabilities</h4>
         <div className="space-y-2 max-h-40 overflow-y-auto">
-          {agents.slice(0, 8).map((agent) => (
+          {agents.slice(0, 8).map(agent => (
             <div
               key={agent.id}
               className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
-                selectedAgent === agent.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'
+                selectedAgent === agent.id
+                  ? 'bg-blue-50 border border-blue-200'
+                  : 'hover:bg-gray-50'
               }`}
               onClick={() => setSelectedAgent(selectedAgent === agent.id ? null : agent.id)}
             >
@@ -104,7 +117,7 @@ export function NeuralMetrics({ agents }: NeuralMetricsProps) {
                   {getAgentNeuralType(agent)}
                 </span>
                 <span className={`text-xs font-medium ${getPerformanceColor(agent.energy / 100)}`}>
-                  {(agent.energy / 100 * 0.8 + 0.2).toFixed(2)}
+                  {((agent.energy / 100) * 0.8 + 0.2).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -137,8 +150,7 @@ export function NeuralMetrics({ agents }: NeuralMetricsProps) {
           💡 <strong>Tip:</strong> Your hive is using hybrid neural processing.
           {neuralData.advanced_agents > 0
             ? ' Advanced agents are handling complex tasks efficiently.'
-            : ' Consider enabling advanced neural features for performance-critical tasks.'
-          }
+            : ' Consider enabling advanced neural features for performance-critical tasks.'}
         </div>
       </div>
     </div>

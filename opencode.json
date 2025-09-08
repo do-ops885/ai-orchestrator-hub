@@ -38,7 +38,7 @@
     },
     "multiagent-hive": {
       "type": "local",
-      "command": ["/workspaces/ai-orchestrator-hub/backend/target/release/mcp_server"],
+      "command": ["/workspaces/ai-orchestrator-hub/backend/target/debug/mcp_server"],
       "enabled": true
     },
   },

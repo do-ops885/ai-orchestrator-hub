@@ -95,13 +95,17 @@ describe('SwarmVisualization', () => {
   it('displays help text', () => {
     render(<SwarmVisualization agents={mockAgents} swarmCenter={mockSwarmCenter} />)
 
-    expect(screen.getByText('Red dot: Swarm center • Colored dots: Agents • Ring: Energy level')).toBeInTheDocument()
+    expect(
+      screen.getByText('Red dot: Swarm center • Colored dots: Agents • Ring: Energy level'),
+    ).toBeInTheDocument()
   })
 
   it('displays help text', () => {
     render(<SwarmVisualization agents={mockAgents} swarmCenter={mockSwarmCenter} />)
 
-    expect(screen.getByText('Red dot: Swarm center • Colored dots: Agents • Ring: Energy level')).toBeInTheDocument()
+    expect(
+      screen.getByText('Red dot: Swarm center • Colored dots: Agents • Ring: Energy level'),
+    ).toBeInTheDocument()
   })
 
   it('calls canvas methods to draw visualization', () => {
@@ -134,7 +138,11 @@ describe('SwarmVisualization', () => {
 
     // Should draw agent names since there are only 3 agents (< 10)
     expect(mockFillText).toHaveBeenCalledWith('Worker-001', expect.any(Number), expect.any(Number))
-    expect(mockFillText).toHaveBeenCalledWith('Coordinator-001', expect.any(Number), expect.any(Number))
+    expect(mockFillText).toHaveBeenCalledWith(
+      'Coordinator-001',
+      expect.any(Number),
+      expect.any(Number),
+    )
     expect(mockFillText).toHaveBeenCalledWith('Learner-001', expect.any(Number), expect.any(Number))
   })
 
@@ -196,7 +204,9 @@ describe('SwarmVisualization', () => {
   })
 
   it('redraws when props change', () => {
-    const { rerender } = render(<SwarmVisualization agents={mockAgents} swarmCenter={mockSwarmCenter} />)
+    const { rerender } = render(
+      <SwarmVisualization agents={mockAgents} swarmCenter={mockSwarmCenter} />,
+    )
 
     // Reset mock call counts
     vi.clearAllMocks()

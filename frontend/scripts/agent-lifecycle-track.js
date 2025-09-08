@@ -7,7 +7,8 @@ const path = require('path')
 
 async function trackAgentLifecycle() {
   const events = (process.argv[2] || 'start,stop,restart').split(',')
-  const outputPath = process.argv[3] || path.join(process.cwd(), '..', 'monitoring', 'lifecycle.log')
+  const outputPath =
+    process.argv[3] || path.join(process.cwd(), '..', 'monitoring', 'lifecycle.log')
   const registryUrl = process.argv[4] || 'http://localhost:8000'
 
   console.log(`🔄 Tracking agent lifecycle events: ${events.join(', ')}`)
@@ -70,7 +71,6 @@ async function trackAgentLifecycle() {
       }
 
       previousAgents = currentAgents
-
     } catch (error) {
       log(`❌ Lifecycle check failed: ${error.message}`)
     }

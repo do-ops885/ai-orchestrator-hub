@@ -36,17 +36,23 @@ export const TaskManager = React.memo(function TaskManager() {
   const addRequiredCapability = useCallback(() => {
     setNewTask(prev => ({
       ...prev,
-      required_capabilities: [...prev.required_capabilities, { name: '', min_proficiency: 0.5, weight: 1.0 }],
+      required_capabilities: [
+        ...prev.required_capabilities,
+        { name: '', min_proficiency: 0.5, weight: 1.0 },
+      ],
     }))
   }, [])
 
-  const updateRequiredCapability = useCallback((index: number, field: string, value: string | number) => {
-    setNewTask(prev => {
-      const updated = [...prev.required_capabilities]
-      updated[index] = { ...updated[index], [field]: value }
-      return { ...prev, required_capabilities: updated }
-    })
-  }, [])
+  const updateRequiredCapability = useCallback(
+    (index: number, field: string, value: string | number) => {
+      setNewTask(prev => {
+        const updated = [...prev.required_capabilities]
+        updated[index] = { ...updated[index], [field]: value }
+        return { ...prev, required_capabilities: updated }
+      })
+    },
+    [],
+  )
 
   const removeRequiredCapability = useCallback((index: number) => {
     setNewTask(prev => ({
@@ -56,28 +62,43 @@ export const TaskManager = React.memo(function TaskManager() {
   }, [])
 
   const getPriorityColor = (priority: number) => {
-    if (priority >= 8) {return 'bg-red-100 text-red-800'}
-    if (priority >= 6) {return 'bg-yellow-100 text-yellow-800'}
-    if (priority >= 4) {return 'bg-blue-100 text-blue-800'}
+    if (priority >= 8) {
+      return 'bg-red-100 text-red-800'
+    }
+    if (priority >= 6) {
+      return 'bg-yellow-100 text-yellow-800'
+    }
+    if (priority >= 4) {
+      return 'bg-blue-100 text-blue-800'
+    }
     return 'bg-gray-100 text-gray-800'
   }
 
   const getPriorityLabel = (priority: number) => {
-    if (priority >= 8) {return 'Critical'}
-    if (priority >= 6) {return 'High'}
-    if (priority >= 4) {return 'Medium'}
+    if (priority >= 8) {
+      return 'Critical'
+    }
+    if (priority >= 6) {
+      return 'High'
+    }
+    if (priority >= 4) {
+      return 'Medium'
+    }
     return 'Low'
   }
 
-
-
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'Completed': return <CheckCircle className="w-5 h-5 text-green-500" />
-      case 'Failed': return <XCircle className="w-5 h-5 text-red-500" />
-      case 'InProgress': return <Clock className="w-5 h-5 text-blue-500" />
-      case 'Pending': return <AlertCircle className="w-5 h-5 text-yellow-500" />
-      default: return <Clock className="w-5 h-5 text-gray-500" />
+      case 'Completed':
+        return <CheckCircle className="w-5 h-5 text-green-500" />
+      case 'Failed':
+        return <XCircle className="w-5 h-5 text-red-500" />
+      case 'InProgress':
+        return <Clock className="w-5 h-5 text-blue-500" />
+      case 'Pending':
+        return <AlertCircle className="w-5 h-5 text-yellow-500" />
+      default:
+        return <Clock className="w-5 h-5 text-gray-500" />
     }
   }
 
@@ -103,7 +124,7 @@ export const TaskManager = React.memo(function TaskManager() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
                 value={newTask.description}
-                onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                onChange={e => setNewTask({ ...newTask, description: e.target.value })}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Describe what this task should accomplish..."
@@ -115,7 +136,7 @@ export const TaskManager = React.memo(function TaskManager() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Task Type</label>
                 <select
                   value={newTask.type}
-                  onChange={(e) => setNewTask({ ...newTask, type: e.target.value })}
+                  onChange={e => setNewTask({ ...newTask, type: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="general">General</option>
@@ -128,13 +149,15 @@ export const TaskManager = React.memo(function TaskManager() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priority (1-10)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Priority (1-10)
+                </label>
                 <input
                   type="number"
                   min="1"
                   max="10"
                   value={newTask.priority}
-                  onChange={(e) => setNewTask({ ...newTask, priority: parseInt(e.target.value) })}
+                  onChange={e => setNewTask({ ...newTask, priority: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -142,7 +165,9 @@ export const TaskManager = React.memo(function TaskManager() {
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-gray-700">Required Capabilities</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Required Capabilities
+                </label>
                 <button
                   onClick={addRequiredCapability}
                   className="text-sm text-blue-600 hover:text-blue-800"
@@ -156,7 +181,7 @@ export const TaskManager = React.memo(function TaskManager() {
                   <input
                     type="text"
                     value={cap.name}
-                    onChange={(e) => updateRequiredCapability(index, 'name', e.target.value)}
+                    onChange={e => updateRequiredCapability(index, 'name', e.target.value)}
                     placeholder="Capability name"
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -166,7 +191,9 @@ export const TaskManager = React.memo(function TaskManager() {
                     max="1"
                     step="0.1"
                     value={cap.min_proficiency}
-                    onChange={(e) => updateRequiredCapability(index, 'min_proficiency', parseFloat(e.target.value))}
+                    onChange={e =>
+                      updateRequiredCapability(index, 'min_proficiency', parseFloat(e.target.value))
+                    }
                     placeholder="Min proficiency"
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -176,7 +203,9 @@ export const TaskManager = React.memo(function TaskManager() {
                     max="10"
                     step="0.1"
                     value={cap.weight}
-                    onChange={(e) => updateRequiredCapability(index, 'weight', parseFloat(e.target.value))}
+                    onChange={e =>
+                      updateRequiredCapability(index, 'weight', parseFloat(e.target.value))
+                    }
                     placeholder="Weight"
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -210,26 +239,28 @@ export const TaskManager = React.memo(function TaskManager() {
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul className="divide-y divide-gray-200">
-          {tasks.map((task) => (
+          {tasks.map(task => (
             <li key={task.id} className="px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    {getStatusIcon(task.status)}
-                  </div>
+                  <div className="flex-shrink-0">{getStatusIcon(task.status)}</div>
                   <div className="ml-4">
                     <div className="flex items-center">
                       <div className="text-sm font-medium text-gray-900">{task.description}</div>
-                      <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                      <span
+                        className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}
+                      >
                         {getPriorityLabel(task.priority)}
                       </span>
                     </div>
                     <div className="text-sm text-gray-500">
                       Type: {task.type} • Created: {new Date(task.created_at).toLocaleString()}
                     </div>
-                    {task.assigned_agent !== null && task.assigned_agent !== undefined && task.assigned_agent !== '' && (
+                    {task.assigned_agent !== null &&
+                      task.assigned_agent !== undefined &&
+                      task.assigned_agent !== '' && (
                       <div className="text-sm text-blue-600">
-                        Assigned to: {task.assigned_agent}
+                          Assigned to: {task.assigned_agent}
                       </div>
                     )}
                   </div>
@@ -237,9 +268,11 @@ export const TaskManager = React.memo(function TaskManager() {
 
                 <div className="text-right">
                   <div className="text-sm font-medium text-gray-900">{task.status}</div>
-                  {task.completed_at !== null && task.completed_at !== undefined && task.completed_at !== '' && (
+                  {task.completed_at !== null &&
+                    task.completed_at !== undefined &&
+                    task.completed_at !== '' && (
                     <div className="text-sm text-gray-500">
-                      Completed: {new Date(task.completed_at).toLocaleString()}
+                        Completed: {new Date(task.completed_at).toLocaleString()}
                     </div>
                   )}
                 </div>

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-
 /**
  * Neural Data Loaders Script
  */

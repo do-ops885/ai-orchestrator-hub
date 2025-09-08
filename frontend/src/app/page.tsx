@@ -36,7 +36,7 @@ export default function Home() {
                 </div>
               </div>
               <nav className="flex space-x-4">
-                {['dashboard', 'agents', 'tasks'].map((tab) => (
+                {['dashboard', 'agents', 'tasks'].map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -69,14 +69,16 @@ export default function Home() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
               <h1 className="text-2xl font-bold text-gray-900">🐝 Multiagent Hive System</h1>
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                isConnected === true ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
+              <div
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  isConnected === true ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}
+              >
                 {isConnected === true ? 'Connected' : 'Disconnected'}
               </div>
             </div>
             <nav className="flex space-x-4">
-              {['dashboard', 'agents', 'tasks'].map((tab) => (
+              {['dashboard', 'agents', 'tasks'].map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}

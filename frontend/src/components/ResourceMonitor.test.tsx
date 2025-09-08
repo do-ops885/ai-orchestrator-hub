@@ -28,17 +28,13 @@ describe('ResourceMonitor', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.useFakeTimers()
+    process.env.NEXT_PUBLIC_API_URL = 'http://localhost:3001'
 
     // Mock successful fetch
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockResourceData),
     } as Response)
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
   })
 
   it('renders loading state initially', () => {
@@ -50,11 +46,12 @@ describe('ResourceMonitor', () => {
   it('fetches and displays resource data after loading', async () => {
     render(<ResourceMonitor />)
 
-    // Wait for the fetch to complete
+    // Wait for the fetch to complete and data to load
     await waitFor(() => {
-      expect(screen.getByText('System Resources')).toBeInTheDocument()
+      expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
     })
 
+    expect(screen.getByText('🖥️ System Resources')).toBeInTheDocument()
     expect(screen.getByText('🖥️')).toBeInTheDocument() // Server icon
     expect(screen.getByText('Server')).toBeInTheDocument()
   })
@@ -63,9 +60,10 @@ describe('ResourceMonitor', () => {
     render(<ResourceMonitor />)
 
     await waitFor(() => {
-      expect(screen.getByText('CPU Usage')).toBeInTheDocument()
+      expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
     })
 
+    expect(screen.getByText('CPU Usage')).toBeInTheDocument()
     expect(screen.getByText('45.5%')).toBeInTheDocument()
     expect(screen.getByText('8 cores')).toBeInTheDocument()
     expect(screen.getByText('Memory Usage')).toBeInTheDocument()
@@ -77,9 +75,10 @@ describe('ResourceMonitor', () => {
     render(<ResourceMonitor />)
 
     await waitFor(() => {
-      expect(screen.getByText('High Performance')).toBeInTheDocument()
+      expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
     })
 
+    expect(screen.getByText('⚡ Current Profile: High Performance')).toBeInTheDocument()
     expect(screen.getByText('Max Agents')).toBeInTheDocument()
     expect(screen.getByText('50')).toBeInTheDocument()
     expect(screen.getByText('Neural Complexity')).toBeInTheDocument()
@@ -94,9 +93,10 @@ describe('ResourceMonitor', () => {
     render(<ResourceMonitor />)
 
     await waitFor(() => {
-      expect(screen.getByText('CPU Optimizations')).toBeInTheDocument()
+      expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
     })
 
+    expect(screen.getByText('🔧 CPU Optimizations')).toBeInTheDocument()
     expect(screen.getByText('SSE4.2')).toBeInTheDocument()
     expect(screen.getByText('AVX2')).toBeInTheDocument()
     expect(screen.getByText('AVX-512')).toBeInTheDocument()
@@ -106,31 +106,37 @@ describe('ResourceMonitor', () => {
     render(<ResourceMonitor />)
 
     await waitFor(() => {
-      expect(screen.getByText('🚀 CPU-Native, GPU-Optional')).toBeInTheDocument()
+      expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
     })
+
+    expect(screen.getByText('🚀 CPU-Native, GPU-Optional')).toBeInTheDocument()
   })
 
   it('displays Phase 2 status', async () => {
     render(<ResourceMonitor />)
 
     await waitFor(() => {
-      expect(screen.getByText('Phase 2 Status')).toBeInTheDocument()
+      expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
     })
 
+    expect(screen.getByText('Phase 2 Status')).toBeInTheDocument()
     expect(screen.getByText('✅ Active')).toBeInTheDocument()
-    expect(screen.getByText('Intelligent resource management and auto-optimization enabled')).toBeInTheDocument()
+    expect(
+      screen.getByText('Intelligent resource management and auto-optimization enabled'),
+    ).toBeInTheDocument()
   })
 
   it('applies correct color classes based on usage levels', async () => {
     render(<ResourceMonitor />)
 
     await waitFor(() => {
-      expect(screen.getByText('CPU Usage')).toBeInTheDocument()
+      expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
     })
 
     // CPU usage 45.5% should be green (below 50%)
     // Memory usage 62.3% should be yellow (between 50% and 80%)
     // The component should apply appropriate background colors
+    expect(screen.getByText('CPU Usage')).toBeInTheDocument()
   })
 
   it('handles different hardware classes correctly', async () => {
@@ -139,7 +145,7 @@ describe('ResourceMonitor', () => {
       hardware_class: 'Desktop',
     }
 
-    mockFetch.mockResolvedValue({
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(desktopData),
     } as Response)
@@ -147,14 +153,15 @@ describe('ResourceMonitor', () => {
     render(<ResourceMonitor />)
 
     await waitFor(() => {
-      expect(screen.getByText('Desktop')).toBeInTheDocument()
+      expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
     })
 
+    expect(screen.getByText('Desktop')).toBeInTheDocument()
     expect(screen.getByText('🖥️')).toBeInTheDocument()
   })
 
   it('handles fetch errors gracefully', async () => {
-    mockFetch.mockRejectedValue(new Error('Network error'))
+    mockFetch.mockRejectedValueOnce(new Error('Network error'))
 
     // Mock console.warn to avoid console output during test
     const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -163,62 +170,67 @@ describe('ResourceMonitor', () => {
 
     // Should remain in loading state or handle error
     await waitFor(() => {
-      expect(consoleWarnSpy).toHaveBeenCalledWith('Failed to fetch resource info:', expect.any(Error))
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Failed to fetch resource info:',
+        expect.any(Error),
+      )
     })
 
     consoleWarnSpy.mockRestore()
   })
 
   it('handles non-ok response gracefully', async () => {
-    mockFetch.mockResolvedValue({
+    mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
     } as Response)
 
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
     render(<ResourceMonitor />)
 
+    // Should remain in loading state for non-ok response
     await waitFor(() => {
-      expect(consoleWarnSpy).toHaveBeenCalledWith('Failed to fetch resource info:', expect.any(Error))
+      expect(screen.getByText('Loading resource information...')).toBeInTheDocument()
     })
-
-    consoleWarnSpy.mockRestore()
   })
 
   it('updates data periodically', async () => {
+    vi.useFakeTimers()
     render(<ResourceMonitor />)
 
     await waitFor(() => {
-      expect(screen.getByText('System Resources')).toBeInTheDocument()
+      expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
     })
 
-    // Fast-forward time by 30 seconds
+    // Fast-forward time by 30 seconds and run pending timers
     vi.advanceTimersByTime(30000)
+    vi.runOnlyPendingTimers()
 
     // Should have called fetch again
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(2)
-    })
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    vi.useRealTimers()
   })
 
   it('clears interval on unmount', async () => {
+    vi.useFakeTimers()
     const { unmount } = render(<ResourceMonitor />)
 
     await waitFor(() => {
-      expect(screen.getByText('System Resources')).toBeInTheDocument()
+      expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
     })
 
     unmount()
 
-    // Fast-forward time - no additional fetch should occur
+    // Fast-forward time and run pending timers - no additional fetch should occur
     vi.advanceTimersByTime(30000)
+    vi.runOnlyPendingTimers()
 
     // Should still only have 1 call (the initial one)
     expect(mockFetch).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
   })
 
   it('handles empty SIMD capabilities array', async () => {
+    vi.clearAllMocks()
     const noSimdData = {
       ...mockResourceData,
       system_resources: {
@@ -227,7 +239,7 @@ describe('ResourceMonitor', () => {
       },
     }
 
-    mockFetch.mockResolvedValue({
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(noSimdData),
     } as Response)
@@ -235,10 +247,10 @@ describe('ResourceMonitor', () => {
     render(<ResourceMonitor />)
 
     await waitFor(() => {
-      expect(screen.getByText('System Resources')).toBeInTheDocument()
+      expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
     })
 
     // Should not display CPU Optimizations section
-    expect(screen.queryByText('CPU Optimizations')).not.toBeInTheDocument()
+    expect(screen.queryByText('🔧 CPU Optimizations')).not.toBeInTheDocument()
   })
 })

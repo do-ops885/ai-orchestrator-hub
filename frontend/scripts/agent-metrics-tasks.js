@@ -74,8 +74,7 @@ async function monitorTaskPerformance() {
               id: task.id,
               status,
               created_at: task.created_at,
-              completion_time_ms: task.completed_at ?
-                new Date(task.completed_at) - created : null,
+              completion_time_ms: task.completed_at ? new Date(task.completed_at) - created : null,
             })
           }
         }
@@ -87,7 +86,8 @@ async function monitorTaskPerformance() {
       }
 
       if (taskMetrics.total_tasks > 0) {
-        taskMetrics.task_success_rate = (taskMetrics.completed_tasks / taskMetrics.total_tasks) * 100
+        taskMetrics.task_success_rate =
+          (taskMetrics.completed_tasks / taskMetrics.total_tasks) * 100
       }
     }
 
@@ -101,7 +101,9 @@ async function monitorTaskPerformance() {
     console.log(`Success Rate: ${taskMetrics.task_success_rate.toFixed(2)}%`)
 
     if (taskMetrics.average_completion_time > 0) {
-      console.log(`Average Completion Time: ${(taskMetrics.average_completion_time / 1000).toFixed(2)}s`)
+      console.log(
+        `Average Completion Time: ${(taskMetrics.average_completion_time / 1000).toFixed(2)}s`,
+      )
     }
 
     console.log('\n📋 Tasks by Status:')
@@ -120,10 +122,12 @@ async function monitorTaskPerformance() {
       agentsData.agents.forEach(agent => {
         const tasksAssigned = taskMetrics.tasks_by_agent[agent.id] || 0
         const _tasksCompleted = taskMetrics.tasks_by_status['completed'] || 0
-        const agentSuccessRate = tasksAssigned > 0 ?
-          ((taskMetrics.completed_tasks / taskMetrics.total_tasks) * 100) : 0
+        const agentSuccessRate =
+          tasksAssigned > 0 ? (taskMetrics.completed_tasks / taskMetrics.total_tasks) * 100 : 0
 
-        console.log(`   ${agent.id}: ${tasksAssigned} tasks, ${agentSuccessRate.toFixed(2)}% success rate`)
+        console.log(
+          `   ${agent.id}: ${tasksAssigned} tasks, ${agentSuccessRate.toFixed(2)}% success rate`,
+        )
       })
     }
 
@@ -142,7 +146,6 @@ async function monitorTaskPerformance() {
     } else {
       console.log('\n✅ Task performance within acceptable limits')
     }
-
   } catch (error) {
     console.error('❌ Task performance monitoring failed:', error.message)
     process.exit(1)

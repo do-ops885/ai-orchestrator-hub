@@ -89,9 +89,15 @@ describe('TaskManager', () => {
   it('displays task types and creation dates', () => {
     render(<TaskManager />)
 
-    expect(screen.getByText((content) => content.includes('Type:') && content.includes('nlp'))).toBeInTheDocument()
-    expect(screen.getByText((content) => content.includes('Type:') && content.includes('coordination'))).toBeInTheDocument()
-    expect(screen.getByText((content) => content.includes('Type:') && content.includes('data_processing'))).toBeInTheDocument()
+    expect(
+      screen.getByText(content => content.includes('Type:') && content.includes('nlp')),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(content => content.includes('Type:') && content.includes('coordination')),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(content => content.includes('Type:') && content.includes('data_processing')),
+    ).toBeInTheDocument()
 
     // Should display formatted creation dates
     expect(screen.getAllByText(/Created:/)).toHaveLength(3)
@@ -117,7 +123,9 @@ describe('TaskManager', () => {
     fireEvent.click(createButton)
 
     expect(screen.getByText('Create New Task')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Describe what this task should accomplish...')).toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText('Describe what this task should accomplish...'),
+    ).toBeInTheDocument()
   })
 
   it('allows filling out the create task form', () => {
@@ -126,7 +134,9 @@ describe('TaskManager', () => {
     const createButton = screen.getByText('Create Task')
     fireEvent.click(createButton)
 
-    const descriptionInput = screen.getByPlaceholderText('Describe what this task should accomplish...')
+    const descriptionInput = screen.getByPlaceholderText(
+      'Describe what this task should accomplish...',
+    )
     const typeSelect = screen.getByDisplayValue('General')
     const priorityInput = screen.getByDisplayValue('5')
 
@@ -158,7 +168,9 @@ describe('TaskManager', () => {
     const createButton = screen.getByText('Create Task')
     fireEvent.click(createButton)
 
-    const descriptionInput = screen.getByPlaceholderText('Describe what this task should accomplish...')
+    const descriptionInput = screen.getByPlaceholderText(
+      'Describe what this task should accomplish...',
+    )
     fireEvent.change(descriptionInput, { target: { value: 'New test task' } })
 
     const [, submitButton] = screen.getAllByText('Create Task') // The form submit button
@@ -178,7 +190,9 @@ describe('TaskManager', () => {
     const createButton = screen.getByText('Create Task')
     fireEvent.click(createButton)
 
-    const descriptionInput = screen.getByPlaceholderText('Describe what this task should accomplish...')
+    const descriptionInput = screen.getByPlaceholderText(
+      'Describe what this task should accomplish...',
+    )
     fireEvent.change(descriptionInput, { target: { value: 'Test task' } })
 
     const [, submitButton] = screen.getAllByText('Create Task')

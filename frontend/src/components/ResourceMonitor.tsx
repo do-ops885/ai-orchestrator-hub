@@ -3,20 +3,20 @@
 import { useState, useEffect } from 'react'
 
 interface SystemResources {
-  cpu_cores: number;
-  available_memory: number;
-  cpu_usage: number;
-  memory_usage: number;
-  simd_capabilities: string[];
-  last_updated: string;
+  cpu_cores: number
+  available_memory: number
+  cpu_usage: number
+  memory_usage: number
+  simd_capabilities: string[]
+  last_updated: string
 }
 
 interface ResourceProfile {
-  profile_name: string;
-  max_agents: number;
-  neural_complexity: number;
-  batch_size: number;
-  update_frequency: number;
+  profile_name: string
+  max_agents: number
+  neural_complexity: number
+  batch_size: number
+  update_frequency: number
 }
 
 export function ResourceMonitor() {
@@ -51,9 +51,7 @@ export function ResourceMonitor() {
     return (
       <div className="bg-white overflow-hidden shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-            🖥️ System Resources
-          </h3>
+          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">🖥️ System Resources</h3>
           <div className="text-gray-500">Loading resource information...</div>
         </div>
       </div>
@@ -61,18 +59,27 @@ export function ResourceMonitor() {
   }
 
   const getUsageColor = (usage: number) => {
-    if (usage < 50) {return 'text-green-600 bg-green-50'}
-    if (usage < 80) {return 'text-yellow-600 bg-yellow-50'}
+    if (usage < 50) {
+      return 'text-green-600 bg-green-50'
+    }
+    if (usage < 80) {
+      return 'text-yellow-600 bg-yellow-50'
+    }
     return 'text-red-600 bg-red-50'
   }
 
   const getHardwareIcon = (hwClass: string) => {
     switch (hwClass) {
-      case 'EdgeDevice': return '📱'
-      case 'Desktop': return '🖥️'
-      case 'Server': return '🖥️'
-      case 'Cloud': return '☁️'
-      default: return '💻'
+      case 'EdgeDevice':
+        return '📱'
+      case 'Desktop':
+        return '🖥️'
+      case 'Server':
+        return '🖥️'
+      case 'Cloud':
+        return '☁️'
+      default:
+        return '💻'
     }
   }
 
@@ -80,9 +87,7 @@ export function ResourceMonitor() {
     <div className="bg-white overflow-hidden shadow rounded-lg">
       <div className="px-4 py-5 sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">
-            🖥️ System Resources
-          </h3>
+          <h3 className="text-lg leading-6 font-medium text-gray-900">🖥️ System Resources</h3>
           <div className="flex items-center space-x-2">
             <span className="text-2xl">{getHardwareIcon(hardwareClass)}</span>
             <span className="text-sm font-medium text-gray-600">{hardwareClass}</span>
@@ -104,9 +109,7 @@ export function ResourceMonitor() {
                 <div className="text-sm font-medium">CPU Usage</div>
                 <div className="text-2xl font-bold">{systemResources.cpu_usage.toFixed(1)}%</div>
               </div>
-              <div className="text-sm text-gray-600">
-                {systemResources.cpu_cores} cores
-              </div>
+              <div className="text-sm text-gray-600">{systemResources.cpu_cores} cores</div>
             </div>
           </div>
 
@@ -135,7 +138,9 @@ export function ResourceMonitor() {
             </div>
             <div>
               <div className="text-gray-500">Neural Complexity</div>
-              <div className="font-medium">{(resourceProfile.neural_complexity * 100).toFixed(0)}%</div>
+              <div className="font-medium">
+                {(resourceProfile.neural_complexity * 100).toFixed(0)}%
+              </div>
             </div>
             <div>
               <div className="text-gray-500">Batch Size</div>
@@ -151,9 +156,7 @@ export function ResourceMonitor() {
         {/* SIMD Capabilities */}
         {systemResources.simd_capabilities.length > 0 && (
           <div className="border-t pt-4 mt-4">
-            <h4 className="text-md font-medium text-gray-900 mb-2">
-              🔧 CPU Optimizations
-            </h4>
+            <h4 className="text-md font-medium text-gray-900 mb-2">🔧 CPU Optimizations</h4>
             <div className="flex flex-wrap gap-2">
               {systemResources.simd_capabilities.map((capability, index) => (
                 <span

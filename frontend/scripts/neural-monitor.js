@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-
 /**
  * Neural Training Monitor Script
  */
@@ -44,9 +43,9 @@ const interval = setInterval(() => {
   const metricsData = {
     epoch,
     timestamp: new Date().toISOString(),
-    loss: (1 / epoch * Math.random() * 0.5 + 0.1).toFixed(4),
+    loss: ((1 / epoch) * Math.random() * 0.5 + 0.1).toFixed(4),
     accuracy: (0.5 + epoch * 0.03 + Math.random() * 0.1).toFixed(4),
-    val_loss: (1.2 / epoch * Math.random() * 0.3 + 0.15).toFixed(4),
+    val_loss: ((1.2 / epoch) * Math.random() * 0.3 + 0.15).toFixed(4),
     val_accuracy: (0.45 + epoch * 0.025 + Math.random() * 0.08).toFixed(4),
     learning_rate: (0.001 * Math.pow(0.95, epoch)).toFixed(6),
   }
