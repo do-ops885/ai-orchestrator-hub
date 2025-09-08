@@ -190,7 +190,7 @@ jobs:
            docker build -t multiagent-hive:latest .
 
       - name: Scan container
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: 'image'
           scan-ref: 'multiagent-hive:latest'
