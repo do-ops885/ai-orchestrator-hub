@@ -14,10 +14,10 @@ read -p "Delete ALL existing labels? (y/N) " confirm
 # More robust confirmation check
 if [[ "$confirm" == "y" ]] || [[ "$confirm" == "Y" ]] || [[ "$confirm" == "yes" ]] || [[ "$confirm" == "YES" ]]; then
     echo "Deleting all existing labels..."
-    
+
     # Get all label names and delete them
     label_names=$(gh label list --json name --jq '.[].name')
-    
+
     if [[ -n "$label_names" ]]; then
         echo "$label_names" | while IFS= read -r label; do
             if [[ -n "$label" ]]; then

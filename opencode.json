@@ -16,7 +16,7 @@
     },
     "github": {
       "model": "nvidia/deepseek-ai/deepseek-v3.1"
-    },   
+    },
   },
   "mcp": {
     "playwright": {
