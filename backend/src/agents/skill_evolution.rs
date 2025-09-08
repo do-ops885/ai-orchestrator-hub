@@ -383,7 +383,7 @@ impl SkillEvolutionSystem {
                     if recent_tasks > 0 {
                         let agent_failure_rate = recent_failures as f64 / recent_tasks as f64;
                         if agent_failure_rate > *failure_rate {
-                             return true;
+                            return true;
                         }
                     }
                 }

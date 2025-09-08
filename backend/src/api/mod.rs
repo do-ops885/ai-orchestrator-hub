@@ -1,5 +1,5 @@
 /// Enhanced API handlers with structured error handling
-/// 
+///
 /// This module provides production-ready API handlers that use:
 /// - Structured error handling with proper HTTP status codes
 /// - Input validation and sanitization

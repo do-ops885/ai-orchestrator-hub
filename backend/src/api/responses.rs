@@ -64,7 +64,7 @@ impl<T> ApiResponse<T> {
             request_id: None,
         }
     }
-    
+
     /// Create a successful response with request ID
     pub fn success_with_id(data: T, request_id: String) -> Self {
         Self {
@@ -75,7 +75,7 @@ impl<T> ApiResponse<T> {
             request_id: Some(request_id),
         }
     }
-    
+
     /// Create an error response
     pub fn error(error: ApiError) -> ApiResponse<()> {
         ApiResponse {
@@ -86,7 +86,7 @@ impl<T> ApiResponse<T> {
             request_id: None,
         }
     }
-    
+
     /// Create an error response with request ID
     pub fn error_with_id(error: ApiError, request_id: String) -> ApiResponse<()> {
         ApiResponse {
@@ -109,13 +109,13 @@ impl ApiError {
             field_errors: Vec::new(),
         }
     }
-    
+
     /// Add details to the error
     pub fn with_details(mut self, details: serde_json::Value) -> Self {
         self.details = Some(details);
         self
     }
-    
+
     /// Add field errors
     pub fn with_field_errors(mut self, field_errors: Vec<FieldError>) -> Self {
         self.field_errors = field_errors;
@@ -132,7 +132,7 @@ impl FieldError {
             value: None,
         }
     }
-    
+
     /// Add the invalid value
     pub fn with_value(mut self, value: &str) -> Self {
         self.value = Some(value.to_string());
@@ -190,7 +190,7 @@ impl From<HiveError> for (StatusCode, Json<ApiResponse<()>>) {
                 ApiError::new("INTERNAL_ERROR", "An internal error occurred")
             ),
         };
-        
+
         (status_code, Json(ApiResponse::error(api_error)))
     }
 }

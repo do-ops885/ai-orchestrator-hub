@@ -946,7 +946,10 @@ impl BatchCreateAgentsTool {
 #[async_trait]
 impl MCPToolHandler for BatchCreateAgentsTool {
     async fn execute(&self, params: &Value) -> Result<Value> {
-        let count = params.get("count").and_then(serde_json::Value::as_u64).unwrap_or(1) as usize;
+        let count = params
+            .get("count")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(1) as usize;
 
         let agent_type_str = params
             .get("agent_type")

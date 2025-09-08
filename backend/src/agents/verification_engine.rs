@@ -75,23 +75,23 @@ pub struct BiasPattern {
 impl VerificationEngine {
     pub async fn new(nlp_processor: Arc<NLPProcessor>) -> Result<Self> {
         let mut strategies: HashMap<VerificationMethod, Box<dyn VerificationStrategy>> = HashMap::new();
-        
+
         // Initialize verification strategies
         strategies.insert(
             VerificationMethod::GoalAlignment,
             Box::new(GoalAlignmentVerifier::new(nlp_processor.clone())),
         );
-        
+
         strategies.insert(
             VerificationMethod::QualityAssessment,
             Box::new(QualityAssessmentVerifier::new()),
         );
-        
+
         strategies.insert(
             VerificationMethod::OutputAnalysis,
             Box::new(OutputAnalysisVerifier::new()),
         );
-        
+
         strategies.insert(
             VerificationMethod::ProcessValidation,
             Box::new(ProcessValidationVerifier::new()),
@@ -117,7 +117,7 @@ impl VerificationEngine {
         result: &TaskResult,
         verification_method: VerificationMethod,
     ) -> Result<VerificationResult> {
-        debug!("Starting verification for task {} using method {:?}", 
+        debug!("Starting verification for task {} using method {:?}",
                task.base_task.id, verification_method);
 
         // Get the appropriate verification strategy
@@ -194,7 +194,7 @@ impl GoalAlignmentAnalyzer {
         let goal_tokens: Vec<String> = original_goal.split_whitespace()
             .map(|s| s.to_lowercase())
             .collect();
-        
+
         let result_tokens: Vec<String> = result_output.split_whitespace()
             .map(|s| s.to_lowercase())
             .collect();
@@ -202,16 +202,16 @@ impl GoalAlignmentAnalyzer {
         // Analyze sentiment alignment
         let goal_sentiment = self.nlp_processor.analyze_sentiment(&goal_tokens);
         let result_sentiment = self.nlp_processor.analyze_sentiment(&result_tokens);
-        
+
         let sentiment_alignment = 1.0 - (goal_sentiment - result_sentiment).abs();
 
         // Calculate keyword overlap
         let goal_keywords: std::collections::HashSet<_> = goal_tokens.iter().collect();
         let result_keywords: std::collections::HashSet<_> = result_tokens.iter().collect();
-        
+
         let intersection_size = goal_keywords.intersection(&result_keywords).count();
         let union_size = goal_keywords.union(&result_keywords).count();
-        
+
         let keyword_overlap = if union_size > 0 {
             intersection_size as f64 / union_size as f64
         } else {
@@ -220,7 +220,7 @@ impl GoalAlignmentAnalyzer {
 
         // Combine metrics
         let alignment_score = (sentiment_alignment * 0.4) + (keyword_overlap * 0.6);
-        
+
         debug!("Goal alignment analysis: sentiment={:.3}, keywords={:.3}, total={:.3}",
                sentiment_alignment, keyword_overlap, alignment_score);
 
@@ -295,7 +295,7 @@ impl QualityAssessor {
                 // Check if all required elements are present
                 let output_length = result.output.len();
                 let expected_min_length = task.base_task.description.len() / 2; // Heuristic
-                
+
                 if output_length >= expected_min_length {
                     Ok(0.9)
                 } else {
@@ -312,7 +312,7 @@ impl QualityAssessor {
                 // Simple heuristic based on output structure
                 let has_structure = result.output.contains('\n') || result.output.contains('.');
                 let reasonable_length = result.output.len() > 10 && result.output.len() < 10000;
-                
+
                 if has_structure && reasonable_length {
                     Ok(0.8)
                 } else if reasonable_length {
@@ -378,7 +378,7 @@ impl BiasDetector {
         let mut bias_score: f64 = 0.0;
 
         // Check for confirmation bias
-        if verification_result.discrepancies_found.is_empty() && 
+        if verification_result.discrepancies_found.is_empty() &&
            verification_result.verification_confidence > 0.95 &&
            result.quality_score.unwrap_or(1.0) < 0.8 {
             bias_score += 0.3;
