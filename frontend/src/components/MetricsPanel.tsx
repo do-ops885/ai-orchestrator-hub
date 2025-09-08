@@ -30,7 +30,7 @@ export function MetricsPanel({ metrics }: MetricsPanelProps) {
     },
     {
       label: 'Task Success Rate',
-      value: metrics.completed_tasks + metrics.failed_tasks > 0 
+      value: metrics.completed_tasks + metrics.failed_tasks > 0
         ? formatPercentage(metrics.completed_tasks / (metrics.completed_tasks + metrics.failed_tasks))
         : '0%',
       color: 'yellow',
@@ -54,7 +54,7 @@ export function MetricsPanel({ metrics }: MetricsPanelProps) {
         <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
           Hive Metrics
         </h3>
-        
+
         <div className="space-y-4">
           {metricItems.map((item, index) => (
             <div key={index} className={`p-4 rounded-lg border ${getColorClasses(item.color)}`}>

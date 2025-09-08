@@ -59,13 +59,13 @@ export function NeuralMetrics({ agents }: NeuralMetricsProps) {
           <div className="text-lg font-semibold text-blue-600">{neuralData.basic_agents}</div>
           <div className="text-xs text-blue-600">Basic NLP</div>
         </div>
-        
+
         <div className="text-center p-3 bg-purple-50 rounded-lg">
           <Brain className="w-6 h-6 mx-auto text-purple-600 mb-1" />
           <div className="text-lg font-semibold text-purple-600">{neuralData.advanced_agents}</div>
           <div className="text-xs text-purple-600">Advanced Neural</div>
         </div>
-        
+
         <div className="text-center p-3 bg-green-50 rounded-lg">
           <TrendingUp className="w-6 h-6 mx-auto text-green-600 mb-1" />
           <div className="text-lg font-semibold text-green-600">
@@ -73,7 +73,7 @@ export function NeuralMetrics({ agents }: NeuralMetricsProps) {
           </div>
           <div className="text-xs text-green-600">Accuracy</div>
         </div>
-        
+
         <div className="text-center p-3 bg-yellow-50 rounded-lg">
           <Zap className="w-6 h-6 mx-auto text-yellow-600 mb-1" />
           <div className="text-lg font-semibold text-yellow-600">
@@ -134,8 +134,8 @@ export function NeuralMetrics({ agents }: NeuralMetricsProps) {
       {/* Recommendation */}
       <div className="mt-4 p-3 bg-gray-50 rounded-lg">
         <div className="text-xs text-gray-600">
-          💡 <strong>Tip:</strong> Your hive is using hybrid neural processing. 
-          {neuralData.advanced_agents > 0 
+          💡 <strong>Tip:</strong> Your hive is using hybrid neural processing.
+          {neuralData.advanced_agents > 0
             ? ' Advanced agents are handling complex tasks efficiently.'
             : ' Consider enabling advanced neural features for performance-critical tasks.'
           }

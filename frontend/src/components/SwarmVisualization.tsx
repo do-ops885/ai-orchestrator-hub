@@ -35,7 +35,7 @@ export function SwarmVisualization({ agents, swarmCenter }: SwarmVisualizationPr
       ctx.moveTo(centerX + i * scale, 0)
       ctx.lineTo(centerX + i * scale, canvas.height)
       ctx.stroke()
-      
+
       // Horizontal lines
       ctx.beginPath()
       ctx.moveTo(0, centerY + i * scale)
@@ -146,7 +146,7 @@ export function SwarmVisualization({ agents, swarmCenter }: SwarmVisualizationPr
       ctx.beginPath()
       ctx.arc(30, y, 6, 0, 2 * Math.PI)
       ctx.fill()
-      
+
       ctx.fillStyle = '#333'
       ctx.fillText(type.name, 45, y + 4)
     })
