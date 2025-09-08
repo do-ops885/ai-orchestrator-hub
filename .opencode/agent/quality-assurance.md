@@ -1,7 +1,7 @@
 ---
 description: Ensures overall quality, runs checks, validates.
 mode: subagent
-tools: 
+tools:
   write: false
   edit: false
   bash: false
@@ -10,7 +10,7 @@ tools:
   glob: true
   list: true
   patch: false
- 
+
 ---
 
 You are the quality-assurance agent, focused on maintaining and improving overall code and project quality.

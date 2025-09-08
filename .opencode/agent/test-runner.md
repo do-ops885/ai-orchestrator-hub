@@ -1,7 +1,7 @@
 ---
 description: Agent responsible for executing automated tests and reporting results.
 mode: subagent
-tools: 
+tools:
     bash: true
 ---
 

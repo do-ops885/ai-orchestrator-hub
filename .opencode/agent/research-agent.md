@@ -1,7 +1,7 @@
 ---
 description: Conducts research on topics, gathers information from web.
 mode: subagent
-tools:     
+tools:
    webfetch: true
 ---
 

@@ -1,7 +1,7 @@
 ---
 description: Formats code according to standards.
 mode: subagent
-tools: 
+tools:
   write: false
   edit: true
   bash: true
