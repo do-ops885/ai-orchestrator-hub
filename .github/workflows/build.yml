@@ -2,9 +2,9 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, workflow-test ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, workflow-test ]
   workflow_dispatch:
 
 concurrency:
@@ -32,43 +32,10 @@ jobs:
       correlation-id: ${{ env.CORRELATION_ID }}
 
     steps:
-      - name: Initialize structured logging
-        run: |
-          echo "::group::Structured Logging Setup"
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                run_attempt: $run_attempt,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Pre-check job started" '{"step": "initialization"}'
-          echo "::endgroup::"
+      - name: Setup structured logging
+        uses: ./.github/actions/setup-logging
+        with:
+          correlation-id: ${{ env.CORRELATION_ID }}
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -93,7 +60,13 @@ jobs:
         run: |
           source log_helper.sh
           log_structured "INFO" "Change detection completed" \
-            '{"rust_changed": "${{ steps.filter.outputs.rust }}", "frontend_changed": "${{ steps.filter.outputs.frontend }}"}'
+            "{\"rust_changed\": \"${{ steps.filter.outputs.rust }}\", \"frontend_changed\": \"${{ steps.filter.outputs.frontend }}\"}"
+
+      - name: Cleanup logging
+        if: always()
+        uses: ./.github/actions/cleanup-logging
+        with:
+          final-status: ${{ job.status }}
 
   # Enhanced Rust build with error handling and resource monitoring
   rust-build:
@@ -116,87 +89,13 @@ jobs:
             runner: macos-latest
 
     steps:
-      - name: Initialize structured logging and monitoring
-        run: |
-          echo "::group::Setup Logging and Monitoring"
-          # Create logging helper
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg target "${{ matrix.target }}" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                target: $target,
-                context: $extra
-              }'
-          }
-
-          # Resource monitoring function
-          monitor_resources() {
-            local step="$1"
-            local memory_mb=$(free -m | awk 'NR==2{printf "%.2f", $3}')
-            local disk_usage=$(df -h . | awk 'NR==2 {print $5}' | sed 's/%//')
-            local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//')
-
-            log_structured "DEBUG" "Resource usage" \
-              "{\"step\": \"$step\", \"memory_mb\": $memory_mb, \"disk_usage_percent\": $disk_usage, \"cpu_usage\": \"$cpu_usage\"}"
-          }
-
-          # Error handling with retry
-          retry_with_backoff() {
-            local max_attempts=3
-            local delay=5
-            local attempt=1
-
-            while [ $attempt -le $max_attempts ]; do
-              log_structured "INFO" "Attempting command (attempt $attempt/$max_attempts)" \
-                "{\"command\": \"$1\", \"attempt\": $attempt}"
-
-              if eval "$1"; then
-                log_structured "INFO" "Command succeeded" "{\"command\": \"$1\", \"attempt\": $attempt}"
-                return 0
-              else
-                local exit_code=$?
-                log_structured "WARN" "Command failed" \
-                  "{\"command\": \"$1\", \"attempt\": $attempt, \"exit_code\": $exit_code}"
-
-                if [ $attempt -eq $max_attempts ]; then
-                  log_structured "ERROR" "Command failed after all attempts" \
-                    "{\"command\": \"$1\", \"max_attempts\": $max_attempts, \"final_exit_code\": $exit_code}"
-                  return $exit_code
-                fi
-
-                sleep $delay
-                delay=$((delay * 2))
-                attempt=$((attempt + 1))
-              fi
-            done
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Rust build job started" '{"target": "${{ matrix.target }}"}'
-          monitor_resources "initialization"
-          echo "::endgroup::"
+      - name: Setup structured logging
+        uses: ./.github/actions/setup-logging
+        with:
+          correlation-id: ${{ env.CORRELATION_ID }}
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -389,17 +288,11 @@ jobs:
             backend/.build_time_baseline
           retention-days: 30
 
-      - name: Cleanup and final logging
+      - name: Cleanup logging
         if: always()
-        run: |
-          source log_helper.sh
-          monitor_resources "job_completion"
-
-          # Cleanup temporary files
-          rm -f log_helper.sh
-
-          log_structured "INFO" "Rust build job completed" \
-            '{"target": "${{ matrix.target }}", "status": "${{ job.status }}"}'
+        uses: ./.github/actions/cleanup-logging
+        with:
+          final-status: ${{ job.status }}
 
   # Enhanced frontend build with similar improvements
   frontend-build:
@@ -410,64 +303,13 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Initialize structured logging
-        run: |
-          echo "::group::Frontend Build Setup"
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-
-          retry_with_backoff() {
-            local max_attempts=3
-            local delay=5
-            local attempt=1
-
-            while [ $attempt -le $max_attempts ]; do
-              if eval "$1"; then
-                return 0
-              else
-                local exit_code=$?
-                if [ $attempt -eq $max_attempts ]; then
-                  return $exit_code
-                fi
-                sleep $delay
-                delay=$((delay * 2))
-                attempt=$((attempt + 1))
-              fi
-            done
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Frontend build job started"
-          echo "::endgroup::"
-
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup structured logging
+        uses: ./.github/actions/setup-logging
+        with:
+          correlation-id: ${{ env.CORRELATION_ID }}
 
       - name: Setup Node.js with error handling
         run: |
@@ -571,12 +413,11 @@ jobs:
           path: frontend/dist/
           retention-days: 30
 
-      - name: Cleanup
+      - name: Cleanup logging
         if: always()
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Frontend build job completed" '{"status": "${{ job.status }}"}'
-          rm -f log_helper.sh
+        uses: ./.github/actions/cleanup-logging
+        with:
+          final-status: ${{ job.status }}
 
   # Integration tests with enhanced monitoring
   integration-test:
@@ -587,42 +428,13 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Initialize integration test logging
-        run: |
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Integration tests started"
-
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup structured logging
+        uses: ./.github/actions/setup-logging
+        with:
+          correlation-id: ${{ env.CORRELATION_ID }}
 
       - name: Download build artifacts
         uses: actions/download-artifact@v5
@@ -660,12 +472,11 @@ jobs:
             toxiproxy-cli delete test-proxy
           fi
 
-      - name: Cleanup integration tests
+      - name: Cleanup logging
         if: always()
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Integration tests completed" '{"status": "${{ job.status }}"}'
-          rm -f log_helper.sh
+        uses: ./.github/actions/cleanup-logging
+        with:
+          final-status: ${{ job.status }}
 
   # Final summary job
   build-summary:
@@ -675,50 +486,20 @@ jobs:
     if: always()
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup structured logging
+        uses: ./.github/actions/setup-logging
+        with:
+          correlation-id: ${{ env.CORRELATION_ID }}
+
       - name: Generate build summary
         run: |
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
           source log_helper.sh
 
           # Generate comprehensive summary
-          log_structured "INFO" "Build workflow summary" \
-            '{
-              "pre_check_result": "${{ needs.pre-check.result }}",
-              "rust_build_result": "${{ needs.rust-build.result }}",
-              "frontend_build_result": "${{ needs.frontend-build.result }}",
-              "integration_test_result": "${{ needs.integration-test.result }}",
-              "rust_changed": "${{ needs.pre-check.outputs.rust-changed }}",
-              "frontend_changed": "${{ needs.pre-check.outputs.frontend-changed }}",
-              "correlation_id": "${{ needs.pre-check.outputs.correlation-id }}"
-            }'
+          log_structured "INFO" "Build workflow summary" "{}"
 
           # Determine overall status
           if [[ "${{ needs.rust-build.result }}" == "success" || "${{ needs.rust-build.result }}" == "skipped" ]] && \
@@ -730,3 +511,9 @@ jobs:
             log_structured "ERROR" "Build workflow failed"
             exit 1
           fi
+
+      - name: Cleanup logging
+        if: always()
+        uses: ./.github/actions/cleanup-logging
+        with:
+          final-status: ${{ job.status }}
