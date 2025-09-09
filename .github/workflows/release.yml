@@ -5,6 +5,16 @@ on:
     tags:
       - 'v*.*.*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (without v prefix)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: release-${{ github.ref }}
@@ -15,59 +25,59 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-   # Pre-release validation
-   pre-release-check:
-     name: Pre-release Validation
-     runs-on: ubuntu-latest
-     timeout-minutes: 15
-     outputs:
-       version: ${{ steps.version.outputs.version }}
-       tag: ${{ steps.version.outputs.tag }}
+  # Pre-release validation
+  pre-release-check:
+    name: Pre-release Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
 
-     steps:
-       - name: Checkout code
-         uses: actions/checkout@v4
-         with:
-           fetch-depth: 0
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-       - name: Determine version
-         id: version
-         run: |
-           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-             VERSION="${{ inputs.version }}"
-             if [[ "$VERSION" != v* ]]; then
-               VERSION="v$VERSION"
-             fi
-           else
-             VERSION="$GITHUB_REF"
-           fi
-           echo "version=${VERSION#refs/tags/v}" >> $GITHUB_OUTPUT
-           echo "tag=$VERSION" >> $GITHUB_OUTPUT
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+            if [[ "$VERSION" != v* ]]; then
+              VERSION="v$VERSION"
+            fi
+          else
+            VERSION="$GITHUB_REF"
+          fi
+          echo "version=${VERSION#refs/tags/v}" >> $GITHUB_OUTPUT
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
-       - name: Setup Node.js
-         uses: actions/setup-node@v5
-         with:
-           node-version: '20'
-           cache: 'npm'
-           cache-dependency-path: frontend/package-lock.json
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-       - name: Setup Rust
-         uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
 
-       - name: Cache dependencies
-         uses: actions/cache@v4
-         with:
-           path: |
-             ~/.cargo/registry/
-             ~/.npm
-             backend/target/
-             frontend/node_modules
-           key: ${{ runner.os }}-release-${{ hashFiles('**/Cargo.lock', 'frontend/package-lock.json') }}
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.npm
+            backend/target/
+            frontend/node_modules
+          key: ${{ runner.os }}-release-${{ hashFiles('**/Cargo.lock', 'frontend/package-lock.json') }}
 
-       - name: Install dependencies
-         run: |
-           cd frontend
-           npm ci --no-audit
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci --no-audit
 
       - name: Validate builds
         run: |
@@ -182,19 +192,19 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-       - name: Cache Node.js dependencies
-         uses: actions/cache@v4
-         with:
-           path: |
-             ~/.npm
-             frontend/node_modules
-             frontend/.next/cache
-           key: ${{ runner.os }}-node-release-${{ hashFiles('frontend/package-lock.json') }}
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            frontend/node_modules
+            frontend/.next/cache
+          key: ${{ runner.os }}-node-release-${{ hashFiles('frontend/package-lock.json') }}
 
-       - name: Install dependencies
-         run: |
-           cd frontend
-           npm ci --no-audit
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci --no-audit
 
       - name: Build frontend
         run: |
