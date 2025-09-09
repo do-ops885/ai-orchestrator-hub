@@ -1030,7 +1030,10 @@ impl HybridNeuralProcessor {
             tracing::debug!("Removed inactive neural agent {}", agent_id);
         }
 
-        tracing::info!("Neural processor garbage collection completed - removed {} inactive agents", removed_count);
+        tracing::info!(
+            "Neural processor garbage collection completed - removed {} inactive agents",
+            removed_count
+        );
         Ok(())
     }
 }

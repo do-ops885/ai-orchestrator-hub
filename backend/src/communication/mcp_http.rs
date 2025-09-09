@@ -27,9 +27,7 @@ pub async fn handle_mcp_request(
 
     info!(
         "🔌 [{}] Received MCP HTTP request: {} (id: {:?})",
-        request_id,
-        request.method,
-        request.id
+        request_id, request.method, request.id
     );
 
     // Log request details for debugging

@@ -3,7 +3,7 @@
 //! This module contains performance tests to detect regressions in system performance.
 //! These tests measure key performance metrics and compare them against baselines.
 
-use multiagent_hive::{HiveCoordinator, AgentType};
+use multiagent_hive::{AgentType, HiveCoordinator};
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
@@ -35,9 +35,9 @@ struct PerformanceMetrics {
     pub min_duration: Duration,
     pub max_duration: Duration,
     pub p95_duration: Duration,
-    pub throughput: f64, // operations per second
+    pub throughput: f64,           // operations per second
     pub memory_usage: Option<u64>, // bytes
-    pub cpu_usage: Option<f64>, // percentage
+    pub cpu_usage: Option<f64>,    // percentage
 }
 
 impl PerformanceMetrics {
@@ -66,11 +66,18 @@ impl PerformanceMetrics {
         }
     }
 
-    fn compare_with_baseline(&self, baseline: &PerformanceMetrics, config: &PerformanceConfig) -> PerformanceComparison {
-        let regression_percentage = ((self.average_duration.as_secs_f64() - baseline.average_duration.as_secs_f64())
-            / baseline.average_duration.as_secs_f64()) * 100.0;
+    fn compare_with_baseline(
+        &self,
+        baseline: &PerformanceMetrics,
+        config: &PerformanceConfig,
+    ) -> PerformanceComparison {
+        let regression_percentage = ((self.average_duration.as_secs_f64()
+            - baseline.average_duration.as_secs_f64())
+            / baseline.average_duration.as_secs_f64())
+            * 100.0;
 
-        let throughput_change = ((self.throughput - baseline.throughput) / baseline.throughput) * 100.0;
+        let throughput_change =
+            ((self.throughput - baseline.throughput) / baseline.throughput) * 100.0;
 
         let passed = regression_percentage.abs() <= config.max_allowed_regression;
 
@@ -133,10 +140,15 @@ async fn test_agent_creation_performance() {
     println!("  Throughput: {:.2} ops/sec", metrics.throughput);
 
     // Assert performance requirements
-    assert!(metrics.average_duration < config.baseline_timeout,
-            "Agent creation should be faster than {:?}", config.baseline_timeout);
-    assert!(metrics.p95_duration < Duration::from_secs(5),
-            "95% of agent creations should complete within 5 seconds");
+    assert!(
+        metrics.average_duration < config.baseline_timeout,
+        "Agent creation should be faster than {:?}",
+        config.baseline_timeout
+    );
+    assert!(
+        metrics.p95_duration < Duration::from_secs(5),
+        "95% of agent creations should complete within 5 seconds"
+    );
 
     println!("✅ Agent creation performance test passed");
 }
@@ -149,9 +161,15 @@ async fn test_task_execution_performance() {
 
     // Create hive with test agent
     let hive = HiveCoordinator::new().await.expect("Failed to create hive");
-    let agent_config = create_agent_config("TaskPerfAgent", "worker",
-        Some(vec![("task_execution", 0.9, 0.1)]));
-    let agent_id = hive.create_agent(agent_config).await.expect("Failed to create agent");
+    let agent_config = create_agent_config(
+        "TaskPerfAgent",
+        "worker",
+        Some(vec![("task_execution", 0.9, 0.1)]),
+    );
+    let agent_id = hive
+        .create_agent(agent_config)
+        .await
+        .expect("Failed to create agent");
 
     // Warmup phase
     for _ in 0..config.warmup_iterations {
@@ -167,7 +185,7 @@ async fn test_task_execution_performance() {
             &format!("Perf Task {}", i),
             "task_execution",
             1,
-            Some(vec![("task_execution", 0.5)])
+            Some(vec![("task_execution", 0.5)]),
         );
 
         let task_result = hive.create_task(task_config).await;
@@ -188,10 +206,14 @@ async fn test_task_execution_performance() {
     println!("  Throughput: {:.2} ops/sec", metrics.throughput);
 
     // Assert performance requirements
-    assert!(metrics.average_duration < Duration::from_millis(500),
-            "Task creation should be faster than 500ms");
-    assert!(metrics.p95_duration < Duration::from_secs(2),
-            "95% of task creations should complete within 2 seconds");
+    assert!(
+        metrics.average_duration < Duration::from_millis(500),
+        "Task creation should be faster than 500ms"
+    );
+    assert!(
+        metrics.p95_duration < Duration::from_secs(2),
+        "95% of task creations should complete within 2 seconds"
+    );
 
     println!("✅ Task creation performance test passed");
 }
@@ -213,17 +235,20 @@ async fn test_concurrent_operations_performance() {
             let hive = HiveCoordinator::new().await.expect("Failed to create hive");
 
             // Create agent
-            let agent_config = create_agent_config(&format!("ConcurrentAgent{}", i), "worker", None);
-            let agent_id = hive.create_agent(agent_config).await.expect("Failed to create agent");
+            let agent_config =
+                create_agent_config(&format!("ConcurrentAgent{}", i), "worker", None);
+            let agent_id = hive
+                .create_agent(agent_config)
+                .await
+                .expect("Failed to create agent");
 
             // Create and execute task
-            let task_config = create_task_config(
-                &format!("Concurrent Task {}", i),
-                "general",
-                1,
-                None
-            );
-            let task_id = hive.create_task(task_config).await.expect("Failed to create task");
+            let task_config =
+                create_task_config(&format!("Concurrent Task {}", i), "general", 1, None);
+            let task_id = hive
+                .create_task(task_config)
+                .await
+                .expect("Failed to create task");
 
             (agent_id, task_id)
         });
@@ -235,9 +260,7 @@ async fn test_concurrent_operations_performance() {
     let results = futures::future::join_all(handles).await;
     let total_duration = start_time.elapsed();
 
-    let success_count = results.iter()
-        .filter(|result| result.is_ok())
-        .count();
+    let success_count = results.iter().filter(|result| result.is_ok()).count();
 
     let average_duration = total_duration / config.measurement_iterations as u32;
     let throughput = config.measurement_iterations as f64 / total_duration.as_secs_f64();
@@ -250,12 +273,18 @@ async fn test_concurrent_operations_performance() {
     println!("  Throughput: {:.2} ops/sec", throughput);
 
     // Assert performance requirements
-    assert_eq!(success_count, config.measurement_iterations,
-               "All concurrent operations should succeed");
-    assert!(average_duration < Duration::from_secs(10),
-            "Concurrent operations should complete within 10 seconds each");
-    assert!(throughput > 0.5,
-            "Should achieve at least 0.5 operations per second");
+    assert_eq!(
+        success_count, config.measurement_iterations,
+        "All concurrent operations should succeed"
+    );
+    assert!(
+        average_duration < Duration::from_secs(10),
+        "Concurrent operations should complete within 10 seconds each"
+    );
+    assert!(
+        throughput > 0.5,
+        "Should achieve at least 0.5 operations per second"
+    );
 
     println!("✅ Concurrent operations performance test passed");
 }
@@ -276,7 +305,8 @@ async fn test_memory_usage_performance() {
 
         // Create multiple agents
         for j in 0..i {
-            let agent_config = create_agent_config(&format!("MemoryAgent{}-{}", i, j), "worker", None);
+            let agent_config =
+                create_agent_config(&format!("MemoryAgent{}-{}", i, j), "worker", None);
             let _ = hive.create_agent(agent_config).await;
         }
 
@@ -290,7 +320,8 @@ async fn test_memory_usage_performance() {
 
     let average_memory = memory_readings.iter().sum::<u64>() / memory_readings.len() as u64;
     let max_memory = *memory_readings.iter().max().unwrap();
-    let memory_growth_rate = (max_memory as f64 - memory_readings[0] as f64) / memory_readings[0] as f64 * 100.0;
+    let memory_growth_rate =
+        (max_memory as f64 - memory_readings[0] as f64) / memory_readings[0] as f64 * 100.0;
 
     println!("💾 Memory Usage Performance:");
     println!("  Average memory: {} MB", average_memory / (1024 * 1024));
@@ -298,10 +329,14 @@ async fn test_memory_usage_performance() {
     println!("  Memory growth rate: {:.2}%", memory_growth_rate);
 
     // Assert memory requirements
-    assert!(memory_growth_rate < 200.0,
-            "Memory growth should be less than 200%");
-    assert!(max_memory < 500 * 1024 * 1024,
-            "Peak memory usage should be less than 500MB");
+    assert!(
+        memory_growth_rate < 200.0,
+        "Memory growth should be less than 200%"
+    );
+    assert!(
+        max_memory < 500 * 1024 * 1024,
+        "Peak memory usage should be less than 500MB"
+    );
 
     println!("✅ Memory usage performance test passed");
 }
@@ -320,7 +355,11 @@ async fn test_api_response_performance() {
     for _ in 0..10 {
         let start_time = Instant::now();
 
-        match client.get(&format!("{}/api/mcp/health", base_url)).send().await {
+        match client
+            .get(&format!("{}/api/mcp/health", base_url))
+            .send()
+            .await
+        {
             Ok(response) => {
                 if response.status().is_success() {
                     let duration = start_time.elapsed();
@@ -342,7 +381,8 @@ async fn test_api_response_performance() {
         return;
     }
 
-    let average_response_time = response_times.iter().sum::<Duration>() / response_times.len() as u32;
+    let average_response_time =
+        response_times.iter().sum::<Duration>() / response_times.len() as u32;
     let max_response_time = *response_times.iter().max().unwrap();
 
     println!("🌐 API Response Performance:");
@@ -351,10 +391,14 @@ async fn test_api_response_performance() {
     println!("  Successful responses: {}/{}", response_times.len(), 10);
 
     // Assert API performance requirements
-    assert!(average_response_time < Duration::from_millis(500),
-            "Average API response time should be less than 500ms");
-    assert!(max_response_time < Duration::from_secs(2),
-            "Max API response time should be less than 2 seconds");
+    assert!(
+        average_response_time < Duration::from_millis(500),
+        "Average API response time should be less than 500ms"
+    );
+    assert!(
+        max_response_time < Duration::from_secs(2),
+        "Max API response time should be less than 2 seconds"
+    );
 
     println!("✅ API response performance test passed");
 }
@@ -362,8 +406,8 @@ async fn test_api_response_performance() {
 /// WebSocket performance test
 #[tokio::test]
 async fn test_websocket_performance() {
-    use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
     use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
     let mut response_times = Vec::new();
     let message_count = 10;
@@ -419,64 +463,57 @@ async fn test_websocket_performance() {
         return;
     }
 
-    let average_response_time = response_times.iter().sum::<Duration>() / response_times.len() as u32;
+    let average_response_time =
+        response_times.iter().sum::<Duration>() / response_times.len() as u32;
     let max_response_time = *response_times.iter().max().unwrap();
 
     println!("🔌 WebSocket Performance:");
     println!("  Average response time: {:?}", average_response_time);
     println!("  Max response time: {:?}", max_response_time);
-    println!("  Successful responses: {}/{}", response_times.len(), message_count);
+    println!(
+        "  Successful responses: {}/{}",
+        response_times.len(),
+        message_count
+    );
 
     // Assert WebSocket performance requirements
-    assert!(average_response_time < Duration::from_millis(200),
-            "Average WebSocket response time should be less than 200ms");
-    assert!(max_response_time < Duration::from_secs(1),
-            "Max WebSocket response time should be less than 1 second");
+    assert!(
+        average_response_time < Duration::from_millis(200),
+        "Average WebSocket response time should be less than 200ms"
+    );
+    assert!(
+        max_response_time < Duration::from_secs(1),
+        "Max WebSocket response time should be less than 1 second"
+    );
 
     println!("✅ WebSocket performance test passed");
 }
 
 /// Helper function to create agent configuration
-fn create_agent_config(name: &str, agent_type: &str, capabilities: Option<Vec<(&str, f64, f64)>>) -> serde_json::Value {
+fn create_agent_config(
+    name: &str,
+    agent_type: &str,
+    capabilities: Option<Vec<(&str, f64, f64)>>,
+) -> serde_json::Value {
     let mut config = serde_json::json!({
         "name": name,
         "type": agent_type
     });
 
     if let Some(caps) = capabilities {
-        let capabilities_array = caps.into_iter().map(|(name, proficiency, learning_rate)| {
-            serde_json::json!({
-                "name": name,
-                "proficiency": proficiency,
-                "learning_rate": learning_rate
+        let capabilities_array = caps
+            .into_iter()
+            .map(|(name, proficiency, learning_rate)| {
+                serde_json::json!({
+                    "name": name,
+                    "proficiency": proficiency,
+                    "learning_rate": learning_rate
+                })
             })
-        }).collect::<Vec<_>>();
+            .collect::<Vec<_>>();
 
         config["capabilities"] = serde_json::Value::Array(capabilities_array);
     }
 
     config
 }
-
-/// Helper function to create task configuration
-fn create_task_config(description: &str, task_type: &str, priority: u8, required_capabilities: Option<Vec<(&str, f64)>>) -> serde_json::Value {
-    let mut config = serde_json::json!({
-        "description": description,
-        "type": task_type,
-        "priority": priority
-    });
-
-    if let Some(caps) = required_capabilities {
-        let capabilities_array = caps.into_iter().map(|(name, min_proficiency)| {
-            serde_json::json!({
-                "name": name,
-                "min_proficiency": min_proficiency
-            })
-        }).collect::<Vec<_>>();
-
-        config["required_capabilities"] = serde_json::Value::Array(capabilities_array);
-    }
-
-    config
-}</content>
-</xai:function_call">backend/tests/performance_regression_tests.rs

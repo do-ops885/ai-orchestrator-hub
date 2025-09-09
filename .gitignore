@@ -57,3 +57,7 @@ training/*
 # Ignore MCP PID/runtime files
 *.pid
 mcp-*.pid
+-e
+# Security scan reports
+secrets_scan.txt
+security-audit-report-*.txt

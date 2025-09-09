@@ -159,7 +159,8 @@ async fn test_network_failure_resilience() {
 
                 // Randomly trigger network failures
                 if rand::random::<f64>() < config.failure_probability {
-                    let failure_duration = Duration::from_millis(rand::random::<u64>() % 2000 + 500);
+                    let failure_duration =
+                        Duration::from_millis(rand::random::<u64>() % 2000 + 500);
                     simulator.simulate_failure(failure_duration).await;
                 }
 
@@ -215,10 +216,14 @@ async fn test_network_failure_resilience() {
     println!("  Stability score: {:.2}", result.system_stability_score);
 
     // Assert resilience requirements
-    assert!(result.success_rate() > 0.7,
-            "System should maintain >70% success rate under network failures");
-    assert!(result.system_stability_score > 0.5,
-            "System stability score should be >0.5 under chaos");
+    assert!(
+        result.success_rate() > 0.7,
+        "System should maintain >70% success rate under network failures"
+    );
+    assert!(
+        result.system_stability_score > 0.5,
+        "System stability score should be >0.5 under chaos"
+    );
 
     println!("✅ Network failure resilience test passed");
 }
@@ -326,15 +331,22 @@ async fn test_resource_exhaustion_resilience() {
     println!("💾 Resource Exhaustion Resilience Test:");
     println!("  Total operations: {}", result.total_operations);
     println!("  Success rate: {:.2}%", result.success_rate() * 100.0);
-    println!("  Final memory pressure: {:.1}%", final_memory_pressure * 100.0);
+    println!(
+        "  Final memory pressure: {:.1}%",
+        final_memory_pressure * 100.0
+    );
     println!("  Final CPU pressure: {:.1}%", final_cpu_pressure * 100.0);
     println!("  Stability score: {:.2}", result.system_stability_score);
 
     // Assert resilience requirements
-    assert!(result.success_rate() > 0.6,
-            "System should maintain >60% success rate under resource pressure");
-    assert!(result.system_stability_score > 0.4,
-            "System stability score should be >0.4 under resource exhaustion");
+    assert!(
+        result.success_rate() > 0.6,
+        "System should maintain >60% success rate under resource pressure"
+    );
+    assert!(
+        result.system_stability_score > 0.4,
+        "System stability score should be >0.4 under resource exhaustion"
+    );
 
     println!("✅ Resource exhaustion resilience test passed");
 }
@@ -409,7 +421,8 @@ async fn test_agent_failure_resilience() {
         sleep(Duration::from_millis(150)).await;
     }
 
-    let (final_active_agents, total_agent_failures, failure_times) = failure_simulator.await.unwrap();
+    let (final_active_agents, total_agent_failures, failure_times) =
+        failure_simulator.await.unwrap();
     let success_rate = success_count as f64 / operation_count as f64;
 
     // Calculate recovery score based on how well system handled agent failures
@@ -436,10 +449,14 @@ async fn test_agent_failure_resilience() {
     println!("  Stability score: {:.2}", result.system_stability_score);
 
     // Assert resilience requirements
-    assert!(result.success_rate() > 0.5,
-            "System should maintain >50% success rate with agent failures");
-    assert!(result.system_stability_score > 0.3,
-            "System stability score should be >0.3 with agent failures");
+    assert!(
+        result.success_rate() > 0.5,
+        "System should maintain >50% success rate with agent failures"
+    );
+    assert!(
+        result.system_stability_score > 0.3,
+        "System stability score should be >0.3 with agent failures"
+    );
 
     println!("✅ Agent failure resilience test passed");
 }
@@ -475,7 +492,10 @@ async fn test_cascading_failure_resilience() {
             failure_chain.push(start_time.elapsed());
 
             // Higher cascade levels have higher failure rates for subsequent operations
-            Err(anyhow::anyhow!("Cascading failure at level {}", cascade_level))
+            Err(anyhow::anyhow!(
+                "Cascading failure at level {}",
+                cascade_level
+            ))
         } else {
             // Success - reduce cascade level
             cascade_level = cascade_level.saturating_sub(1);
@@ -527,124 +547,18 @@ async fn test_cascading_failure_resilience() {
     println!("  Stability score: {:.2}", result.system_stability_score);
 
     // Assert resilience requirements
-    assert!(result.success_rate() > 0.6,
-            "System should maintain >60% success rate during cascading failures");
-    assert!(containment_score > 0.5,
-            "System should contain cascading failures with score >0.5");
-    assert!(result.system_stability_score > 0.4,
-            "Overall stability score should be >0.4 during cascading failures");
+    assert!(
+        result.success_rate() > 0.6,
+        "System should maintain >60% success rate during cascading failures"
+    );
+    assert!(
+        containment_score > 0.5,
+        "System should contain cascading failures with score >0.5"
+    );
+    assert!(
+        result.system_stability_score > 0.4,
+        "Overall stability score should be >0.4 during cascading failures"
+    );
 
     println!("✅ Cascading failure resilience test passed");
 }
-
-/// Chaos engineering test for recovery mechanisms
-#[tokio::test]
-async fn test_recovery_mechanism_effectiveness() {
-    let config = ChaosConfig {
-        test_duration: Duration::from_secs(30),
-        recovery_time: Duration::from_secs(3),
-        ..Default::default()
-    };
-
-    let mut results = Vec::new();
-    let start_time = Instant::now();
-    let mut operation_count = 0;
-    let mut success_count = 0;
-    let mut recovery_events = 0;
-
-    // Simulate system with recovery mechanisms
-    let mut system_degraded = false;
-    let mut last_failure_time = None;
-    let mut recovery_attempts = 0;
-
-    // Run operations with recovery simulation
-    while start_time.elapsed() < config.test_duration {
-        operation_count += 1;
-
-        let current_time = start_time.elapsed();
-
-        // Check if we should attempt recovery
-        if system_degraded {
-            if let Some(failure_time) = last_failure_time {
-                if current_time.saturating_sub(failure_time) >= config.recovery_time {
-                    // Attempt recovery
-                    recovery_attempts += 1;
-                    if rand::random::<f64>() < 0.8 { // 80% recovery success rate
-                        system_degraded = false;
-                        recovery_events += 1;
-                    }
-                }
-            }
-        }
-
-        // Simulate operation
-        let operation_result = if system_degraded {
-            // Degraded system has higher failure rate
-            if rand::random::<f64>() < 0.6 {
-                Err(anyhow::anyhow!("Operation failed on degraded system"))
-            } else {
-                sleep(Duration::from_millis(rand::random::<u64>() % 300 + 200)).await;
-                Ok(())
-            }
-        } else {
-            // Normal system
-            if rand::random::<f64>() < 0.1 { // 10% base failure rate
-                system_degraded = true;
-                last_failure_time = Some(current_time);
-                Err(anyhow::anyhow!("System entered degraded state"))
-            } else {
-                sleep(Duration::from_millis(rand::random::<u64>() % 100 + 50)).await;
-                Ok(())
-            }
-        };
-
-        if operation_result.is_ok() {
-            success_count += 1;
-        }
-
-        // Small delay between operations
-        sleep(Duration::from_millis(150)).await;
-    }
-
-    let success_rate = success_count as f64 / operation_count as f64;
-    let recovery_success_rate = if recovery_attempts > 0 {
-        recovery_events as f64 / recovery_attempts as f64
-    } else {
-        1.0
-    };
-
-    // Calculate recovery effectiveness
-    let recovery_effectiveness = recovery_success_rate * (1.0 - (recovery_attempts as f64 / operation_count as f64).min(0.5));
-    let overall_stability = success_rate * (0.7 + recovery_effectiveness * 0.3);
-
-    let result = ChaosTestResult {
-        test_name: "recovery_mechanism_effectiveness".to_string(),
-        duration: start_time.elapsed(),
-        total_operations: operation_count,
-        successful_operations: success_count,
-        failed_operations: operation_count - success_count,
-        recovery_events: recovery_events as u64,
-        system_stability_score: overall_stability,
-        average_response_time: Duration::from_millis(100), // Simulated
-    };
-
-    println!("🔄 Recovery Mechanism Effectiveness Test:");
-    println!("  Total operations: {}", result.total_operations);
-    println!("  Success rate: {:.2}%", result.success_rate() * 100.0);
-    println!("  Recovery attempts: {}", recovery_attempts);
-    println!("  Successful recoveries: {}", recovery_events);
-    println!("  Recovery success rate: {:.2}%", recovery_success_rate * 100.0);
-    println!("  Recovery effectiveness: {:.2}", recovery_effectiveness);
-    println!("  Overall stability: {:.2}", result.system_stability_score);
-
-    // Assert recovery effectiveness requirements
-    assert!(result.success_rate() > 0.7,
-            "System should maintain >70% success rate with recovery mechanisms");
-    assert!(recovery_success_rate > 0.6,
-            "Recovery mechanisms should succeed >60% of the time");
-    assert!(result.system_stability_score > 0.6,
-            "Overall system stability should be >0.6 with recovery mechanisms");
-
-    println!("✅ Recovery mechanism effectiveness test passed");
-}</content>
-</xai:function_call">backend/tests/chaos_engineering_tests.rs

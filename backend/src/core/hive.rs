@@ -171,7 +171,10 @@ pub enum MessageType {
 
 impl Drop for HiveCoordinator {
     fn drop(&mut self) {
-        tracing::info!("HiveCoordinator {} is being dropped, cleaning up resources", self.id);
+        tracing::info!(
+            "HiveCoordinator {} is being dropped, cleaning up resources",
+            self.id
+        );
 
         // Note: In a real async context, we would need to handle cleanup differently
         // This is a synchronous drop implementation for demonstration
@@ -478,7 +481,10 @@ impl HiveCoordinator {
     pub async fn create_agent(&self, config: serde_json::Value) -> anyhow::Result<Uuid> {
         // Validate that config is an object
         let _config_obj = config.as_object().ok_or_else(|| {
-            anyhow::anyhow!("Invalid configuration: expected JSON object, got {:?}", config)
+            anyhow::anyhow!(
+                "Invalid configuration: expected JSON object, got {:?}",
+                config
+            )
         })?;
 
         let name = config
@@ -496,19 +502,22 @@ impl HiveCoordinator {
             Some("coordinator") => AgentType::Coordinator,
             Some("learner") => AgentType::Learner,
             Some(specialist) if specialist.starts_with("specialist:") => {
-                let spec_name = specialist
-                    .strip_prefix("specialist:")
-                    .unwrap_or(specialist);
+                let spec_name = specialist.strip_prefix("specialist:").unwrap_or(specialist);
                 if spec_name.is_empty() {
-                    return Err(anyhow::anyhow!("Specialist type cannot have empty specialization"));
+                    return Err(anyhow::anyhow!(
+                        "Specialist type cannot have empty specialization"
+                    ));
                 }
                 AgentType::Specialist(spec_name.to_string())
-            },
+            }
             Some(agent_type_str) => {
                 // Log warning for unrecognized type but default to Worker
-                tracing::warn!("Unrecognized agent type '{}', defaulting to Worker", agent_type_str);
+                tracing::warn!(
+                    "Unrecognized agent type '{}', defaulting to Worker",
+                    agent_type_str
+                );
                 AgentType::Worker
-            },
+            }
             None => {
                 tracing::debug!("No agent type specified, defaulting to Worker");
                 AgentType::Worker
@@ -584,14 +593,23 @@ impl HiveCoordinator {
         self.agents.insert(agent_id, agent);
 
         // Verify agent registration across both systems
-        let ws_registered = self.work_stealing_queue.agent_queues.contains_key(&agent_id);
+        let ws_registered = self
+            .work_stealing_queue
+            .agent_queues
+            .contains_key(&agent_id);
         let legacy_available = self.agents.contains_key(&agent_id);
 
         if !ws_registered {
-            tracing::warn!("Agent {} not found in work-stealing queue after registration", agent_id);
+            tracing::warn!(
+                "Agent {} not found in work-stealing queue after registration",
+                agent_id
+            );
         }
         if !legacy_available {
-            tracing::error!("Agent {} not found in legacy system after creation", agent_id);
+            tracing::error!(
+                "Agent {} not found in legacy system after creation",
+                agent_id
+            );
             return Err(anyhow::anyhow!("Failed to register agent in legacy system"));
         }
 
@@ -1447,7 +1465,10 @@ impl HiveCoordinator {
 
     /// Perform graceful shutdown and resource cleanup
     pub async fn shutdown(&self) -> anyhow::Result<()> {
-        tracing::info!("Initiating graceful shutdown of HiveCoordinator {}", self.id);
+        tracing::info!(
+            "Initiating graceful shutdown of HiveCoordinator {}",
+            self.id
+        );
 
         // Stop all agents and mark them as inactive
         let mut agents_to_cleanup = Vec::new();
@@ -1565,7 +1586,10 @@ impl HiveCoordinator {
             neural_proc.garbage_collect().await?;
         }
 
-        tracing::info!("Resource cleanup completed - removed {} inactive agents", removed_count);
+        tracing::info!(
+            "Resource cleanup completed - removed {} inactive agents",
+            removed_count
+        );
         Ok(())
     }
 
@@ -1578,12 +1602,12 @@ impl HiveCoordinator {
         let overall_health = match (
             memory_stats["memory_pressure"].as_str(),
             agent_health["health_score"].as_f64().unwrap_or(0.0),
-            queue_health["queue_pressure"].as_str()
+            queue_health["queue_pressure"].as_str(),
         ) {
             (Some("high"), score, _) | (_, score, _) if score < 0.5 => "critical",
             (Some("medium"), score, _) | (_, score, _) if score < 0.7 => "warning",
             (_, _, Some("high")) => "warning",
-            _ => "healthy"
+            _ => "healthy",
         };
 
         serde_json::json!({
@@ -1597,13 +1621,19 @@ impl HiveCoordinator {
 
     pub async fn check_agent_health(&self) -> serde_json::Value {
         let total_agents = self.agents.len();
-        let active_agents = self.agents.iter()
+        let active_agents = self
+            .agents
+            .iter()
             .filter(|a| matches!(a.value().state, crate::agents::AgentState::Working))
             .count();
-        let idle_agents = self.agents.iter()
+        let idle_agents = self
+            .agents
+            .iter()
             .filter(|a| matches!(a.value().state, crate::agents::AgentState::Idle))
             .count();
-        let failed_agents = self.agents.iter()
+        let failed_agents = self
+            .agents
+            .iter()
             .filter(|a| matches!(a.value().state, crate::agents::AgentState::Failed))
             .count();
 
@@ -1630,9 +1660,13 @@ impl HiveCoordinator {
         let ws_metrics = self.work_stealing_queue.get_metrics().await;
 
         let total_queue_depth = legacy_queue_size + ws_metrics.total_queue_depth as usize;
-        let queue_pressure = if total_queue_depth > 1000 { "high" }
-                           else if total_queue_depth > 500 { "medium" }
-                           else { "low" };
+        let queue_pressure = if total_queue_depth > 1000 {
+            "high"
+        } else if total_queue_depth > 500 {
+            "medium"
+        } else {
+            "low"
+        };
 
         serde_json::json!({
             "legacy_queue_size": legacy_queue_size,
