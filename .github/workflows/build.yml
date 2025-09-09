@@ -72,16 +72,13 @@ jobs:
        - name: Log change detection results
          run: |
            # Recreate log_helper.sh since each run step is a new shell
-           cat > log_helper.sh << 'EOF'
-           #!/bin/bash
+           echo '#!/bin/bash
            log_structured() {
              local level="$1"
              local message="$2"
              local extra="${3:-{}}"
-
-             jq -n --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" --arg level "$level" --arg message "$message" --arg workflow "$GITHUB_WORKFLOW" --arg job "$GITHUB_JOB" --arg run_id "$GITHUB_RUN_ID" --arg run_attempt "$GITHUB_RUN_ATTEMPT" --arg correlation_id "$CORRELATION_ID" --arg extra "$extra" '{timestamp: $timestamp, level: $level, message: $message, workflow: $workflow, job: $job, run_id: $run_id, run_attempt: $run_attempt, correlation_id: $correlation_id, context: $extra}'
-           }
-           EOF
+             jq -n --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" --arg level "$level" --arg message "$message" --arg workflow "$GITHUB_WORKFLOW" --arg job "$GITHUB_JOB" --arg run_id "$GITHUB_RUN_ID" --arg run_attempt "$GITHUB_RUN_ATTEMPT" --arg correlation_id "$CORRELATION_ID" --arg extra "$extra" '\''{timestamp: $timestamp, level: $level, message: $message, workflow: $workflow, job: $job, run_id: $run_id, run_attempt: $run_attempt, correlation_id: $correlation_id, context: $extra}'\''
+           }' > log_helper.sh
            chmod +x log_helper.sh
            source log_helper.sh
            log_structured "INFO" "Change detection completed" '{"rust_changed": "${{ steps.filter.outputs.rust }}", "frontend_changed": "${{ steps.filter.outputs.frontend }}"}'
