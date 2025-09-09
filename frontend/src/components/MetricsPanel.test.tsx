@@ -98,7 +98,8 @@ describe('MetricsPanel', () => {
 
     render(<MetricsPanel metrics={zeroMetrics} />)
 
-    expect(screen.getByText('0.0%')).toBeInTheDocument()
+    const zeroPercentElements = screen.getAllByText('0.0%')
+    expect(zeroPercentElements.length).toBeGreaterThan(0)
     expect(screen.getByText('0%')).toBeInTheDocument() // Task success rate
   })
 
@@ -115,8 +116,9 @@ describe('MetricsPanel', () => {
 
     render(<MetricsPanel metrics={maxMetrics} />)
 
-    expect(screen.getByText('100.0%')).toBeInTheDocument()
-    expect(screen.getByText('100%')).toBeInTheDocument() // Task success rate when no failures
+    const hundredPercentElements = screen.getAllByText('100.0%')
+    expect(hundredPercentElements.length).toBeGreaterThan(0)
+    expect(screen.getByText('100.0%')).toBeInTheDocument() // Task success rate when no failures
   })
 
   it('formats decimal values correctly', () => {

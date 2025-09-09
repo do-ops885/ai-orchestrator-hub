@@ -974,6 +974,65 @@ impl HybridNeuralProcessor {
             + trend_stability * 0.1)
             .clamp(0.0, 1.0)
     }
+
+    /// Cleanup resources and free memory
+    pub async fn cleanup(&mut self) -> Result<()> {
+        tracing::info!("Cleaning up neural processor resources");
+
+        // Clear neural networks
+        #[cfg(feature = "advanced-neural")]
+        {
+            self.neural_networks.clear();
+        }
+
+        // Clear neural agents
+        self.neural_agents.clear();
+
+        // Cleanup NLP processor
+        // Note: NLPProcessor cleanup would be implemented here
+
+        tracing::info!("Neural processor cleanup completed");
+        Ok(())
+    }
+
+    /// Perform garbage collection and memory optimization
+    pub async fn garbage_collect(&mut self) -> Result<()> {
+        tracing::info!("Performing neural processor garbage collection");
+
+        // Remove old performance history entries (keep last 50)
+        for agent in self.neural_agents.values_mut() {
+            if agent.performance_history.len() > 50 {
+                let keep_count = 50;
+                let remove_count = agent.performance_history.len() - keep_count;
+                agent.performance_history.drain(0..remove_count);
+            }
+        }
+
+        // Remove inactive neural agents (no activity in last hour)
+        let _cutoff_time = Utc::now() - chrono::Duration::hours(1);
+        let mut inactive_agents = Vec::new();
+
+        for (agent_id, agent) in &self.neural_agents {
+            // Check if agent has recent activity (this would need to be tracked)
+            // For now, we'll use a simple heuristic
+            if agent.performance_history.is_empty() {
+                inactive_agents.push(*agent_id);
+            }
+        }
+
+        let removed_count = inactive_agents.len();
+        for agent_id in inactive_agents {
+            self.neural_agents.remove(&agent_id);
+            #[cfg(feature = "advanced-neural")]
+            {
+                self.neural_networks.remove(&agent_id);
+            }
+            tracing::debug!("Removed inactive neural agent {}", agent_id);
+        }
+
+        tracing::info!("Neural processor garbage collection completed - removed {} inactive agents", removed_count);
+        Ok(())
+    }
 }
 
 impl AdvancedNeuralCoordinator {

@@ -24,6 +24,7 @@ use crate::AppState;
 
 use chrono::Utc;
 use serde_json::json;
+use uuid::Uuid;
 
 /// Start background tasks for monitoring, alerting, and system maintenance
 pub async fn start_background_tasks(app_state: AppState) {
@@ -268,6 +269,7 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/api/tasks", get(get_tasks).post(create_task))
         .route("/api/hive/status", get(get_hive_status))
         .route("/api/resources", get(get_resource_info))
+        .route("/debug/system", get(debug_system_info))
         .nest("/api/mcp", mcp_http::create_mcp_router())
         .layer(axum::middleware::from_fn(security_headers_middleware))
         .layer(CorsLayer::permissive())
@@ -290,6 +292,22 @@ async fn create_agent(
     axum::Json(payload): axum::Json<serde_json::Value>,
 ) -> Result<(StatusCode, axum::Json<serde_json::Value>), (StatusCode, axum::Json<serde_json::Value>)>
 {
+    let request_id = Uuid::new_v4();
+    let start_time = std::time::Instant::now();
+
+    info!(
+        "🔧 [{}] Starting agent creation request - Payload size: {} bytes",
+        request_id,
+        serde_json::to_string(&payload).unwrap_or_default().len()
+    );
+
+    // Log request details for debugging
+    debug!(
+        "📝 [{}] Agent creation payload: {}",
+        request_id,
+        serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "Invalid JSON".to_string())
+    );
+
     // Apply rate limiting
     if state
         .rate_limiter
@@ -297,13 +315,22 @@ async fn create_agent(
         .await
         .is_err()
     {
-        warn!("Rate limit exceeded for agent creation");
+        warn!("🚫 [{}] Rate limit exceeded for agent creation", request_id);
         state.metrics.record_error("rate_limit_exceeded").await;
+
+        let duration = start_time.elapsed();
+        info!(
+            "❌ [{}] Agent creation failed - Rate limit exceeded ({}ms)",
+            request_id,
+            duration.as_millis()
+        );
+
         return Err((
             StatusCode::TOO_MANY_REQUESTS,
             axum::Json(json!({
                 "error": "Rate limit exceeded",
-                "details": "Too many requests, please try again later"
+                "details": "Too many requests, please try again later",
+                "request_id": request_id.to_string()
             })),
         ));
     }
@@ -324,7 +351,13 @@ async fn create_agent(
     let hive = state.hive.write().await;
     match hive.create_agent(payload).await {
         Ok(agent_id) => {
-            info!("✅ Agent created successfully: {}", agent_id);
+            let duration = start_time.elapsed();
+            info!(
+                "✅ [{}] Agent created successfully: {} ({}ms)",
+                request_id,
+                agent_id,
+                duration.as_millis()
+            );
 
             // Log security event for agent creation
             StructuredLogger::log_security_event(
@@ -339,6 +372,8 @@ async fn create_agent(
                         let mut info = std::collections::HashMap::new();
                         info.insert("action".to_string(), "create".to_string());
                         info.insert("resource_type".to_string(), "agent".to_string());
+                        info.insert("request_id".to_string(), request_id.to_string());
+                        info.insert("duration_ms".to_string(), duration.as_millis().to_string());
                         info
                     },
                 },
@@ -349,19 +384,30 @@ async fn create_agent(
                 axum::Json(json!({
                     "success": true,
                     "agent_id": agent_id,
-                    "message": "Agent created successfully"
+                    "message": "Agent created successfully",
+                    "request_id": request_id.to_string(),
+                    "processing_time_ms": duration.as_millis()
                 })),
             ))
         }
         Err(e) => {
-            error!("Failed to create agent: {}", e);
+            let duration = start_time.elapsed();
+            error!(
+                "❌ [{}] Failed to create agent: {} ({}ms)",
+                request_id,
+                e,
+                duration.as_millis()
+            );
             state.metrics.record_error("agent_creation_failed").await;
+
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 axum::Json(json!({
                     "success": false,
                     "error": "Failed to create agent",
-                    "details": e.to_string()
+                    "details": e.to_string(),
+                    "request_id": request_id.to_string(),
+                    "processing_time_ms": duration.as_millis()
                 })),
             ))
         }
@@ -380,6 +426,22 @@ async fn create_task(
     axum::Json(payload): axum::Json<serde_json::Value>,
 ) -> Result<(StatusCode, axum::Json<serde_json::Value>), (StatusCode, axum::Json<serde_json::Value>)>
 {
+    let request_id = Uuid::new_v4();
+    let start_time = std::time::Instant::now();
+
+    info!(
+        "📋 [{}] Starting task creation request - Payload size: {} bytes",
+        request_id,
+        serde_json::to_string(&payload).unwrap_or_default().len()
+    );
+
+    // Log request details for debugging
+    debug!(
+        "📝 [{}] Task creation payload: {}",
+        request_id,
+        serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "Invalid JSON".to_string())
+    );
+
     // Apply rate limiting
     if state
         .rate_limiter
@@ -387,13 +449,22 @@ async fn create_task(
         .await
         .is_err()
     {
-        warn!("Rate limit exceeded for task creation");
+        warn!("🚫 [{}] Rate limit exceeded for task creation", request_id);
         state.metrics.record_error("rate_limit_exceeded").await;
+
+        let duration = start_time.elapsed();
+        info!(
+            "❌ [{}] Task creation failed - Rate limit exceeded ({}ms)",
+            request_id,
+            duration.as_millis()
+        );
+
         return Err((
             StatusCode::TOO_MANY_REQUESTS,
             axum::Json(json!({
                 "error": "Rate limit exceeded",
-                "details": "Too many requests, please try again later"
+                "details": "Too many requests, please try again later",
+                "request_id": request_id.to_string()
             })),
         ));
     }
@@ -414,7 +485,13 @@ async fn create_task(
     let hive = state.hive.write().await;
     match hive.create_task(payload).await {
         Ok(task_id) => {
-            info!("✅ Task created successfully: {}", task_id);
+            let duration = start_time.elapsed();
+            info!(
+                "✅ [{}] Task created successfully: {} ({}ms)",
+                request_id,
+                task_id,
+                duration.as_millis()
+            );
 
             // Log security event for task creation
             StructuredLogger::log_security_event(
@@ -429,6 +506,8 @@ async fn create_task(
                         let mut info = std::collections::HashMap::new();
                         info.insert("action".to_string(), "create".to_string());
                         info.insert("resource_type".to_string(), "task".to_string());
+                        info.insert("request_id".to_string(), request_id.to_string());
+                        info.insert("duration_ms".to_string(), duration.as_millis().to_string());
                         info
                     },
                 },
@@ -439,19 +518,30 @@ async fn create_task(
                 axum::Json(json!({
                     "success": true,
                     "task_id": task_id,
-                    "message": "Task created successfully"
+                    "message": "Task created successfully",
+                    "request_id": request_id.to_string(),
+                    "processing_time_ms": duration.as_millis()
                 })),
             ))
         }
         Err(e) => {
-            error!("Failed to create task: {}", e);
+            let duration = start_time.elapsed();
+            error!(
+                "❌ [{}] Failed to create task: {} ({}ms)",
+                request_id,
+                e,
+                duration.as_millis()
+            );
             state.metrics.record_error("task_creation_failed").await;
+
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 axum::Json(json!({
                     "success": false,
                     "error": "Failed to create task",
-                    "details": e.to_string()
+                    "details": e.to_string(),
+                    "request_id": request_id.to_string(),
+                    "processing_time_ms": duration.as_millis()
                 })),
             ))
         }
@@ -475,7 +565,10 @@ async fn get_resource_info(
 async fn health_check(
     State(state): State<AppState>,
 ) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
+    let request_id = Uuid::new_v4();
     let start_time = std::time::Instant::now();
+
+    debug!("🏥 [{}] Health check request received", request_id);
 
     // Perform comprehensive health checks
     let hive_status = state.hive.read().await.get_status().await;
@@ -574,5 +667,70 @@ async fn get_metrics(
         "current_metrics": metrics,
         "trends": trends,
         "collection_timestamp": Utc::now()
+    })))
+}
+
+/// Debug endpoint for comprehensive system inspection
+async fn debug_system_info(
+    State(state): State<AppState>,
+) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
+    let request_id = Uuid::new_v4();
+    let start_time = std::time::Instant::now();
+
+    info!("🔍 [{}] Debug system inspection requested", request_id);
+
+    let hive_status = state.hive.read().await.get_status().await;
+    let agents_info = state.hive.read().await.get_agents_info().await;
+    let tasks_info = state.hive.read().await.get_tasks_info().await;
+    let resource_info = state.hive.read().await.get_resource_info().await;
+    let memory_stats = state.hive.read().await.get_memory_stats().await;
+    let queue_health = state.hive.read().await.check_queue_health().await;
+    let agent_health = state.hive.read().await.check_agent_health().await;
+
+    let duration = start_time.elapsed();
+
+    info!(
+        "✅ [{}] Debug system inspection completed ({}ms)",
+        request_id,
+        duration.as_millis()
+    );
+
+    Ok(axum::Json(json!({
+        "request_id": request_id.to_string(),
+        "timestamp": Utc::now(),
+        "processing_time_ms": duration.as_millis(),
+        "system_overview": {
+            "version": "2.0.0",
+            "phase": "Phase 2 - CPU-native, GPU-optional",
+            "hive_status": hive_status,
+            "agents": agents_info,
+            "tasks": tasks_info,
+            "resources": resource_info
+        },
+        "health_checks": {
+            "memory_stats": memory_stats,
+            "queue_health": queue_health,
+            "agent_health": agent_health
+        },
+        "queue_systems": {
+            "work_stealing_metrics": state.hive.read().await.work_stealing_queue.get_metrics().await,
+            "legacy_queue_info": {
+                "pending_tasks": tasks_info.get("legacy_queue").and_then(|q| q.get("pending_tasks")).unwrap_or(&json!(0)),
+                "completed_tasks": tasks_info.get("legacy_queue").and_then(|q| q.get("completed_tasks")).unwrap_or(&json!(0)),
+                "failed_tasks": tasks_info.get("legacy_queue").and_then(|q| q.get("failed_tasks")).unwrap_or(&json!(0))
+            }
+        },
+        "debug_info": {
+            "config_snapshot": {
+                "server_host": state.config.server.host.clone(),
+                "server_port": state.config.server.port,
+                "log_level": state.config.logging.level.clone()
+            },
+            "system_info": {
+                "cpu_count": num_cpus::get(),
+                "os": std::env::consts::OS,
+                "arch": std::env::consts::ARCH
+            }
+        }
     })))
 }

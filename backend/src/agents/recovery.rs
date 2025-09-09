@@ -176,7 +176,7 @@ impl AgentRecoveryManager {
     pub fn can_recover(agent: &Agent) -> bool {
         // Check if agent is in a recoverable state
         match agent.state {
-            AgentState::Failed => true,
+            AgentState::Failed | AgentState::Inactive => true,
             AgentState::Idle
             | AgentState::Working
             | AgentState::Learning

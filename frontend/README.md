@@ -123,7 +123,7 @@ NEXT_PUBLIC_WS_URL=ws://localhost:3001/ws
 
 # Application Settings
 NEXT_PUBLIC_APP_NAME="Multiagent Hive"
-NEXT_PUBLIC_APP_VERSION="0.1.0"
+NEXT_PUBLIC_APP_VERSION="0.1.0-alpha.1"
 NEXT_PUBLIC_APP_ENV=development
 
 # Feature Flags

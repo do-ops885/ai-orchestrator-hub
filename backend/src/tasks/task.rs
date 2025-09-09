@@ -165,6 +165,51 @@ impl TaskQueue {
             })
             .collect()
     }
+
+    /// Clear all tasks from the queue
+    pub fn clear(&mut self) {
+        self.pending_tasks.clear();
+        self.assigned_tasks.clear();
+        self.completed_tasks.clear();
+        self.failed_tasks.clear();
+    }
+
+    /// Cleanup old tasks based on age
+    pub async fn cleanup_old_tasks(&mut self, cutoff_time: DateTime<Utc>) -> anyhow::Result<usize> {
+        let mut removed_count = 0;
+
+        // Remove old pending tasks
+        self.pending_tasks.retain(|task| {
+            if task.created_at < cutoff_time {
+                removed_count += 1;
+                false
+            } else {
+                true
+            }
+        });
+
+        // Remove old completed tasks
+        self.completed_tasks.retain(|result| {
+            if result.completed_at < cutoff_time {
+                removed_count += 1;
+                false
+            } else {
+                true
+            }
+        });
+
+        // Remove old failed tasks
+        self.failed_tasks.retain(|result| {
+            if result.completed_at < cutoff_time {
+                removed_count += 1;
+                false
+            } else {
+                true
+            }
+        });
+
+        Ok(removed_count)
+    }
 }
 
 impl Task {

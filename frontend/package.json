@@ -1,6 +1,6 @@
 {
   "name": "multiagent-hive-frontend",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,6 +16,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "agent:discover": "node scripts/agent-discover.js",
     "agent:catalog": "node scripts/agent-catalog.js",
     "agent:map": "node scripts/agent-map.js",
@@ -97,6 +99,7 @@
     "eslint-plugin-vitest": "^0.5.4",
     "jsdom": "^23.0.1",
     "lucide-react": "^0.542.0",
+    "@playwright/test": "^1.40.0",
     "next": "^15.5.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

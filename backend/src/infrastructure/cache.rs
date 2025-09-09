@@ -166,12 +166,16 @@ pub type TaskCache = Cache<uuid::Uuid, crate::tasks::Task>;
 /// Specialized cache for hive status
 pub type StatusCache = Cache<String, serde_json::Value>;
 
+/// High-performance cache for frequently accessed data
+pub type PerformanceCache = Cache<String, Vec<u8>>;
+
 /// Cache manager for the hive system
 pub struct CacheManager {
     pub agents: AgentCache,
     pub tasks: TaskCache,
     pub status: StatusCache,
     pub metrics: Cache<String, SystemMetrics>,
+    pub performance_cache: PerformanceCache,
 }
 
 impl CacheManager {
@@ -183,6 +187,7 @@ impl CacheManager {
             tasks: Cache::new(Duration::from_secs(600), 5000),  // 10 min TTL, 5000 tasks max
             status: Cache::new(Duration::from_secs(30), 100),   // 30 sec TTL, 100 status entries
             metrics: Cache::new(Duration::from_secs(60), 1000), // 1 min TTL, 1000 metrics
+            performance_cache: Cache::new(Duration::from_secs(180), 10000), // 3 min TTL, 10k entries
         }
     }
 
@@ -199,6 +204,7 @@ impl CacheManager {
                 cache_manager.tasks.cleanup_expired().await;
                 cache_manager.status.cleanup_expired().await;
                 cache_manager.metrics.cleanup_expired().await;
+                cache_manager.performance_cache.cleanup_expired().await;
 
                 tracing::debug!("Cache cleanup completed");
             }
@@ -211,17 +217,20 @@ impl CacheManager {
         let task_stats = self.tasks.stats().await;
         let status_stats = self.status.stats().await;
         let metrics_stats = self.metrics.stats().await;
+        let performance_stats = self.performance_cache.stats().await;
 
         serde_json::json!({
             "agents": agent_stats,
             "tasks": task_stats,
             "status": status_stats,
             "metrics": metrics_stats,
+            "performance": performance_stats,
             "total_memory_estimate":
                 agent_stats.memory_usage_estimate +
                 task_stats.memory_usage_estimate +
                 status_stats.memory_usage_estimate +
-                metrics_stats.memory_usage_estimate
+                metrics_stats.memory_usage_estimate +
+                performance_stats.memory_usage_estimate
         })
     }
 }

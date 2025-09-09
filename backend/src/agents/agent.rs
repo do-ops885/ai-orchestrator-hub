@@ -66,6 +66,8 @@ pub enum AgentState {
     Communicating,
     /// Agent has encountered an error and requires intervention
     Failed,
+    /// Agent is temporarily inactive
+    Inactive,
 }
 
 /// Represents a specific capability that an agent possesses.

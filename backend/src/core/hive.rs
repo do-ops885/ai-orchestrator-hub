@@ -169,6 +169,16 @@ pub enum MessageType {
     Emergency,
 }
 
+impl Drop for HiveCoordinator {
+    fn drop(&mut self) {
+        tracing::info!("HiveCoordinator {} is being dropped, cleaning up resources", self.id);
+
+        // Note: In a real async context, we would need to handle cleanup differently
+        // This is a synchronous drop implementation for demonstration
+        // In production, you would want to implement proper async cleanup
+    }
+}
+
 impl HiveCoordinator {
     /// Creates a new hive coordinator with default configuration.
     ///
@@ -466,22 +476,43 @@ impl HiveCoordinator {
     /// # Errors
     /// Returns an error if agent creation fails or configuration is invalid.
     pub async fn create_agent(&self, config: serde_json::Value) -> anyhow::Result<Uuid> {
+        // Validate that config is an object
+        let _config_obj = config.as_object().ok_or_else(|| {
+            anyhow::anyhow!("Invalid configuration: expected JSON object, got {:?}", config)
+        })?;
+
         let name = config
             .get("name")
             .and_then(|v| v.as_str())
             .unwrap_or("Agent")
             .to_string();
 
+        // Validate name is not empty
+        if name.trim().is_empty() {
+            return Err(anyhow::anyhow!("Agent name cannot be empty"));
+        }
+
         let agent_type = match config.get("type").and_then(|v| v.as_str()) {
             Some("coordinator") => AgentType::Coordinator,
             Some("learner") => AgentType::Learner,
-            Some(specialist) if specialist.starts_with("specialist:") => AgentType::Specialist(
-                specialist
+            Some(specialist) if specialist.starts_with("specialist:") => {
+                let spec_name = specialist
                     .strip_prefix("specialist:")
-                    .unwrap_or(specialist)
-                    .to_string(),
-            ),
-            _ => AgentType::Worker,
+                    .unwrap_or(specialist);
+                if spec_name.is_empty() {
+                    return Err(anyhow::anyhow!("Specialist type cannot have empty specialization"));
+                }
+                AgentType::Specialist(spec_name.to_string())
+            },
+            Some(agent_type_str) => {
+                // Log warning for unrecognized type but default to Worker
+                tracing::warn!("Unrecognized agent type '{}', defaulting to Worker", agent_type_str);
+                AgentType::Worker
+            },
+            None => {
+                tracing::debug!("No agent type specified, defaulting to Worker");
+                AgentType::Worker
+            }
         };
 
         let mut agent = Agent::new(name.clone(), agent_type.clone());
@@ -547,7 +578,29 @@ impl HiveCoordinator {
             );
         }
 
+        // Ensure agent is also tracked in legacy queue system for backward compatibility
+        // The legacy queue doesn't have explicit agent registration, but we ensure
+        // the agent is available for task assignment by storing it in the main agents map
         self.agents.insert(agent_id, agent);
+
+        // Verify agent registration across both systems
+        let ws_registered = self.work_stealing_queue.agent_queues.contains_key(&agent_id);
+        let legacy_available = self.agents.contains_key(&agent_id);
+
+        if !ws_registered {
+            tracing::warn!("Agent {} not found in work-stealing queue after registration", agent_id);
+        }
+        if !legacy_available {
+            tracing::error!("Agent {} not found in legacy system after creation", agent_id);
+            return Err(anyhow::anyhow!("Failed to register agent in legacy system"));
+        }
+
+        tracing::debug!(
+            "Agent {} synchronization check - WS: {}, Legacy: {}",
+            agent_id,
+            ws_registered,
+            legacy_available
+        );
 
         tracing::info!(
             "Created agent {} with ID {} (neural: {}, work-stealing: enabled)",
@@ -1390,5 +1443,203 @@ impl HiveCoordinator {
 
         tracing::info!("Fallback system cleanup completed");
         Ok(())
+    }
+
+    /// Perform graceful shutdown and resource cleanup
+    pub async fn shutdown(&self) -> anyhow::Result<()> {
+        tracing::info!("Initiating graceful shutdown of HiveCoordinator {}", self.id);
+
+        // Stop all agents and mark them as inactive
+        let mut agents_to_cleanup = Vec::new();
+        for agent_ref in self.agents.iter() {
+            agents_to_cleanup.push(*agent_ref.key());
+        }
+
+        for agent_id in agents_to_cleanup {
+            if let Some(mut agent_ref) = self.agents.get_mut(&agent_id) {
+                let agent = agent_ref.value_mut();
+                agent.state = crate::agents::AgentState::Inactive;
+                tracing::debug!("Marked agent {} as inactive", agent_id);
+            }
+        }
+
+        // Clear task queues
+        {
+            let mut task_queue = self.task_queue.write().await;
+            let pending_count = task_queue.get_pending_count();
+            task_queue.clear();
+            tracing::info!("Cleared {} pending tasks from legacy queue", pending_count);
+        }
+
+        // Clear work-stealing queue
+        self.work_stealing_queue.clear().await?;
+        tracing::info!("Cleared work-stealing queue");
+
+        // Cleanup neural processor resources
+        {
+            let mut neural_proc = self.neural_processor.write().await;
+            neural_proc.cleanup().await?;
+            tracing::info!("Neural processor resources cleaned up");
+        }
+
+        // Cleanup resource manager
+        // Note: ResourceManager cleanup would be implemented here
+
+        // Send shutdown signal to communication channel
+        let _ = self.communication_channel.send(CommunicationMessage {
+            from_agent: self.id,
+            to_agent: None, // Broadcast
+            message_type: MessageType::Emergency,
+            content: "System shutdown initiated".to_string(),
+            timestamp: Utc::now(),
+        });
+
+        tracing::info!("HiveCoordinator {} shutdown completed", self.id);
+        Ok(())
+    }
+
+    /// Get memory usage statistics for monitoring
+    pub async fn get_memory_stats(&self) -> serde_json::Value {
+        let agent_count = self.agents.len();
+        let task_queue_size = {
+            let queue = self.task_queue.read().await;
+            queue.get_pending_count()
+        };
+        let ws_metrics = self.work_stealing_queue.get_metrics().await;
+
+        // Estimate memory usage (rough calculation)
+        let estimated_memory_mb = {
+            // Base memory for coordinator
+            let base_memory = 50.0;
+            // Memory per agent (rough estimate)
+            let agent_memory = agent_count as f64 * 2.0;
+            // Memory for task queues
+            let queue_memory = (task_queue_size as f64 + ws_metrics.total_queue_depth as f64) * 0.5;
+            // Memory for neural processor
+            let neural_memory = 20.0;
+
+            base_memory + agent_memory + queue_memory + neural_memory
+        };
+
+        serde_json::json!({
+            "agent_count": agent_count,
+            "task_queue_size": task_queue_size,
+            "work_stealing_queue_depth": ws_metrics.total_queue_depth,
+            "estimated_memory_mb": estimated_memory_mb,
+            "memory_pressure": if estimated_memory_mb > 500.0 { "high" } else if estimated_memory_mb > 200.0 { "medium" } else { "low" }
+        })
+    }
+
+    /// Force cleanup of idle resources
+    pub async fn force_resource_cleanup(&self) -> anyhow::Result<()> {
+        tracing::info!("Performing forced resource cleanup");
+
+        // Remove inactive agents
+        let mut inactive_agents = Vec::new();
+        for agent_ref in self.agents.iter() {
+            let agent = agent_ref.value();
+            if matches!(agent.state, crate::agents::AgentState::Inactive) {
+                inactive_agents.push(*agent_ref.key());
+            }
+        }
+
+        let removed_count = inactive_agents.len();
+        for agent_id in inactive_agents {
+            self.agents.remove(&agent_id);
+            tracing::debug!("Removed inactive agent {}", agent_id);
+        }
+
+        // Cleanup old tasks (older than 1 hour)
+        let cutoff_time = Utc::now() - chrono::Duration::hours(1);
+        {
+            let mut task_queue = self.task_queue.write().await;
+            task_queue.cleanup_old_tasks(cutoff_time).await?;
+        }
+
+        // Cleanup work-stealing queue
+        self.work_stealing_queue.cleanup().await?;
+
+        // Trigger garbage collection in neural processor
+        {
+            let mut neural_proc = self.neural_processor.write().await;
+            neural_proc.garbage_collect().await?;
+        }
+
+        tracing::info!("Resource cleanup completed - removed {} inactive agents", removed_count);
+        Ok(())
+    }
+
+    /// Monitor for memory leaks and resource issues
+    pub async fn check_resource_health(&self) -> serde_json::Value {
+        let memory_stats = self.get_memory_stats().await;
+        let agent_health = self.check_agent_health().await;
+        let queue_health = self.check_queue_health().await;
+
+        let overall_health = match (
+            memory_stats["memory_pressure"].as_str(),
+            agent_health["health_score"].as_f64().unwrap_or(0.0),
+            queue_health["queue_pressure"].as_str()
+        ) {
+            (Some("high"), score, _) | (_, score, _) if score < 0.5 => "critical",
+            (Some("medium"), score, _) | (_, score, _) if score < 0.7 => "warning",
+            (_, _, Some("high")) => "warning",
+            _ => "healthy"
+        };
+
+        serde_json::json!({
+            "overall_health": overall_health,
+            "memory_stats": memory_stats,
+            "agent_health": agent_health,
+            "queue_health": queue_health,
+            "timestamp": Utc::now()
+        })
+    }
+
+    pub async fn check_agent_health(&self) -> serde_json::Value {
+        let total_agents = self.agents.len();
+        let active_agents = self.agents.iter()
+            .filter(|a| matches!(a.value().state, crate::agents::AgentState::Working))
+            .count();
+        let idle_agents = self.agents.iter()
+            .filter(|a| matches!(a.value().state, crate::agents::AgentState::Idle))
+            .count();
+        let failed_agents = self.agents.iter()
+            .filter(|a| matches!(a.value().state, crate::agents::AgentState::Failed))
+            .count();
+
+        let health_score = if total_agents == 0 {
+            1.0
+        } else {
+            (active_agents + idle_agents) as f64 / total_agents as f64
+        };
+
+        serde_json::json!({
+            "total_agents": total_agents,
+            "active_agents": active_agents,
+            "idle_agents": idle_agents,
+            "failed_agents": failed_agents,
+            "health_score": health_score
+        })
+    }
+
+    pub async fn check_queue_health(&self) -> serde_json::Value {
+        let legacy_queue_size = {
+            let queue = self.task_queue.read().await;
+            queue.get_pending_count()
+        };
+        let ws_metrics = self.work_stealing_queue.get_metrics().await;
+
+        let total_queue_depth = legacy_queue_size + ws_metrics.total_queue_depth as usize;
+        let queue_pressure = if total_queue_depth > 1000 { "high" }
+                           else if total_queue_depth > 500 { "medium" }
+                           else { "low" };
+
+        serde_json::json!({
+            "legacy_queue_size": legacy_queue_size,
+            "work_stealing_queue_depth": ws_metrics.total_queue_depth,
+            "total_queue_depth": total_queue_depth,
+            "queue_pressure": queue_pressure,
+            "steal_efficiency": ws_metrics.system_metrics.load_balance_efficiency
+        })
     }
 }

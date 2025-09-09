@@ -415,6 +415,76 @@ impl WorkStealingQueue {
 
         metrics.last_updated = Utc::now();
     }
+
+    /// Clear all tasks from the system
+    pub async fn clear(&self) -> anyhow::Result<()> {
+        // Clear global queue
+        {
+            let mut global_queue = self.global_queue.lock().await;
+            global_queue.clear();
+        }
+
+        // Clear all agent queues
+        for entry in self.agent_queues.iter() {
+            let agent_queue = entry.value();
+
+            // Clear priority queue
+            {
+                let mut priority_queue = agent_queue.priority_queue.lock().await;
+                priority_queue.clear();
+            }
+
+            // Clear local queue
+            {
+                let mut local_queue = agent_queue.local_queue.lock().await;
+                local_queue.clear();
+            }
+        }
+
+        tracing::info!("Cleared all tasks from work-stealing queue system");
+        Ok(())
+    }
+
+    /// Cleanup old or stale tasks
+    pub async fn cleanup(&self) -> anyhow::Result<()> {
+        let cutoff_time = Utc::now() - chrono::Duration::hours(1);
+        let mut removed_count = 0;
+
+        // Cleanup global queue
+        {
+            let mut global_queue = self.global_queue.lock().await;
+            let initial_len = global_queue.len();
+            global_queue.retain(|task| task.created_at >= cutoff_time);
+            removed_count += initial_len - global_queue.len();
+        }
+
+        // Cleanup agent queues
+        for entry in self.agent_queues.iter() {
+            let agent_queue = entry.value();
+
+            // Cleanup priority queue
+            {
+                let mut priority_queue = agent_queue.priority_queue.lock().await;
+                let initial_len = priority_queue.len();
+                priority_queue.retain(|task| task.created_at >= cutoff_time);
+                removed_count += initial_len - priority_queue.len();
+            }
+
+            // Cleanup local queue
+            {
+                let mut local_queue = agent_queue.local_queue.lock().await;
+                let initial_len = local_queue.len();
+                local_queue.retain(|task| task.created_at >= cutoff_time);
+                removed_count += initial_len - local_queue.len();
+            }
+        }
+
+        if removed_count > 0 {
+            tracing::info!("Cleaned up {} stale tasks from work-stealing queue", removed_count);
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

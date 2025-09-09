@@ -10,9 +10,9 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::{debug, error, info, warn};
 
 use crate::communication::mcp::{HiveMCPServer, MCPRequest, MCPResponse};
 use crate::AppState;
@@ -22,9 +22,22 @@ pub async fn handle_mcp_request(
     State(state): State<AppState>,
     Json(request): Json<MCPRequest>,
 ) -> Result<Json<MCPResponse>, (StatusCode, Json<Value>)> {
+    let request_id = uuid::Uuid::new_v4();
+    let start_time = std::time::Instant::now();
+
+    info!(
+        "🔌 [{}] Received MCP HTTP request: {} (id: {:?})",
+        request_id,
+        request.method,
+        request.id
+    );
+
+    // Log request details for debugging
     debug!(
-        "Received MCP HTTP request: {} (id: {:?})",
-        request.method, request.id
+        "📝 [{}] MCP request details - Method: {}, Params: {}",
+        request_id,
+        request.method,
+        serde_json::to_string(&request.params).unwrap_or_else(|_| "Invalid JSON".to_string())
     );
 
     // Create MCP server instance with the shared hive coordinator
@@ -34,7 +47,49 @@ pub async fn handle_mcp_request(
     // Handle the request
     let response = mcp_server.handle_request(request).await;
 
-    debug!("MCP HTTP response: {:?}", response.id);
+    let duration = start_time.elapsed();
+
+    debug!(
+        "📤 [{}] MCP HTTP response: {:?} ({}ms)",
+        request_id,
+        response.id,
+        duration.as_millis()
+    );
+
+    // Ensure response has proper structure
+    if response.result.is_none() && response.error.is_none() {
+        error!(
+            "❌ [{}] MCP request processing failed - No result or error returned ({}ms)",
+            request_id,
+            duration.as_millis()
+        );
+
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "error": "MCP request processing failed",
+                "message": "No result or error returned from MCP handler",
+                "request_id": request_id.to_string(),
+                "processing_time_ms": duration.as_millis()
+            })),
+        ));
+    }
+
+    // Log successful response
+    if response.error.is_none() {
+        info!(
+            "✅ [{}] MCP request completed successfully ({}ms)",
+            request_id,
+            duration.as_millis()
+        );
+    } else {
+        warn!(
+            "⚠️ [{}] MCP request completed with error: {} ({}ms)",
+            request_id,
+            response.error.as_ref().unwrap().message,
+            duration.as_millis()
+        );
+    }
 
     Ok(Json(response))
 }

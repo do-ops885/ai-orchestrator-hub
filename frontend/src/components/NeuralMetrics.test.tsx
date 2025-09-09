@@ -167,7 +167,7 @@ describe('NeuralMetrics', () => {
 
   it('handles agents with different neural_type values', () => {
     const mixedAgents = [
-      { id: '1', name: 'Agent1', type: 'Worker', energy: 80, neural_type: null },
+      { id: '1', name: 'Agent1', type: 'Worker', energy: 80 },
       { id: '2', name: 'Agent2', type: 'Worker', energy: 80, neural_type: 'fann' },
       { id: '3', name: 'Agent3', type: 'Worker', energy: 80, neural_type: 'lstm' },
       { id: '4', name: 'Agent4', type: 'Worker', energy: 80, neural_type: 'unknown' },
