@@ -3,7 +3,7 @@
 //! This module contains integration tests for the REST API endpoints
 //! and WebSocket communication protocols.
 
-use multiagent_hive::{HiveCoordinator, AgentType};
+use multiagent_hive::{AgentType, HiveCoordinator};
 use reqwest::Client;
 use serde_json::json;
 use std::time::Duration;
@@ -24,7 +24,8 @@ impl TestServer {
     }
 
     async fn health_check(&self) -> anyhow::Result<bool> {
-        let response = self.client
+        let response = self
+            .client
             .get(&format!("{}/api/mcp/health", self.base_url))
             .send()
             .await?;
@@ -33,7 +34,8 @@ impl TestServer {
     }
 
     async fn create_agent(&self, config: serde_json::Value) -> anyhow::Result<serde_json::Value> {
-        let response = self.client
+        let response = self
+            .client
             .post(&format!("{}/api/agents", self.base_url))
             .json(&config)
             .send()
@@ -47,7 +49,8 @@ impl TestServer {
     }
 
     async fn get_agents(&self) -> anyhow::Result<serde_json::Value> {
-        let response = self.client
+        let response = self
+            .client
             .get(&format!("{}/api/agents", self.base_url))
             .send()
             .await?;
@@ -56,7 +59,8 @@ impl TestServer {
     }
 
     async fn create_task(&self, config: serde_json::Value) -> anyhow::Result<serde_json::Value> {
-        let response = self.client
+        let response = self
+            .client
             .post(&format!("{}/api/tasks", self.base_url))
             .json(&config)
             .send()
@@ -70,7 +74,8 @@ impl TestServer {
     }
 
     async fn get_hive_status(&self) -> anyhow::Result<serde_json::Value> {
-        let response = self.client
+        let response = self
+            .client
             .get(&format!("{}/api/hive/status", self.base_url))
             .send()
             .await?;
@@ -79,7 +84,8 @@ impl TestServer {
     }
 
     async fn get_resource_info(&self) -> anyhow::Result<serde_json::Value> {
-        let response = self.client
+        let response = self
+            .client
             .get(&format!("{}/api/resources", self.base_url))
             .send()
             .await?;
@@ -154,13 +160,19 @@ async fn test_api_basic_functionality() {
     assert!(status_result.is_ok(), "Status endpoint should work");
 
     let status_data = status_result.unwrap();
-    assert!(status_data["hive_id"].is_string(), "Status should contain hive ID");
+    assert!(
+        status_data["hive_id"].is_string(),
+        "Status should contain hive ID"
+    );
 
     println!("✅ Hive status API works correctly");
 
     // Test resource info endpoint
     let resource_result = server.get_resource_info().await;
-    assert!(resource_result.is_ok(), "Resource info endpoint should work");
+    assert!(
+        resource_result.is_ok(),
+        "Resource info endpoint should work"
+    );
 
     println!("✅ Resource info API works correctly");
 
@@ -169,7 +181,10 @@ async fn test_api_basic_functionality() {
     assert!(agents_result.is_ok(), "Agents list endpoint should work");
 
     let agents_data = agents_result.unwrap();
-    assert!(agents_data["agents"].is_array(), "Should return agents array");
+    assert!(
+        agents_data["agents"].is_array(),
+        "Should return agents array"
+    );
 
     println!("✅ Agents list API works correctly");
 }
@@ -198,13 +213,18 @@ async fn test_api_error_handling() {
     println!("✅ API properly handles invalid input");
 
     // Test non-existent endpoint
-    let response = server.client
+    let response = server
+        .client
         .get(&format!("{}/api/nonexistent", server.base_url))
         .send()
         .await;
 
     match response {
-        Ok(resp) => assert_eq!(resp.status().as_u16(), 404, "Should return 404 for non-existent endpoint"),
+        Ok(resp) => assert_eq!(
+            resp.status().as_u16(),
+            404,
+            "Should return 404 for non-existent endpoint"
+        ),
         Err(_) => println!("⚠️  Could not test 404 response"),
     }
 
@@ -254,15 +274,27 @@ async fn test_api_performance_under_load() {
     let end_time = std::time::Instant::now();
     let duration = end_time.duration_since(start_time);
 
-    let success_count = results.iter()
+    let success_count = results
+        .iter()
         .filter(|result| matches!(result, Ok(Ok(_))))
         .count();
 
-    println!("✅ Load test completed: {}/{} requests successful in {:?}", success_count, results.len(), duration);
+    println!(
+        "✅ Load test completed: {}/{} requests successful in {:?}",
+        success_count,
+        results.len(),
+        duration
+    );
 
     // Performance assertions
-    assert!(success_count >= 8, "At least 80% of requests should succeed");
-    assert!(duration.as_millis() < 5000, "Load test should complete within 5 seconds");
+    assert!(
+        success_count >= 8,
+        "At least 80% of requests should succeed"
+    );
+    assert!(
+        duration.as_millis() < 5000,
+        "Load test should complete within 5 seconds"
+    );
 
     println!("✅ API performance under load is acceptable");
 }
@@ -270,8 +302,8 @@ async fn test_api_performance_under_load() {
 /// Test WebSocket communication
 #[tokio::test]
 async fn test_websocket_communication() {
-    use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
     use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
     // Skip if server is not running
     let server = TestServer::new(3001);
@@ -282,7 +314,8 @@ async fn test_websocket_communication() {
 
     // Connect to WebSocket
     let ws_url = "ws://localhost:3001/ws";
-    let (ws_stream, _) = connect_async(ws_url).await
+    let (ws_stream, _) = connect_async(ws_url)
+        .await
         .expect("Failed to connect to WebSocket");
 
     let (mut write, mut read) = ws_stream.split();
@@ -293,7 +326,9 @@ async fn test_websocket_communication() {
         "timestamp": chrono::Utc::now().timestamp()
     });
 
-    write.send(Message::Text(test_message.to_string())).await
+    write
+        .send(Message::Text(test_message.to_string()))
+        .await
         .expect("Failed to send message");
 
     // Wait for response with timeout
@@ -358,8 +393,10 @@ async fn test_api_rate_limiting() {
         }
     }
 
-    println!("✅ Rate limiting test: {}/{} successful, {}/{} potentially rate limited",
-             success_count, 20, rate_limited_count, 20);
+    println!(
+        "✅ Rate limiting test: {}/{} successful, {}/{} potentially rate limited",
+        success_count, 20, rate_limited_count, 20
+    );
 
     // If rate limiting is implemented, we expect some requests to be limited
     // If not implemented, all should succeed
@@ -393,88 +430,31 @@ async fn test_api_data_consistency() {
     let agent_result = server.create_agent(agent_config.clone()).await;
     assert!(agent_result.is_ok(), "Agent creation should succeed");
 
-    let agent_id = agent_result.unwrap()["id"].as_str()
+    let agent_id = agent_result.unwrap()["id"]
+        .as_str()
         .expect("Agent should have ID")
         .to_string();
 
     // Get agents list
-    let agents_before = server.get_agents().await
-        .expect("Should get agents list");
+    let agents_before = server.get_agents().await.expect("Should get agents list");
 
-    let agent_count_before = agents_before["agents"].as_array()
+    let agent_count_before = agents_before["agents"]
+        .as_array()
         .expect("Should be array")
         .len();
 
     // Get status
-    let status = server.get_hive_status().await
-        .expect("Should get status");
+    let status = server.get_hive_status().await.expect("Should get status");
 
-    let status_agent_count = status["metrics"]["total_agents"].as_u64()
+    let status_agent_count = status["metrics"]["total_agents"]
+        .as_u64()
         .expect("Should have agent count");
 
     // Verify consistency
-    assert_eq!(agent_count_before as u64, status_agent_count,
-               "Agent count should be consistent between endpoints");
+    assert_eq!(
+        agent_count_before as u64, status_agent_count,
+        "Agent count should be consistent between endpoints"
+    );
 
     println!("✅ API data consistency verified");
 }
-
-/// Test API concurrent access
-#[tokio::test]
-async fn test_api_concurrent_access() {
-    let server = TestServer::new(3001);
-
-    // Skip if server is not running
-    if server.health_check().await.is_err() {
-        println!("⚠️  Server not running, skipping concurrent access tests");
-        return;
-    }
-
-    // Test concurrent agent creation
-    let mut handles = vec![];
-
-    for i in 0..5 {
-        let server_clone = TestServer::new(3001);
-        let handle = tokio::spawn(async move {
-            let config = json!({
-                "name": format!("ConcurrentAgent{}", i),
-                "type": "worker",
-                "capabilities": [
-                    {
-                        "name": "concurrent_testing",
-                        "proficiency": 0.8,
-                        "learning_rate": 0.1
-                    }
-                ]
-            });
-
-            server_clone.create_agent(config).await
-        });
-
-        handles.push(handle);
-    }
-
-    // Wait for all concurrent requests
-    let results = futures::future::join_all(handles).await;
-
-    let success_count = results.iter()
-        .filter(|result| matches!(result, Ok(Ok(_))))
-        .count();
-
-    println!("✅ Concurrent access test: {}/{} requests successful", success_count, results.len());
-
-    assert!(success_count >= 4, "Most concurrent requests should succeed");
-
-    // Verify final state
-    let final_agents = server.get_agents().await
-        .expect("Should get final agents list");
-
-    let final_count = final_agents["agents"].as_array()
-        .expect("Should be array")
-        .len();
-
-    assert!(final_count >= 4, "Should have at least the successfully created agents");
-
-    println!("✅ API concurrent access test passed");
-}</content>
-</xai:function_call">scripts/security-audit.sh

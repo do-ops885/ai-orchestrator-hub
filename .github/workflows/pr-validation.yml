@@ -28,6 +28,11 @@ jobs:
       test-strategy: ${{ steps.analysis.outputs.test-strategy }}
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Initialize PR validation logging
         run: |
           cat > log_helper.sh << 'EOF'
@@ -62,11 +67,6 @@ jobs:
           source log_helper.sh
           log_structured "INFO" "PR validation started" \
             '{"pr_number": "${{ github.event.number }}", "pr_title": "${{ github.event.pull_request.title }}"}'
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Enhanced change analysis
         id: analysis
@@ -156,6 +156,11 @@ jobs:
     timeout-minutes: 25
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Initialize code quality logging
         run: |
           cat > log_helper.sh << 'EOF'
@@ -210,11 +215,6 @@ jobs:
           source log_helper.sh
           log_structured "INFO" "Code quality validation started" \
             '{"test_strategy": "${{ needs.pr-metadata.outputs.test-strategy }}"}'
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup development environment
         run: |
@@ -405,6 +405,9 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Initialize integration testing
         run: |
           cat > log_helper.sh << 'EOF'
@@ -438,9 +441,6 @@ jobs:
           chmod +x log_helper.sh
           source log_helper.sh
           log_structured "INFO" "Integration testing started"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Setup test environment
         run: |
@@ -527,6 +527,11 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Initialize security validation
         run: |
           cat > log_helper.sh << 'EOF'
@@ -560,11 +565,6 @@ jobs:
           chmod +x log_helper.sh
           source log_helper.sh
           log_structured "INFO" "Security validation started"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Differential security scanning
         run: |
@@ -649,6 +649,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Initialize summary
         run: |
           cat > log_helper.sh << 'EOF'
@@ -682,9 +685,6 @@ jobs:
           chmod +x log_helper.sh
           source log_helper.sh
           log_structured "INFO" "PR validation summary started"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Download validation results
         uses: actions/download-artifact@v5

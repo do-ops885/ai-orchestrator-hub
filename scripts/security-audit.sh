@@ -162,5 +162,4 @@ main() {
 }
 
 # Run main function
-main "$@"</content>
-</xai:function_call">scripts/security-audit.sh
+main "$@"

@@ -38,6 +38,12 @@ jobs:
       correlation-id: ${{ env.CORRELATION_ID }}
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Initialize structured logging
         run: |
           cat > log_helper.sh << 'EOF'
@@ -72,12 +78,6 @@ jobs:
           source log_helper.sh
           log_structured "INFO" "Maintenance workflow started" \
             '{"maintenance_type": "${{ github.event.inputs.maintenance_type || 'full' }}"}'
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create maintenance plan
         id: plan
@@ -116,6 +116,12 @@ jobs:
     timeout-minutes: 45
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Initialize logging
         run: |
           cat > log_helper.sh << 'EOF'
@@ -169,12 +175,6 @@ jobs:
           chmod +x log_helper.sh
           source log_helper.sh
           log_structured "INFO" "Dependency updates job started"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -377,6 +377,9 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Initialize cache maintenance logging
         run: |
           cat > log_helper.sh << 'EOF'
@@ -410,9 +413,6 @@ jobs:
           chmod +x log_helper.sh
           source log_helper.sh
           log_structured "INFO" "Cache maintenance job started"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Analyze cache usage
         run: |
@@ -473,6 +473,9 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Initialize security monitoring
         run: |
           cat > log_helper.sh << 'EOF'
@@ -506,9 +509,6 @@ jobs:
           chmod +x log_helper.sh
           source log_helper.sh
           log_structured "INFO" "Security monitoring job started"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Setup security tools
         run: |
@@ -650,6 +650,9 @@ jobs:
     timeout-minutes: 40
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Initialize performance monitoring
         run: |
           cat > log_helper.sh << 'EOF'
@@ -683,9 +686,6 @@ jobs:
           chmod +x log_helper.sh
           source log_helper.sh
           log_structured "INFO" "Performance monitoring job started"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Setup performance tools
         run: |
@@ -812,6 +812,9 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Initialize summary logging
         run: |
           cat > log_helper.sh << 'EOF'
@@ -845,9 +848,6 @@ jobs:
           chmod +x log_helper.sh
           source log_helper.sh
           log_structured "INFO" "Maintenance summary job started"
-
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Download maintenance reports
         uses: actions/download-artifact@v5

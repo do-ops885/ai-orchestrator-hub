@@ -480,7 +480,10 @@ impl WorkStealingQueue {
         }
 
         if removed_count > 0 {
-            tracing::info!("Cleaned up {} stale tasks from work-stealing queue", removed_count);
+            tracing::info!(
+                "Cleaned up {} stale tasks from work-stealing queue",
+                removed_count
+            );
         }
 
         Ok(())

@@ -2,9 +2,9 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, workflow-test ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, workflow-test ]
   workflow_dispatch:
 
 concurrency:
@@ -15,13 +15,9 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "-D warnings"
-  # Structured logging configuration
-  LOG_LEVEL: INFO
-  LOG_FORMAT: json
-  CORRELATION_ID: ${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
-  # Fast feedback job - runs first with enhanced logging
+  # Fast feedback job - runs first
   pre-check:
     name: Pre-flight Checks
     runs-on: ubuntu-latest
@@ -29,47 +25,8 @@ jobs:
     outputs:
       rust-changed: ${{ steps.filter.outputs.rust }}
       frontend-changed: ${{ steps.filter.outputs.frontend }}
-      correlation-id: ${{ env.CORRELATION_ID }}
 
     steps:
-      - name: Initialize structured logging
-        run: |
-          echo "::group::Structured Logging Setup"
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                run_attempt: $run_attempt,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Pre-check job started" '{"step": "initialization"}'
-          echo "::endgroup::"
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -91,11 +48,11 @@ jobs:
 
       - name: Log change detection results
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Change detection completed" \
-            '{"rust_changed": "${{ steps.filter.outputs.rust }}", "frontend_changed": "${{ steps.filter.outputs.frontend }}"}'
+          echo "Change detection completed:"
+          echo "  Rust changes: ${{ steps.filter.outputs.rust }}"
+          echo "  Frontend changes: ${{ steps.filter.outputs.frontend }}"
 
-  # Enhanced Rust build with error handling and resource monitoring
+  # Rust build job
   rust-build:
     name: Rust Build (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
@@ -116,111 +73,20 @@ jobs:
             runner: macos-latest
 
     steps:
-      - name: Initialize structured logging and monitoring
-        run: |
-          echo "::group::Setup Logging and Monitoring"
-          # Create logging helper
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg target "${{ matrix.target }}" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                target: $target,
-                context: $extra
-              }'
-          }
-
-          # Resource monitoring function
-          monitor_resources() {
-            local step="$1"
-            local memory_mb=$(free -m | awk 'NR==2{printf "%.2f", $3}')
-            local disk_usage=$(df -h . | awk 'NR==2 {print $5}' | sed 's/%//')
-            local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//')
-
-            log_structured "DEBUG" "Resource usage" \
-              "{\"step\": \"$step\", \"memory_mb\": $memory_mb, \"disk_usage_percent\": $disk_usage, \"cpu_usage\": \"$cpu_usage\"}"
-          }
-
-          # Error handling with retry
-          retry_with_backoff() {
-            local max_attempts=3
-            local delay=5
-            local attempt=1
-
-            while [ $attempt -le $max_attempts ]; do
-              log_structured "INFO" "Attempting command (attempt $attempt/$max_attempts)" \
-                "{\"command\": \"$1\", \"attempt\": $attempt}"
-
-              if eval "$1"; then
-                log_structured "INFO" "Command succeeded" "{\"command\": \"$1\", \"attempt\": $attempt}"
-                return 0
-              else
-                local exit_code=$?
-                log_structured "WARN" "Command failed" \
-                  "{\"command\": \"$1\", \"attempt\": $attempt, \"exit_code\": $exit_code}"
-
-                if [ $attempt -eq $max_attempts ]; then
-                  log_structured "ERROR" "Command failed after all attempts" \
-                    "{\"command\": \"$1\", \"max_attempts\": $max_attempts, \"final_exit_code\": $exit_code}"
-                  return $exit_code
-                fi
-
-                sleep $delay
-                delay=$((delay * 2))
-                attempt=$((attempt + 1))
-              fi
-            done
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Rust build job started" '{"target": "${{ matrix.target }}"}'
-          monitor_resources "initialization"
-          echo "::endgroup::"
-
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Rust with error handling
+      - name: Setup Rust
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Setting up Rust toolchain" '{"target": "${{ matrix.target }}"}'
-
-          # Install Rust with retry logic
-          retry_with_backoff "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+          echo "::group::Setting up Rust toolchain for ${{ matrix.target }}"
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           source ~/.cargo/env
-
-          retry_with_backoff "rustup target add ${{ matrix.target }}"
-
-          # Verify installation
+          rustup target add ${{ matrix.target }}
           rustc --version
           cargo --version
+          echo "::endgroup::"
 
-          log_structured "INFO" "Rust toolchain setup completed" \
-            '{"rustc_version": "'$(rustc --version)'", "cargo_version": "'$(cargo --version)'"}'
-          monitor_resources "rust_setup"
-
-      - name: Cache Cargo registry with enhanced monitoring
+      - name: Cache Cargo registry
         uses: actions/cache@v4
         with:
           path: |
@@ -231,7 +97,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
 
-      - name: Cache target directory with monitoring
+      - name: Cache target directory
         uses: actions/cache@v4
         with:
           path: backend/target/
@@ -243,165 +109,35 @@ jobs:
       - name: Install cross-compilation tools
         if: matrix.target != 'x86_64-unknown-linux-gnu'
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Installing cross-compilation tools" '{"target": "${{ matrix.target }}"}'
-
+          echo "::group::Installing cross-compilation tools for ${{ matrix.target }}"
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            retry_with_backoff "sudo apt-get update"
-            retry_with_backoff "sudo apt-get install -y gcc-aarch64-linux-gnu"
+            sudo apt-get update
+            sudo apt-get install -y gcc-aarch64-linux-gnu
           fi
+          echo "::endgroup::"
 
-          monitor_resources "cross_tools_install"
-
-      - name: Build release binary with monitoring
+      - name: Build release binary
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Starting release build" '{"target": "${{ matrix.target }}"}'
-
+          echo "::group::Building release binary for ${{ matrix.target }}"
           cd backend
+          cargo build --release --all-features --target ${{ matrix.target }}
+          echo "::endgroup::"
 
-          # Monitor build process
-          (
-            while true; do
-              monitor_resources "build_in_progress"
-              sleep 30
-            done
-          ) &
-          MONITOR_PID=$!
-
-          # Build with structured output
-          retry_with_backoff "cargo build --release --all-features --target ${{ matrix.target }}" 2>&1 | \
-          while IFS= read -r line; do
-            log_structured "DEBUG" "Build output" "{\"line\": \"$line\"}"
-          done
-
-          # Stop monitoring
-          kill $MONITOR_PID 2>/dev/null || true
-
-          log_structured "INFO" "Release build completed" '{"target": "${{ matrix.target }}"}'
-          monitor_resources "build_completed"
-
-      - name: Run tests with edge cases and monitoring
+      - name: Run tests
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Starting test execution" '{"target": "${{ matrix.target }}"}'
-
+          echo "::group::Running tests for ${{ matrix.target }}"
           cd backend
+          cargo test --all-features --release -- --nocapture
+          echo "::endgroup::"
 
-          # Standard tests
-          retry_with_backoff "cargo test --all-features --release -- --nocapture" 2>&1 | \
-          while IFS= read -r line; do
-            log_structured "DEBUG" "Test output" "{\"line\": \"$line\"}"
-          done
-
-          # Edge case tests - limited resources
-          log_structured "INFO" "Running edge case tests - limited resources"
-          retry_with_backoff "cargo test --release -- --test-threads 1 edge_cases" 2>&1 | \
-          while IFS= read -r line; do
-            log_structured "DEBUG" "Edge test output" "{\"line\": \"$line\", \"scenario\": \"limited_resources\"}"
-          done
-
-          # Edge case tests - high concurrency
-          log_structured "INFO" "Running edge case tests - high concurrency"
-          retry_with_backoff "cargo test --release -- --test-threads 8 edge_cases" 2>&1 | \
-          while IFS= read -r line; do
-            log_structured "DEBUG" "Edge test output" "{\"line\": \"$line\", \"scenario\": \"high_concurrency\"}"
-          done
-
-          monitor_resources "tests_completed"
-
-      - name: Memory leak detection
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Running memory leak detection"
-
-          cd backend
-
-          # Install valgrind if on Linux
-          if [[ "${{ matrix.target }}" == *"linux"* ]]; then
-            sudo apt-get update && sudo apt-get install -y valgrind
-
-            # Run memory leak detection on key binaries
-            if [ -f "target/${{ matrix.target }}/release/multiagent-hive" ]; then
-              valgrind --leak-check=full --show-leak-kinds=all \
-                --track-origins=yes --verbose \
-                --log-file=valgrind.log \
-                ./target/${{ matrix.target }}/release/multiagent-hive --help || true
-
-              # Parse valgrind output
-              if [ -f valgrind.log ]; then
-                leaks=$(grep -c "definitely lost" valgrind.log || echo "0")
-                log_structured "INFO" "Memory leak detection completed" \
-                  "{\"leaks_detected\": $leaks, \"report_file\": \"valgrind.log\"}"
-
-                if [ "$leaks" -gt 0 ]; then
-                  log_structured "WARN" "Memory leaks detected" "{\"leak_count\": $leaks}"
-                  cat valgrind.log
-                fi
-              fi
-            fi
-          fi
-
-      - name: Performance regression detection
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Running performance regression detection"
-
-          cd backend
-
-          # Install criterion if not present
-          if ! cargo bench --help | grep -q "criterion"; then
-            echo '[dev-dependencies]' >> Cargo.toml
-            echo 'criterion = "0.5"' >> Cargo.toml
-          fi
-
-          # Run benchmarks and save baseline
-          if [ -d "benches" ]; then
-            cargo bench -- --save-baseline current 2>&1 | \
-            while IFS= read -r line; do
-              log_structured "DEBUG" "Benchmark output" "{\"line\": \"$line\"}"
-            done
-
-            # Compare with previous baseline if it exists
-            if [ -f "target/criterion/baseline/estimates.json" ]; then
-              # Simple performance check - compare build times
-              current_time=$(date +%s)
-              if [ -f ".build_time_baseline" ]; then
-                baseline_time=$(cat .build_time_baseline)
-                time_diff=$((current_time - baseline_time))
-
-                if [ $time_diff -gt 300 ]; then  # 5 minutes threshold
-                  log_structured "WARN" "Build time regression detected" \
-                    "{\"baseline_time\": $baseline_time, \"current_time\": $current_time, \"diff_seconds\": $time_diff}"
-                fi
-              fi
-              echo $current_time > .build_time_baseline
-            fi
-          fi
-
-      - name: Upload build artifacts with metadata
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: rust-binary-${{ matrix.target }}
-          path: |
-            backend/target/${{ matrix.target }}/release/multiagent-hive${{ contains(matrix.target, 'windows') && '.exe' || '' }}
-            backend/valgrind.log
-            backend/.build_time_baseline
+          path: backend/target/${{ matrix.target }}/release/multiagent-hive${{ contains(matrix.target, 'windows') && '.exe' || '' }}
           retention-days: 30
 
-      - name: Cleanup and final logging
-        if: always()
-        run: |
-          source log_helper.sh
-          monitor_resources "job_completion"
-
-          # Cleanup temporary files
-          rm -f log_helper.sh
-
-          log_structured "INFO" "Rust build job completed" \
-            '{"target": "${{ matrix.target }}", "status": "${{ job.status }}"}'
-
-  # Enhanced frontend build with similar improvements
+  # Frontend build job
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest
@@ -410,159 +146,43 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Initialize structured logging
-        run: |
-          echo "::group::Frontend Build Setup"
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-
-          retry_with_backoff() {
-            local max_attempts=3
-            local delay=5
-            local attempt=1
-
-            while [ $attempt -le $max_attempts ]; do
-              if eval "$1"; then
-                return 0
-              else
-                local exit_code=$?
-                if [ $attempt -eq $max_attempts ]; then
-                  return $exit_code
-                fi
-                sleep $delay
-                delay=$((delay * 2))
-                attempt=$((attempt + 1))
-              fi
-            done
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Frontend build job started"
-          echo "::endgroup::"
-
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js with error handling
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Setting up Node.js"
-
-          # Use actions/setup-node with retry for network issues
-          retry_with_backoff "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -"
-          retry_with_backoff "sudo apt-get install -y nodejs"
-
-          node_version=$(node --version)
-          npm_version=$(npm --version)
-
-          log_structured "INFO" "Node.js setup completed" \
-            "{\"node_version\": \"$node_version\", \"npm_version\": \"$npm_version\"}"
-
-      - name: Cache Node.js dependencies
-        uses: actions/cache@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          path: frontend/node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies with monitoring
+      - name: Install dependencies
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Installing frontend dependencies"
-
+          echo "::group::Installing frontend dependencies"
           cd frontend
-          retry_with_backoff "npm ci" 2>&1 | \
-          while IFS= read -r line; do
-            log_structured "DEBUG" "NPM install output" "{\"line\": \"$line\"}"
-          done
+          npm ci
+          echo "::endgroup::"
 
-      - name: Run linting with enhanced rules
+      - name: Run linting
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running frontend linting"
-
+          echo "::group::Running frontend linting"
           cd frontend
+          npm run lint
+          echo "::endgroup::"
 
-          # Standard linting
-          npm run lint 2>&1 | \
-          while IFS= read -r line; do
-            log_structured "DEBUG" "Lint output" "{\"line\": \"$line\"}"
-          done
-
-          # Performance linting (if eslint-plugin-perf exists)
-          if npm list eslint-plugin-perf >/dev/null 2>&1; then
-            npx eslint --ext .ts,.tsx src/ --config .eslintrc.perf.js 2>&1 | \
-            while IFS= read -r line; do
-              log_structured "DEBUG" "Performance lint output" "{\"line\": \"$line\"}"
-            done
-          fi
-
-      - name: Run tests with coverage and edge cases
+      - name: Run tests
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running frontend tests"
-
+          echo "::group::Running frontend tests"
           cd frontend
+          npm run test:coverage
+          echo "::endgroup::"
 
-          # Standard tests with coverage
-          npm run test:coverage 2>&1 | \
-          while IFS= read -r line; do
-            log_structured "DEBUG" "Test output" "{\"line\": \"$line\"}"
-          done
-
-          # Edge case tests - memory constraints
-          NODE_OPTIONS="--max-old-space-size=512" npm test -- --testNamePattern="edge" 2>&1 | \
-          while IFS= read -r line; do
-            log_structured "DEBUG" "Edge test output" "{\"line\": \"$line\", \"scenario\": \"memory_constrained\"}"
-          done
-
-      - name: Build with monitoring
+      - name: Build frontend
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Building frontend"
-
+          echo "::group::Building frontend"
           cd frontend
-
-          # Monitor build process
-          start_time=$(date +%s)
-
-          npm run build 2>&1 | \
-          while IFS= read -r line; do
-            log_structured "DEBUG" "Build output" "{\"line\": \"$line\"}"
-          done
-
-          end_time=$(date +%s)
-          build_duration=$((end_time - start_time))
-
-          log_structured "INFO" "Frontend build completed" \
-            "{\"build_duration_seconds\": $build_duration}"
+          npm run build
+          echo "::endgroup::"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -571,14 +191,7 @@ jobs:
           path: frontend/dist/
           retention-days: 30
 
-      - name: Cleanup
-        if: always()
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Frontend build job completed" '{"status": "${{ job.status }}"}'
-          rm -f log_helper.sh
-
-  # Integration tests with enhanced monitoring
+  # Integration tests
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest
@@ -587,87 +200,26 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Initialize integration test logging
-        run: |
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Integration tests started"
-
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           pattern: "*-build*"
           merge-multiple: true
 
-      - name: Run integration tests with chaos engineering
+      - name: Run integration tests
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running integration tests"
-
-          # Standard integration tests
+          echo "::group::Running integration tests"
           if [ -f "scripts/integration_tests.sh" ]; then
-            ./scripts/integration_tests.sh 2>&1 | \
-            while IFS= read -r line; do
-              log_structured "DEBUG" "Integration test output" "{\"line\": \"$line\"}"
-            done
+            ./scripts/integration_tests.sh
+          else
+            echo "No integration test script found"
           fi
+          echo "::endgroup::"
 
-          # Chaos engineering tests (if toxiproxy is available)
-          if command -v toxiproxy-cli >/dev/null 2>&1; then
-            log_structured "INFO" "Running chaos engineering tests"
-
-            # Simulate network latency
-            toxiproxy-cli create test-proxy -l localhost:8080 -u localhost:3000
-            toxiproxy-cli toxic add test-proxy -t latency -a latency=1000
-
-            # Run tests with network issues
-            timeout 60 ./scripts/integration_tests.sh --chaos 2>&1 | \
-            while IFS= read -r line; do
-              log_structured "DEBUG" "Chaos test output" "{\"line\": \"$line\", \"scenario\": \"network_latency\"}"
-            done
-
-            toxiproxy-cli delete test-proxy
-          fi
-
-      - name: Cleanup integration tests
-        if: always()
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Integration tests completed" '{"status": "${{ job.status }}"}'
-          rm -f log_helper.sh
-
-  # Final summary job
+  # Build summary
   build-summary:
     name: Build Summary
     runs-on: ubuntu-latest
@@ -677,56 +229,22 @@ jobs:
     steps:
       - name: Generate build summary
         run: |
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-
-          # Generate comprehensive summary
-          log_structured "INFO" "Build workflow summary" \
-            '{
-              "pre_check_result": "${{ needs.pre-check.result }}",
-              "rust_build_result": "${{ needs.rust-build.result }}",
-              "frontend_build_result": "${{ needs.frontend-build.result }}",
-              "integration_test_result": "${{ needs.integration-test.result }}",
-              "rust_changed": "${{ needs.pre-check.outputs.rust-changed }}",
-              "frontend_changed": "${{ needs.pre-check.outputs.frontend-changed }}",
-              "correlation_id": "${{ needs.pre-check.outputs.correlation-id }}"
-            }'
+          echo "::group::Build Summary"
+          echo "Pre-check: ${{ needs.pre-check.result }}"
+          echo "Rust build: ${{ needs.rust-build.result }}"
+          echo "Frontend build: ${{ needs.frontend-build.result }}"
+          echo "Integration tests: ${{ needs.integration-test.result }}"
+          echo "Rust changes detected: ${{ needs.pre-check.outputs.rust-changed }}"
+          echo "Frontend changes detected: ${{ needs.pre-check.outputs.frontend-changed }}"
+          echo "::endgroup::"
 
           # Determine overall status
           if [[ "${{ needs.rust-build.result }}" == "success" || "${{ needs.rust-build.result }}" == "skipped" ]] && \
              [[ "${{ needs.frontend-build.result }}" == "success" || "${{ needs.frontend-build.result }}" == "skipped" ]] && \
              [[ "${{ needs.integration-test.result }}" == "success" || "${{ needs.integration-test.result }}" == "skipped" ]]; then
-            log_structured "INFO" "Build workflow completed successfully"
+            echo "✅ Build workflow completed successfully"
             exit 0
           else
-            log_structured "ERROR" "Build workflow failed"
+            echo "❌ Build workflow failed"
             exit 1
           fi

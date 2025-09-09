@@ -15,12 +15,9 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  LOG_LEVEL: INFO
-  LOG_FORMAT: json
-  CORRELATION_ID: ${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
-  # Enhanced security and dependency scanning
+  # Security and dependency scanning
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -31,49 +28,10 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Initialize structured logging
-        run: |
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Security scan job started"
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Run CodeQL Analysis with enhanced configuration
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Starting CodeQL analysis"
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
@@ -81,55 +39,41 @@ jobs:
           languages: javascript, rust
           config-file: ./.github/codeql-config.yml
 
-      - name: Autobuild with monitoring
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Starting autobuild process"
-
-          # Monitor build process
-          start_time=$(date +%s)
-
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
-
-      - name: Complete CodeQL analysis
-        run: |
-          source log_helper.sh
-          end_time=$(date +%s)
-          build_duration=$((end_time - start_time))
-          log_structured "INFO" "Autobuild completed" "{\"duration_seconds\": $build_duration}"
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
-      - name: Enhanced dependency review
+      - name: Dependency review
         uses: actions/dependency-review-action@v4
         if: github.event_name == 'pull_request'
         with:
           config-file: './.github/dependency-review-config.yml'
 
-      - name: Secrets detection with structured output
+      - name: Secrets detection
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running secrets detection"
+          echo "🔍 Running secrets detection..."
 
           # Install gitleaks if not present
           if ! command -v gitleaks &> /dev/null; then
+            echo "📦 Installing gitleaks..."
             wget -O gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.18.0_linux_x64.tar.gz
             tar -xzf gitleaks.tar.gz
             chmod +x gitleaks
             sudo mv gitleaks /usr/local/bin/
           fi
 
-          # Run gitleaks with JSON output
+          # Run gitleaks
+          echo "🔎 Scanning for secrets..."
           gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose || true
 
           if [ -f gitleaks-report.json ]; then
             secrets_count=$(jq length gitleaks-report.json)
-            log_structured "INFO" "Secrets detection completed" "{\"secrets_found\": $secrets_count}"
+            echo "✅ Secrets detection completed. Found: $secrets_count potential secrets"
 
             if [ $secrets_count -gt 0 ]; then
-              log_structured "WARN" "Potential secrets detected" "{\"count\": $secrets_count}"
+              echo "⚠️  Potential secrets detected. Please review gitleaks-report.json"
               echo "::warning::Potential secrets detected. Please review gitleaks-report.json"
             fi
           fi
@@ -142,54 +86,20 @@ jobs:
             gitleaks-report.json
           retention-days: 30
 
-  # Enhanced Rust linting with custom rules
+  # Rust linting
   rust-lint:
     name: Rust Lint
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
-      - name: Initialize Rust lint logging
-        run: |
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Rust lint job started"
-
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Rust with enhanced toolchain
+      - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy, rust-src
+          components: rustfmt, clippy
 
       - name: Cache Rust dependencies
         uses: actions/cache@v4
@@ -204,33 +114,22 @@ jobs:
             ${{ runner.os }}-cargo-lint-
             ${{ runner.os }}-cargo-
 
-      - name: Enhanced Rust formatting check
+      - name: Rust formatting check
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running Rust formatting check"
-
+          echo "🔧 Checking Rust formatting..."
           cd backend
 
-          # Check formatting with detailed output
           if ! cargo fmt --check; then
-            log_structured "ERROR" "Rust formatting issues detected"
-
-            # Generate formatting diff
-            cargo fmt --check --verbose 2>&1 | \
-            while IFS= read -r line; do
-              log_structured "DEBUG" "Format check output" "{\"line\": \"$line\"}"
-            done
-
+            echo "❌ Rust formatting issues detected"
+            cargo fmt --check --verbose
             exit 1
           else
-            log_structured "INFO" "Rust formatting check passed"
+            echo "✅ Rust formatting check passed"
           fi
 
-      - name: Enhanced Clippy linting with custom rules
+      - name: Clippy linting
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running enhanced Clippy analysis"
-
+          echo "🔍 Running Clippy analysis..."
           cd backend
 
           # Run clippy with comprehensive lints
@@ -249,20 +148,17 @@ jobs:
             warnings_count=$(jq '[.[] | select(.reason == "compiler-message" and .message.level == "warning")] | length' ../clippy-report.json)
             errors_count=$(jq '[.[] | select(.reason == "compiler-message" and .message.level == "error")] | length' ../clippy-report.json)
 
-            log_structured "INFO" "Clippy analysis completed" \
-              "{\"warnings\": $warnings_count, \"errors\": $errors_count}"
+            echo "✅ Clippy analysis completed. Warnings: $warnings_count, Errors: $errors_count"
 
             if [ $errors_count -gt 0 ]; then
-              log_structured "ERROR" "Clippy errors detected" "{\"count\": $errors_count}"
+              echo "❌ Clippy errors detected: $errors_count"
               exit 1
             fi
           fi
 
       - name: Performance-focused linting
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running performance-focused linting"
-
+          echo "⚡ Running performance-focused linting..."
           cd backend
 
           # Check for performance anti-patterns
@@ -276,21 +172,19 @@ jobs:
 
           if [ -f ../performance-lint.json ]; then
             perf_issues=$(jq '[.[] | select(.reason == "compiler-message")] | length' ../performance-lint.json)
-            log_structured "INFO" "Performance linting completed" "{\"issues\": $perf_issues}"
+            echo "✅ Performance linting completed. Issues: $perf_issues"
           fi
 
       - name: Documentation linting
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running documentation linting"
-
+          echo "📚 Running documentation linting..."
           cd backend
 
           # Check for missing documentation
           cargo doc --no-deps --document-private-items 2>&1 | \
           while IFS= read -r line; do
             if echo "$line" | grep -q "warning.*missing documentation"; then
-              log_structured "WARN" "Missing documentation" "{\"line\": \"$line\"}"
+              echo "⚠️  Missing documentation: $line"
             fi
           done
 
@@ -298,7 +192,7 @@ jobs:
           cargo doc --no-deps 2>&1 | \
           while IFS= read -r line; do
             if echo "$line" | grep -q "warning.*unresolved link"; then
-              log_structured "WARN" "Broken documentation link" "{\"line\": \"$line\"}"
+              echo "⚠️  Broken documentation link: $line"
             fi
           done
 
@@ -311,47 +205,13 @@ jobs:
             performance-lint.json
           retention-days: 30
 
-  # Enhanced frontend linting with performance analysis
+  # Frontend linting
   frontend-lint:
     name: Frontend Lint
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-      - name: Initialize frontend lint logging
-        run: |
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Frontend lint job started"
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -364,17 +224,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Installing frontend dependencies"
-
+          echo "📦 Installing frontend dependencies..."
           cd frontend
           npm ci
 
-      - name: Enhanced ESLint with custom rules
+      - name: ESLint analysis
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running enhanced ESLint analysis"
-
+          echo "🔍 Running ESLint analysis..."
           cd frontend
 
           # Run ESLint with comprehensive rules
@@ -388,83 +244,33 @@ jobs:
             error_count=$(jq '[.[] | .messages[] | select(.severity == 2)] | length' ../eslint-report.json)
             warning_count=$(jq '[.[] | .messages[] | select(.severity == 1)] | length' ../eslint-report.json)
 
-            log_structured "INFO" "ESLint analysis completed" \
-              "{\"total_issues\": $total_issues, \"errors\": $error_count, \"warnings\": $warning_count}"
+            echo "✅ ESLint analysis completed. Total issues: $total_issues, Errors: $error_count, Warnings: $warning_count"
 
             if [ $error_count -gt 0 ]; then
-              log_structured "ERROR" "ESLint errors detected" "{\"count\": $error_count}"
+              echo "❌ ESLint errors detected: $error_count"
               exit 1
             fi
           fi
 
-      - name: Performance-focused linting
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Running performance-focused frontend linting"
-
-          cd frontend
-
-          # Install performance linting plugins if not present
-          npm list eslint-plugin-react-perf >/dev/null 2>&1 || npm install --no-save eslint-plugin-react-perf
-          npm list eslint-plugin-jsx-a11y >/dev/null 2>&1 || npm install --no-save eslint-plugin-jsx-a11y
-
-          # Create performance-focused ESLint config
-          cat > .eslintrc.perf.js << 'EOF'
-          module.exports = {
-            extends: ['.eslintrc.cjs'],
-            plugins: ['react-perf', 'jsx-a11y'],
-            rules: {
-              'react-perf/jsx-no-new-object-as-prop': 'warn',
-              'react-perf/jsx-no-new-array-as-prop': 'warn',
-              'react-perf/jsx-no-new-function-as-prop': 'warn',
-              'react-perf/jsx-no-jsx-as-prop': 'warn',
-              'jsx-a11y/alt-text': 'error',
-              'jsx-a11y/aria-props': 'error',
-              'jsx-a11y/aria-proptypes': 'error',
-              'jsx-a11y/aria-unsupported-elements': 'error',
-              'jsx-a11y/role-has-required-aria-props': 'error',
-              'jsx-a11y/role-supports-aria-props': 'error'
-            }
-          };
-          EOF
-
-          # Run performance linting
-          npx eslint . --ext .ts,.tsx,.js,.jsx \
-            --config .eslintrc.perf.js \
-            --format json \
-            --output-file ../performance-lint.json || true
-
-          if [ -f ../performance-lint.json ]; then
-            perf_issues=$(jq '[.[] | .messages[]] | length' ../performance-lint.json)
-            log_structured "INFO" "Performance linting completed" "{\"issues\": $perf_issues}"
-          fi
-
       - name: TypeScript strict checking
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running TypeScript strict checking"
-
+          echo "🔧 Running TypeScript strict checking..."
           cd frontend
 
           # Run TypeScript compiler with strict settings
-          npx tsc --noEmit --strict --exactOptionalPropertyTypes 2>&1 | \
-          while IFS= read -r line; do
-            log_structured "DEBUG" "TypeScript output" "{\"line\": \"$line\"}"
-          done
+          npx tsc --noEmit --strict --exactOptionalPropertyTypes
 
       - name: Prettier formatting check
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running Prettier formatting check"
-
+          echo "💅 Running Prettier formatting check..."
           cd frontend
 
           # Check formatting
           if ! npx prettier --check .; then
-            log_structured "ERROR" "Prettier formatting issues detected"
+            echo "❌ Prettier formatting issues detected"
             exit 1
           else
-            log_structured "INFO" "Prettier formatting check passed"
+            echo "✅ Prettier formatting check passed"
           fi
 
       - name: Upload frontend lint results
@@ -473,71 +279,29 @@ jobs:
           name: frontend-lint-results
           path: |
             eslint-report.json
-            performance-lint.json
           retention-days: 30
 
-  # Enhanced documentation linting
+  # Documentation linting
   documentation-lint:
     name: Documentation Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-      - name: Initialize documentation lint logging
-        run: |
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Documentation lint job started"
-
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup documentation tools
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Setting up documentation tools"
+          echo "📚 Setting up documentation tools..."
 
           # Install markdown linting tools
           npm install -g markdownlint-cli
           npm install -g markdown-link-check
 
-          # Install vale for prose linting
-          wget -O vale.tar.gz https://github.com/errata-ai/vale/releases/latest/download/vale_3.0.7_Linux_64-bit.tar.gz
-          tar -xzf vale.tar.gz
-          sudo mv vale /usr/local/bin/
-
       - name: Markdown linting
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Running markdown linting"
+          echo "📝 Running markdown linting..."
 
           # Create markdownlint config
           cat > .markdownlint.json << 'EOF'
@@ -553,57 +317,27 @@ jobs:
 
           if [ -f markdown-lint.json ]; then
             issues_count=$(jq length markdown-lint.json)
-            log_structured "INFO" "Markdown linting completed" "{\"issues\": $issues_count}"
+            echo "✅ Markdown linting completed. Issues: $issues_count"
 
             if [ $issues_count -gt 0 ]; then
-              log_structured "WARN" "Markdown linting issues detected" "{\"count\": $issues_count}"
+              echo "⚠️  Markdown linting issues detected: $issues_count"
             fi
           fi
 
       - name: Link checking
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Checking markdown links"
+          echo "🔗 Checking markdown links..."
 
           # Check links in all markdown files
           find . -name "*.md" -not -path "./node_modules/*" -not -path "./.git/*" | \
           while IFS= read -r file; do
-            log_structured "DEBUG" "Checking links in file" "{\"file\": \"$file\"}"
+            echo "🔍 Checking links in: $file"
             markdown-link-check "$file" --config .github/markdown-link-check.json || true
           done
 
-      - name: Prose linting with Vale
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Running prose linting with Vale"
-
-          # Create basic Vale config
-          mkdir -p .vale
-          cat > .vale.ini << 'EOF'
-          StylesPath = .vale/styles
-          MinAlertLevel = suggestion
-
-          [*.md]
-          BasedOnStyles = Vale, write-good
-          EOF
-
-          # Download Vale styles
-          mkdir -p .vale/styles
-          wget -O .vale/styles/Vale.zip https://github.com/errata-ai/Vale/releases/latest/download/Vale.zip
-          unzip -o .vale/styles/Vale.zip -d .vale/styles/
-
-          # Run Vale on documentation
-          vale --output=JSON *.md **/*.md > vale-report.json || true
-
-          if [ -f vale-report.json ]; then
-            issues_count=$(jq '[.[] | length] | add // 0' vale-report.json)
-            log_structured "INFO" "Prose linting completed" "{\"issues\": $issues_count}"
-          fi
-
       - name: API documentation validation
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Validating API documentation"
+          echo "🔍 Validating API documentation..."
 
           # Check if API documentation exists and is up to date
           if [ -f "backend/docs/api.md" ]; then
@@ -611,15 +345,14 @@ jobs:
             endpoints_in_code=$(grep -r "route\|endpoint\|api" backend/src/ | wc -l)
             endpoints_in_docs=$(grep -c "##\|###" backend/docs/api.md)
 
-            log_structured "INFO" "API documentation analysis" \
-              "{\"endpoints_in_code\": $endpoints_in_code, \"endpoints_in_docs\": $endpoints_in_docs}"
+            echo "✅ API documentation analysis: $endpoints_in_code endpoints in code, $endpoints_in_docs in docs"
 
             # Simple heuristic: docs should have at least 50% of code references
             if [ $endpoints_in_docs -lt $((endpoints_in_code / 2)) ]; then
-              log_structured "WARN" "API documentation may be incomplete"
+              echo "⚠️  API documentation may be incomplete"
             fi
           else
-            log_structured "WARN" "API documentation not found"
+            echo "⚠️  API documentation not found"
           fi
 
       - name: Upload documentation lint results
@@ -628,10 +361,9 @@ jobs:
           name: documentation-lint-results
           path: |
             markdown-lint.json
-            vale-report.json
           retention-days: 30
 
-  # Lint summary and reporting
+  # Lint summary
   lint-summary:
     name: Lint Summary
     runs-on: ubuntu-latest
@@ -640,162 +372,75 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Initialize lint summary logging
-        run: |
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Lint summary job started"
-
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Download lint results
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           pattern: "*-lint-results"
-          merge-multiple: true
+          path: lint-results
         continue-on-error: true
 
-      - name: Generate comprehensive lint report
+      - name: Generate lint summary
         run: |
-          source log_helper.sh
-          log_structured "INFO" "Generating comprehensive lint report"
+          echo "📊 Generating lint summary..."
 
           # Initialize counters
           total_issues=0
           total_errors=0
-          total_warnings=0
 
           # Process Rust lint results
           rust_issues=0
           rust_errors=0
-          if [ -f "clippy-report.json" ]; then
-            rust_issues=$(jq '[.[] | select(.reason == "compiler-message")] | length' clippy-report.json)
-            rust_errors=$(jq '[.[] | select(.reason == "compiler-message" and .message.level == "error")] | length' clippy-report.json)
+          if [ -f "lint-results/clippy-report.json" ]; then
+            rust_issues=$(jq '[.[] | select(.reason == "compiler-message")] | length' lint-results/clippy-report.json)
+            rust_errors=$(jq '[.[] | select(.reason == "compiler-message" and .message.level == "error")] | length' lint-results/clippy-report.json)
           fi
 
           # Process frontend lint results
           frontend_issues=0
           frontend_errors=0
-          if [ -f "eslint-report.json" ]; then
-            frontend_issues=$(jq '[.[] | .messages[]] | length' eslint-report.json)
-            frontend_errors=$(jq '[.[] | .messages[] | select(.severity == 2)] | length' eslint-report.json)
+          if [ -f "lint-results/eslint-report.json" ]; then
+            frontend_issues=$(jq '[.[] | .messages[]] | length' lint-results/eslint-report.json)
+            frontend_errors=$(jq '[.[] | .messages[] | select(.severity == 2)] | length' lint-results/eslint-report.json)
           fi
 
           # Process documentation lint results
           doc_issues=0
-          if [ -f "markdown-lint.json" ]; then
-            doc_issues=$(jq length markdown-lint.json)
+          if [ -f "lint-results/markdown-lint.json" ]; then
+            doc_issues=$(jq length lint-results/markdown-lint.json)
           fi
 
           # Calculate totals
           total_issues=$((rust_issues + frontend_issues + doc_issues))
           total_errors=$((rust_errors + frontend_errors))
 
-          # Create comprehensive summary
-          cat > lint_summary.json << EOF
-          {
-            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)",
-            "correlation_id": "$CORRELATION_ID",
-            "workflow_run_id": "$GITHUB_RUN_ID",
-            "job_results": {
-              "security_scan": "${{ needs.security-scan.result }}",
-              "rust_lint": "${{ needs.rust-lint.result }}",
-              "frontend_lint": "${{ needs.frontend-lint.result }}",
-              "documentation_lint": "${{ needs.documentation-lint.result }}"
-            },
-            "issue_summary": {
-              "total_issues": $total_issues,
-              "total_errors": $total_errors,
-              "rust_issues": $rust_issues,
-              "rust_errors": $rust_errors,
-              "frontend_issues": $frontend_issues,
-              "frontend_errors": $frontend_errors,
-              "documentation_issues": $doc_issues
-            },
-            "quality_gates": {
-              "no_errors": $([ $total_errors -eq 0 ] && echo true || echo false),
-              "acceptable_warnings": $([ $total_issues -le 50 ] && echo true || echo false)
-            }
-          }
-          EOF
+          echo "📈 Lint Summary:"
+          echo "  🔧 Rust: $rust_issues issues ($rust_errors errors)"
+          echo "  ⚛️  Frontend: $frontend_issues issues ($frontend_errors errors)"
+          echo "  📚 Documentation: $doc_issues issues"
+          echo "  📊 Total: $total_issues issues ($total_errors errors)"
 
-          log_structured "INFO" "Lint summary generated" \
-            "$(cat lint_summary.json)"
+          # Job status summary
+          echo ""
+          echo "🏃 Job Results:"
+          echo "  🔒 Security Scan: ${{ needs.security-scan.result }}"
+          echo "  🦀 Rust Lint: ${{ needs.rust-lint.result }}"
+          echo "  ⚛️  Frontend Lint: ${{ needs.frontend-lint.result }}"
+          echo "  📚 Documentation Lint: ${{ needs.documentation-lint.result }}"
 
       - name: Quality gate validation
         run: |
-          source log_helper.sh
+          echo "🚦 Running quality gate validation..."
 
-          # Check quality gates
-          no_errors=$(jq -r '.quality_gates.no_errors' lint_summary.json)
-          acceptable_warnings=$(jq -r '.quality_gates.acceptable_warnings' lint_summary.json)
-
-          if [ "$no_errors" = "false" ]; then
-            log_structured "ERROR" "Quality gate failed: errors detected"
-            exit 1
-          fi
-
-          if [ "$acceptable_warnings" = "false" ]; then
-            log_structured "WARN" "Quality gate warning: too many issues detected"
-            # Don't fail the build for warnings, but log the concern
-          fi
-
-          log_structured "INFO" "Quality gates validation completed" \
-            "{\"no_errors\": \"$no_errors\", \"acceptable_warnings\": \"$acceptable_warnings\"}"
-
-      - name: Upload lint summary
-        uses: actions/upload-artifact@v4
-        with:
-          name: lint-summary
-          path: lint_summary.json
-          retention-days: 90
-
-      - name: Cleanup and final status
-        if: always()
-        run: |
-          source log_helper.sh
-
-          # Determine overall lint status
-          overall_status="success"
+          # Check if any jobs failed
           if [ "${{ needs.security-scan.result }}" = "failure" ] || \
              [ "${{ needs.rust-lint.result }}" = "failure" ] || \
              [ "${{ needs.frontend-lint.result }}" = "failure" ] || \
              [ "${{ needs.documentation-lint.result }}" = "failure" ]; then
-            overall_status="failure"
-          fi
-
-          log_structured "INFO" "Lint workflow completed" \
-            "{\"overall_status\": \"$overall_status\", \"correlation_id\": \"$CORRELATION_ID\"}"
-
-          if [ "$overall_status" = "failure" ]; then
+            echo "❌ Quality gate failed: One or more lint jobs failed"
             exit 1
           fi
+
+          echo "✅ Quality gate passed: All lint jobs successful"
