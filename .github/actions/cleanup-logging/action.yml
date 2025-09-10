@@ -1,0 +1,32 @@
+name: 'Cleanup Structured Logging'
+description: 'Cleans up structured logging helper script and provides final status'
+
+inputs:
+  final-status:
+    description: 'Final status of the job (success/failure)'
+    required: false
+    default: ${{ job.status }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Final logging and cleanup
+      shell: bash
+      run: |
+        # Source the logging helper if it exists
+        if [ -f "log_helper.sh" ]; then
+          source log_helper.sh
+
+          # Monitor final resources
+          monitor_resources "job_completion" 2>/dev/null || true
+
+          # Log final status
+          log_structured "INFO" "Job completed" \
+            "{\"final_status\": \"${{ inputs.final-status }}\", \"correlation_id\": \"${CORRELATION_ID:-unknown}\"}"
+
+          # Clean up the helper script
+          rm -f log_helper.sh
+        else
+          # Fallback logging if helper script doesn't exist
+          echo "{\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\",\"level\":\"INFO\",\"message\":\"Job completed\",\"final_status\":\"${{ inputs.final-status }}\",\"fallback\":true}"
+        fi

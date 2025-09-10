@@ -1,0 +1,122 @@
+name: 'Setup Structured Logging'
+description: 'Sets up structured logging helper script for GitHub Actions'
+
+inputs:
+  correlation-id:
+    description: 'Correlation ID for tracking workflow execution'
+    required: false
+    default: ${{ github.run_id }}-${{ github.run_attempt }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create structured logging helper
+      shell: bash
+      run: |
+        cat > log_helper.sh << 'EOF'
+        #!/bin/bash
+        set -euo pipefail
+
+        # Structured logging function with enhanced error handling
+        log_structured() {
+          local level="$1"
+          local message="$2"
+          local extra="${3:-{}}"
+
+          # Validate inputs
+          if [[ -z "$level" || -z "$message" ]]; then
+            echo "ERROR: log_structured requires level and message parameters" >&2
+            return 1
+          fi
+
+          # Ensure jq is available
+          if ! command -v jq &> /dev/null; then
+            echo "ERROR: jq is required for structured logging" >&2
+            return 1
+          fi
+
+          jq -n \
+            --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
+            --arg level "$level" \
+            --arg message "$message" \
+            --arg workflow "$GITHUB_WORKFLOW" \
+            --arg job "$GITHUB_JOB" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --arg correlation_id "${CORRELATION_ID:-${{ inputs.correlation-id }}}" \
+            --arg extra "$extra" \
+            '{
+              timestamp: $timestamp,
+              level: $level,
+              message: $message,
+              workflow: $workflow,
+              job: $job,
+              run_id: $run_id,
+              run_attempt: $run_attempt,
+              correlation_id: $correlation_id,
+              context: ($extra | fromjson? // {})
+            }' 2>/dev/null || {
+              # Fallback logging if jq fails
+              echo "{\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\",\"level\":\"$level\",\"message\":\"$message\",\"fallback\":true}" >&2
+            }
+        }
+
+        # Enhanced retry function with exponential backoff
+        retry_with_backoff() {
+          local max_attempts="${RETRY_MAX_ATTEMPTS:-3}"
+          local delay="${RETRY_INITIAL_DELAY:-5}"
+          local attempt=1
+          local command="$1"
+
+          while [ $attempt -le $max_attempts ]; do
+            log_structured "INFO" "Attempting command (attempt $attempt/$max_attempts)" \
+              "{\"command\": \"$command\", \"attempt\": $attempt}"
+
+            if eval "$command"; then
+              log_structured "INFO" "Command succeeded" "{\"command\": \"$command\", \"attempt\": $attempt}"
+              return 0
+            else
+              local exit_code=$?
+              log_structured "WARN" "Command failed" \
+                "{\"command\": \"$command\", \"attempt\": $attempt, \"exit_code\": $exit_code}"
+
+              if [ $attempt -eq $max_attempts ]; then
+                log_structured "ERROR" "Command failed after all attempts" \
+                  "{\"command\": \"$command\", \"max_attempts\": $max_attempts, \"final_exit_code\": $exit_code}"
+                return $exit_code
+              fi
+
+              sleep $delay
+              delay=$((delay * 2))
+              attempt=$((attempt + 1))
+            done
+        }
+
+        # Resource monitoring function
+        monitor_resources() {
+          local step="${1:-unknown}"
+          local memory_mb=$(free -m 2>/dev/null | awk 'NR==2{printf "%.2f", $3}' || echo "0")
+          local disk_usage=$(df -h . 2>/dev/null | awk 'NR==2 {print $5}' | sed 's/%//' || echo "0")
+          local cpu_usage=$(top -bn1 2>/dev/null | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//' || echo "0")
+
+          log_structured "DEBUG" "Resource usage" \
+            "{\"step\": \"$step\", \"memory_mb\": $memory_mb, \"disk_usage_percent\": $disk_usage, \"cpu_usage\": \"$cpu_usage\"}"
+        }
+
+        # Export functions for use in calling scripts
+        export -f log_structured
+        export -f retry_with_backoff
+        export -f monitor_resources
+
+        # Set correlation ID environment variable
+        export CORRELATION_ID="${CORRELATION_ID:-${{ inputs.correlation-id }}}"
+        EOF
+
+        chmod +x log_helper.sh
+
+        # Source the script to make functions available
+        source log_helper.sh
+
+        # Log successful setup
+        log_structured "INFO" "Structured logging setup completed" \
+          "{\"correlation_id\": \"${CORRELATION_ID:-${{ inputs.correlation-id }}}\", \"workflow\": \"$GITHUB_WORKFLOW\", \"job\": \"$GITHUB_JOB\"}"

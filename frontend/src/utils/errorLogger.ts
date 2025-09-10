@@ -12,7 +12,7 @@ export interface ErrorReport {
   sessionId?: string
   severity: 'low' | 'medium' | 'high' | 'critical'
   category: 'javascript' | 'network' | 'api' | 'ui' | 'unknown'
-  context?: Record<string, any>
+  context?: Record<string, unknown>
   retryCount?: number
   resolved?: boolean
   resolution?: string
@@ -81,7 +81,7 @@ class ErrorLogger {
     return 'low'
   }
 
-  private determineCategory(error: Error, context?: Record<string, any>): ErrorReport['category'] {
+  private determineCategory(error: Error, context?: Record<string, unknown>): ErrorReport['category'] {
     const message = error.message.toLowerCase()
 
     if (message.includes('network') || message.includes('fetch') || message.includes('connection')) {
@@ -99,7 +99,7 @@ class ErrorLogger {
 
   public logError(
     error: Error,
-    context?: Record<string, any>,
+    context?: Record<string, unknown>,
     componentStack?: string,
     retryCount?: number
   ): string {
@@ -145,7 +145,7 @@ class ErrorLogger {
     method: string,
     status?: number,
     responseText?: string,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): string {
     const error = new Error(`Network request failed: ${method} ${url}${status ? ` (${status})` : ''}`)
     const networkContext = {
@@ -163,8 +163,8 @@ class ErrorLogger {
     endpoint: string,
     method: string,
     status: number,
-    responseData?: any,
-    context?: Record<string, any>
+    responseData?: unknown,
+    context?: Record<string, unknown>
   ): string {
     const error = new Error(`API request failed: ${method} ${endpoint} (${status})`)
     const apiContext = {
@@ -212,7 +212,7 @@ class ErrorLogger {
           // Re-queue errors for retry
           this.errorQueue.unshift(...errorsToSend)
         } else {
-          console.log(`[ErrorLogger] Successfully sent ${errorsToSend.length} error reports`)
+          // Successfully sent error reports
         }
       }
     } catch (error) {
@@ -295,7 +295,7 @@ export function getErrorLogger(config?: Partial<ErrorLoggerConfig>): ErrorLogger
 
 export function logError(
   error: Error,
-  context?: Record<string, any>,
+  context?: Record<string, unknown>,
   componentStack?: string,
   retryCount?: number
 ): string {
@@ -307,7 +307,7 @@ export function logNetworkError(
   method: string,
   status?: number,
   responseText?: string,
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 ): string {
   return getErrorLogger().logNetworkError(url, method, status, responseText, context)
 }
@@ -316,8 +316,8 @@ export function logAPIError(
   endpoint: string,
   method: string,
   status: number,
-  responseData?: any,
-  context?: Record<string, any>
+  responseData?: unknown,
+  context?: Record<string, unknown>
 ): string {
   return getErrorLogger().logAPIError(endpoint, method, status, responseData, context)
 }

@@ -311,7 +311,7 @@ export function useComponentErrorRecovery() {
   const [recoveryAttempts, setRecoveryAttempts] = useState(0)
   const maxRecoveryAttempts = 3
 
-  const handleError = useCallback((error: Error, context?: Record<string, any>) => {
+  const handleError = useCallback((error: Error, context?: Record<string, unknown>) => {
     logError(error, {
       ...context,
       component: 'unknown',

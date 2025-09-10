@@ -275,8 +275,8 @@ describe('ResourceMonitor', () => {
     vi.useFakeTimers()
     let unmount
     act(() => {
-      const result = render(<ResourceMonitor />)
-      unmount = result.unmount
+      const { unmount: unmountFn } = render(<ResourceMonitor />)
+      unmount = unmountFn
     })
 
     await waitFor(() => {
@@ -325,6 +325,3 @@ describe('ResourceMonitor', () => {
     // Should not display CPU Optimizations section
     expect(screen.queryByText('🔧 CPU Optimizations')).not.toBeInTheDocument()
   })
-
-
-})
