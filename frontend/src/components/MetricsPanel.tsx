@@ -33,8 +33,8 @@ export function MetricsPanel({ metrics }: MetricsPanelProps) {
       value:
         metrics.completed_tasks + metrics.failed_tasks > 0
           ? formatPercentage(
-            metrics.completed_tasks / (metrics.completed_tasks + metrics.failed_tasks),
-          )
+              metrics.completed_tasks / (metrics.completed_tasks + metrics.failed_tasks),
+            )
           : '0%',
       color: 'yellow',
       description: 'Ratio of successful to total completed tasks',

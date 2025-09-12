@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-/* eslint-disable no-console */
-
 async function monitorResourceUsage() {
   const resources = process.argv.slice(2)
   const registryUrl = resources.find(arg => arg.startsWith('http')) || 'http://localhost:8000'

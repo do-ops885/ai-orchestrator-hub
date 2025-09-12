@@ -28,7 +28,7 @@ struct CacheEntry<V> {
     last_accessed: Instant,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CacheStats {
     pub total_entries: usize,
     pub hit_rate: f64,
@@ -65,7 +65,7 @@ where
 
         // Check if we need to evict entries
         if data.len() >= self.max_size {
-            self.evict_lru(&mut data).await;
+            self.evict_lru(&mut data);
         }
 
         let entry = CacheEntry {
@@ -146,7 +146,7 @@ where
     }
 
     /// Evict least recently used entry
-    async fn evict_lru(&self, data: &mut HashMap<K, CacheEntry<V>>) {
+    fn evict_lru(&self, data: &mut HashMap<K, CacheEntry<V>>) {
         if let Some((lru_key, _)) = data
             .iter()
             .min_by_key(|(_, entry)| entry.last_accessed)

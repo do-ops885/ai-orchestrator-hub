@@ -186,7 +186,7 @@ impl SimpleVerificationSystem {
         let tier = SimpleVerificationSystem::determine_verification_tier(task, result);
 
         let verification_result = match tier {
-            VerificationTier::Quick => self.quick_verification(task, result, original_goal)?,
+            VerificationTier::Quick => self.quick_verification(task, result, original_goal),
             VerificationTier::Standard => {
                 self.standard_verification(task, result, original_goal)
                     .await?
@@ -248,7 +248,7 @@ impl SimpleVerificationSystem {
         task: &Task,
         result: &TaskResult,
         original_goal: Option<&str>,
-    ) -> Result<SimpleVerificationResult> {
+    ) -> SimpleVerificationResult {
         let mut issues = Vec::new();
         let mut scores = HashMap::new();
 
@@ -301,7 +301,7 @@ impl SimpleVerificationSystem {
             SimpleVerificationSystem::calculate_weighted_score(&scores, &rules);
         let overall_score = goal_alignment_score * 0.6 + format_compliance_score * 0.4;
 
-        Ok(SimpleVerificationResult {
+        SimpleVerificationResult {
             task_id: task.id,
             verification_status: self.determine_status(overall_score, &issues),
             confidence_score: 0.8, // Quick verification has lower confidence
@@ -313,7 +313,7 @@ impl SimpleVerificationSystem {
             verification_time_ms: 0, // Will be set by caller
             verified_at: Utc::now(),
             verifier_notes: "Quick verification using basic rules".to_string(),
-        })
+        }
     }
 
     /// Standard verification using full NLP analysis

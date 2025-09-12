@@ -1,0 +1,154 @@
+agents:
+   - name: general
+   - name: plan
+   - name: security-auditor
+     description: Security auditing and vulnerability assessment specialist
+     category: Security
+   - name: git
+     description: Handles local git operations including commits, branches, merges, status checks, and repository management
+     category: Development
+   - name: ml-pipeline-manager
+     description: This subagent should only be called manually by the user.
+     category: Machine Learning
+     manual_only: true
+   - name: ml-training-specialist
+     description: This subagent should only be called manually by the user.
+     category: Machine Learning
+     manual_only: true
+   - name: license-checker
+     description: Specialized agent for analyzing codebases and recommending appropriate open-source licenses with detailed reasoning, ensuring legal compliance and community alignment.
+     category: Legal
+   - name: opencode-agent-creator
+     description: Use this agent when the user requests to create or generate OpenCode agents based on the official documentation at https://opencode.ai/docs/agents/, and the output needs to be formatted as .md files placed in the .opencode/agent folder, following the structure of existing .md files. This agent is ideal for automating the creation of agent configurations without including 'model:' specifications. Include examples of proactive use, such as when setting up new agents for a project or responding to direct creation requests.
+     category: Development
+   - name: react-developer
+     description: React frontend development specialist for dashboard and visualization
+     category: Frontend
+   - name: github-workflow-optimizer
+     description: Optimizes GitHub Actions workflows for performance, security, and cost efficiency in the project
+     category: CI/CD
+   - name: learner
+     description: The Learner Agent focuses on continuous learning and adaptation. It analyzes patterns, improves capabilities over time, and helps other agents learn from collective experiences.
+     category: Learning
+   - name: quality-assurance
+     description: Ensures overall quality, runs checks, validates.
+     category: Quality
+   - name: github-pr-manager
+     description: Use this agent for managing GitHub Pull Requests in the project, including creating, reviewing, merging, and automating PR workflows using the GitHub CLI (gh).
+     category: GitHub
+   - name: github-issue-manager
+     description: Use this agent for managing GitHub issues in the project, including creating, updating, searching, and organizing issues using the GitHub CLI (gh).
+     category: GitHub
+   - name: skill_evolution_agent
+     description: The Skill Evolution Agent manages the development and improvement of agent capabilities over time. It tracks learning progress, optimizes skill development, and coordinates skill-sharing between agents.
+     category: Learning
+   - name: formatting-agent
+     description: Formats code according to standards.
+     category: Development
+   - name: link-checker-agent
+     description: Specialized agent for scanning and validating links in Markdown files, with caching, batching, and internal link checks.
+     category: Quality
+   - name: orchestrator
+     description: The Orchestrator Agent coordinates swarm intelligence systems and manages multi-agent operations. It supports parallel task execution, emergent behavior management, and comprehensive swarm orchestration across all agent types.
+     category: Coordination
+   - name: github-docs-specialist
+     description: Maintains and improves GitHub repository documentation following the latest best practices.
+     category: Documentation
+   - name: github-discussions-manager
+     description: Use this agent for managing GitHub Discussions in the project, including creating, moderating, and facilitating technical discussions using the GitHub CLI (gh).
+     category: GitHub
+   - name: recovery_agent
+     description: The Recovery Agent specializes in error handling and system recovery. It monitors agent health, handles failures gracefully, and implements recovery strategies to maintain system stability.
+     category: Reliability
+   - name: cargo-clippy-fixer
+     description: Use this agent when encountering Cargo Clippy warnings or errors in Rust code that need to be analyzed and resolved.
+     category: Development
+   - name: simple_verification_agent
+     description: The Simple Verification Agent provides lightweight task validation and quality assurance. It performs basic checks and validations to ensure task completion meets minimum standards.
+     category: Quality
+   - name: rust-developer
+     description: Rust backend development specialist for AI Orchestrator Hub
+     category: Backend
+   - name: memory_agent
+     description: The Memory Agent manages agent memory systems and learning retention. It handles experience storage, pattern recognition, and social connection tracking for enhanced agent intelligence.
+     category: Learning
+    - name: swarm-architect
+      description: Swarm intelligence and multi-agent system architect
+      category: Coordination
+    - name: swarm-coordinator
+      description: The Swarm Coordinator Agent specializes in multi-agent coordination and swarm intelligence operations using the multiagent-hive MCP tools. It manages agent creation, task distribution, and swarm optimization.
+      category: Coordination
+   - name: github-label-manager
+     description: Use this agent for managing GitHub labels in the project, including creating, updating, organizing, and automating label workflows using the GitHub CLI (gh).
+     category: GitHub
+   - name: github-projects-manager
+     description: Use this agent for managing GitHub Projects in the project, including creating, organizing, and tracking development roadmaps, security analysis projects, and performance optimization initiatives using the GitHub CLI (gh).
+     category: GitHub
+   - name: worker
+     description: The Worker Agent is a general-purpose agent designed for executing a wide variety of tasks within the multiagent hive system. It handles routine operations, data processing, and task completion with adaptive learning capabilities.
+     category: General
+   - name: neural-engineer
+     description: Neural network and machine learning specialist
+     category: Machine Learning
+   - name: technical-reviewer
+     description: Reviews code for best practices, security, performance.
+     category: Quality
+   - name: research-agent
+     description: Conducts research on topics, gathers information from web.
+     category: Research
+   - name: coordinator
+     description: The Coordinator Agent serves as a leadership entity that manages and directs other agents within the swarm. It handles task distribution, resource allocation, and maintains swarm cohesion through intelligent coordination.
+     category: Coordination
+   - name: code-analyzer
+     description: Analyzes code for issues, patterns, complexity.
+     category: Analysis
+   - name: dashboard-specialist
+     description: Dashboard and data visualization specialist
+     category: Frontend
+   - name: github-workflow-manager
+     description: Enhanced GitHub Workflow Manager for creating, updating, debugging, and optimizing CI/CD workflows with focus on performance, security, and cost efficiency
+     category: CI/CD
+   - name: performance-optimizer
+     description: System performance optimization and monitoring specialist
+     category: Performance
+   - name: optimized_agent
+     description: The Optimized Agent is a performance-focused agent implementation that uses advanced optimization techniques including SIMD vectorization and CPU-specific optimizations for maximum efficiency.
+     category: Performance
+   - name: github-documentation-architect
+     description: Autonomous GitHub Documentation Architect for creating, improving, and maintaining all documentation for GitHub repositories end-to-end, with production quality and minimal developer back-and-forth. Handles inventory, planning, authoring, quality enforcement, and compliance.
+     category: Documentation
+   - name: github
+     description: Manages GitHub repositories, pull requests, issues, releases, and API interactions
+     category: GitHub
+   - name: test-runner
+     description: Agent responsible for executing automated tests and reporting results.
+     category: Testing
+   - name: playwright-react-tester
+     description: "Use this agent when you need to create, run, or debug Playwright tests for React applications. Examples: - When the user says 'I need to write a test for my login component' - When the user asks 'How do I test this React form with Playwright?' - When the user requests 'Run the existing Playwright tests and show me the results' - When the user needs help debugging a failing Playwright test for their React app"
+     category: Testing
+   - name: react-debug-specialist
+     description: "Use this agent when you need to debug React components, hooks, or applications and want expert guidance on identifying and fixing common React issues. Examples: Context: User is getting a 'Cannot read properties of null' error - Context: User is experiencing performance issues with re-renders"
+     category: Frontend
+   - name: rust-debug-specialist
+     description: "Use this agent when you need to debug Rust code, analyze compilation errors, identify runtime issues, or optimize Rust program performance. Examples: Context: User encounters compilation errors - Context: User's program panics at runtime - Context: User wants to identify performance bottlenecks"
+     category: Backend
+    - name: ai-code-analysis-swarm
+      description: Use this agent when you need to perform comprehensive, multi-faceted analysis of code segments, such as reviewing for bugs, performance issues, security vulnerabilities, and best practices in a collaborative swarm-like manner, typically after a logical chunk of code has been written or modified. This agent is ideal for orchestrating analysis across multiple domains simultaneously.
+      category: Analysis
+     description: "Use this agent when you need to perform comprehensive, multi-faceted analysis of code segments, such as reviewing for bugs, performance issues, security vulnerabilities, and best practices in a collaborative swarm-like manner, typically after a logical chunk of code has been written or modified. This agent is ideal for orchestrating analysis across multiple domains simultaneously. Examples include: Context: The user has just written a new function and wants it analyzed for multiple aspects. user: \"I've written this function to calculate Fibonacci numbers, can you analyze it?\" assistant: \"Let me use the Task tool to launch the ai-code-analysis-swarm agent to perform a comprehensive analysis of the code.\" Since the user is requesting code analysis, use the ai-code-analysis-swarm agent to review the code for bugs, performance, security, and best practices. Context: User is working on a project and proactively wants ongoing code analysis as they develop. user: \"As I write code, I'd like continuous analysis.\" assistant: \"I'll use the Task tool to launch the ai-code-analysis-swarm agent to monitor and analyze code in real-time.\" Since the user implies proactive use, deploy the ai-code-analysis-swarm agent to handle ongoing analysis tasks."
+     category: Analysis
+    - name: universal-orchestrator
+      description: Master orchestrator that coordinates and utilizes all other agents in the system, delegating tasks based on specialties, managing complex multi-agent workflows with emphasis on parallel task execution and swarm coordination to maximize performance and reduce completion time, and optimizing resource allocation across the agent network
+      category: Coordination
+    - name: false-positive-validator
+      description: Use this agent when results from scans, analyses, or tests need validation to determine if they are false positives, such as in security audits, code quality checks, or automated testing outputs. This agent should be invoked proactively after initial results are generated to refine accuracy and reduce unnecessary actions.
+      category: Quality
+    - name: websearch-agent
+      description: Use this agent when the user requires information retrieval from the web, such as researching topics, verifying facts, or gathering data that isn't available in your existing knowledge base. This agent should be launched proactively when queries involve current events, technical documentation, or external references that necessitate a web search.
+      category: Research
+    - name: github-wiki-editor
+      description: Use this agent when creating, reviewing, or updating GitHub Wiki documentation to ensure it follows industry best practices and maintains high quality standards.
+      category: Documentation
+    - name: command-verifier
+      description: Use this agent when you need to verify all commands embedded in markdown (.md) files without making any assumptions about their validity, correctness, or safety. This includes checking syntax, functionality, and potential risks, and integrating verification from the false-positive-validator agent for results, as well as performing internet searches to validate external tools referenced in the commands.
+      category: Quality

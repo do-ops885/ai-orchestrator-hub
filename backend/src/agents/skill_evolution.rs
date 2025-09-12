@@ -224,7 +224,7 @@ impl SkillEvolutionSystem {
     }
 
     /// Start the skill evolution evaluation loop
-    pub async fn start_skill_evolution(&self, agents: Arc<dashmap::DashMap<Uuid, Agent>>) {
+    pub fn start_skill_evolution(&self, agents: Arc<dashmap::DashMap<Uuid, Agent>>) {
         let skill_library = Arc::clone(&self.skill_library);
         let evolution_policies = Arc::clone(&self.evolution_policies);
         let learning_history = Arc::clone(&self.learning_history);

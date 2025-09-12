@@ -67,23 +67,23 @@ pub async fn start_background_tasks(app_state: AppState) {
             let agent_metrics = AgentMetrics {
                 total_agents: hive
                     .get("total_agents")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0) as usize,
                 active_agents: hive
                     .get("active_agents")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0) as usize,
                 idle_agents: hive
                     .get("idle_agents")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0) as usize,
                 failed_agents: hive
                     .get("failed_agents")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0) as usize,
                 average_agent_performance: hive
                     .get("average_performance")
-                    .and_then(|v| v.as_f64())
+                    .and_then(serde_json::Value::as_f64)
                     .unwrap_or(0.0),
                 agent_utilization_percent: 0.0,
                 individual_agent_metrics: std::collections::HashMap::new(),
@@ -93,37 +93,37 @@ pub async fn start_background_tasks(app_state: AppState) {
             let task_metrics = TaskMetrics {
                 total_tasks_submitted: hive
                     .get("total_tasks")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0),
                 total_tasks_completed: hive
                     .get("completed_tasks")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0),
                 total_tasks_failed: hive
                     .get("failed_tasks")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0),
                 tasks_in_queue: hive
                     .get("pending_tasks")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0) as usize,
                 average_task_duration_ms: hive
                     .get("average_task_completion_time")
-                    .and_then(|v| v.as_f64())
+                    .and_then(serde_json::Value::as_f64)
                     .unwrap_or(0.0),
                 task_success_rate: if hive
                     .get("total_tasks")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0)
                     > 0
                 {
                     (hive
                         .get("completed_tasks")
-                        .and_then(|v| v.as_u64())
+                        .and_then(serde_json::Value::as_u64)
                         .unwrap_or(0) as f64
                         / hive
                             .get("total_tasks")
-                            .and_then(|v| v.as_u64())
+                            .and_then(serde_json::Value::as_u64)
                             .unwrap_or(1) as f64)
                         * 100.0
                 } else {
@@ -250,7 +250,7 @@ pub async fn start_background_tasks(app_state: AppState) {
     });
 
     // Start MCP HTTP service
-    mcp_http::start_mcp_background_service(app_state.clone()).await;
+    mcp_http::start_mcp_background_service(app_state.clone());
 
     info!("🔄 Background monitoring tasks started");
 }
@@ -364,7 +364,7 @@ async fn create_agent(
                 &SecurityEventType::AuthenticationSuccess,
                 &SecurityEventDetails {
                     client_id: "api".to_string(),
-                    endpoint: format!("agent:{}", agent_id),
+                    endpoint: format!("agent:{agent_id}"),
                     user_agent: None,
                     ip_address: None,
                     timestamp: Utc::now(),
@@ -418,7 +418,16 @@ async fn get_tasks(
     State(state): State<AppState>,
 ) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
     let tasks_info = state.hive.read().await.get_tasks_info().await;
-    Ok(axum::Json(tasks_info))
+    match tasks_info {
+        Ok(info) => Ok(axum::Json(info)),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(json!({
+                "error": "Failed to get tasks info",
+                "details": e.to_string()
+            })),
+        )),
+    }
 }
 
 async fn create_task(
@@ -498,7 +507,7 @@ async fn create_task(
                 &SecurityEventType::AuthenticationSuccess,
                 &SecurityEventDetails {
                     client_id: "api".to_string(),
-                    endpoint: format!("task:{}", task_id),
+                    endpoint: format!("task:{task_id}"),
                     user_agent: None,
                     ip_address: None,
                     timestamp: Utc::now(),
@@ -559,7 +568,16 @@ async fn get_resource_info(
     State(state): State<AppState>,
 ) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
     let resource_info = state.hive.read().await.get_resource_info().await;
-    Ok(axum::Json(resource_info))
+    match resource_info {
+        Ok(info) => Ok(axum::Json(info)),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(json!({
+                "error": "Failed to get resource info",
+                "details": e.to_string()
+            })),
+        )),
+    }
 }
 
 async fn health_check(
@@ -573,7 +591,13 @@ async fn health_check(
     // Perform comprehensive health checks
     let hive_status = state.hive.read().await.get_status().await;
     let metrics_health = state.metrics.get_current_metrics().await;
-    let resource_info = state.hive.read().await.get_resource_info().await;
+    let resource_info = state
+        .hive
+        .read()
+        .await
+        .get_resource_info()
+        .await
+        .unwrap_or(json!({}));
 
     // Extract metrics from hive status JSON
     let hive_metrics = hive_status
@@ -581,11 +605,11 @@ async fn health_check(
         .unwrap_or(&serde_json::Value::Null);
     let total_agents = hive_metrics
         .get("total_agents")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .unwrap_or(0);
     let completed_tasks = hive_metrics
         .get("completed_tasks")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .unwrap_or(0);
 
     // Extract resource info from JSON
@@ -594,11 +618,11 @@ async fn health_check(
         .unwrap_or(&serde_json::Value::Null);
     let memory_usage = system_resources
         .get("memory_usage")
-        .and_then(|v| v.as_f64())
+        .and_then(serde_json::Value::as_f64)
         .unwrap_or(0.0);
     let cpu_usage = system_resources
         .get("cpu_usage")
-        .and_then(|v| v.as_f64())
+        .and_then(serde_json::Value::as_f64)
         .unwrap_or(0.0);
 
     // Check component health
@@ -619,16 +643,16 @@ async fn health_check(
             "hive_coordinator": {
                 "status": if hive_healthy { "healthy" } else { "unhealthy" },
                 "total_agents": total_agents,
-                "active_agents": hive_metrics.get("active_agents").and_then(|v| v.as_u64()).unwrap_or(0),
+                "active_agents": hive_metrics.get("active_agents").and_then(serde_json::Value::as_u64).unwrap_or(0),
                 "completed_tasks": completed_tasks,
-                "average_performance": hive_metrics.get("average_performance").and_then(|v| v.as_f64()).unwrap_or(0.0)
+                "average_performance": hive_metrics.get("average_performance").and_then(serde_json::Value::as_f64).unwrap_or(0.0)
             },
             "resource_manager": {
                 "status": if resources_healthy { "healthy" } else { "unhealthy" },
                 "memory_usage_percent": memory_usage,
                 "cpu_usage_percent": cpu_usage,
-                "available_memory_mb": system_resources.get("available_memory").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                "cpu_cores": system_resources.get("cpu_cores").and_then(|v| v.as_u64()).unwrap_or(0)
+                "available_memory_mb": system_resources.get("available_memory").and_then(serde_json::Value::as_f64).unwrap_or(0.0),
+                "cpu_cores": system_resources.get("cpu_cores").and_then(serde_json::Value::as_u64).unwrap_or(0)
             },
             "metrics_collector": {
                 "status": if metrics_healthy { "healthy" } else { "unhealthy" },
@@ -646,8 +670,8 @@ async fn health_check(
             "cpu_native": true,
             "gpu_optional": true,
             "phase_2_active": true,
-            "swarm_cohesion": hive_metrics.get("swarm_cohesion").and_then(|v| v.as_f64()).unwrap_or(0.0),
-            "learning_progress": hive_metrics.get("learning_progress").and_then(|v| v.as_f64()).unwrap_or(0.0)
+            "swarm_cohesion": hive_metrics.get("swarm_cohesion").and_then(serde_json::Value::as_f64).unwrap_or(0.0),
+            "learning_progress": hive_metrics.get("learning_progress").and_then(serde_json::Value::as_f64).unwrap_or(0.0)
         }
     });
 
@@ -681,11 +705,35 @@ async fn debug_system_info(
 
     let hive_status = state.hive.read().await.get_status().await;
     let agents_info = state.hive.read().await.get_agents_info().await;
-    let tasks_info = state.hive.read().await.get_tasks_info().await;
-    let resource_info = state.hive.read().await.get_resource_info().await;
-    let memory_stats = state.hive.read().await.get_memory_stats().await;
-    let queue_health = state.hive.read().await.check_queue_health().await;
-    let agent_health = state.hive.read().await.check_agent_health().await;
+    let tasks_info = state
+        .hive
+        .read()
+        .await
+        .get_tasks_info()
+        .await
+        .unwrap_or(json!({}));
+    let resource_info = state
+        .hive
+        .read()
+        .await
+        .get_resource_info()
+        .await
+        .unwrap_or(json!({}));
+    let memory_stats = state
+        .hive
+        .read()
+        .await
+        .get_memory_stats()
+        .await
+        .unwrap_or(json!({}));
+    let queue_health = state
+        .hive
+        .read()
+        .await
+        .check_queue_health()
+        .await
+        .unwrap_or(json!({}));
+    let agent_health = state.hive.read().await.check_agent_health();
 
     let duration = start_time.elapsed();
 
@@ -713,7 +761,7 @@ async fn debug_system_info(
             "agent_health": agent_health
         },
         "queue_systems": {
-            "work_stealing_metrics": state.hive.read().await.work_stealing_queue.get_metrics().await,
+            "work_stealing_metrics": json!({"note": "Work stealing queue metrics not available in current architecture"}),
             "legacy_queue_info": {
                 "pending_tasks": tasks_info.get("legacy_queue").and_then(|q| q.get("pending_tasks")).unwrap_or(&json!(0)),
                 "completed_tasks": tasks_info.get("legacy_queue").and_then(|q| q.get("completed_tasks")).unwrap_or(&json!(0)),

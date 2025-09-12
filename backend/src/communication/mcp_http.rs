@@ -84,7 +84,10 @@ pub async fn handle_mcp_request(
         warn!(
             "⚠️ [{}] MCP request completed with error: {} ({}ms)",
             request_id,
-            response.error.as_ref().unwrap().message,
+            response
+                .error
+                .as_ref()
+                .map_or("Unknown error".to_string(), |e| e.message.clone()),
             duration.as_millis()
         );
     }
@@ -100,7 +103,7 @@ pub fn create_mcp_router() -> Router<AppState> {
 }
 
 /// Initialize MCP server for background operation
-pub async fn start_mcp_background_service(_state: AppState) {
+pub fn start_mcp_background_service(_state: AppState) {
     info!("🚀 Starting MCP HTTP service as background component");
 
     // The MCP server is now available via HTTP endpoints

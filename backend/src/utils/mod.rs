@@ -4,6 +4,7 @@ pub mod auth;
 pub mod config;
 /// Enhanced error handling with structured errors and context
 pub mod error;
+pub mod error_recovery;
 /// Health checks and circuit breaker patterns
 pub mod health_check;
 /// Rate limiting and abuse prevention

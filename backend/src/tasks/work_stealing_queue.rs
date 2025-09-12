@@ -581,11 +581,11 @@ mod tests {
         // Register agents
         match queue_system.register_agent(agent1_id).await {
             Ok(()) => {}
-            Err(e) => panic!("Failed to register agent1: {}", e),
+            Err(e) => panic!("Failed to register agent1: {e}"),
         }
         match queue_system.register_agent(agent2_id).await {
             Ok(()) => {}
-            Err(e) => panic!("Failed to register agent2: {}", e),
+            Err(e) => panic!("Failed to register agent2: {e}"),
         }
 
         // Create test task
@@ -600,7 +600,7 @@ mod tests {
         // Submit task
         match queue_system.submit_task(task).await {
             Ok(()) => {}
-            Err(e) => panic!("Failed to submit task: {}", e),
+            Err(e) => panic!("Failed to submit task: {e}"),
         }
 
         // Wait a bit for task distribution
@@ -622,11 +622,11 @@ mod tests {
 
         match queue_system.register_agent(agent1_id).await {
             Ok(()) => {}
-            Err(e) => panic!("Failed to register agent1: {}", e),
+            Err(e) => panic!("Failed to register agent1: {e}"),
         }
         match queue_system.register_agent(agent2_id).await {
             Ok(()) => {}
-            Err(e) => panic!("Failed to register agent2: {}", e),
+            Err(e) => panic!("Failed to register agent2: {e}"),
         }
 
         // Add multiple tasks to agent1's queue
@@ -641,7 +641,7 @@ mod tests {
                 );
                 match agent1_queue.push_task(task).await {
                     Ok(()) => {}
-                    Err(e) => panic!("Failed to push task {}: {}", i, e),
+                    Err(e) => panic!("Failed to push task {i}: {e}"),
                 }
             }
         }
@@ -675,7 +675,7 @@ mod tests {
         );
         match agent_queue.push_task(low_task).await {
             Ok(()) => {}
-            Err(e) => panic!("Failed to push low task: {}", e),
+            Err(e) => panic!("Failed to push low task: {e}"),
         }
 
         // Add high priority task
@@ -688,7 +688,7 @@ mod tests {
         );
         match agent_queue.push_task(high_task).await {
             Ok(()) => {}
-            Err(e) => panic!("Failed to push high task: {}", e),
+            Err(e) => panic!("Failed to push high task: {e}"),
         }
 
         // High priority task should be retrieved first

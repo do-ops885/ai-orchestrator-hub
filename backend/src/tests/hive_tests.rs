@@ -5,7 +5,7 @@ mod tests {
     use serde_json::json;
 
     use crate::agents::AgentType;
-    use crate::core::{HiveCoordinator, SwarmMetrics};
+    use crate::core::hive::{HiveCoordinator, SwarmMetrics};
     use crate::tasks::TaskPriority;
     use crate::tests::test_utils::{
         assert_approx_eq, create_agent_config, create_task_config, create_test_task,
@@ -19,7 +19,7 @@ mod tests {
         let coordinator = match hive {
             Ok(coord) => coord,
             Err(e) => {
-                eprintln!("Failed to create HiveCoordinator: {}", e);
+                eprintln!("Failed to create HiveCoordinator: {e}");
                 return; // Gracefully skip the test instead of panicking
             }
         };
@@ -41,7 +41,7 @@ mod tests {
         let hive = match HiveCoordinator::new().await {
             Ok(hive) => hive,
             Err(e) => {
-                eprintln!("Failed to create HiveCoordinator: {}", e);
+                eprintln!("Failed to create HiveCoordinator: {e}");
                 return; // Gracefully skip the test instead of panicking
             }
         };
@@ -54,7 +54,7 @@ mod tests {
         let worker_id = match agent_id {
             Ok(id) => id,
             Err(e) => {
-                eprintln!("Failed to create agent: {}", e);
+                eprintln!("Failed to create agent: {e}");
                 return; // Gracefully skip the test instead of panicking
             }
         };
@@ -170,7 +170,7 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         // Initially should have no agents
-        let initial_info = hive.get_agents_info().await;
+        let initial_info = hive.get_agents_info();
         assert_eq!(initial_info["total_count"].as_u64().unwrap(), 0);
         assert_eq!(initial_info["agents"].as_array().unwrap().len(), 0);
 
@@ -182,7 +182,7 @@ mod tests {
         let _coordinator_id = hive.create_agent(coordinator_config).await.unwrap();
 
         // Check updated info
-        let updated_info = hive.get_agents_info().await;
+        let updated_info = hive.get_agents_info();
         assert_eq!(updated_info["total_count"].as_u64().unwrap(), 2);
         assert_eq!(updated_info["agents"].as_array().unwrap().len(), 2);
 
@@ -320,7 +320,7 @@ mod tests {
             "ai_reviewer_agent": "00000000-0000-0000-0000-000000000000"
         });
 
-        let result = hive.configure_simple_verification(config).await;
+        let result = hive.configure_simple_verification(config);
         assert!(result.is_ok());
     }
 
@@ -408,7 +408,7 @@ mod tests {
         for i in 0..5 {
             let hive_clone = hive.clone();
             let handle = tokio::spawn(async move {
-                let config = create_agent_config(&format!("Agent{}", i), "worker", None);
+                let config = create_agent_config(&format!("Agent{i}"), "worker", None);
                 hive_clone.create_agent(config).await
             });
             handles.push(handle);
@@ -443,7 +443,7 @@ mod tests {
         for i in 0..5 {
             let hive_clone = hive.clone();
             let handle = tokio::spawn(async move {
-                let config = create_task_config(&format!("Task{}", i), "general", 1, None);
+                let config = create_task_config(&format!("Task{i}"), "general", 1, None);
                 hive_clone.create_task(config).await
             });
             handles.push(handle);
@@ -475,7 +475,7 @@ mod tests {
         // Add some agents
         for i in 0..3 {
             let config = create_agent_config(
-                &format!("Agent{}", i),
+                &format!("Agent{i}"),
                 "worker",
                 Some(vec![("general", 0.7, 0.1)]),
             );

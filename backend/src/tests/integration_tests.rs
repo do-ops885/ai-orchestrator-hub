@@ -19,7 +19,7 @@ mod tests {
         let hive = match HiveCoordinator::new().await {
             Ok(hive) => hive,
             Err(e) => {
-                eprintln!("Failed to create HiveCoordinator: {}", e);
+                eprintln!("Failed to create HiveCoordinator: {e}");
                 return; // Gracefully skip the test instead of panicking
             }
         };
@@ -33,7 +33,7 @@ mod tests {
         let agent_id = match hive.create_agent(agent_config).await {
             Ok(id) => id,
             Err(e) => {
-                eprintln!("Failed to create agent: {}", e);
+                eprintln!("Failed to create agent: {e}");
                 return; // Gracefully skip the test instead of panicking
             }
         };
@@ -48,7 +48,7 @@ mod tests {
         let _task_id = match hive.create_task(task_config).await {
             Ok(id) => id,
             Err(e) => {
-                eprintln!("Failed to create task: {}", e);
+                eprintln!("Failed to create task: {e}");
                 return; // Gracefully skip the test instead of panicking
             }
         };
@@ -267,7 +267,7 @@ mod tests {
         assert_eq!(status["metrics"]["total_agents"].as_u64().unwrap(), 3);
 
         // Check agents info
-        let agents_info = hive.get_agents_info().await;
+        let agents_info = hive.get_agents_info();
         assert_eq!(agents_info["total_count"].as_u64().unwrap(), 3);
 
         // Check tasks info
@@ -389,7 +389,7 @@ mod tests {
                 }
             }
         });
-        let config_result = hive.configure_simple_verification(config).await;
+        let config_result = hive.configure_simple_verification(config);
         assert!(config_result.is_ok());
     }
 
@@ -465,7 +465,7 @@ mod tests {
         let empty_status = empty_hive.get_status().await;
         assert_eq!(empty_status["metrics"]["total_agents"].as_u64().unwrap(), 0);
 
-        let empty_agents = empty_hive.get_agents_info().await;
+        let empty_agents = empty_hive.get_agents_info();
         assert_eq!(empty_agents["total_count"].as_u64().unwrap(), 0);
     }
 

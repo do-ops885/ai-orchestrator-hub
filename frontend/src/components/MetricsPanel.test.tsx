@@ -117,8 +117,7 @@ describe('MetricsPanel', () => {
     render(<MetricsPanel metrics={maxMetrics} />)
 
     const hundredPercentElements = screen.getAllByText('100.0%')
-    expect(hundredPercentElements.length).toBeGreaterThan(0)
-    expect(screen.getByText('100.0%')).toBeInTheDocument() // Task success rate when no failures
+    expect(hundredPercentElements).toHaveLength(4) // 3 metrics + task success rate
   })
 
   it('formats decimal values correctly', () => {

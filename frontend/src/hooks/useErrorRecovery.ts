@@ -27,16 +27,18 @@ const defaultRetryConfig: RetryConfig = {
   retryCondition: (error: Error) => {
     // Retry on network errors, timeouts, and 5xx server errors
     const message = error.message.toLowerCase()
-    return message.includes('network') ||
-           message.includes('timeout') ||
-           message.includes('fetch') ||
-           message.includes('connection')
+    return (
+      message.includes('network') ||
+      message.includes('timeout') ||
+      message.includes('fetch') ||
+      message.includes('connection')
+    )
   },
 }
 
 export function useErrorRecovery<T>(
   operation: () => Promise<T>,
-  config: Partial<RetryConfig> = {}
+  config: Partial<RetryConfig> = {},
 ) {
   const [state, setState] = useState<RecoveryState>({
     isRetrying: false,
@@ -50,10 +52,13 @@ export function useErrorRecovery<T>(
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  const calculateDelay = useCallback((retryCount: number): number => {
-    const delay = retryConfig.baseDelay * Math.pow(retryConfig.backoffFactor, retryCount)
-    return Math.min(delay, retryConfig.maxDelay)
-  }, [retryConfig])
+  const calculateDelay = useCallback(
+    (retryCount: number): number => {
+      const delay = retryConfig.baseDelay * Math.pow(retryConfig.backoffFactor, retryCount)
+      return Math.min(delay, retryConfig.maxDelay)
+    },
+    [retryConfig],
+  )
 
   const executeWithRetry = useCallback(async (): Promise<T | null> => {
     let lastError: Error | null = null
@@ -81,7 +86,6 @@ export function useErrorRecovery<T>(
         })
 
         return result
-
       } catch (error) {
         lastError = error as Error
 
@@ -93,8 +97,8 @@ export function useErrorRecovery<T>(
         })
 
         // Check if we should retry
-        const shouldRetry = attempt < retryConfig.maxRetries &&
-                           retryConfig.retryCondition?.(lastError)
+        const shouldRetry =
+          attempt < retryConfig.maxRetries && retryConfig.retryCondition?.(lastError)
 
         if (!shouldRetry) {
           break
@@ -184,21 +188,23 @@ export function useErrorRecovery<T>(
 // Specialized hook for API calls with error recovery
 export function useAPIErrorRecovery<T>(
   apiCall: (signal?: AbortSignal) => Promise<T>,
-  config: Partial<RetryConfig> = {}
+  config: Partial<RetryConfig> = {},
 ) {
   const enhancedConfig: Partial<RetryConfig> = {
     ...config,
     retryCondition: (error: Error) => {
       const message = error.message.toLowerCase()
       // Retry on network errors, timeouts, and server errors (5xx)
-      return message.includes('network') ||
-             message.includes('timeout') ||
-             message.includes('fetch') ||
-             message.includes('connection') ||
-             message.includes('500') ||
-             message.includes('502') ||
-             message.includes('503') ||
-             message.includes('504')
+      return (
+        message.includes('network') ||
+        message.includes('timeout') ||
+        message.includes('fetch') ||
+        message.includes('connection') ||
+        message.includes('500') ||
+        message.includes('502') ||
+        message.includes('503') ||
+        message.includes('504')
+      )
     },
   }
 
@@ -216,7 +222,7 @@ export function useAPIErrorRecovery<T>(
           'GET', // Default method
           0, // Unknown status
           undefined,
-          { error: (error as Error).message }
+          { error: (error as Error).message },
         )
         throw error
       }
@@ -239,14 +245,14 @@ export function useNetworkRecovery() {
           window.location.href,
           'CONNECTIVITY_CHECK',
           undefined,
-          'Network connection lost'
+          'Network connection lost',
         )
       }
     }
 
     const updateConnectionType = () => {
-      // @ts-expect-error - connection API might not be available in all browsers
-      const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+      const connection =
+        (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection
       if (connection) {
         setConnectionType(connection.effectiveType || 'unknown')
       }
@@ -288,12 +294,7 @@ export function useNetworkRecovery() {
       })
       return response.ok
     } catch {
-      logNetworkError(
-        '/api/health',
-        'HEAD',
-        undefined,
-        'Connectivity check failed'
-      )
+      logNetworkError('/api/health', 'HEAD', undefined, 'Connectivity check failed')
       return false
     }
   }, [])
@@ -311,15 +312,18 @@ export function useComponentErrorRecovery() {
   const [recoveryAttempts, setRecoveryAttempts] = useState(0)
   const maxRecoveryAttempts = 3
 
-  const handleError = useCallback((error: Error, context?: Record<string, unknown>) => {
-    logError(error, {
-      ...context,
-      component: 'unknown',
-      recoveryAttempts,
-    })
+  const handleError = useCallback(
+    (error: Error, context?: Record<string, unknown>) => {
+      logError(error, {
+        ...context,
+        component: 'unknown',
+        recoveryAttempts,
+      })
 
-    setError(error)
-  }, [recoveryAttempts])
+      setError(error)
+    },
+    [recoveryAttempts],
+  )
 
   const attemptRecovery = useCallback(() => {
     if (recoveryAttempts < maxRecoveryAttempts) {
@@ -327,14 +331,11 @@ export function useComponentErrorRecovery() {
       setError(null)
 
       // Log recovery attempt
-      logError(
-        new Error(`Component recovery attempt ${recoveryAttempts + 1}`),
-        {
-          type: 'recovery_attempt',
-          attemptNumber: recoveryAttempts + 1,
-          maxAttempts: maxRecoveryAttempts,
-        }
-      )
+      logError(new Error(`Component recovery attempt ${recoveryAttempts + 1}`), {
+        type: 'recovery_attempt',
+        attemptNumber: recoveryAttempts + 1,
+        maxAttempts: maxRecoveryAttempts,
+      })
     }
   }, [recoveryAttempts, maxRecoveryAttempts])
 

@@ -248,11 +248,11 @@ impl IntelligentAlertingSystem {
         let threshold_alerts = self.check_threshold_alerts(&current_metrics).await?;
 
         // Process anomaly-based alerts
-        let anomaly_alerts = self.check_anomaly_alerts(&insights.anomalies).await?;
+        let anomaly_alerts = self.check_anomaly_alerts(&insights.anomalies)?;
 
         // Process predictive alerts
         let predictive_alerts = if self.config.predictive_alerting_enabled {
-            self.check_predictive_alerts(&insights).await?
+            self.check_predictive_alerts(&insights)?
         } else {
             Vec::new()
         };
@@ -263,7 +263,7 @@ impl IntelligentAlertingSystem {
         intelligent_alerts.extend(predictive_alerts);
 
         // Apply correlation and suppression
-        let correlated_alerts = self.correlate_alerts(intelligent_alerts).await?;
+        let correlated_alerts = self.correlate_alerts(intelligent_alerts)?;
         let final_alerts = self.apply_suppression(correlated_alerts).await?;
 
         // Update adaptive thresholds if enabled
@@ -345,10 +345,7 @@ impl IntelligentAlertingSystem {
         Ok(alerts)
     }
 
-    async fn check_anomaly_alerts(
-        &self,
-        anomalies: &[Anomaly],
-    ) -> anyhow::Result<Vec<IntelligentAlert>> {
+    fn check_anomaly_alerts(&self, anomalies: &[Anomaly]) -> anyhow::Result<Vec<IntelligentAlert>> {
         let mut alerts = Vec::new();
 
         for anomaly in anomalies {
@@ -380,7 +377,7 @@ impl IntelligentAlertingSystem {
         Ok(alerts)
     }
 
-    async fn check_predictive_alerts(
+    fn check_predictive_alerts(
         &self,
         insights: &PredictiveInsights,
     ) -> anyhow::Result<Vec<IntelligentAlert>> {
@@ -413,7 +410,7 @@ impl IntelligentAlertingSystem {
         Ok(alerts)
     }
 
-    async fn correlate_alerts(
+    fn correlate_alerts(
         &self,
         alerts: Vec<IntelligentAlert>,
     ) -> anyhow::Result<Vec<IntelligentAlert>> {
@@ -538,8 +535,7 @@ impl IntelligentAlertingSystem {
                 },
                 ChannelType::Webhook => {
                     if let Some(endpoint) = &channel.config.endpoint {
-                        self.send_webhook_notification(endpoint, alert, &channel.config)
-                            .await?;
+                        self.send_webhook_notification(endpoint, alert, &channel.config)?;
                     }
                 }
                 _ => {
@@ -554,7 +550,7 @@ impl IntelligentAlertingSystem {
         Ok(())
     }
 
-    async fn send_webhook_notification(
+    fn send_webhook_notification(
         &self,
         endpoint: &str,
         alert: &IntelligentAlert,

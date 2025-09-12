@@ -56,6 +56,11 @@ interface HiveStore {
   isConnected: boolean
   socket: WebSocket | null
   connectionAttempts: number
+  maxReconnectAttempts: number
+  reconnectDelay: number
+  lastHeartbeat: number
+  heartbeatInterval: NodeJS.Timeout | null
+  connectionQuality: 'excellent' | 'good' | 'poor' | 'disconnected'
 
   // Data
   agents: Agent[]
@@ -70,12 +75,20 @@ interface HiveStore {
   updateAgents: (agents: Agent[]) => void
   updateHiveStatus: (status: HiveStatus) => void
   updateTasks: (tasks: Task[]) => void
+  startHeartbeat: () => void
+  stopHeartbeat: () => void
+  updateConnectionQuality: () => void
 }
 
 export const useHiveStore = create<HiveStore>((set, get) => ({
   isConnected: false,
   socket: null,
   connectionAttempts: 0,
+  maxReconnectAttempts: 10,
+  reconnectDelay: 1000,
+  lastHeartbeat: Date.now(),
+  heartbeatInterval: null,
+  connectionQuality: 'disconnected' as const,
   agents: [],
   hiveStatus: null,
   tasks: [],
@@ -93,7 +106,14 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     socket.onopen = () => {
       console.warn('✅ WebSocket connected successfully')
-      set({ isConnected: true, socket, connectionAttempts: 0 })
+      set({
+        isConnected: true,
+        socket,
+        connectionAttempts: 0,
+        lastHeartbeat: Date.now(),
+        connectionQuality: 'excellent',
+      })
+      get().startHeartbeat()
     }
 
     socket.onmessage = event => {
@@ -157,24 +177,29 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     socket.onclose = event => {
       const attempts = get().connectionAttempts
+      const maxAttempts = get().maxReconnectAttempts
       console.warn(
         `🔌 WebSocket disconnected (code: ${event.code}, reason: ${event.reason !== '' ? event.reason : 'Unknown'})`,
       )
-      set({ isConnected: false, socket: null })
 
-      // Auto-retry with exponential backoff (max 5 attempts)
-      if (attempts < 5 && event.code !== 1000) {
+      get().stopHeartbeat()
+      set({ isConnected: false, socket: null, connectionQuality: 'disconnected' })
+
+      // Auto-retry with exponential backoff
+      if (attempts < maxAttempts && event.code !== 1000) {
         // Don't retry on normal closure
-        const retryDelay = Math.min(1000 * Math.pow(2, attempts), 10000) // Max 10 seconds
+        const baseDelay = get().reconnectDelay
+        const retryDelay = Math.min(baseDelay * Math.pow(2, attempts), 30000) // Max 30 seconds
         console.warn(
-          `🔄 Retrying WebSocket connection in ${retryDelay}ms... (attempt ${attempts + 1}/5)`,
+          `🔄 Retrying WebSocket connection in ${retryDelay}ms... (attempt ${attempts + 1}/${maxAttempts})`,
         )
         setTimeout(() => {
           set({ connectionAttempts: attempts + 1 })
           get().connectWebSocket(url)
         }, retryDelay)
-      } else if (attempts >= 5) {
+      } else if (attempts >= maxAttempts) {
         console.warn('❌ Max WebSocket connection attempts reached. Please refresh the page.')
+        set({ connectionQuality: 'disconnected' })
       }
     }
 
@@ -196,10 +221,16 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
   disconnect: () => {
     const { socket } = get()
+    get().stopHeartbeat()
     if (socket !== null && socket !== undefined) {
-      socket.close()
+      socket.close(1000, 'User initiated disconnect') // Normal closure
     }
-    set({ isConnected: false, socket: null })
+    set({
+      isConnected: false,
+      socket: null,
+      connectionQuality: 'disconnected',
+      connectionAttempts: 0,
+    })
   },
 
   createAgent: (config: unknown) => {
@@ -229,4 +260,53 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   updateAgents: (agents: Agent[]) => set({ agents }),
   updateHiveStatus: (status: HiveStatus) => set({ hiveStatus: status }),
   updateTasks: (tasks: Task[]) => set({ tasks }),
+
+  startHeartbeat: () => {
+    const { heartbeatInterval } = get()
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval)
+    }
+
+    const interval = setInterval(() => {
+      const { socket, isConnected } = get()
+      if (socket && isConnected && socket.readyState === WebSocket.OPEN) {
+        try {
+          socket.send(JSON.stringify({ action: 'ping', timestamp: Date.now() }))
+          set({ lastHeartbeat: Date.now() })
+          get().updateConnectionQuality()
+        } catch (error) {
+          console.warn('Failed to send heartbeat:', error)
+          set({ connectionQuality: 'poor' })
+        }
+      }
+    }, 30000) // Send heartbeat every 30 seconds
+
+    set({ heartbeatInterval: interval })
+  },
+
+  stopHeartbeat: () => {
+    const { heartbeatInterval } = get()
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval)
+      set({ heartbeatInterval: null })
+    }
+  },
+
+  updateConnectionQuality: () => {
+    const { lastHeartbeat, isConnected } = get()
+    const now = Date.now()
+    const timeSinceHeartbeat = now - lastHeartbeat
+
+    if (!isConnected) {
+      set({ connectionQuality: 'disconnected' })
+    } else if (timeSinceHeartbeat < 35000) {
+      // Within 35 seconds
+      set({ connectionQuality: 'excellent' })
+    } else if (timeSinceHeartbeat < 60000) {
+      // Within 1 minute
+      set({ connectionQuality: 'good' })
+    } else {
+      set({ connectionQuality: 'poor' })
+    }
+  },
 }))

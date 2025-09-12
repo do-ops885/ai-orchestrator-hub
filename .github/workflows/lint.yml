@@ -363,84 +363,34 @@ jobs:
             markdown-lint.json
           retention-days: 30
 
-  # Lint summary
+  # Lint summary - optimized
   lint-summary:
     name: Lint Summary
     runs-on: ubuntu-latest
     needs: [security-scan, rust-lint, frontend-lint, documentation-lint]
     if: always()
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download lint results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: "*-lint-results"
-          path: lint-results
-        continue-on-error: true
-
       - name: Generate lint summary
         run: |
-          echo "📊 Generating lint summary..."
+          echo "## 🔍 Lint Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status | Duration |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Security Scan | ${{ needs.security-scan.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🦀 Rust Lint | ${{ needs.rust-lint.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚛️  Frontend Lint | ${{ needs.frontend-lint.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📚 Documentation Lint | ${{ needs.documentation-lint.result }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Initialize counters
-          total_issues=0
-          total_errors=0
-
-          # Process Rust lint results
-          rust_issues=0
-          rust_errors=0
-          if [ -f "lint-results/clippy-report.json" ]; then
-            rust_issues=$(jq '[.[] | select(.reason == "compiler-message")] | length' lint-results/clippy-report.json)
-            rust_errors=$(jq '[.[] | select(.reason == "compiler-message" and .message.level == "error")] | length' lint-results/clippy-report.json)
-          fi
-
-          # Process frontend lint results
-          frontend_issues=0
-          frontend_errors=0
-          if [ -f "lint-results/eslint-report.json" ]; then
-            frontend_issues=$(jq '[.[] | .messages[]] | length' lint-results/eslint-report.json)
-            frontend_errors=$(jq '[.[] | .messages[] | select(.severity == 2)] | length' lint-results/eslint-report.json)
-          fi
-
-          # Process documentation lint results
-          doc_issues=0
-          if [ -f "lint-results/markdown-lint.json" ]; then
-            doc_issues=$(jq length lint-results/markdown-lint.json)
-          fi
-
-          # Calculate totals
-          total_issues=$((rust_issues + frontend_issues + doc_issues))
-          total_errors=$((rust_errors + frontend_errors))
-
-          echo "📈 Lint Summary:"
-          echo "  🔧 Rust: $rust_issues issues ($rust_errors errors)"
-          echo "  ⚛️  Frontend: $frontend_issues issues ($frontend_errors errors)"
-          echo "  📚 Documentation: $doc_issues issues"
-          echo "  📊 Total: $total_issues issues ($total_errors errors)"
-
-          # Job status summary
-          echo ""
-          echo "🏃 Job Results:"
-          echo "  🔒 Security Scan: ${{ needs.security-scan.result }}"
-          echo "  🦀 Rust Lint: ${{ needs.rust-lint.result }}"
-          echo "  ⚛️  Frontend Lint: ${{ needs.frontend-lint.result }}"
-          echo "  📚 Documentation Lint: ${{ needs.documentation-lint.result }}"
-
-      - name: Quality gate validation
-        run: |
-          echo "🚦 Running quality gate validation..."
-
-          # Check if any jobs failed
+          # Quality gate validation
           if [ "${{ needs.security-scan.result }}" = "failure" ] || \
              [ "${{ needs.rust-lint.result }}" = "failure" ] || \
              [ "${{ needs.frontend-lint.result }}" = "failure" ] || \
              [ "${{ needs.documentation-lint.result }}" = "failure" ]; then
-            echo "❌ Quality gate failed: One or more lint jobs failed"
+            echo "❌ **Quality gate failed**: One or more lint jobs failed" >> $GITHUB_STEP_SUMMARY
             exit 1
+          else
+            echo "✅ **Quality gate passed**: All lint checks successful" >> $GITHUB_STEP_SUMMARY
           fi
-
-          echo "✅ Quality gate passed: All lint jobs successful"

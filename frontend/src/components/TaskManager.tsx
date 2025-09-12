@@ -259,10 +259,10 @@ export const TaskManager = React.memo(function TaskManager() {
                     {task.assigned_agent !== null &&
                       task.assigned_agent !== undefined &&
                       task.assigned_agent !== '' && (
-                      <div className="text-sm text-blue-600">
+                        <div className="text-sm text-blue-600">
                           Assigned to: {task.assigned_agent}
-                      </div>
-                    )}
+                        </div>
+                      )}
                   </div>
                 </div>
 
@@ -271,10 +271,10 @@ export const TaskManager = React.memo(function TaskManager() {
                   {task.completed_at !== null &&
                     task.completed_at !== undefined &&
                     task.completed_at !== '' && (
-                    <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500">
                         Completed: {new Date(task.completed_at).toLocaleString()}
-                    </div>
-                  )}
+                      </div>
+                    )}
                 </div>
               </div>
             </li>

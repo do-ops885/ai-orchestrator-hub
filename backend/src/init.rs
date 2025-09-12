@@ -30,7 +30,7 @@ pub async fn initialize_system() -> anyhow::Result<AppState> {
     let config = Arc::new(match HiveConfig::load() {
         Ok(config) => config,
         Err(e) => {
-            eprintln!("❌ Configuration error: {}", e);
+            eprintln!("❌ Configuration error: {e}");
             return Err(e.into());
         }
     });
@@ -45,7 +45,6 @@ pub async fn initialize_system() -> anyhow::Result<AppState> {
     let log_level = match config.logging.level.as_str() {
         "trace" => Level::TRACE,
         "debug" => Level::DEBUG,
-        "info" => Level::INFO,
         "warn" => Level::WARN,
         "error" => Level::ERROR,
         _ => Level::INFO,
@@ -100,7 +99,7 @@ pub async fn initialize_system() -> anyhow::Result<AppState> {
     let app_state = AppState {
         hive,
         config,
-        metrics: metrics.clone(),
+        metrics: Arc::clone(&metrics),
         advanced_metrics: metrics,
         intelligent_alerting,
         circuit_breaker,
@@ -150,7 +149,7 @@ async fn initialize_alerting(
     // Initialize intelligent alerting system
     let alert_config = IntelligentAlertConfig::default();
     let intelligent_alerting = Arc::new(IntelligentAlertingSystem::new(
-        advanced_metrics.clone(),
+        Arc::clone(&advanced_metrics),
         alert_config,
     ));
 

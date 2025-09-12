@@ -12,8 +12,6 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  LOG_LEVEL: INFO
-  LOG_FORMAT: json
   CORRELATION_ID: ${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:

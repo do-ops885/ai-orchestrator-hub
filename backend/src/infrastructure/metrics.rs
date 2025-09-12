@@ -361,14 +361,14 @@ impl MetricsCollector {
         let mut current = self.current_metrics.write().await;
 
         // Update resource usage with enhanced metrics
-        current.resource_usage.network_io = self.get_network_metrics().await?;
-        current.resource_usage.disk_io = self.get_disk_metrics().await?;
+        current.resource_usage.network_io = self.get_network_metrics()?;
+        current.resource_usage.disk_io = self.get_disk_metrics()?;
         current.timestamp = Utc::now();
 
         Ok(current.clone())
     }
 
-    async fn get_network_metrics(&self) -> anyhow::Result<NetworkMetrics> {
+    fn get_network_metrics(&self) -> anyhow::Result<NetworkMetrics> {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
@@ -383,7 +383,7 @@ impl MetricsCollector {
         })
     }
 
-    async fn get_disk_metrics(&self) -> anyhow::Result<DiskMetrics> {
+    fn get_disk_metrics(&self) -> anyhow::Result<DiskMetrics> {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();

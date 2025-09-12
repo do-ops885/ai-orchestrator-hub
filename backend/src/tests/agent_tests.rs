@@ -133,8 +133,8 @@ mod tests {
                 timestamp: Utc::now(),
                 task_type: "general".to_string(),
                 success: i % 2 == 0,
-                context: format!("Task {}", i),
-                learned_insight: Some(format!("Insight {}", i)),
+                context: format!("Task {i}"),
+                learned_insight: Some(format!("Insight {i}")),
             };
             agent.learn_from_experience(experience);
         }

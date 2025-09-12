@@ -14,7 +14,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [mounted, setMounted] = useState(false)
   const { connectWebSocket, disconnect, isConnected } = useHiveStore()
-   const { isOnline } = useNetworkRecovery()
+  const { isOnline } = useNetworkRecovery()
 
   // Error recovery for WebSocket connection
   const { execute: connectWithRetry, state: connectionState } = useErrorRecovery(
@@ -30,17 +30,17 @@ export default function Home() {
     {
       maxRetries: 5,
       baseDelay: 2000,
-      retryCondition: (error) => {
+      retryCondition: error => {
         return error.message.includes('connection') || error.message.includes('network')
       },
-    }
+    },
   )
 
   useEffect(() => {
     setMounted(true)
 
     // Attempt initial connection with retry logic
-    connectWithRetry().catch((error) => {
+    connectWithRetry().catch(error => {
       console.error('Failed to establish WebSocket connection:', error)
     })
 
@@ -75,7 +75,8 @@ export default function Home() {
           </h1>
 
           <p className="text-gray-600 text-center mb-6">
-            Unable to connect to the Multiagent Hive server. Please check your connection and try again.
+            Unable to connect to the Multiagent Hive server. Please check your connection and try
+            again.
           </p>
 
           <div className="flex flex-col gap-3">
@@ -124,13 +125,15 @@ export default function Home() {
 
               {/* Connection status with network indicator */}
               <div className="flex items-center space-x-2">
-                <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                  isConnected === true
-                    ? 'bg-green-100 text-green-800'
-                    : connectionState.isRetrying
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-red-100 text-red-800'
-                }`}>
+                <div
+                  className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                    isConnected === true
+                      ? 'bg-green-100 text-green-800'
+                      : connectionState.isRetrying
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                  }`}
+                >
                   {isConnected === true ? (
                     <Wifi className="h-3 w-3 mr-1" />
                   ) : (
@@ -139,9 +142,8 @@ export default function Home() {
                   {isConnected === true
                     ? 'Connected'
                     : connectionState.isRetrying
-                    ? `Reconnecting... (${connectionState.retryCount}/5)`
-                    : 'Disconnected'
-                  }
+                      ? `Reconnecting... (${connectionState.retryCount}/5)`
+                      : 'Disconnected'}
                 </div>
 
                 {/* Network status */}
@@ -180,11 +182,12 @@ export default function Home() {
               <div className="flex">
                 <AlertTriangle className="h-5 w-5 text-red-400" />
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">
-                    Component Error
-                  </h3>
+                  <h3 className="text-sm font-medium text-red-800">Component Error</h3>
                   <div className="mt-2 text-sm text-red-700">
-                    <p>The {activeTab} component encountered an error. Please try refreshing the page.</p>
+                    <p>
+                      The {activeTab} component encountered an error. Please try refreshing the
+                      page.
+                    </p>
                   </div>
                   <div className="mt-4">
                     <button

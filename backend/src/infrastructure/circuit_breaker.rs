@@ -118,13 +118,14 @@ mod tests {
     use tokio::time::sleep;
 
     #[tokio::test]
-    async fn test_circuit_breaker_closed_state() {
+    async fn test_circuit_breaker_closed_state() -> Result<(), Box<dyn std::error::Error>> {
         let cb = CircuitBreaker::new(3, Duration::from_millis(100));
 
         let result = cb.execute(|| Ok::<i32, &str>(42)).await;
         assert!(result.is_ok());
-        let value = result.expect("Expected Ok, got Err");
+        let value = result.map_err(|e| format!("Expected Ok, got Err: {:?}", e))?;
         assert_eq!(value, 42);
+        Ok(())
     }
 
     #[tokio::test]

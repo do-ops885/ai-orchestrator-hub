@@ -253,7 +253,7 @@ impl PairCoordinator {
     }
 
     /// Create a new agent pair for task execution and verification
-    pub async fn create_agent_pair(
+    pub fn create_agent_pair(
         &mut self,
         primary_agent: Uuid,
         verification_agent: Uuid,
@@ -292,7 +292,7 @@ impl PairCoordinator {
     }
 
     /// Select the optimal agent pair for a given task
-    pub async fn select_optimal_pair(
+    pub fn select_optimal_pair(
         &self,
         task: &VerifiableTask,
         available_agents: &[Agent],
@@ -369,7 +369,7 @@ impl PairCoordinator {
     }
 
     /// Update pair performance metrics after task completion
-    pub async fn update_pair_metrics(
+    pub fn update_pair_metrics(
         &mut self,
         pair_id: Uuid,
         verification_result: &VerificationResult,
@@ -431,10 +431,7 @@ impl PairCoordinator {
     }
 
     /// Remove underperforming pairs
-    pub async fn cleanup_underperforming_pairs(
-        &mut self,
-        min_trust_threshold: f64,
-    ) -> Result<usize> {
+    pub fn cleanup_underperforming_pairs(&mut self, min_trust_threshold: f64) -> Result<usize> {
         let mut removed_count = 0;
         let mut pairs_to_remove = Vec::new();
 

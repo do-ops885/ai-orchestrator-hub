@@ -1,3 +1,4 @@
+pub mod async_optimizer;
 /// Performance benchmarking and testing utilities
 pub mod benchmarks;
 /// Intelligent caching system with TTL and size management
@@ -6,6 +7,7 @@ pub mod cache;
 pub mod circuit_breaker;
 /// Intelligent alerting system with predictive analytics
 pub mod intelligent_alerting;
+pub mod intelligent_cache;
 /// Memory pool management for efficient allocations
 pub mod memory_pool;
 /// Comprehensive metrics collection and analysis
@@ -14,6 +16,7 @@ pub mod metrics;
 pub mod middleware;
 /// System monitoring and health checks
 pub mod monitoring;
+pub mod performance_integration;
 /// Performance optimization and auto-tuning
 pub mod performance_optimizer;
 /// Data persistence and state management
@@ -22,6 +25,8 @@ pub mod persistence;
 pub mod resource_manager;
 /// Security middleware and request validation
 pub mod security_middleware;
+pub mod streaming;
+pub use streaming::{StreamConfig, StreamProcessor};
 /// Telemetry collection and reporting
 pub mod telemetry;
 

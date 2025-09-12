@@ -188,10 +188,10 @@ impl HiveMCPServer {
         );
 
         let result = match request.method.as_str() {
-            "initialize" => self.handle_initialize(request.params).await,
-            "tools/list" => self.handle_list_tools().await,
+            "initialize" => self.handle_initialize(request.params),
+            "tools/list" => self.handle_list_tools(),
             "tools/call" => self.handle_call_tool(request.params).await,
-            "resources/list" => self.handle_list_resources().await,
+            "resources/list" => self.handle_list_resources(),
             "resources/read" => self.handle_read_resource(request.params).await,
             _ => Err(MCPError {
                 code: error_codes::METHOD_NOT_FOUND,
@@ -216,7 +216,7 @@ impl HiveMCPServer {
         }
     }
 
-    async fn handle_initialize(&self, params: Option<Value>) -> Result<Value, MCPError> {
+    fn handle_initialize(&self, params: Option<Value>) -> Result<Value, MCPError> {
         info!("Initializing MCP server: {}", self.name);
 
         let client_info = params
@@ -238,7 +238,7 @@ impl HiveMCPServer {
         }))
     }
 
-    async fn handle_list_tools(&self) -> Result<Value, MCPError> {
+    fn handle_list_tools(&self) -> Result<Value, MCPError> {
         debug!("Listing {} MCP tools", self.tools.len());
 
         let tools: Vec<Value> = self
@@ -302,7 +302,7 @@ impl HiveMCPServer {
         }
     }
 
-    async fn handle_list_resources(&self) -> Result<Value, MCPError> {
+    fn handle_list_resources(&self) -> Result<Value, MCPError> {
         debug!("Listing {} MCP resources", self.resources.len());
 
         let resources: Vec<&MCPResource> = self.resources.values().collect();

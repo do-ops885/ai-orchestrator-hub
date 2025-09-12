@@ -187,7 +187,7 @@ impl FormationOptimizationEngine {
         ]
     }
 
-    pub async fn identify_optimization_opportunities(
+    pub fn identify_optimization_opportunities(
         &self,
         _formation: &EnhancedSwarmFormation,
         _performance: &PerformanceAnalysis,
@@ -201,7 +201,7 @@ impl FormationOptimizationEngine {
         }])
     }
 
-    pub async fn select_optimization_strategy(
+    pub fn select_optimization_strategy(
         &self,
         _opportunities: &[OptimizationOpportunity],
     ) -> HiveResult<OptimizationStrategy> {
@@ -226,7 +226,7 @@ impl AdaptiveBehaviorSystem {
         }
     }
 
-    pub async fn monitor_formation_behavior(
+    pub fn monitor_formation_behavior(
         &self,
         _formation: &EnhancedSwarmFormation,
     ) -> HiveResult<Vec<BehavioralPattern>> {
@@ -234,7 +234,7 @@ impl AdaptiveBehaviorSystem {
         Ok(vec![])
     }
 
-    pub async fn detect_new_patterns(
+    pub fn detect_new_patterns(
         &self,
         _formation: &EnhancedSwarmFormation,
         _current_patterns: &[BehavioralPattern],
@@ -243,7 +243,7 @@ impl AdaptiveBehaviorSystem {
         Ok(vec![])
     }
 
-    pub async fn evaluate_pattern_effectiveness(
+    pub fn evaluate_pattern_effectiveness(
         &self,
         patterns: &[BehavioralPattern],
     ) -> HiveResult<Vec<BehavioralPattern>> {
@@ -255,7 +255,7 @@ impl AdaptiveBehaviorSystem {
             .collect())
     }
 
-    pub async fn learn_from_patterns(&mut self, patterns: &[BehavioralPattern]) -> HiveResult<()> {
+    pub fn learn_from_patterns(&mut self, patterns: &[BehavioralPattern]) -> HiveResult<()> {
         for pattern in patterns {
             self.learned_patterns
                 .insert(pattern.pattern_id, pattern.clone());

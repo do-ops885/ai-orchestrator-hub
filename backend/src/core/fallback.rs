@@ -241,9 +241,7 @@ impl IntelligentFallback {
                 break;
             }
 
-            let result = self
-                .try_fallback_tier(task, available_agents, &tier, task_context)
-                .await;
+            let result = self.try_fallback_tier(task, available_agents, &tier, task_context);
 
             decision.attempts.push(result.clone());
 
@@ -274,7 +272,7 @@ impl IntelligentFallback {
     }
 
     /// Try to find an agent in a specific fallback tier
-    async fn try_fallback_tier(
+    fn try_fallback_tier(
         &self,
         task: &Task,
         available_agents: &[Agent],

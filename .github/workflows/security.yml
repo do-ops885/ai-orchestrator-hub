@@ -6,17 +6,20 @@ on:
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
+  schedule:
+    # Run weekly security scans
+    - cron: '0 3 * * 1'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Comprehensive security scanning
+  # Security audit - optimized
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     permissions:
       actions: read
       contents: read
@@ -39,25 +42,12 @@ jobs:
 
       - name: Run cargo audit
         run: |
-          echo "Running cargo audit"
           cd backend
           cargo install cargo-audit --version ^0.18 || echo "Failed to install cargo-audit"
           cargo audit --format json --output audit.json || {
             echo "::warning::Security vulnerabilities found in cargo audit"
             exit 1
           }
-        continue-on-error: true
-
-      - name: Run cargo outdated
-        run: |
-          echo "Running cargo outdated check"
-          cd backend
-          cargo install cargo-outdated --version ^0.15 || echo "Failed to install cargo-outdated"
-          cargo outdated --format json --output outdated.json || {
-            echo "::warning::Outdated dependencies found"
-            exit 1
-          }
-        continue-on-error: true
 
       - name: Upload security reports
         uses: actions/upload-artifact@v4
@@ -66,8 +56,7 @@ jobs:
           name: security-reports
           path: |
             backend/audit.json
-            backend/outdated.json
-          retention-days: 30
+          retention-days: 7
 
   # Frontend security scanning
   frontend-security:
