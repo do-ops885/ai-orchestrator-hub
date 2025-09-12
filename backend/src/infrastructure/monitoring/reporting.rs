@@ -3,7 +3,7 @@
 //! Generates monitoring reports and analytics
 
 use super::types::*;
-use crate::utils::error::{HiveError, HiveResult};
+use crate::utils::error::HiveResult;
 
 #[derive(Clone)]
 pub struct Reporting;

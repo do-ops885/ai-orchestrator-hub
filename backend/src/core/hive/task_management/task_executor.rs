@@ -4,7 +4,7 @@
 //! and error recovery capabilities.
 
 use super::task_types::*;
-use crate::agents::agent::Agent;
+use crate::agents::agent::{Agent, AgentState};
 use crate::tasks::task::Task;
 use crate::utils::error::{HiveError, HiveResult};
 use crate::AgentState;

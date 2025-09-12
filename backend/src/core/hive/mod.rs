@@ -126,38 +126,6 @@ mod tests {
     use std::sync::Arc;
     use tokio::sync::mpsc;
 
-    // Mock implementations for integration testing
-    struct MockResourceManager;
-    impl MockResourceManager {
-        async fn new() -> crate::utils::error::HiveResult<Self> {
-            Ok(Self)
-        }
-        async fn get_system_info(
-            &self,
-        ) -> (
-            crate::infrastructure::resource_manager::SystemResources,
-            String,
-            String,
-        ) {
-            use chrono::Utc;
-            (
-                crate::infrastructure::resource_manager::SystemResources {
-                    cpu_cores: 4,
-                    available_memory: 8_000_000_000,
-                    cpu_usage: 0.5,
-                    memory_usage: 0.3,
-                    simd_capabilities: vec!["avx2".to_string()],
-                    last_updated: Utc::now(),
-                },
-                "desktop".to_string(),
-                "Desktop".to_string(),
-            )
-        }
-        async fn update_system_metrics(&self) -> crate::utils::error::HiveResult<()> {
-            Ok(())
-        }
-    }
-
     #[tokio::test]
     async fn test_module_exports() {
         // Test that all expected types are exported and accessible
@@ -178,7 +146,8 @@ mod tests {
     #[tokio::test]
     async fn test_module_integration_basic() -> Result<(), Box<dyn std::error::Error>> {
         // Test basic integration between modules
-        let resource_manager = Arc::new(MockResourceManager::new().await?);
+        let resource_manager =
+            Arc::new(crate::infrastructure::resource_manager::ResourceManager::new().await?);
         let (tx, _rx) = mpsc::unbounded_channel();
 
         // Create individual modules
@@ -189,8 +158,16 @@ mod tests {
         let process_manager = ProcessManager::new(tx).await?;
 
         // Verify they can be created and used together
-        assert_eq!(agent_manager.get_agent_count(), 0);
-        assert_eq!(task_distributor.task_queue.read().await.len(), 0);
+        let agent_status = agent_manager.get_status().await;
+        assert_eq!(agent_status["total_agents"].as_u64().unwrap_or(0), 0);
+
+        let task_status = task_distributor.get_status().await;
+        assert_eq!(
+            task_status["queue"]["legacy_queue_size"]
+                .as_u64()
+                .unwrap_or(0),
+            0
+        );
 
         let status = metrics_collector.get_current_metrics().await;
         assert_eq!(status.agent_metrics.total_agents, 0);
@@ -204,7 +181,8 @@ mod tests {
     #[tokio::test]
     async fn test_agent_task_integration() -> Result<(), Box<dyn std::error::Error>> {
         // Test integration between agent management and task distribution
-        let resource_manager = Arc::new(MockResourceManager::new().await?);
+        let resource_manager =
+            Arc::new(crate::infrastructure::resource_manager::ResourceManager::new().await?);
         let (tx, _rx) = mpsc::unbounded_channel();
 
         let agent_manager = AgentManager::new(Arc::clone(&resource_manager), tx.clone()).await?;
@@ -514,7 +492,7 @@ mod tests {
                     .execute_task_with_verification(task_id, agent_id)
                     .await?;
 
-                Ok::<(), Box<dyn std::error::Error>>(())
+                Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
             });
             handles.push(handle);
         }

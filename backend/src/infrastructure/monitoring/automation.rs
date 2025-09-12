@@ -3,7 +3,7 @@
 //! Provides automated monitoring tasks and responses
 
 use super::types::*;
-use crate::utils::error::{HiveError, HiveResult};
+use crate::utils::error::HiveResult;
 
 #[derive(Clone)]
 pub struct Automation;

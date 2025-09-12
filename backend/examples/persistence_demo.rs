@@ -218,13 +218,13 @@ async fn demo_automatic_checkpointing() -> anyhow::Result<()> {
         incremental_backup: false,
     };
 
-    let persistence = PersistenceManager::new(config).await?;
+    let persistence = Arc::new(PersistenceManager::new(config).await?);
     let hive = Arc::new(create_test_hive().await?);
 
     // Start automatic checkpointing (every 2 seconds for demo)
     info!("Starting automatic checkpointing every 2 seconds...");
     let _checkpoint_handle = tokio::spawn({
-        let persistence = persistence.clone();
+        let persistence = Arc::clone(&persistence);
         let hive = Arc::clone(&hive);
         async move {
             let mut interval = tokio::time::interval(Duration::from_secs(2));
@@ -252,7 +252,7 @@ async fn demo_automatic_checkpointing() -> anyhow::Result<()> {
 }
 
 async fn create_test_hive() -> anyhow::Result<HiveCoordinator> {
-    HiveCoordinator::new().await
+    HiveCoordinator::new().await.map_err(anyhow::Error::from)
 }
 
 async fn add_test_agents(hive: &mut HiveCoordinator) -> anyhow::Result<()> {

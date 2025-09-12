@@ -10,7 +10,6 @@ use crate::utils::error::{HiveError, HiveResult};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 /// Task queue manager with dual queue strategy
 #[derive(Clone)]
@@ -66,8 +65,14 @@ impl TaskQueueManager {
     /// Get the next task from the queue
     pub async fn dequeue_task(&self) -> HiveResult<Option<Task>> {
         // Try work-stealing queue first if enabled
-        if self.config.enable_work_stealing {
-            if let Some(task) = self.work_stealing_queue.pop_global().await {
+            // For work-stealing queue, we need an agent ID. For now, use a default agent
+            // This is a temporary solution - in a real implementation, dequeue_task should take an agent_id parameter
+            let default_agent_id = uuid::Uuid::new_v4();
+            if let Some(task) = self
+                .work_stealing_queue
+                .get_task_for_agent(default_agent_id)
+                .await
+            {
                 self.update_stats().await;
                 return Ok(Some(task));
             }
@@ -85,7 +90,8 @@ impl TaskQueueManager {
     pub async fn get_queue_size(&self) -> usize {
         let legacy_size = self.legacy_queue.read().await.len();
         let work_stealing_size = if self.config.enable_work_stealing {
-            self.work_stealing_queue.len().await
+            let metrics = self.work_stealing_queue.get_metrics().await;
+            metrics.total_queue_depth
         } else {
             0
         };
@@ -111,18 +117,20 @@ impl TaskQueueManager {
     pub async fn clear(&self) -> HiveResult<()> {
         self.legacy_queue.write().await.clear();
         if self.config.enable_work_stealing {
-            if let Err(e) = self.work_stealing_queue.clear().await {
-                return Err(HiveError::OperationFailed {
-                    reason: format!("Failed to clear work-stealing queue: {}", e),
-                });
-            }
+
+            self.work_stealing_queue
+                .clear()
+                .await
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to clear work-stealing queue: {e}"),
+                })?;
         }
         self.update_stats().await;
         Ok(())
     }
 
     /// Get tasks by status (for monitoring)
-    pub async fn get_tasks_by_status(&self, status: TaskStatus) -> Vec<Task> {
+    pub async fn get_tasks_by_status(&self, _status: TaskStatus) -> Vec<Task> {
         // This is a simplified implementation
         // In a real system, you'd need to track task statuses
         let legacy_tasks = self.legacy_queue.read().await.clone();

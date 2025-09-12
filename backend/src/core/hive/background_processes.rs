@@ -805,7 +805,6 @@ mod tests {
     use tokio::sync::mpsc;
 
     // Mock implementations for testing
-    use uuid::Uuid;
 
     // Helper function to create a test process manager
     async fn create_test_process_manager() -> HiveResult<ProcessManager> {

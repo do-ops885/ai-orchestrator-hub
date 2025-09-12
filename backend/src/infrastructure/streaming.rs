@@ -349,7 +349,6 @@ impl<T: Clone> Iterator for MemoryEfficientIterator<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::stream;
 
     #[tokio::test]
     async fn test_stream_processor() -> Result<(), Box<dyn std::error::Error>> {

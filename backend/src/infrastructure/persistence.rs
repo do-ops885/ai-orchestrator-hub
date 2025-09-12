@@ -453,6 +453,7 @@ pub trait StorageProvider {
 }
 
 /// `SQLite` storage implementation
+#[derive(Clone)]
 #[allow(dead_code)]
 pub struct SQLiteStorage {
     database_path: PathBuf,
@@ -662,6 +663,7 @@ impl StorageProvider for SQLiteStorage {
 }
 
 /// File system storage implementation
+#[derive(Clone)]
 pub struct FileSystemStorage {
     base_path: PathBuf,
 }
@@ -783,6 +785,7 @@ impl StorageProvider for FileSystemStorage {
 }
 
 /// In-memory storage implementation (for testing)
+#[derive(Clone)]
 pub struct MemoryStorage {
     snapshots: Arc<RwLock<HashMap<String, SystemSnapshot>>>,
     max_snapshots: usize,

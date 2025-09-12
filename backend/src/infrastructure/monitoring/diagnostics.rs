@@ -2,7 +2,7 @@
 //!
 //! Provides diagnostic capabilities for system troubleshooting
 
-use crate::utils::error::{HiveError, HiveResult};
+use crate::utils::error::HiveResult;
 
 #[derive(Clone)]
 pub struct Diagnostics;

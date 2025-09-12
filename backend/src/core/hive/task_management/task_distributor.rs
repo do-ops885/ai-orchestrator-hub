@@ -194,7 +194,7 @@ impl TaskDistributor {
             description: description.to_string(),
             task_type: task_type.to_string(),
             priority,
-            status: crate::TaskStatus::Pending,
+            status: crate::tasks::task::TaskStatus::Pending,
             required_capabilities,
             assigned_agent: None,
             created_at: chrono::Utc::now(),
