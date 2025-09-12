@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-/* eslint-disable no-console */
-
 async function monitorTaskPerformance() {
   const registryUrl = process.argv[2] || 'http://localhost:8000'
 

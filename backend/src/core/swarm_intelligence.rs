@@ -89,7 +89,7 @@ impl SwarmIntelligenceEngine {
     ) -> anyhow::Result<SwarmFormation> {
         info!("Optimizing formation for task: {}", task.id);
 
-        let formation_type = self.determine_optimal_formation(task, agents).await?;
+        let formation_type = self.determine_optimal_formation(task, agents)?;
         let selected_agents = self
             .select_optimal_agents(agents, task, &formation_type)
             .await?;
@@ -113,7 +113,7 @@ impl SwarmIntelligenceEngine {
         Ok(formation)
     }
 
-    async fn determine_optimal_formation(
+    fn determine_optimal_formation(
         &self,
         task: &Task,
         agents: &[Agent],
@@ -169,19 +169,19 @@ impl SwarmIntelligenceEngine {
 
         match formation_type {
             FormationType::Star => {
-                selected.extend(self.select_star_formation(&capable_agents).await?);
+                selected.extend(self.select_star_formation(&capable_agents)?);
             }
             FormationType::Chain => {
-                selected.extend(self.select_chain_formation(&capable_agents, task).await?);
+                selected.extend(self.select_chain_formation(&capable_agents, task)?);
             }
             FormationType::Hierarchy => {
-                selected.extend(self.select_hierarchy_formation(&capable_agents).await?);
+                selected.extend(self.select_hierarchy_formation(&capable_agents)?);
             }
             FormationType::Mesh => {
-                selected.extend(self.select_mesh_formation(&capable_agents).await?);
+                selected.extend(self.select_mesh_formation(&capable_agents)?);
             }
             FormationType::Ring => {
-                selected.extend(self.select_ring_formation(&capable_agents).await?);
+                selected.extend(self.select_ring_formation(&capable_agents)?);
             }
         }
 
@@ -208,7 +208,7 @@ impl SwarmIntelligenceEngine {
         Ok(selected)
     }
 
-    async fn select_star_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
+    fn select_star_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
         let mut selected = Vec::new();
 
         // Select one coordinator
@@ -237,11 +237,7 @@ impl SwarmIntelligenceEngine {
         Ok(selected)
     }
 
-    async fn select_chain_formation(
-        &self,
-        agents: &[&Agent],
-        task: &Task,
-    ) -> anyhow::Result<Vec<Uuid>> {
+    fn select_chain_formation(&self, agents: &[&Agent], task: &Task) -> anyhow::Result<Vec<Uuid>> {
         let mut sorted_agents = agents.to_vec();
         sorted_agents.sort_by(|a, b| {
             let a_score = self.calculate_agent_score(a, task);
@@ -254,7 +250,7 @@ impl SwarmIntelligenceEngine {
         Ok(sorted_agents.into_iter().take(4).map(|a| a.id).collect())
     }
 
-    async fn select_hierarchy_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
+    fn select_hierarchy_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
         let mut selected = Vec::new();
 
         // Select leader (coordinator or highest scoring agent)
@@ -295,7 +291,7 @@ impl SwarmIntelligenceEngine {
         Ok(selected)
     }
 
-    async fn select_mesh_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
+    fn select_mesh_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
         // Select diverse set of agents for mesh network
         let mut selected = Vec::new();
         let mut agent_types_used = std::collections::HashSet::new();
@@ -316,7 +312,7 @@ impl SwarmIntelligenceEngine {
         Ok(selected)
     }
 
-    async fn select_ring_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
+    fn select_ring_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
         // Select agents with balanced capabilities for ring formation
         let mut selected = Vec::new();
 
@@ -435,7 +431,7 @@ impl SwarmIntelligenceEngine {
         self.formations.values().collect()
     }
 
-    pub async fn rebalance_formations(&mut self, agents: &[Agent]) -> anyhow::Result<Vec<Uuid>> {
+    pub fn rebalance_formations(&mut self, agents: &[Agent]) -> anyhow::Result<Vec<Uuid>> {
         let mut rebalanced_formations = Vec::new();
 
         // Find underperforming formations

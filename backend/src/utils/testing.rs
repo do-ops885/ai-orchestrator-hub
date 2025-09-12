@@ -156,7 +156,7 @@ impl TestHarness {
         let hive = self.hive.read().await;
         let status = hive.get_status().await;
         let agents_info = hive.get_agents_info().await;
-        let tasks_info = hive.get_tasks_info().await;
+        let tasks_info = hive.get_tasks_info().await.unwrap_or(json!({}));
 
         let mut report = ConsistencyReport::default();
 
@@ -358,7 +358,7 @@ impl IntegrationTests {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
         // Validate tasks
-        let tasks_info = harness.hive.read().await.get_tasks_info().await;
+        let tasks_info = harness.hive.read().await.get_tasks_info().await?;
         if let Some(tasks) = tasks_info.get("tasks").and_then(|t| t.as_array()) {
             assert_eq!(tasks.len(), 5);
         }

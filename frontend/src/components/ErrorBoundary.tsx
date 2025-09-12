@@ -123,7 +123,8 @@ export class ErrorBoundary extends Component<Props, State> {
             </h1>
 
             <p className="text-gray-600 text-center mb-6">
-              We encountered an unexpected error. Please try refreshing the page or contact support if the problem persists.
+              We encountered an unexpected error. Please try refreshing the page or contact support
+              if the problem persists.
             </p>
 
             {this.props.showDetails && this.state.error && (
@@ -139,7 +140,8 @@ export class ErrorBoundary extends Component<Props, State> {
                   <pre className="mt-2 whitespace-pre-wrap break-words">
                     {this.state.error.message}
                     {this.state.error.stack && `\n\n${this.state.error.stack}`}
-                    {this.state.errorInfo?.componentStack && `\n\nComponent Stack:\n${this.state.errorInfo.componentStack}`}
+                    {this.state.errorInfo?.componentStack &&
+                      `\n\nComponent Stack:\n${this.state.errorInfo.componentStack}`}
                   </pre>
                 </details>
               </div>
@@ -180,7 +182,7 @@ export class ErrorBoundary extends Component<Props, State> {
 // Hook for functional components to use error boundaries
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
-  errorBoundaryProps?: Omit<Props, 'children'>
+  errorBoundaryProps?: Omit<Props, 'children'>,
 ) {
   const WrappedComponent = (props: P) => (
     <ErrorBoundary {...errorBoundaryProps}>
@@ -231,11 +233,12 @@ export class AsyncErrorBoundary extends Component<Props, State> {
           <div className="flex">
             <AlertTriangle className="h-5 w-5 text-yellow-400" />
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800">
-                Operation Failed
-              </h3>
+              <h3 className="text-sm font-medium text-yellow-800">Operation Failed</h3>
               <div className="mt-2 text-sm text-yellow-700">
-                <p>The requested operation could not be completed. This might be due to a network issue or server problem.</p>
+                <p>
+                  The requested operation could not be completed. This might be due to a network
+                  issue or server problem.
+                </p>
               </div>
               <div className="mt-4">
                 <button

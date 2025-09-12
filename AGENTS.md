@@ -1,138 +1,99 @@
-# Development Guidelines for Agentic Coding Agents
-
-## Available Agents
-
-### Core Agents
-- **security-auditor**: Security analysis and vulnerability assessment
-- **plan**: Project planning and task management
-- **git**: Git operations and version control
-- **learner**: Learning and adaptation capabilities
-- **github**: GitHub repository management
-- **swarm-coordinator**: Swarm intelligence and multi-agent coordination
-
-### Swarm Coordinator Agent
-The `swarm-coordinator` agent is specialized for multi-agent systems and swarm intelligence operations. It has access to the following MCP tools:
-
-#### Multiagent Hive Tools
-- `create_swarm_agent`: Create new agents (Worker, Coordinator, Specialist, Learner)
-- `batch_create_agents`: Create multiple agents simultaneously
-- `assign_swarm_task`: Create tasks with priority levels
-- `get_swarm_status`: Monitor hive metrics and performance
-- `list_agents`: List and filter agents
-- `list_tasks`: List and filter tasks
-- `get_agent_details`: Get detailed agent information
-- `get_task_details`: Get detailed task information
-- `coordinate_agents`: Apply coordination strategies
-- `analyze_with_nlp`: Text analysis capabilities
-- `system_info`: System information retrieval
-- `echo`: Simple echo tool for testing
-
-#### Usage Examples
-```bash
-# Create a swarm coordinator agent
-opencode swarm-coordinator "Create 5 worker agents and assign them a code review task"
-
-# Monitor swarm status
-opencode swarm-coordinator "Check the current status of the multiagent hive"
-
-# Coordinate agents
-opencode swarm-coordinator "Apply balanced coordination strategy to optimize task distribution"
-```
+# Agent Development Guidelines
 
 ## Build/Lint/Test Commands
 
 ### Backend (Rust)
-
-* **Build**: `cd backend && cargo build`
-* **Test all**: `cd backend && cargo test`
-* **Test single**: `cd backend && cargo test test_function_name`
-* **Lint**: `cd backend && cargo clippy --all-targets --all-features`
-* **Format**: `cd backend && cargo fmt`
-* **Check format**: `cd backend && cargo fmt --check`
+- **Build**: `cd backend && cargo build`
+- **Test all**: `cd backend && cargo test`
+- **Test single**: `cd backend && cargo test test_function_name`
+- **Lint**: `cd backend && cargo clippy --all-targets --all-features`
+- **Format**: `cd backend && cargo fmt`
+- **MAS-specific**: Run agent integration tests with `cargo test --test integration` to verify multi-agent communication
 
 ### Frontend (TypeScript/React)
-
-* **Build**: `cd frontend && npm run build`
-* **Test all**: `cd frontend && npm test`
-* **Test single**: `cd frontend && npm test -- testName`
-* **Test coverage**: `cd frontend && npm run test:coverage`
-* **Lint**: `cd frontend && npm run lint`
-* **Lint fix**: `cd frontend && npm run lint:fix`
-* **Lint check**: `cd frontend && npm run lint:check`
-
----
+- **Build**: `cd frontend && npm run build`
+- **Test all**: `cd frontend && npm test`
+- **Test single**: `cd frontend && npm test -- testName`
+- **Test coverage**: `cd frontend && npm run test:coverage`
+- **Lint**: `cd frontend && npm run lint`
+- **Format**: `cd frontend && npm run format`
+- **MAS-specific**: Use Playwright for E2E testing of agent dashboard interactions
 
 ## Code Style Guidelines
 
 ### Rust (Backend)
-
-* **Formatting**: rustfmt with 100 char width, 4 spaces, Unix line endings
-* **Naming**: snake\_case for variables/functions, PascalCase for types
-* **Error handling**: Use `Result<T, E>` and `Option<T>`, avoid `unwrap`/`panic`
-* **Imports**: Group by std, external crates, then local modules
-* **Documentation**: Use `//!` for module docs, `///` for public items
-* **Async**: Use `async fn` and `await`, prefer tokio runtime
-* **Types**: Explicit types preferred, use `anyhow` for error handling
-* **Memory safety**: Prefer `Arc`/`Rc` over raw pointers, avoid unnecessary clones
+- **Formatting**: rustfmt (100 width, 4 spaces, Unix line endings)
+- **Naming**: snake_case (vars/fns), PascalCase (types), SCREAMING_SNAKE_CASE (consts)
+- **Error handling**: Result<T,E> + Option<T>, avoid unwrap/panic, use anyhow; implement agent failure recovery patterns
+- **Imports**: Group std → external crates → local modules
+- **Types**: Explicit types preferred, use Arc/Rc for shared ownership; define agent traits for polymorphism
+- **Async**: async fn + await, tokio runtime; use async channels for agent communication
+- **Memory**: Prefer &str over String, avoid unnecessary clones; implement resource pooling for agent instances
+- **MAS-specific**: Agents should be stateless where possible; use message passing for state synchronization
 
 ### TypeScript/React (Frontend)
+- **Formatting**: ESLint + Prettier (single quotes, no semicolons, trailing commas)
+- **Naming**: camelCase (vars/fns), PascalCase (components/types)
+- **Error handling**: try/catch, React error boundaries; implement agent communication error handling
+- **Imports**: Path mapping (@/), group React → external → internal
+- **Components**: Functional with hooks, composition over inheritance
+- **State**: Zustand for global, local for components; use stores for agent state management
+- **Styling**: Tailwind CSS classes
+- **Memory**: Clean up useEffect side effects, event listeners, timers; implement agent subscription cleanup
+- **MAS-specific**: Use custom hooks for agent communication; implement real-time agent status updates
 
-* **Formatting**: ESLint with single quotes, no semicolons, trailing commas
-* **Naming**: camelCase for variables/functions, PascalCase for components/types
-* **Error handling**: try/catch blocks, error boundaries for React
-* **Imports**: Use path mapping (`@/`), group by React, external, internal
-* **Components**: Functional components with hooks, prefer composition over inheritance
-* **Styling**: Tailwind CSS classes, consistent spacing
-* **State**: Zustand store for global state, local state for components
-* **Memory safety**: Clean up subscriptions, event listeners, intervals, and observers in `useEffect`
+## Code Organization
 
----
+### Multi-Agent System Structure
+- **Agent Modules**: Place individual agents in `backend/src/agents/` with clear naming (e.g., `adaptive_verification.rs`)
+- **Communication Layer**: Centralize messaging protocols in `backend/src/communication/`
+- **Core Orchestration**: Hive and scaling logic in `backend/src/core/hive/`
+- **Shared Utilities**: Common agent functions in `backend/src/utils/`
+- **Configuration**: Agent settings in `backend/settings/` with environment-specific overrides
 
-## General Best Practices
+### Agent Design Patterns
+- **Trait-Based Architecture**: Implement `Agent` trait for consistent interfaces across agents
+- **Message Passing**: Use async channels for inter-agent communication to ensure loose coupling
+- **Lifecycle Management**: Implement initialization, execution, and cleanup phases for each agent
+- **Modularity**: Keep agents focused on single responsibilities; compose complex behaviors through orchestration
 
-### File & Code Organization
+## Testing Strategies
 
-* **Max lines per file**:
+### Agent-Specific Testing
+- **Unit Tests**: Test individual agent logic in isolation using mocks for dependencies
+- **Behavior Verification**: Validate agent decision-making with predefined scenarios
+- **Mock Communication**: Use test doubles for message passing to isolate agent functionality
 
-  * Rust: \~400–500 lines
-  * TypeScript: \~300–400 lines
-  * Split logic into modules/components when exceeding thresholds
-* **Max function length**: \~40–50 lines; extract helpers when longer
-* **Single Responsibility Principle (SRP)**: Each file/module should serve one clear purpose
+### Integration Testing
+- **Agent Interactions**: Test communication between agents using integration test suites
+- **End-to-End MAS Testing**: Validate complete workflows from agent coordination to final output
+- **Load Testing**: Simulate high agent concurrency to ensure system stability
+- **Chaos Engineering**: Introduce failures to test agent resilience and recovery mechanisms
 
-### Memory Leak Prevention
+### MAS-Specific Testing Best Practices
+- **Communication Reliability**: Test message delivery guarantees and error handling
+- **Scalability Validation**: Verify performance under varying agent loads
+- **State Consistency**: Ensure agent states remain synchronized across the system
 
-* **Rust**: Use `Drop` trait when holding external resources, avoid reference cycles (`Rc<RefCell<T>>`)
-* **TypeScript/React**:
+## Documentation Standards
 
-  * Always clean up `useEffect` side effects
-  * Cancel async requests on unmount
-  * Remove event listeners and clear timers
+### Agent Documentation
+- **Agent Specifications**: Document each agent's purpose, capabilities, inputs/outputs, and dependencies
+- **Interface Contracts**: Clearly define message formats and communication protocols
+- **Usage Examples**: Provide code samples showing agent integration and common use cases
 
-### Logging
+### Code Documentation
+- **Inline Comments**: Explain complex agent logic, especially decision algorithms
+- **Docstrings**: Use Rust doc comments for public agent APIs and traits
+- **README Files**: Maintain per-agent documentation in `backend/src/agents/` subdirectories
 
-* **Rust**: Use `tracing` or `log` crates with structured context, never log secrets
-* **TypeScript/React**: Use a centralized logger (e.g., `pino`, `winston`) with log levels
-* **General**:
+### MAS-Specific Documentation
+- **System Architecture**: Document overall agent orchestration and data flow
+- **Deployment Guides**: Detail agent configuration and scaling parameters
+- **Troubleshooting**: Include common agent failure modes and resolution steps
 
-  * Levels: `debug`, `info`, `warn`, `error`
-  * Include correlation/request IDs for traceability
-  * Redact sensitive fields before logging
-
-### Performance
-
-* **Rust**: Prefer `&str` over `String` when borrowing, avoid heap allocations, use iterators
-* **TypeScript/React**: Memoize expensive operations (`useMemo`, `useCallback`), lazy load routes/components
-* **General**:
-
-  * Minimize network requests
-  * Batch operations where possible
-  * Profile performance regularly
-
-### Security
-
-* **Secrets**: Never hardcode; load from environment variables/config
-* **Validation**: Validate all external inputs (frontend forms + backend APIs)
-* **Dependencies**: Keep up-to-date, run security audits (`cargo audit`, `npm audit`)
-* **Frontend**: Escape user-generated content, enable CSP, use HTTPS
-* **Backend**: Use TLS, sanitize DB queries (SQLx prepared statements, Supabase policies)
+## File Size Limits
+- **Source Files**: Limit to 500 lines maximum for maintainability; split large agents into multiple files
+- **Agent Modules**: Keep core agent logic under 300 lines; use separate files for utilities and tests
+- **Exceptions**: Generated code, large data structures, or comprehensive test files may exceed limits with justification
+- **Rationale**: Smaller files improve code review efficiency and reduce merge conflicts in MAS development

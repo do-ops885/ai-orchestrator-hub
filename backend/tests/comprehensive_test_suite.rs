@@ -113,7 +113,7 @@ async fn test_agent_lifecycle() {
     assert_approx_eq(agent.get_capability_score("general"), 0.7, 0.001);
 
     // Test agent info retrieval
-    let agents_info = hive.get_agents_info().await;
+    let agents_info = hive.get_agents_info();
     assert_eq!(agents_info["total_count"], 1, "Should have one agent");
 }
 

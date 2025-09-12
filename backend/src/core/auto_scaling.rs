@@ -196,7 +196,7 @@ impl AutoScalingSystem {
     }
 
     /// Start the auto-scaling evaluation loop
-    pub async fn start_auto_scaling(&self, hive: Arc<RwLock<HiveCoordinator>>) {
+    pub fn start_auto_scaling(&self, hive: Arc<RwLock<HiveCoordinator>>) {
         let policies = Arc::clone(&self.scaling_policies);
         let state = Arc::clone(&self.scaling_state);
         let history = Arc::clone(&self.scaling_history);
@@ -278,7 +278,7 @@ impl AutoScalingSystem {
             }
 
             // Evaluate trigger conditions
-            if Self::should_trigger_policy(policy, &current_metrics, &scaling_state).await? {
+            if Self::should_trigger_policy(policy, &current_metrics, &scaling_state)? {
                 info!("Scaling policy '{}' triggered", policy.name);
                 triggered_policy = Some(policy.clone());
                 break;
@@ -333,7 +333,7 @@ impl AutoScalingSystem {
     }
 
     /// Check if a policy's trigger conditions are met
-    async fn should_trigger_policy(
+    fn should_trigger_policy(
         policy: &ScalingPolicy,
         metrics: &ScalingMetrics,
         _state: &ScalingState,
@@ -403,7 +403,8 @@ impl AutoScalingSystem {
 
                 for i in 0..*agent_count {
                     // Check if we're within limits
-                    let current_count = hive_guard.agents.len();
+                    let agents_info = hive_guard.get_agents_info().await;
+                    let current_count = agents_info["total_agents"].as_u64().unwrap_or(0) as usize;
                     if current_count >= config.max_agents {
                         warn!(
                             "Cannot scale up: maximum agent limit ({}) reached",
@@ -442,7 +443,8 @@ impl AutoScalingSystem {
                 selection_strategy,
             } => {
                 let hive_guard = hive.read().await;
-                let current_count = hive_guard.agents.len();
+                let agents_info = hive_guard.get_agents_info().await;
+                let current_count = agents_info["total_agents"].as_u64().unwrap_or(0) as usize;
 
                 if current_count <= config.min_agents {
                     warn!(
@@ -457,8 +459,12 @@ impl AutoScalingSystem {
                     Self::select_agents_for_removal(&hive_guard, *agent_count, selection_strategy)
                         .await?;
 
+                // Drop read lock and get write lock for modification
+                drop(hive_guard);
+                let hive_guard = hive.write().await;
+
                 for agent_id in agents_to_remove {
-                    if hive_guard.agents.remove(&agent_id).is_some() {
+                    if hive_guard.remove_agent(agent_id).await.is_ok() {
                         affected_agents.push(agent_id);
                         info!("Auto-scaled down: removed agent {}", agent_id);
                     }
@@ -474,16 +480,28 @@ impl AutoScalingSystem {
                 let underperforming_agents =
                     Self::find_underperforming_agents(&hive_guard, *performance_threshold).await?;
 
-                for agent_id in underperforming_agents {
+                // Get agent details before dropping read lock
+                let mut agent_details = Vec::new();
+                for agent_id in &underperforming_agents {
+                    if let Some(agent) = hive_guard.get_agent(*agent_id).await {
+                        agent_details.push((*agent_id, agent));
+                    }
+                }
+
+                // Drop read lock and get write lock for modification
+                drop(hive_guard);
+                let hive_guard = hive.write().await;
+
+                for (agent_id, old_agent) in agent_details {
                     // Remove underperforming agent
-                    if let Some(old_agent) = hive_guard.agents.remove(&agent_id) {
+                    if hive_guard.remove_agent(agent_id).await.is_ok() {
                         affected_agents.push(agent_id);
 
                         // Create replacement agent
                         let replacement_config = serde_json::json!({
-                            "name": format!("Replacement-{}", old_agent.1.name),
+                            "name": format!("Replacement-{}", old_agent.name),
                             "type": replacement_type.to_string(),
-                            "capabilities": old_agent.1.capabilities.iter().map(|cap| {
+                            "capabilities": old_agent.capabilities.iter().map(|cap| {
                                 serde_json::json!({
                                     "name": cap.name,
                                     "proficiency": cap.proficiency * 1.1, // Slight improvement
@@ -496,7 +514,7 @@ impl AutoScalingSystem {
                             Ok(new_agent_id) => {
                                 info!(
                                     "Replaced underperforming agent {} with {}",
-                                    old_agent.0, new_agent_id
+                                    agent_id, new_agent_id
                                 );
                             }
                             Err(e) => {
@@ -521,17 +539,14 @@ impl AutoScalingSystem {
         let (system_resources, _, _) = resource_manager.get_system_info().await;
 
         // Calculate metrics
-        let agent_count = hive_guard.agents.len();
-        let queue_depth = task_info["work_stealing_queue"]["total_queue_depth"]
+        let agents_info = hive_guard.get_agents_info().await;
+        let agent_count = agents_info["total_agents"].as_u64().unwrap_or(0) as usize;
+        let queue_depth = task_info?["work_stealing_queue"]["total_queue_depth"]
             .as_u64()
             .unwrap_or(0) as usize;
 
         // Calculate agent utilization
-        let active_agents = hive_guard
-            .agents
-            .iter()
-            .filter(|entry| !matches!(entry.value().state, crate::agents::AgentState::Idle))
-            .count();
+        let active_agents = agents_info["active_agents"].as_u64().unwrap_or(0) as usize;
         let agent_utilization = if agent_count > 0 {
             active_agents as f64 / agent_count as f64
         } else {
@@ -556,14 +571,8 @@ impl AutoScalingSystem {
         count: usize,
         strategy: &AgentSelectionStrategy,
     ) -> Result<Vec<Uuid>> {
-        let mut candidates: Vec<_> = hive
-            .agents
-            .iter()
-            .map(|entry| {
-                let agent = entry.value();
-                (agent.id, agent.clone())
-            })
-            .collect();
+        let agents = hive.get_all_agents().await;
+        let mut candidates: Vec<_> = agents.into_iter().map(|(id, agent)| (id, agent)).collect();
 
         // Sort based on strategy
         match strategy {
@@ -604,11 +613,10 @@ impl AutoScalingSystem {
         hive: &HiveCoordinator,
         threshold: f64,
     ) -> Result<Vec<Uuid>> {
-        let underperforming: Vec<Uuid> = hive
-            .agents
-            .iter()
-            .filter_map(|entry| {
-                let agent = entry.value();
+        let agents = hive.get_all_agents().await;
+        let underperforming: Vec<Uuid> = agents
+            .into_iter()
+            .filter_map(|(id, agent)| {
                 let avg_performance = if agent.capabilities.is_empty() {
                     0.0
                 } else {
@@ -621,7 +629,7 @@ impl AutoScalingSystem {
                 };
 
                 if avg_performance < threshold {
-                    Some(agent.id)
+                    Some(id)
                 } else {
                     None
                 }

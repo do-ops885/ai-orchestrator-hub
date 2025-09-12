@@ -79,14 +79,14 @@ impl HealthMonitor {
         }
     }
 
+    pub fn start_monitoring(&self) -> HiveResult<()> {
+        // Placeholder
+        Ok(())
+    }
+
     pub async fn get_health_status(&self) -> HiveResult<SystemHealth> {
         let system_health = self.system_health.read().await;
         Ok(system_health.clone())
-    }
-
-    pub async fn start_monitoring(&self) -> HiveResult<()> {
-        // Placeholder
-        Ok(())
     }
 }
 
@@ -108,7 +108,7 @@ impl PerformanceMonitor {
         }
     }
 
-    pub async fn start_monitoring(&self) -> HiveResult<()> {
+    pub fn start_monitoring(&self) -> HiveResult<()> {
         // Placeholder
         Ok(())
     }
@@ -142,7 +142,7 @@ impl PerformanceMonitor {
         })
     }
 
-    pub async fn get_performance_trends(
+    pub fn get_performance_trends(
         &self,
         metric_name: &str,
         hours: u32,
@@ -713,11 +713,11 @@ impl AgentMonitor {
 
     async fn start_background_monitoring(&self) -> HiveResult<()> {
         if self.config.enable_health_monitoring {
-            self.health_monitor.start_monitoring().await?;
+            self.health_monitor.start_monitoring()?;
         }
 
         if self.config.enable_performance_monitoring {
-            self.performance_monitor.start_monitoring().await?;
+            self.performance_monitor.start_monitoring()?;
         }
 
         if self.config.enable_behavior_analysis {
@@ -728,12 +728,12 @@ impl AgentMonitor {
             self.automation.start_automation().await?;
         }
 
-        self.start_data_cleanup_task().await?;
+        self.start_data_cleanup_task()?;
 
         Ok(())
     }
 
-    async fn start_data_cleanup_task(&self) -> HiveResult<()> {
+    fn start_data_cleanup_task(&self) -> HiveResult<()> {
         let health_history = Arc::clone(&self.health_monitor.health_history);
         let agent_health = Arc::clone(&self.health_monitor.agent_health);
 
@@ -1849,16 +1849,13 @@ impl Dashboard {
                 // Generate trend data for key metrics
                 let cpu_trend = agent_monitor
                     .performance_monitor
-                    .get_performance_trends("cpu_usage", 24)
-                    .await?;
+                    .get_performance_trends("cpu_usage", 24)?;
                 let memory_trend = agent_monitor
                     .performance_monitor
-                    .get_performance_trends("memory_usage", 24)
-                    .await?;
+                    .get_performance_trends("memory_usage", 24)?;
                 let response_time_trend = agent_monitor
                     .performance_monitor
-                    .get_performance_trends("response_time", 24)
-                    .await?;
+                    .get_performance_trends("response_time", 24)?;
 
                 Ok(serde_json::json!({
                     "cpu_trend": {

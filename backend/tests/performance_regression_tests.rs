@@ -3,7 +3,7 @@
 //! This module contains performance tests to detect regressions in system performance.
 //! These tests measure key performance metrics and compare them against baselines.
 
-use multiagent_hive::{AgentType, HiveCoordinator};
+use multiagent_hive::{tests::test_utils::create_task_config, AgentType, HiveCoordinator};
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 

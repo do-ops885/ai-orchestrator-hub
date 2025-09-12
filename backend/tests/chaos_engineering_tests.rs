@@ -139,7 +139,6 @@ async fn test_network_failure_resilience() {
     };
 
     let network_simulator = Arc::new(NetworkFailureSimulator::new());
-    let mut results = Vec::new();
 
     let start_time = Instant::now();
     let mut operation_count = 0;
@@ -237,7 +236,6 @@ async fn test_resource_exhaustion_resilience() {
     };
 
     let resource_simulator = Arc::new(ResourceExhaustionSimulator::new());
-    let mut results = Vec::new();
 
     let start_time = Instant::now();
     let mut operation_count = 0;
@@ -360,7 +358,6 @@ async fn test_agent_failure_resilience() {
         ..Default::default()
     };
 
-    let mut results = Vec::new();
     let start_time = Instant::now();
     let mut operation_count = 0;
     let mut success_count = 0;
@@ -470,14 +467,13 @@ async fn test_cascading_failure_resilience() {
         ..Default::default()
     };
 
-    let mut results = Vec::new();
     let start_time = Instant::now();
     let mut operation_count = 0;
     let mut success_count = 0;
 
     // Simulate cascading failure scenario
     let mut failure_chain = Vec::new();
-    let mut cascade_level = 0;
+    let mut cascade_level: u32 = 0;
 
     // Run operations with potential cascading failures
     while start_time.elapsed() < config.test_duration {

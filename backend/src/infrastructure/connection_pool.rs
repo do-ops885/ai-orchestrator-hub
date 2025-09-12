@@ -311,8 +311,13 @@ pub struct PooledConnectionHandle {
 
 impl PooledConnectionHandle {
     /// Get mutable reference to the connection
-    pub fn as_mut(&mut self) -> &mut Connection {
-        self.connection.as_mut().unwrap().connection
+    pub fn as_mut(&mut self) -> Result<&mut Connection, crate::utils::error::HiveError> {
+        self.connection
+            .as_mut()
+            .map(|conn| &mut conn.connection)
+            .ok_or_else(|| crate::utils::error::HiveError::OperationFailed {
+                reason: "Connection handle is empty".to_string(),
+            })
     }
 
     /// Mark the connection as used
@@ -502,9 +507,11 @@ mod tests {
     use tempfile::TempDir;
 
     #[tokio::test]
-    async fn test_connection_pool_basic() {
-        let temp_dir = TempDir::new().unwrap();
-        let db_path = temp_dir.path().join("test.db").to_str().unwrap().to_string();
+    async fn test_connection_pool_basic() -> Result<(), Box<dyn std::error::Error>> {
+        let temp_dir = TempDir::new().map_err(|e| format!("Failed to create temp dir: {}", e))?;
+        let db_path = temp_dir.path().join("test.db").to_str()
+            .ok_or("Failed to convert path to string")?
+            .to_string();
 
         let config = ConnectionPoolConfig {
             max_connections: 5,
@@ -513,10 +520,12 @@ mod tests {
             ..Default::default()
         };
 
-        let pool = ConnectionPool::new(config).await.unwrap();
+        let pool = ConnectionPool::new(config).await
+            .map_err(|e| format!("Failed to create connection pool: {}", e))?;
 
         // Test getting a connection
-        let handle = pool.get_connection().await.unwrap();
+        let handle = pool.get_connection().await
+            .map_err(|e| format!("Failed to get connection: {}", e))?;
         assert!(handle.connection.is_some());
 
         // Connection should be returned to pool when handle is dropped
@@ -527,10 +536,11 @@ mod tests {
         assert_eq!(stats.total_connections, 2); // Min connections
         assert_eq!(stats.active_connections, 0); // Connection returned
         assert_eq!(stats.idle_connections, 2);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_request_cache() {
+    async fn test_request_cache() -> Result<(), Box<dyn std::error::Error>> {
         let cache = RequestCache::new(10, Duration::from_secs(60));
 
         let key = "test_key".to_string();
@@ -539,21 +549,23 @@ mod tests {
 
         // Set and get
         cache.set(key.clone(), data.clone(), content_type.clone()).await;
-        let cached = cache.get(&key).await.unwrap();
+        let cached = cache.get(&key).await
+            .ok_or("Failed to get cached item")?;
 
         assert_eq!(cached.data, data);
         assert_eq!(cached.content_type, content_type);
         assert!(!cached.is_expired());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_async_scheduler() {
+    async fn test_async_scheduler() -> Result<(), Box<dyn std::error::Error>> {
         let scheduler = AsyncTaskScheduler::new(2);
 
         let result = scheduler.schedule_task(|| async {
             tokio::time::sleep(Duration::from_millis(10)).await;
             Ok(42)
-        }).await.unwrap();
+        }).await.map_err(|e| format!("Failed to schedule task: {}", e))?;
 
         assert_eq!(result, 42);
 
@@ -561,6 +573,7 @@ mod tests {
         assert_eq!(stats.total_tasks, 1);
         assert_eq!(stats.completed_tasks, 1);
         assert_eq!(stats.active_tasks, 0);
+        Ok(())
     }
 }</content>
 </xai:function_call">backend/src/infrastructure/connection_pool.rs

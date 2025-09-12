@@ -612,11 +612,11 @@ mod tests {
 
         let conn1 = match pool.acquire_connection().await {
             Ok(conn) => conn,
-            Err(e) => panic!("Failed to acquire connection 1: {}", e),
+            Err(e) => panic!("Failed to acquire connection 1: {e}"),
         };
         let conn2 = match pool.acquire_connection().await {
             Ok(conn) => conn,
-            Err(e) => panic!("Failed to acquire connection 2: {}", e),
+            Err(e) => panic!("Failed to acquire connection 2: {e}"),
         };
 
         let stats = pool.get_stats().await;
@@ -644,11 +644,10 @@ mod tests {
         // Test cache put and hit
         match cache.put(key.clone(), data.clone()).await {
             Ok(()) => {}
-            Err(e) => panic!("Failed to put data in cache: {}", e),
+            Err(e) => panic!("Failed to put data in cache: {e}"),
         }
-        let cached_data = match cache.get(&key).await {
-            Some(data) => data,
-            None => panic!("Expected to get cached data, but got None"),
+        let Some(cached_data) = cache.get(&key).await else {
+            panic!("Expected to get cached data, but got None")
         };
         assert_eq!(cached_data, data);
 
@@ -670,7 +669,7 @@ mod tests {
             .await
         {
             Ok(res) => res,
-            Err(e) => panic!("Failed to execute optimized task: {}", e),
+            Err(e) => panic!("Failed to execute optimized task: {e}"),
         };
 
         assert_eq!(result, 499_500);

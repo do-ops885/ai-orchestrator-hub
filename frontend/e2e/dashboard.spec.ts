@@ -21,7 +21,9 @@ test.describe('Dashboard E2E Tests', () => {
 
   test('should display connection status', async ({ page }) => {
     // Check for connection status indicator
-    const connectionStatus = page.locator('[class*="bg-green-100"], [class*="bg-red-100"], [class*="bg-yellow-100"]')
+    const connectionStatus = page.locator(
+      '[class*="bg-green-100"], [class*="bg-red-100"], [class*="bg-yellow-100"]',
+    )
     await expect(connectionStatus).toBeVisible()
 
     // Should contain connection-related text
@@ -111,7 +113,7 @@ test.describe('Error Handling E2E Tests', () => {
       route.fulfill({
         status: 500,
         contentType: 'application/json',
-        body: JSON.stringify({ error: 'Internal Server Error' })
+        body: JSON.stringify({ error: 'Internal Server Error' }),
       })
     })
 

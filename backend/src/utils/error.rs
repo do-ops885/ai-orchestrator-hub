@@ -86,6 +86,10 @@ pub enum HiveError {
 
     #[error("Security error: {reason}")]
     SecurityError { reason: String },
+
+    /// IO errors
+    #[error("IO error: {reason}")]
+    IoError { reason: String },
 }
 
 // Note: anyhow already provides a blanket implementation for std::error::Error
@@ -178,5 +182,14 @@ where
         self.map_err(|e| HiveError::OperationFailed {
             reason: format!("{operation} in {component}: {e}"),
         })
+    }
+}
+
+/// Implement From<std::io::Error> for HiveError to support codec traits
+impl From<std::io::Error> for HiveError {
+    fn from(err: std::io::Error) -> Self {
+        HiveError::IoError {
+            reason: err.to_string(),
+        }
     }
 }

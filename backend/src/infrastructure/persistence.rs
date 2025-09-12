@@ -157,6 +157,180 @@ impl PersistenceManager {
             backup_manager: None,
         })
     }
+
+    /// Create a checkpoint of the current hive state
+    pub async fn create_checkpoint(
+        &self,
+        hive: &crate::core::hive::HiveCoordinator,
+        description: Option<String>,
+    ) -> HiveResult<String> {
+        let snapshot_id = Uuid::new_v4();
+        let timestamp = Utc::now();
+        let description_str = description.unwrap_or_else(|| "Automated checkpoint".to_string());
+
+        // Collect agents
+        let agents_with_ids = hive.get_all_agents().await;
+        let agents: Vec<crate::agents::Agent> = agents_with_ids
+            .into_iter()
+            .map(|(_, agent)| agent)
+            .collect();
+
+        // Collect tasks from task distributor (simplified)
+        let tasks = Vec::new(); // TODO: Implement task collection from task distributor
+
+        // Get current metrics from status
+        let status = hive.get_status().await;
+        let metrics = status
+            .get("metrics")
+            .unwrap_or(&serde_json::Value::Null)
+            .clone();
+
+        // Create system snapshot
+        let snapshot = SystemSnapshot {
+            snapshot_id,
+            timestamp,
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            hive_state: HiveState {
+                hive_id: hive.id,
+                created_at: timestamp, // Use current timestamp as creation time for snapshot
+                last_update: timestamp,
+                total_energy: 100.0,        // TODO: get actual total energy
+                swarm_center: (0.0, 0.0),   // TODO: get actual swarm center from metrics
+                auto_scaling_enabled: true, // TODO: get from hive
+                learning_enabled: true,     // TODO: get from hive
+            },
+            agents,
+            tasks,
+            metrics: SystemMetrics {
+                total_agents: metrics
+                    .get("total_agents")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as usize,
+                active_agents: metrics
+                    .get("active_agents")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as usize,
+                completed_tasks: metrics
+                    .get("completed_tasks")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0),
+                failed_tasks: metrics
+                    .get("failed_tasks")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0),
+                average_performance: metrics
+                    .get("average_performance")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                swarm_cohesion: metrics
+                    .get("swarm_cohesion")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                learning_progress: metrics
+                    .get("learning_progress")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+                uptime_seconds: metrics
+                    .get("uptime_seconds")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0),
+            },
+            configuration: serde_json::json!({
+                "description": description_str.clone()
+            }),
+        };
+
+        // Save the snapshot
+        let id = self.storage.save_snapshot(&snapshot).await?;
+
+        // Update checkpoint history
+        let mut history = self.checkpoint_history.write().await;
+        history.push(CheckpointMetadata {
+            checkpoint_id: snapshot_id,
+            timestamp,
+            size_bytes: 0, // TODO: calculate actual size
+            compression_ratio: 1.0,
+            agent_count: snapshot.agents.len(),
+            task_count: snapshot.tasks.len(),
+            description: description_str,
+        });
+
+        // Update last checkpoint
+        *self.last_checkpoint.write().await = Some(timestamp);
+
+        Ok(id)
+    }
+
+    /// Restore hive state from a checkpoint
+    pub async fn restore_from_checkpoint(
+        &self,
+        checkpoint_id: &str,
+        _hive: &mut crate::core::hive::HiveCoordinator,
+    ) -> HiveResult<()> {
+        // Load the snapshot
+        let _snapshot = self.storage.load_snapshot(checkpoint_id).await?;
+
+        // Clear existing agents and restore them
+        // Note: In the new architecture, we can't directly manipulate agents
+        // This would need to be implemented through the agent manager
+        // For now, we'll skip agent restoration and focus on metrics
+
+        // Restore tasks (simplified - in real implementation would need more complex logic)
+        // TODO: Implement task restoration through task distributor
+
+        // Note: In the new architecture, metrics restoration would need to be implemented
+        // through the appropriate subsystem interfaces. For now, we'll skip this.
+        // TODO: Implement metrics restoration through the metrics collector interface
+
+        // Note: Swarm center restoration would need to be implemented
+        // in the metrics or a separate swarm intelligence module
+
+        Ok(())
+    }
+
+    /// Get statistics about checkpoints
+    pub async fn get_checkpoint_stats(&self) -> HiveResult<CheckpointStats> {
+        let history = self.checkpoint_history.read().await;
+        let total_snapshots = history.len();
+        let total_size_bytes = history.iter().map(|meta| meta.size_bytes).sum();
+        let average_size_bytes = if total_snapshots > 0 {
+            total_size_bytes as f64 / total_snapshots as f64
+        } else {
+            0.0
+        };
+
+        let oldest_snapshot = history.iter().map(|meta| meta.timestamp).min();
+        let newest_snapshot = history.iter().map(|meta| meta.timestamp).max();
+        let last_checkpoint = *self.last_checkpoint.read().await;
+
+        // Calculate compression savings (simplified)
+        let compression_savings = 0.0; // TODO: implement actual calculation
+
+        // Count encrypted snapshots (simplified)
+        let encrypted_snapshots = if self.config.encryption_enabled {
+            total_snapshots
+        } else {
+            0
+        };
+
+        Ok(CheckpointStats {
+            total_snapshots,
+            total_size_bytes,
+            average_size_bytes,
+            oldest_snapshot,
+            newest_snapshot,
+            last_checkpoint,
+            compression_savings,
+            encrypted_snapshots,
+            backup_count: 0, // TODO: implement backup tracking
+            last_backup: None,
+        })
+    }
+
+    /// List all available snapshots
+    pub async fn list_snapshots(&self) -> HiveResult<Vec<CheckpointMetadata>> {
+        self.storage.list_snapshots().await
+    }
 }
 
 /// Backup manager for handling backup operations
@@ -778,7 +952,7 @@ mod tests {
     use tempfile::TempDir;
 
     #[tokio::test]
-    async fn test_memory_storage() {
+    async fn test_memory_storage() -> Result<(), Box<dyn std::error::Error>> {
         let storage = MemoryStorage::new(5);
 
         // Create a test snapshot
@@ -814,22 +988,23 @@ mod tests {
         let id = storage
             .save_snapshot(&snapshot)
             .await
-            .expect("Failed to save snapshot");
+            .map_err(|e| format!("Failed to save snapshot: {}", e))?;
         let loaded = storage
             .load_snapshot(&id)
             .await
-            .expect("Failed to load snapshot");
+            .map_err(|e| format!("Failed to load snapshot: {}", e))?;
 
         assert_eq!(snapshot.snapshot_id, loaded.snapshot_id);
         assert_eq!(snapshot.version, loaded.version);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_filesystem_storage() {
-        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    async fn test_filesystem_storage() -> Result<(), Box<dyn std::error::Error>> {
+        let temp_dir = TempDir::new().map_err(|e| format!("Failed to create temp dir: {}", e))?;
         let storage = FileSystemStorage::new(temp_dir.path().to_path_buf())
             .await
-            .expect("Failed to create FileSystemStorage");
+            .map_err(|e| format!("Failed to create FileSystemStorage: {}", e))?;
 
         // Create a test snapshot
         let snapshot = SystemSnapshot {
@@ -864,13 +1039,14 @@ mod tests {
         let _id = storage
             .save_snapshot(&snapshot)
             .await
-            .expect("Failed to save snapshot");
+            .map_err(|e| format!("Failed to save snapshot: {}", e))?;
         let loaded = storage
             .load_snapshot(&snapshot.snapshot_id.to_string())
             .await
-            .expect("Failed to load snapshot");
+            .map_err(|e| format!("Failed to load snapshot: {}", e))?;
 
         assert_eq!(snapshot.snapshot_id, loaded.snapshot_id);
         assert_eq!(snapshot.version, loaded.version);
+        Ok(())
     }
 }

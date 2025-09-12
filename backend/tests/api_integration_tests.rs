@@ -94,22 +94,39 @@ impl TestServer {
     }
 }
 
-/// Integration test for basic API functionality
+/// Integration test for basic API functionality with retry logic
 #[tokio::test]
 async fn test_api_basic_functionality() {
     // Note: This test requires the server to be running
     // In a real CI/CD environment, you would start the server programmatically
 
     let server = TestServer::new(3001);
+    let mut retry_count = 0;
+    const MAX_RETRIES: u32 = 3;
 
-    // Test health check
-    match server.health_check().await {
-        Ok(healthy) => assert!(healthy, "Server should be healthy"),
-        Err(_) => {
-            println!("⚠️  Server not running, skipping integration tests");
-            return;
+    // Test health check with retry logic
+    let healthy = loop {
+        match server.health_check().await {
+            Ok(healthy) => break healthy,
+            Err(_) => {
+                retry_count += 1;
+                if retry_count >= MAX_RETRIES {
+                    println!(
+                        "⚠️  Server not running after {} retries, skipping integration tests",
+                        MAX_RETRIES
+                    );
+                    return;
+                }
+                println!(
+                    "🔄 Server not ready, retrying... ({}/{})",
+                    retry_count, MAX_RETRIES
+                );
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            }
         }
-    }
+    };
+
+    assert!(healthy, "Server should be healthy after retries");
 
     println!("✅ Server is healthy and responding");
 

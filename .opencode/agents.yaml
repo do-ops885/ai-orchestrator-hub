@@ -72,8 +72,12 @@ agents:
    - name: memory_agent
      description: The Memory Agent manages agent memory systems and learning retention. It handles experience storage, pattern recognition, and social connection tracking for enhanced agent intelligence.
      category: Learning
-   - name: swarm-architect
-   - name: swarm-coordinator
+    - name: swarm-architect
+      description: Swarm intelligence and multi-agent system architect
+      category: Coordination
+    - name: swarm-coordinator
+      description: The Swarm Coordinator Agent specializes in multi-agent coordination and swarm intelligence operations using the multiagent-hive MCP tools. It manages agent creation, task distribution, and swarm optimization.
+      category: Coordination
    - name: github-label-manager
      description: Use this agent for managing GitHub labels in the project, including creating, updating, organizing, and automating label workflows using the GitHub CLI (gh).
      category: GitHub
@@ -128,9 +132,23 @@ agents:
    - name: rust-debug-specialist
      description: "Use this agent when you need to debug Rust code, analyze compilation errors, identify runtime issues, or optimize Rust program performance. Examples: Context: User encounters compilation errors - Context: User's program panics at runtime - Context: User wants to identify performance bottlenecks"
      category: Backend
-   - name: ai-code-analysis-swarm
+    - name: ai-code-analysis-swarm
+      description: Use this agent when you need to perform comprehensive, multi-faceted analysis of code segments, such as reviewing for bugs, performance issues, security vulnerabilities, and best practices in a collaborative swarm-like manner, typically after a logical chunk of code has been written or modified. This agent is ideal for orchestrating analysis across multiple domains simultaneously.
+      category: Analysis
      description: "Use this agent when you need to perform comprehensive, multi-faceted analysis of code segments, such as reviewing for bugs, performance issues, security vulnerabilities, and best practices in a collaborative swarm-like manner, typically after a logical chunk of code has been written or modified. This agent is ideal for orchestrating analysis across multiple domains simultaneously. Examples include: Context: The user has just written a new function and wants it analyzed for multiple aspects. user: \"I've written this function to calculate Fibonacci numbers, can you analyze it?\" assistant: \"Let me use the Task tool to launch the ai-code-analysis-swarm agent to perform a comprehensive analysis of the code.\" Since the user is requesting code analysis, use the ai-code-analysis-swarm agent to review the code for bugs, performance, security, and best practices. Context: User is working on a project and proactively wants ongoing code analysis as they develop. user: \"As I write code, I'd like continuous analysis.\" assistant: \"I'll use the Task tool to launch the ai-code-analysis-swarm agent to monitor and analyze code in real-time.\" Since the user implies proactive use, deploy the ai-code-analysis-swarm agent to handle ongoing analysis tasks."
      category: Analysis
-   - name: universal-orchestrator
-     description: "Master orchestrator that coordinates and utilizes all other agents in the system, delegating tasks based on specialties, managing complex multi-agent workflows with emphasis on parallel task execution and swarm coordination to maximize performance and reduce completion time, and optimizing resource allocation across the agent network"
-     category: Coordination
+    - name: universal-orchestrator
+      description: Master orchestrator that coordinates and utilizes all other agents in the system, delegating tasks based on specialties, managing complex multi-agent workflows with emphasis on parallel task execution and swarm coordination to maximize performance and reduce completion time, and optimizing resource allocation across the agent network
+      category: Coordination
+    - name: false-positive-validator
+      description: Use this agent when results from scans, analyses, or tests need validation to determine if they are false positives, such as in security audits, code quality checks, or automated testing outputs. This agent should be invoked proactively after initial results are generated to refine accuracy and reduce unnecessary actions.
+      category: Quality
+    - name: websearch-agent
+      description: Use this agent when the user requires information retrieval from the web, such as researching topics, verifying facts, or gathering data that isn't available in your existing knowledge base. This agent should be launched proactively when queries involve current events, technical documentation, or external references that necessitate a web search.
+      category: Research
+    - name: github-wiki-editor
+      description: Use this agent when creating, reviewing, or updating GitHub Wiki documentation to ensure it follows industry best practices and maintains high quality standards.
+      category: Documentation
+    - name: command-verifier
+      description: Use this agent when you need to verify all commands embedded in markdown (.md) files without making any assumptions about their validity, correctness, or safety. This includes checking syntax, functionality, and potential risks, and integrating verification from the false-positive-validator agent for results, as well as performing internet searches to validate external tools referenced in the commands.
+      category: Quality

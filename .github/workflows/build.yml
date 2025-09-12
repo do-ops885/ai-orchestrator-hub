@@ -188,7 +188,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: frontend/dist/
+          path: frontend/.next/
           retention-days: 30
 
   # Integration tests

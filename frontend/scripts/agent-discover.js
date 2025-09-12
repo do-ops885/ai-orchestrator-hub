@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-/* eslint-disable no-console */
-
 async function discoverAgents() {
   const registryUrl = process.argv[2] || 'http://localhost:8000'
   const apiUrl = `${registryUrl}/api/agents`

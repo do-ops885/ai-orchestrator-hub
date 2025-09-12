@@ -11,7 +11,7 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: true,
     testTimeout: 10000,
-    exclude: ['e2e/**'],
+    exclude: ['e2e/**', 'node_modules/**'],
   },
   resolve: {
     alias: {

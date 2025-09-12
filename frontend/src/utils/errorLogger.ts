@@ -65,13 +65,25 @@ class ErrorLogger {
   private determineSeverity(error: Error): ErrorReport['severity'] {
     const message = error.message.toLowerCase()
 
-    if (message.includes('network') || message.includes('fetch') || message.includes('connection')) {
+    if (
+      message.includes('network') ||
+      message.includes('fetch') ||
+      message.includes('connection')
+    ) {
       return 'medium'
     }
-    if (message.includes('unauthorized') || message.includes('forbidden') || message.includes('auth')) {
+    if (
+      message.includes('unauthorized') ||
+      message.includes('forbidden') ||
+      message.includes('auth')
+    ) {
       return 'high'
     }
-    if (message.includes('typeerror') || message.includes('referenceerror') || message.includes('syntaxerror')) {
+    if (
+      message.includes('typeerror') ||
+      message.includes('referenceerror') ||
+      message.includes('syntaxerror')
+    ) {
       return 'high'
     }
     if (message.includes('rangeerror') || message.includes('urierror')) {
@@ -81,10 +93,17 @@ class ErrorLogger {
     return 'low'
   }
 
-  private determineCategory(error: Error, context?: Record<string, unknown>): ErrorReport['category'] {
+  private determineCategory(
+    error: Error,
+    context?: Record<string, unknown>,
+  ): ErrorReport['category'] {
     const message = error.message.toLowerCase()
 
-    if (message.includes('network') || message.includes('fetch') || message.includes('connection')) {
+    if (
+      message.includes('network') ||
+      message.includes('fetch') ||
+      message.includes('connection')
+    ) {
       return 'network'
     }
     if (message.includes('api') || message.includes('http') || message.includes('request')) {
@@ -101,7 +120,7 @@ class ErrorLogger {
     error: Error,
     context?: Record<string, unknown>,
     componentStack?: string,
-    retryCount?: number
+    retryCount?: number,
   ): string {
     const errorReport: ErrorReport = {
       id: this.generateErrorId(),
@@ -145,9 +164,11 @@ class ErrorLogger {
     method: string,
     status?: number,
     responseText?: string,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
   ): string {
-    const error = new Error(`Network request failed: ${method} ${url}${status ? ` (${status})` : ''}`)
+    const error = new Error(
+      `Network request failed: ${method} ${url}${status ? ` (${status})` : ''}`,
+    )
     const networkContext = {
       ...context,
       url,
@@ -164,7 +185,7 @@ class ErrorLogger {
     method: string,
     status: number,
     responseData?: unknown,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
   ): string {
     const error = new Error(`API request failed: ${method} ${endpoint} (${status})`)
     const apiContext = {
@@ -172,7 +193,10 @@ class ErrorLogger {
       endpoint,
       method,
       status,
-      responseData: typeof responseData === 'object' ? JSON.stringify(responseData).substring(0, 500) : responseData,
+      responseData:
+        typeof responseData === 'object'
+          ? JSON.stringify(responseData).substring(0, 500)
+          : responseData,
     }
 
     return this.logError(error, apiContext)
@@ -297,7 +321,7 @@ export function logError(
   error: Error,
   context?: Record<string, unknown>,
   componentStack?: string,
-  retryCount?: number
+  retryCount?: number,
 ): string {
   return getErrorLogger().logError(error, context, componentStack, retryCount)
 }
@@ -307,7 +331,7 @@ export function logNetworkError(
   method: string,
   status?: number,
   responseText?: string,
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
 ): string {
   return getErrorLogger().logNetworkError(url, method, status, responseText, context)
 }
@@ -317,7 +341,7 @@ export function logAPIError(
   method: string,
   status: number,
   responseData?: unknown,
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
 ): string {
   return getErrorLogger().logAPIError(endpoint, method, status, responseData, context)
 }
@@ -325,7 +349,7 @@ export function logAPIError(
 // Global error handler for unhandled errors
 export function setupGlobalErrorHandler(): void {
   // Handle unhandled promise rejections
-  window.addEventListener('unhandledrejection', (event) => {
+  window.addEventListener('unhandledrejection', event => {
     const error = new Error(`Unhandled promise rejection: ${event.reason}`)
     logError(error, {
       type: 'unhandledrejection',
@@ -335,7 +359,7 @@ export function setupGlobalErrorHandler(): void {
   })
 
   // Handle uncaught errors
-  window.addEventListener('error', (event) => {
+  window.addEventListener('error', event => {
     const error = event.error || new Error(event.message)
     logError(error, {
       type: 'uncaughterror',
@@ -352,9 +376,9 @@ export function setupGlobalErrorHandler(): void {
 
     // Log console errors as well
     if (args.length > 0) {
-      const message = args.map(arg =>
-        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-      ).join(' ')
+      const message = args
+        .map(arg => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg)))
+        .join(' ')
 
       const error = new Error(`Console error: ${message}`)
       logError(error, {

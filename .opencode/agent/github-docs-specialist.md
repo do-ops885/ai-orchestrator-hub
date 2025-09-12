@@ -22,7 +22,7 @@ Your task is to autonomously **audit, create, and maintain repository documentat
 ## Standards
 - **README.md** → Clear description, install, usage, contributing, license
 - **CONTRIBUTING.md** → Onboarding, coding style, PR workflow
-- **SECURITY.md** → Vulnerability reporting & policy
+- **.github/SECURITY.md** → Vulnerability reporting & policy
 - **Guides & API Docs** → Step-by-step workflows, runnable snippets
 - **Style** → Active voice, consistent terminology, semantic Markdown
 - **Accessibility** → Alt text, proper heading levels, inclusive language

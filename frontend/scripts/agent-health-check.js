@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-/* eslint-disable no-console */
-
 async function checkAgentHealth() {
   const timeout = parseInt(process.argv[2]) || 30 // seconds
   const registryUrl = process.argv[3] || 'http://localhost:8000'

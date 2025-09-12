@@ -211,7 +211,7 @@ impl PerformanceMonitor {
     }
 
     /// Start continuous performance monitoring
-    pub async fn start_monitoring(&self) {
+    pub fn start_monitoring(&self) {
         if !self.config.monitoring_enabled {
             return;
         }
@@ -239,8 +239,8 @@ impl PerformanceMonitor {
 
     /// Collect a performance snapshot
     async fn collect_performance_snapshot(&self) -> HiveResult<()> {
-        let memory_metrics = self.memory_tracker.get_current_metrics().await;
-        let cpu_metrics = self.cpu_tracker.get_current_metrics().await;
+        let memory_metrics = self.memory_tracker.get_current_metrics();
+        let cpu_metrics = self.cpu_tracker.get_current_metrics();
 
         // Create placeholder data for hive status and tasks info
         let hive_status = serde_json::json!({
@@ -288,7 +288,7 @@ impl PerformanceMonitor {
 
         // Check for memory leaks
         if self.config.memory_leak_detection {
-            self.memory_tracker.check_for_leaks().await;
+            self.memory_tracker.check_for_leaks();
         }
 
         Ok(())
@@ -344,10 +344,10 @@ impl PerformanceMonitor {
                 }
             }
             BenchmarkType::MemoryUsage => {
-                custom_metrics = self.benchmark_memory_usage(test.iterations).await;
+                custom_metrics = self.benchmark_memory_usage(test.iterations);
             }
             BenchmarkType::CpuUtilization => {
-                custom_metrics = self.benchmark_cpu_utilization(test.iterations).await;
+                custom_metrics = self.benchmark_cpu_utilization(test.iterations);
             }
             BenchmarkType::NeuralProcessing => {
                 if let Err(e) = self.benchmark_neural_processing(test.iterations).await {
@@ -435,7 +435,7 @@ impl PerformanceMonitor {
     }
 
     /// Benchmark memory usage patterns
-    async fn benchmark_memory_usage(&self, iterations: u32) -> HashMap<String, f64> {
+    fn benchmark_memory_usage(&self, iterations: u32) -> HashMap<String, f64> {
         let start_memory = self.get_current_memory_usage();
 
         // Allocate and deallocate memory
@@ -458,7 +458,7 @@ impl PerformanceMonitor {
     }
 
     /// Benchmark CPU utilization
-    async fn benchmark_cpu_utilization(&self, iterations: u32) -> HashMap<String, f64> {
+    fn benchmark_cpu_utilization(&self, iterations: u32) -> HashMap<String, f64> {
         let start_time = Instant::now();
 
         // CPU-intensive work
@@ -521,7 +521,7 @@ impl PerformanceMonitor {
                 .map(|s| s.cpu.average_cpu_percent)
                 .sum::<f64>()
                 / history.len() as f64,
-            memory_leak_detected: self.memory_tracker.has_memory_leak().await,
+            memory_leak_detected: self.memory_tracker.has_memory_leak(),
             uptime_hours: 0.0, // TODO: Calculate actual uptime
         }
     }
@@ -550,7 +550,7 @@ impl MemoryTracker {
         }
     }
 
-    pub async fn get_current_metrics(&self) -> MemoryMetrics {
+    pub fn get_current_metrics(&self) -> MemoryMetrics {
         // TODO: Implement actual memory metrics collection
         MemoryMetrics {
             peak_memory_mb: 100.0,
@@ -563,12 +563,12 @@ impl MemoryTracker {
         }
     }
 
-    pub async fn check_for_leaks(&self) -> bool {
+    pub fn check_for_leaks(&self) -> bool {
         // TODO: Implement memory leak detection logic
         false
     }
 
-    pub async fn has_memory_leak(&self) -> bool {
+    pub fn has_memory_leak(&self) -> bool {
         // TODO: Check if memory leak is detected
         false
     }
@@ -584,7 +584,7 @@ impl CpuTracker {
         }
     }
 
-    pub async fn get_current_metrics(&self) -> CpuMetrics {
+    pub fn get_current_metrics(&self) -> CpuMetrics {
         // TODO: Implement actual CPU metrics collection
         CpuMetrics {
             peak_cpu_percent: 45.0,
@@ -784,14 +784,14 @@ mod tests {
     #[tokio::test]
     async fn test_memory_tracker() {
         let tracker = MemoryTracker::new(100.0, 60);
-        let metrics = tracker.get_current_metrics().await;
+        let metrics = tracker.get_current_metrics();
         assert!(metrics.peak_memory_mb > 0.0);
     }
 
     #[tokio::test]
     async fn test_cpu_tracker() {
         let tracker = CpuTracker::new(true, 60);
-        let metrics = tracker.get_current_metrics().await;
+        let metrics = tracker.get_current_metrics();
         assert!(metrics.average_cpu_percent >= 0.0);
     }
 }

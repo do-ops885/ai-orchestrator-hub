@@ -62,8 +62,7 @@ async fn main() -> Result<()> {
         base_verification,
         Arc::clone(&learning_system),
         adaptation_config,
-    )
-    .await;
+    );
 
     info!("✅ Adaptive verification system initialized");
 

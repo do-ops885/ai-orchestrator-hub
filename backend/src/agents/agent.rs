@@ -36,7 +36,7 @@ use crate::tasks::{Task, TaskResult};
 /// - Coordinators manage and direct other agents
 /// - Specialists have domain-specific expertise
 /// - Learners focus on continuous improvement and adaptation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AgentType {
     /// General-purpose agent for task execution
     Worker,
@@ -68,6 +68,19 @@ pub enum AgentState {
     Failed,
     /// Agent is temporarily inactive
     Inactive,
+}
+
+impl std::fmt::Display for AgentState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AgentState::Idle => write!(f, "idle"),
+            AgentState::Working => write!(f, "working"),
+            AgentState::Learning => write!(f, "learning"),
+            AgentState::Communicating => write!(f, "communicating"),
+            AgentState::Failed => write!(f, "failed"),
+            AgentState::Inactive => write!(f, "inactive"),
+        }
+    }
 }
 
 /// Represents a specific capability that an agent possesses.
