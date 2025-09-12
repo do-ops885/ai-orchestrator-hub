@@ -8,16 +8,22 @@
     "plan": {
       "model": "chutes/zai-org/GLM-4.5-FP8"
     },
+
+
     "git": {
       "model": "nvidia/deepseek-ai/deepseek-v3.1"
     },
     "junior-developer": {
       "model": "nvidia/deepseek-ai/deepseek-v3.1"
     },
+>
     "learner": {
       "model": "nvidia/deepseek-ai/deepseek-v3.1"
     },
     "github": {
+      "model": "nvidia/deepseek-ai/deepseek-v3.1"
+    },
+    "beginner-developer": {
       "model": "nvidia/deepseek-ai/deepseek-v3.1"
     },
   },

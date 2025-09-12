@@ -522,6 +522,7 @@ impl CacheManager {
 #[allow(dead_code)]
 pub struct PerformanceOptimizer {
     /// Configuration
+    #[allow(dead_code)]
     config: PerformanceConfig,
     /// Connection pool
     connection_pool: ConnectionPool,

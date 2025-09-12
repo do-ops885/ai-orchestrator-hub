@@ -65,7 +65,6 @@ impl TaskQueueManager {
     /// Get the next task from the queue
     pub async fn dequeue_task(&self) -> HiveResult<Option<Task>> {
         // Try work-stealing queue first if enabled
-        if self.config.enable_work_stealing {
             // For work-stealing queue, we need an agent ID. For now, use a default agent
             // This is a temporary solution - in a real implementation, dequeue_task should take an agent_id parameter
             let default_agent_id = uuid::Uuid::new_v4();
@@ -118,6 +117,7 @@ impl TaskQueueManager {
     pub async fn clear(&self) -> HiveResult<()> {
         self.legacy_queue.write().await.clear();
         if self.config.enable_work_stealing {
+
             self.work_stealing_queue
                 .clear()
                 .await
