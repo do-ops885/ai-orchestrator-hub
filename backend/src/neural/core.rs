@@ -33,14 +33,18 @@ pub struct NeuralAgent {
 #[allow(dead_code)]
 pub struct AdvancedNeuralCoordinator {
     /// Neural processor for individual agents
+    #[allow(dead_code)]
     neural_processor: Arc<RwLock<HybridNeuralProcessor>>,
     /// Cross-agent knowledge transfer system
+    #[allow(dead_code)]
     knowledge_transfer: KnowledgeTransferSystem,
     /// Performance prediction engine
+    #[allow(dead_code)]
     performance_predictor: PerformancePredictionEngine,
     /// Emergent behavior detector
     behavior_detector: EmergentBehaviorDetector,
     /// Neural coordination metrics
+    #[allow(dead_code)]
     coordination_metrics: Arc<RwLock<NeuralCoordinationMetrics>>,
 }
 
@@ -49,10 +53,13 @@ pub struct AdvancedNeuralCoordinator {
 #[allow(dead_code)]
 pub struct KnowledgeTransferSystem {
     /// Knowledge patterns learned by agents
+    #[allow(dead_code)]
     knowledge_patterns: HashMap<String, KnowledgePattern>,
     /// Transfer efficiency metrics
+    #[allow(dead_code)]
     transfer_metrics: HashMap<(Uuid, Uuid), TransferMetrics>,
     /// Active knowledge transfer sessions
+    #[allow(dead_code)]
     active_transfers: HashMap<Uuid, KnowledgeTransferSession>,
 }
 
@@ -100,7 +107,9 @@ pub enum TransferStatus {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct PerformancePredictionEngine {
+    #[allow(dead_code)]
     prediction_models: HashMap<String, PredictionModel>,
+    #[allow(dead_code)]
     historical_data: HashMap<Uuid, Vec<PerformanceSnapshot>>,
 }
 
@@ -128,8 +137,11 @@ pub struct PerformanceSnapshot {
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct EmergentBehaviorDetector {
+    #[allow(dead_code)]
     behavior_patterns: HashMap<Uuid, EmergentBehavior>,
+    #[allow(dead_code)]
     detection_threshold: f64,
+    #[allow(dead_code)]
     observation_window: chrono::Duration,
 }
 

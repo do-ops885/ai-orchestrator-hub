@@ -217,6 +217,8 @@ pub struct TaskQueueStats {
     pub total_capacity: usize,
     /// Queue utilization percentage
     pub utilization_percentage: f64,
+    /// Peak queue size observed
+    pub peak_queue_size: usize,
 }
 
 impl Default for TaskQueueStats {
@@ -230,6 +232,7 @@ impl Default for TaskQueueStats {
             retrying_tasks: 0,
             total_capacity: 0,
             utilization_percentage: 0.0,
+            peak_queue_size: 0,
         }
     }
 }

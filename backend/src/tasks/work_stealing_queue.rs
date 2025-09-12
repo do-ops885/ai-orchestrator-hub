@@ -145,6 +145,19 @@ impl AgentTaskQueue {
         *self.last_activity.write().await = Utc::now();
     }
 
+    /// Clear all tasks from this agent's queues
+    pub async fn clear(&self) -> anyhow::Result<()> {
+        {
+            let mut local_queue = self.local_queue.lock().await;
+            local_queue.clear();
+        }
+        {
+            let mut priority_queue = self.priority_queue.lock().await;
+            priority_queue.clear();
+        }
+        Ok(())
+    }
+
     /// Mark task completion
     pub async fn mark_task_completed(&self) {
         let mut completed = self.tasks_completed.lock().await;
@@ -393,6 +406,35 @@ impl WorkStealingQueue {
         }
     }
 
+    /// Get total number of tasks in the system
+    pub async fn len(&self) -> usize {
+        let metrics = self.get_metrics().await;
+        metrics.total_queue_depth
+    }
+
+    /// Pop a task from the global queue (for non-agent specific dequeue)
+    pub async fn pop_global(&self) -> Option<Task> {
+        let mut global_queue = self.global_queue.lock().await;
+        global_queue.pop_front()
+    }
+
+    /// Clear all tasks from the system
+    pub async fn clear(&self) -> anyhow::Result<()> {
+        // Clear global queue
+        {
+            let mut global_queue = self.global_queue.lock().await;
+            global_queue.clear();
+        }
+
+        // Clear all agent queues
+        for agent_queue_ref in self.agent_queues.iter() {
+            let agent_queue = agent_queue_ref.value();
+            agent_queue.clear().await?;
+        }
+
+        Ok(())
+    }
+
     /// Update system metrics
     pub async fn update_metrics(&self) {
         let mut metrics = self.metrics.write().await;
@@ -416,34 +458,7 @@ impl WorkStealingQueue {
         metrics.last_updated = Utc::now();
     }
 
-    /// Clear all tasks from the system
-    pub async fn clear(&self) -> anyhow::Result<()> {
-        // Clear global queue
-        {
-            let mut global_queue = self.global_queue.lock().await;
-            global_queue.clear();
-        }
 
-        // Clear all agent queues
-        for entry in self.agent_queues.iter() {
-            let agent_queue = entry.value();
-
-            // Clear priority queue
-            {
-                let mut priority_queue = agent_queue.priority_queue.lock().await;
-                priority_queue.clear();
-            }
-
-            // Clear local queue
-            {
-                let mut local_queue = agent_queue.local_queue.lock().await;
-                local_queue.clear();
-            }
-        }
-
-        tracing::info!("Cleared all tasks from work-stealing queue system");
-        Ok(())
-    }
 
     /// Cleanup old or stale tasks
     pub async fn cleanup(&self) -> anyhow::Result<()> {

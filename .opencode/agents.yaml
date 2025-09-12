@@ -1,6 +1,8 @@
 agents:
    - name: general
    - name: plan
+   - name: beginner-developer
+     description: Use this agent when the user requires assistance with entry-level programming tasks
    - name: security-auditor
      description: Security auditing and vulnerability assessment specialist
      category: Security

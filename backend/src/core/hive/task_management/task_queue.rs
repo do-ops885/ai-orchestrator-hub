@@ -48,7 +48,7 @@ impl TaskQueueManager {
 
         // Try work-stealing queue first if enabled
         if self.config.enable_work_stealing {
-            if let Err(e) = self.work_stealing_queue.push(task.clone()).await {
+            if let Err(e) = self.work_stealing_queue.submit_task(task.clone()).await {
                 tracing::warn!("Work-stealing queue failed, falling back to legacy: {}", e);
                 // Fall back to legacy queue
                 self.legacy_queue.write().await.push_back(task);
@@ -67,7 +67,7 @@ impl TaskQueueManager {
     pub async fn dequeue_task(&self) -> HiveResult<Option<Task>> {
         // Try work-stealing queue first if enabled
         if self.config.enable_work_stealing {
-            if let Ok(Some(task)) = self.work_stealing_queue.pop().await {
+            if let Some(task) = self.work_stealing_queue.pop_global().await {
                 self.update_stats().await;
                 return Ok(Some(task));
             }
@@ -111,7 +111,11 @@ impl TaskQueueManager {
     pub async fn clear(&self) -> HiveResult<()> {
         self.legacy_queue.write().await.clear();
         if self.config.enable_work_stealing {
-            self.work_stealing_queue.clear().await?;
+            if let Err(e) = self.work_stealing_queue.clear().await {
+                return Err(HiveError::OperationFailed {
+                    reason: format!("Failed to clear work-stealing queue: {}", e),
+                });
+            }
         }
         self.update_stats().await;
         Ok(())

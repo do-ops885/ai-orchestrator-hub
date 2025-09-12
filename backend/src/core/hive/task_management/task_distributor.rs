@@ -10,8 +10,9 @@ use super::task_queue::TaskQueueManager;
 use super::task_types::*;
 use crate::agents::agent::Agent;
 use crate::infrastructure::resource_manager::ResourceManager;
-use crate::tasks::task::{Task, TaskPriority, TaskRequiredCapability};
+use crate::tasks::task::{Task, TaskPriority, TaskRequiredCapability, TaskStatus};
 use crate::utils::error::{HiveError, HiveResult};
+use crate::{AgentType, AgentState, AgentMemory};
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use uuid::Uuid;
@@ -193,10 +194,23 @@ impl TaskDistributor {
             description: description.to_string(),
             task_type: task_type.to_string(),
             priority,
+            status: crate::TaskStatus::Pending,
             required_capabilities,
+            assigned_agent: None,
             created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
             deadline: None, // Could be parsed from config
-            context: config.clone(),
+            estimated_duration: None,
+            context: config
+                .get("context")
+                .and_then(|v| v.as_object())
+                .map(|obj| {
+                    obj.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            dependencies: Vec::new(),
         };
 
         let task_id = task.id;

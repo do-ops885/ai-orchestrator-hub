@@ -108,6 +108,7 @@ pub struct MetricsCollector {
     alert_thresholds: MetricThresholds,
     start_time: std::time::Instant,
     // Advanced analytics components
+    #[allow(dead_code)]
     trend_analyzer: TrendAnalyzer,
     anomaly_detector: AnomalyDetector,
 }
@@ -457,7 +458,9 @@ impl MetricsCollector {
 // Advanced analytics components
 #[allow(dead_code)]
 pub struct TrendAnalyzer {
+    #[allow(dead_code)]
     window_size: usize,
+    #[allow(dead_code)]
     trend_threshold: f64,
 }
 
@@ -473,7 +476,9 @@ impl TrendAnalyzer {
 
 #[allow(dead_code)]
 pub struct AnomalyDetector {
+    #[allow(dead_code)]
     sensitivity: f64,
+    #[allow(dead_code)]
     baseline_window: usize,
 }
 
