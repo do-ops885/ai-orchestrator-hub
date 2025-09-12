@@ -6,7 +6,7 @@
 use crate::infrastructure::async_optimizer::{AsyncOptimizer, AsyncOptimizerConfig};
 use crate::infrastructure::intelligent_cache::{IntelligentCacheConfig, MultiTierCacheManager};
 use crate::infrastructure::streaming::{StreamConfig, StreamProcessor};
-use crate::utils::error::HiveResult;
+use crate::utils::error::{HiveError, HiveResult};
 use crate::utils::error_recovery::{CircuitBreakerConfig, ErrorRecoveryCoordinator, RetryConfig};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

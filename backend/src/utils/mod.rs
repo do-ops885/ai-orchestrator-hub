@@ -7,6 +7,8 @@ pub mod error;
 pub mod error_recovery;
 /// Health checks and circuit breaker patterns
 pub mod health_check;
+/// Mathematical utilities
+pub mod math;
 /// Rate limiting and abuse prevention
 pub mod rate_limiter;
 /// Security utilities and audit logging

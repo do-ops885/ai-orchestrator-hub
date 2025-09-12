@@ -5,7 +5,7 @@
 
 use super::task_types::*;
 use crate::utils::error::HiveResult;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -277,8 +277,9 @@ impl TaskMetricsCollector {
         {
             let mut history = self.execution_history.write().await;
             // Keep only recent results (this is simplified - in practice you'd check timestamps)
-            if history.len() > 10000 {
-                history.drain(0..history.len() - 10000);
+            let current_len = history.len();
+            if current_len > 10000 {
+                history.drain(0..current_len - 10000);
             }
         }
 
