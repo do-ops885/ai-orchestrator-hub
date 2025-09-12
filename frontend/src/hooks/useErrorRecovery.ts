@@ -251,9 +251,8 @@ export function useNetworkRecovery() {
     }
 
     const updateConnectionType = () => {
-      // @ts-expect-error - connection API might not be available in all browsers
       const connection =
-        navigator.connection || navigator.mozConnection || navigator.webkitConnection
+        (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection
       if (connection) {
         setConnectionType(connection.effectiveType || 'unknown')
       }

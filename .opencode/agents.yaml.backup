@@ -72,10 +72,10 @@ agents:
    - name: memory_agent
      description: The Memory Agent manages agent memory systems and learning retention. It handles experience storage, pattern recognition, and social connection tracking for enhanced agent intelligence.
      category: Learning
-  - name: swarm-architect
+    - name: swarm-architect
       description: Swarm intelligence and multi-agent system architect
       category: Coordination
-  - name: swarm-coordinator
+    - name: swarm-coordinator
       description: The Swarm Coordinator Agent specializes in multi-agent coordination and swarm intelligence operations using the multiagent-hive MCP tools. It manages agent creation, task distribution, and swarm optimization.
       category: Coordination
    - name: github-label-manager
