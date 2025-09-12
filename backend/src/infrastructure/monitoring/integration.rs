@@ -3,7 +3,7 @@
 //! Handles external integrations for monitoring data
 
 use super::types::*;
-use crate::utils::error::{HiveError, HiveResult};
+use crate::utils::error::HiveResult;
 
 #[derive(Clone)]
 pub struct Integration;

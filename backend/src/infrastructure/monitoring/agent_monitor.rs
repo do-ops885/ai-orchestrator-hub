@@ -134,7 +134,7 @@ impl AgentMonitor {
     /// Get comprehensive monitoring status
     pub async fn get_status(&self) -> HiveResult<MonitoringStatus> {
         let agents = self.agent_discovery.get_all_agents().await?;
-        let health_snapshot = self.health_monitor.get_health_snapshot().await?;
+        let _health_snapshot = self.health_monitor.get_health_snapshot().await?;
         // Placeholder for active alerts - would need to implement this method
         let alerts: Vec<String> = Vec::new(); // self.alerting_system.get_active_alerts().await?;
 

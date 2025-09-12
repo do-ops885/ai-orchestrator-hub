@@ -404,6 +404,14 @@ impl AgentManager {
             .collect()
     }
 
+    /// Update an agent in the system.
+    ///
+    /// Updates an existing agent with new data.
+    /// This is primarily for testing purposes.
+    pub async fn update_agent(&self, agent_id: Uuid, agent: Agent) {
+        self.agents.insert(agent_id, agent);
+    }
+
     /// Get all active agents
     ///
     /// Returns a complete list of all currently active agents in the system.
@@ -1639,7 +1647,7 @@ mod tests {
 
         // Check success rate (2/3 ≈ 0.667)
         let success_rate = agent_perf.get("success_rate").unwrap().as_f64().unwrap();
-        assert!((success_rate - 0.666666).abs() < 0.01);
+        assert!((success_rate - 0.666_666).abs() < 0.01);
 
         // Check average execution time ((100+200+50)/3 = 116.67)
         let avg_time = agent_perf
@@ -1647,7 +1655,7 @@ mod tests {
             .unwrap()
             .as_f64()
             .unwrap();
-        assert!((avg_time - 116.666666).abs() < 0.01);
+        assert!((avg_time - 116.666_666).abs() < 0.01);
 
         Ok(())
     }

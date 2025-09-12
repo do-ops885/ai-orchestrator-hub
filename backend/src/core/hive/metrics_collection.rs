@@ -1053,7 +1053,6 @@ impl MetricsCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use tokio::sync::mpsc;
 
     // Helper function to create a test metrics collector

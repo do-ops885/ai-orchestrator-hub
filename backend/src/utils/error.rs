@@ -193,3 +193,12 @@ impl From<std::io::Error> for HiveError {
         }
     }
 }
+
+/// Implement From<anyhow::Error> for HiveError
+impl From<anyhow::Error> for HiveError {
+    fn from(err: anyhow::Error) -> Self {
+        HiveError::OperationFailed {
+            reason: err.to_string(),
+        }
+    }
+}

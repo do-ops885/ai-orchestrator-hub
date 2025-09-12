@@ -1475,7 +1475,7 @@ mod tests {
             .unwrap()
             .as_f64()
             .unwrap();
-        assert!((success_rate - 0.666666).abs() < 0.01); // 2/3 success rate
+        assert!((success_rate - 0.666_666).abs() < 0.01); // 2/3 success rate
 
         let avg_time = recent_performance
             .get("recent_average_time_ms")

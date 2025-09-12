@@ -8,12 +8,12 @@ use super::task_executor::TaskExecutor;
 use super::task_metrics::TaskMetricsCollector;
 use super::task_queue::TaskQueueManager;
 use super::task_types::*;
-use crate::agents::agent::Agent;
+use crate::agents::agent::{Agent, AgentMemory, AgentState, AgentType};
 use crate::infrastructure::resource_manager::ResourceManager;
 use crate::tasks::task::{Task, TaskPriority, TaskRequiredCapability};
 use crate::utils::error::{HiveError, HiveResult};
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::mpsc;
 use uuid::Uuid;
 
 /// Task distribution and execution subsystem
@@ -193,10 +193,15 @@ impl TaskDistributor {
             description: description.to_string(),
             task_type: task_type.to_string(),
             priority,
+            status: crate::tasks::task::TaskStatus::Pending,
             required_capabilities,
+            assigned_agent: None,
             created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
             deadline: None, // Could be parsed from config
-            context: config.clone(),
+            estimated_duration: None,
+            context: std::collections::HashMap::new(), // TODO: Convert config to HashMap if needed
+            dependencies: Vec::new(),
         };
 
         let task_id = task.id;
@@ -468,5 +473,29 @@ impl TaskDistributor {
         self.config = new_config;
         tracing::info!("Task distributor configuration updated");
         Ok(())
+    }
+
+    /// Get the current number of tasks in the queue.
+    ///
+    /// Returns the total count of pending tasks across all queue implementations
+    /// (legacy queue and work-stealing queue). This provides direct access to
+    /// the task count for testing and monitoring purposes.
+    ///
+    /// ## Performance
+    ///
+    /// O(1) time complexity - direct access to queue size counters.
+    ///
+    /// ## Use Cases
+    ///
+    /// - Unit testing task queue functionality
+    /// - Monitoring task backlog and queue health
+    /// - Load balancing and capacity planning
+    /// - System performance analysis
+    ///
+    /// # Returns
+    ///
+    /// Returns the current number of tasks in the queue.
+    pub async fn get_task_count(&self) -> usize {
+        self.queue_manager.get_queue_size().await
     }
 }

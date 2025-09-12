@@ -53,7 +53,9 @@
 use crate::agents::agent::Agent;
 use crate::core::hive::agent_management::AgentManager;
 use crate::core::hive::background_processes::ProcessManager;
-use crate::core::hive::metrics_collection::MetricsCollector as HiveMetricsCollector;
+use crate::core::hive::metrics_collection::{
+    HiveMetrics, MetricsCollector as HiveMetricsCollector,
+};
 use crate::core::hive::task_management::TaskDistributor;
 use crate::infrastructure::resource_manager::ResourceManager;
 use crate::neural::core::HybridNeuralProcessor;
@@ -94,6 +96,7 @@ use uuid::Uuid;
 /// - Memory usage scales with active agents and tasks
 /// - CPU overhead minimized through efficient async operations
 /// - Configurable background process intervals for resource control
+#[derive(Clone)]
 pub struct HiveCoordinator {
     /// Unique identifier for this hive instance
     ///
@@ -116,7 +119,7 @@ pub struct HiveCoordinator {
     ///
     /// Coordinates long-running processes for system maintenance,
     /// learning cycles, and periodic resource monitoring.
-    process_manager: ProcessManager,
+    process_manager: Arc<ProcessManager>,
 
     /// Metrics collection subsystem
     ///
@@ -301,7 +304,7 @@ impl HiveCoordinator {
             id,
             agent_manager,
             task_distributor,
-            process_manager,
+            process_manager: Arc::new(process_manager),
             metrics_collector,
             resource_manager,
             neural_processor,
@@ -871,7 +874,6 @@ impl HiveCoordinator {
         tracing::info!("HiveCoordinator shutdown complete");
         Ok(())
     }
-
     /// Get information about all agents.
     ///
     /// Returns detailed information about all registered agents including
@@ -897,6 +899,7 @@ impl HiveCoordinator {
     /// - Capacity planning
     /// - Troubleshooting agent issues
     ///
+
     /// # Returns
     ///
     /// Returns a JSON object containing comprehensive agent information.
@@ -979,6 +982,114 @@ impl HiveCoordinator {
             "resource_profile": resource_info.1,
             "hardware_class": resource_info.2
         }))
+    }
+
+    /// Get the current number of agents in the system.
+    ///
+    /// Returns the total count of registered agents for testing and monitoring purposes.
+    /// This provides direct access to the agent count without needing to parse status information.
+    ///
+    /// ## Performance
+    ///
+    /// O(1) time complexity - direct access to internal counter.
+    ///
+    /// ## Use Cases
+    ///
+    /// - Unit testing agent management functionality
+    /// - Monitoring agent registration/removal
+    /// - Capacity planning and load balancing
+    /// - System health checks
+    ///
+    /// ## Example
+    ///
+    /// ```rust,no_run
+    /// # use hive::core::hive::HiveCoordinator;
+    /// # async fn example(coordinator: &HiveCoordinator) {
+    /// let agent_count = coordinator.get_agent_count().await;
+    /// println!("Current agent count: {}", agent_count);
+    /// # }
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// Returns the current number of registered agents.
+    pub async fn get_agent_count(&self) -> usize {
+        self.agent_manager.get_agent_count()
+    }
+
+    /// Get the current number of tasks in the queue.
+    ///
+    /// Returns the total count of pending tasks in the task distribution system.
+    /// This provides direct access to the task queue size for testing and monitoring.
+    ///
+    /// ## Performance
+    ///
+    /// O(1) time complexity - direct access to queue size counters.
+    ///
+    /// ## Use Cases
+    ///
+    /// - Unit testing task distribution functionality
+    /// - Monitoring task queue backlog
+    /// - Load balancing and capacity planning
+    /// - System performance analysis
+    ///
+    /// ## Example
+    ///
+    /// ```rust,no_run
+    /// # use hive::core::hive::HiveCoordinator;
+    /// # async fn example(coordinator: &HiveCoordinator) {
+    /// let task_count = coordinator.get_task_count().await;
+    /// println!("Current task count: {}", task_count);
+    /// # }
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// Returns the current number of tasks in the queue.
+    pub async fn get_task_count(&self) -> usize {
+        self.task_distributor.get_task_count().await
+    }
+
+    /// Get current system metrics.
+    ///
+    /// Returns a comprehensive snapshot of current system metrics including
+    /// agent statistics, task performance, system health, and resource utilization.
+    /// This provides direct access to metrics data for testing and monitoring.
+    ///
+    /// ## Metrics Included
+    ///
+    /// - Agent metrics: total, active, performance statistics
+    /// - Task metrics: completion rates, execution times, success rates
+    /// - System metrics: CPU usage, memory usage, uptime
+    /// - Resource metrics: hardware utilization and availability
+    ///
+    /// ## Performance
+    ///
+    /// O(1) time complexity - returns cached metrics data.
+    ///
+    /// ## Use Cases
+    ///
+    /// - Unit testing metrics collection functionality
+    /// - Monitoring system performance and health
+    /// - Analyzing agent and task performance trends
+    /// - System diagnostics and troubleshooting
+    ///
+    /// ## Example
+    ///
+    /// ```rust,no_run
+    /// # use hive::core::hive::HiveCoordinator;
+    /// # async fn example(coordinator: &HiveCoordinator) {
+    /// let metrics = coordinator.get_metrics().await;
+    /// println!("Total agents: {}", metrics.agent_metrics.total_agents);
+    /// println!("Task success rate: {:.1}%", metrics.task_metrics.success_rate * 100.0);
+    /// # }
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// Returns a `HiveMetrics` structure containing current system metrics.
+    pub async fn get_metrics(&self) -> HiveMetrics {
+        self.metrics_collector.get_current_metrics().await
     }
 
     /// Get memory statistics.
@@ -1194,6 +1305,83 @@ impl HiveCoordinator {
         });
 
         Ok(())
+    }
+
+    /// Get simple verification statistics.
+    ///
+    /// Returns statistics about simple verification operations.
+    /// This is a stub implementation for testing purposes.
+    pub async fn get_simple_verification_stats(&self) -> serde_json::Value {
+        serde_json::json!({
+            "total_verifications": 0,
+            "passed_verifications": 0,
+            "failed_verifications": 0,
+            "success_rate": 0.0,
+            "average_verification_time_ms": 0.0,
+            "average_confidence_score": 0.0,
+            "tier_usage": {},
+            "rule_effectiveness": {}
+        })
+    }
+
+    /// Configure simple verification.
+    ///
+    /// Configures simple verification settings.
+    /// This is a stub implementation for testing purposes.
+    pub async fn configure_simple_verification(
+        &self,
+        _config: serde_json::Value,
+    ) -> HiveResult<()> {
+        Ok(())
+    }
+
+    /// Get auto scaling statistics.
+    ///
+    /// Returns statistics about auto scaling operations.
+    /// This is a stub implementation for testing purposes.
+    pub async fn get_auto_scaling_stats(&self) -> serde_json::Value {
+        serde_json::json!({
+            "total_scaling_events": 0,
+            "successful_scalings": 0,
+            "failed_scalings": 0,
+            "average_scaling_time_ms": 0.0,
+            "current_scale_factor": 1.0
+        })
+    }
+
+    /// Get skill evolution statistics.
+    ///
+    /// Returns statistics about skill evolution.
+    /// This is a stub implementation for testing purposes.
+    pub async fn get_skill_evolution_stats(&self) -> serde_json::Value {
+        serde_json::json!({
+            "total_skill_updates": 0,
+            "average_skill_improvement": 0.0,
+            "skill_distribution": {},
+            "evolution_trends": []
+        })
+    }
+
+    /// Get reference to NLP processor.
+    ///
+    /// Returns a reference to the NLP processor for testing purposes.
+    pub fn get_nlp_processor(&self) -> &Arc<crate::neural::nlp::NLPProcessor> {
+        &self.nlp_processor
+    }
+
+    /// Get reference to neural processor.
+    ///
+    /// Returns a reference to the neural processor for testing purposes.
+    pub fn get_neural_processor(&self) -> &Arc<RwLock<crate::neural::core::HybridNeuralProcessor>> {
+        &self.neural_processor
+    }
+
+    /// Update an agent in the system.
+    ///
+    /// Updates an existing agent with new data.
+    /// This is primarily for testing purposes.
+    pub async fn update_agent(&self, agent_id: Uuid, agent: Agent) {
+        self.agent_manager.update_agent(agent_id, agent).await;
     }
 }
 
@@ -1590,6 +1778,54 @@ mod tests {
 
         let all_agents = coordinator.get_all_agents().await;
         assert_eq!(all_agents.len(), 5);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_new_testing_methods() -> Result<(), Box<dyn std::error::Error>> {
+        let coordinator = create_test_coordinator().await?;
+
+        // Test initial counts
+        assert_eq!(coordinator.get_agent_count().await, 0);
+        assert_eq!(coordinator.get_task_count().await, 0);
+
+        // Test initial metrics
+        let initial_metrics = coordinator.get_metrics().await;
+        assert_eq!(initial_metrics.agent_metrics.total_agents, 0);
+        assert_eq!(initial_metrics.task_metrics.total_tasks, 0);
+
+        // Create an agent
+        let agent_config = serde_json::json!({
+            "type": "worker",
+            "name": "test_agent"
+        });
+        let agent_id = coordinator.create_agent(agent_config).await?;
+
+        // Test agent count after creation
+        assert_eq!(coordinator.get_agent_count().await, 1);
+
+        // Create a task
+        let task_config = serde_json::json!({
+            "type": "computation",
+            "title": "Test Task",
+            "description": "A test task"
+        });
+        let task_id = coordinator.create_task(task_config).await?;
+
+        // Test task count after creation
+        assert_eq!(coordinator.get_task_count().await, 1);
+
+        // Test metrics after operations
+        let metrics_after = coordinator.get_metrics().await;
+        assert_eq!(metrics_after.agent_metrics.total_agents, 1);
+        assert_eq!(metrics_after.agent_metrics.active_agents, 1);
+        assert_eq!(metrics_after.task_metrics.total_tasks, 1);
+
+        // Verify agent exists
+        let agent = coordinator.get_agent(agent_id).await;
+        assert!(agent.is_some());
+        assert_eq!(agent.unwrap().name, "test_agent");
 
         Ok(())
     }

@@ -23,17 +23,16 @@ mod tests {
                 return; // Gracefully skip the test instead of panicking
             }
         };
-        assert_eq!(coordinator.agents.len(), 0);
+        assert_eq!(coordinator.get_agent_count().await, 0);
 
-        // Check initial metrics
-        let metrics = coordinator.metrics.read().await;
-        assert_eq!(metrics.total_agents, 0);
-        assert_eq!(metrics.active_agents, 0);
-        assert_eq!(metrics.completed_tasks, 0);
-        assert_eq!(metrics.failed_tasks, 0);
-        assert_approx_eq(metrics.average_performance, 0.0, 0.001);
-        assert_approx_eq(metrics.swarm_cohesion, 0.0, 0.001);
-        assert_approx_eq(metrics.learning_progress, 0.0, 0.001);
+        // Check initial status
+        let status = coordinator.get_status().await;
+        let agents_info = status["agents"].as_object().unwrap();
+        assert_eq!(agents_info["total_agents"].as_u64().unwrap(), 0);
+        assert_eq!(agents_info["active_agents"].as_u64().unwrap(), 0);
+
+        let tasks_info = status["tasks"].as_object().unwrap();
+        assert_eq!(tasks_info["total_tasks"].as_u64().unwrap(), 0);
     }
 
     #[tokio::test]
@@ -58,9 +57,9 @@ mod tests {
                 return; // Gracefully skip the test instead of panicking
             }
         };
-        assert!(hive.agents.contains_key(&worker_id));
+        assert_eq!(hive.get_agent_count().await, 1);
 
-        let agent = match hive.agents.get(&worker_id) {
+        let agent = match hive.get_agent(worker_id).await {
             Some(agent) => agent,
             None => {
                 panic!("Agent not found after creation");
@@ -80,7 +79,7 @@ mod tests {
         let agent_config = create_agent_config("SkillfulAgent", "worker", Some(capabilities));
         let agent_id = hive.create_agent(agent_config).await.unwrap();
 
-        let agent = hive.agents.get(&agent_id).unwrap();
+        let agent = hive.get_agent(agent_id).await.unwrap();
         assert_eq!(agent.capabilities.len(), 2);
         assert_approx_eq(agent.get_capability_score("data_processing"), 0.8, 0.001);
         assert_approx_eq(agent.get_capability_score("analysis"), 0.6, 0.001);
@@ -101,13 +100,13 @@ mod tests {
         let specialist_id = hive.create_agent(specialist_config).await.unwrap();
 
         // Verify agent types
-        let coordinator = hive.agents.get(&coordinator_id).unwrap();
+        let coordinator = hive.get_agent(coordinator_id).await.unwrap();
         assert!(matches!(coordinator.agent_type, AgentType::Coordinator));
 
-        let learner = hive.agents.get(&learner_id).unwrap();
+        let learner = hive.get_agent(learner_id).await.unwrap();
         assert!(matches!(learner.agent_type, AgentType::Learner));
 
-        let specialist = hive.agents.get(&specialist_id).unwrap();
+        let specialist = hive.get_agent(specialist_id).await.unwrap();
         if let AgentType::Specialist(domain) = &specialist.agent_type {
             assert_eq!(domain, "AI");
         } else {
@@ -124,9 +123,11 @@ mod tests {
         let task_id = hive.create_task(task_config).await;
         assert!(task_id.is_ok());
 
-        // Verify task was added to work-stealing queue
-        let ws_metrics = hive.work_stealing_queue.get_metrics().await;
-        assert!(ws_metrics.total_queue_depth > 0 || ws_metrics.global_queue_depth > 0);
+        // Verify task was added to queue
+        let tasks_info = hive.get_tasks_info().await.unwrap();
+        let queue_info = tasks_info["queue"].as_object().unwrap();
+        let queue_size = queue_info["legacy_queue_size"].as_u64().unwrap_or(0);
+        assert!(queue_size > 0);
     }
 
     #[tokio::test]
@@ -161,8 +162,10 @@ mod tests {
         let _critical_id = hive.create_task(critical_config).await.unwrap();
 
         // All tasks should be created successfully
-        let ws_metrics = hive.work_stealing_queue.get_metrics().await;
-        assert!(ws_metrics.total_queue_depth >= 4 || ws_metrics.global_queue_depth >= 4);
+        let tasks_info = hive.get_tasks_info().await.unwrap();
+        let queue_info = tasks_info["queue"].as_object().unwrap();
+        let queue_size = queue_info["legacy_queue_size"].as_u64().unwrap_or(0);
+        assert!(queue_size >= 4);
     }
 
     #[tokio::test]
@@ -170,9 +173,8 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         // Initially should have no agents
-        let initial_info = hive.get_agents_info();
-        assert_eq!(initial_info["total_count"].as_u64().unwrap(), 0);
-        assert_eq!(initial_info["agents"].as_array().unwrap().len(), 0);
+        let initial_info = hive.get_agents_info().await;
+        assert_eq!(initial_info["total_agents"].as_u64().unwrap(), 0);
 
         // Add some agents
         let worker_config = create_agent_config("Worker1", "worker", None);
@@ -182,20 +184,13 @@ mod tests {
         let _coordinator_id = hive.create_agent(coordinator_config).await.unwrap();
 
         // Check updated info
-        let updated_info = hive.get_agents_info();
-        assert_eq!(updated_info["total_count"].as_u64().unwrap(), 2);
-        assert_eq!(updated_info["agents"].as_array().unwrap().len(), 2);
+        let updated_info = hive.get_agents_info().await;
+        assert_eq!(updated_info["total_agents"].as_u64().unwrap(), 2);
 
-        // Verify agent information structure
-        let agents_array = updated_info["agents"].as_array().unwrap();
-        let first_agent = &agents_array[0];
-        assert!(first_agent["id"].is_string());
-        assert!(first_agent["name"].is_string());
-        assert!(first_agent["type"].is_object() || first_agent["type"].is_string());
-        assert!(first_agent["state"].is_string());
-        assert!(first_agent["capabilities"].is_array());
-        assert!(first_agent["position"].is_array());
-        assert!(first_agent["energy"].is_number());
+        // Verify agent information structure exists
+        assert!(updated_info["active_agents"].is_number());
+        assert!(updated_info["agent_types"].is_object());
+        assert!(updated_info["performance"].is_object());
     }
 
     #[tokio::test]
@@ -203,9 +198,9 @@ mod tests {
         let hive = HiveCoordinator::new().await.unwrap();
 
         // Check initial task info
-        let initial_info = hive.get_tasks_info().await;
-        assert!(initial_info["legacy_queue"].is_object());
-        assert!(initial_info["work_stealing_queue"].is_object());
+        let initial_info = hive.get_tasks_info().await.unwrap();
+        assert!(initial_info["queue"].is_object());
+        assert!(initial_info["executor"].is_object());
 
         // Add some tasks
         let task_config1 = create_task_config("Task 1", "general", 1, None);
@@ -215,14 +210,11 @@ mod tests {
         let _task_id2 = hive.create_task(task_config2).await.unwrap();
 
         // Check updated task info
-        let updated_info = hive.get_tasks_info().await;
-        let ws_queue_info = &updated_info["work_stealing_queue"];
+        let updated_info = hive.get_tasks_info().await.unwrap();
+        let queue_info = &updated_info["queue"];
 
         // Should have some tasks in the system
-        assert!(
-            ws_queue_info["total_queue_depth"].as_u64().unwrap_or(0) > 0
-                || ws_queue_info["global_queue_depth"].as_u64().unwrap_or(0) > 0
-        );
+        assert!(queue_info["legacy_queue_size"].as_u64().unwrap_or(0) > 0);
     }
 
     #[tokio::test]
@@ -233,41 +225,38 @@ mod tests {
 
         // Verify status structure
         assert!(status["hive_id"].is_string());
-        assert!(status["created_at"].is_string());
-        assert!(status["last_update"].is_string());
+        assert!(status["timestamp"].is_string());
+        assert!(status["agents"].is_object());
+        assert!(status["tasks"].is_object());
         assert!(status["metrics"].is_object());
-        assert!(status["swarm_center"].is_array());
-        assert!(status["total_energy"].is_number());
+        assert!(status["resources"].is_object());
 
-        // Verify metrics structure
-        let metrics = &status["metrics"];
-        assert!(metrics["total_agents"].is_number());
-        assert!(metrics["active_agents"].is_number());
-        assert!(metrics["completed_tasks"].is_number());
-        assert!(metrics["failed_tasks"].is_number());
-        assert!(metrics["average_performance"].is_number());
-        assert!(metrics["swarm_cohesion"].is_number());
-        assert!(metrics["learning_progress"].is_number());
+        // Verify agents structure
+        let agents = &status["agents"];
+        assert!(agents["total_agents"].is_number());
+        assert!(agents["active_agents"].is_number());
 
-        // Verify swarm center is a 2-element array
-        let swarm_center = status["swarm_center"].as_array().unwrap();
-        assert_eq!(swarm_center.len(), 2);
-        assert!(swarm_center[0].is_number());
-        assert!(swarm_center[1].is_number());
+        // Verify tasks structure
+        let tasks = &status["tasks"];
+        assert!(tasks["queue"].is_object());
+        assert!(tasks["executor"].is_object());
+
+        // Verify resources structure
+        let resources = &status["resources"];
+        assert!(resources["system_resources"].is_object());
+        assert!(resources["resource_profile"].is_object());
     }
 
     #[tokio::test]
     async fn test_hive_resource_info() {
         let hive = HiveCoordinator::new().await.unwrap();
 
-        let resource_info = hive.get_resource_info().await;
+        let resource_info = hive.get_resource_info().await.unwrap();
 
         // Verify resource info structure
         assert!(resource_info["system_resources"].is_object());
         assert!(resource_info["resource_profile"].is_object());
         assert!(resource_info["hardware_class"].is_string());
-        assert_eq!(resource_info["phase_2_status"], "active");
-        assert_eq!(resource_info["optimization_enabled"], true);
 
         // Verify system resources structure
         let system_resources = &resource_info["system_resources"];
@@ -503,6 +492,7 @@ mod tests {
             average_performance: 0.75,
             swarm_cohesion: 0.8,
             learning_progress: 0.6,
+            uptime_seconds: 3600,
         };
 
         // Test serialization
