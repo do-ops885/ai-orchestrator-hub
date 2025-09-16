@@ -1,0 +1,17 @@
+apiVersion: v2
+name: ai-orchestrator
+description: A Helm chart for AI Orchestrator Hub backend
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - ai
+  - orchestrator
+  - multiagent
+  - rust
+home: https://github.com/your-org/ai-orchestrator-hub
+sources:
+  - https://github.com/your-org/ai-orchestrator-hub
+maintainers:
+  - name: Your Team
+    email: team@your-domain.com

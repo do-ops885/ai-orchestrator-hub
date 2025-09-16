@@ -103,7 +103,7 @@ pub struct BatchProcessor<T> {
 }
 
 #[derive(Debug, Default, Clone)]
-struct BatchMetrics {
+pub struct BatchMetrics {
     total_operations: u64,
     batched_operations: u64,
     average_batch_size: f64,

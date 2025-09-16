@@ -1,0 +1,160 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "AI Orchestrator Hub - Overview",
+    "tags": ["ai-orchestrator", "kubernetes"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "System Health",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"ai-orchestrator-backend\"}",
+            "legendFormat": "Backend Status"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "options": {
+                  "0": {
+                    "text": "DOWN",
+                    "color": "red"
+                  },
+                  "1": {
+                    "text": "UP",
+                    "color": "green"
+                  }
+                },
+                "type": "value"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Active Agents",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_active_agents",
+            "legendFormat": "Active Agents"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1000
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Task Queue Size",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_pending_tasks",
+            "legendFormat": "Pending Tasks"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "HTTP Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[5m])",
+            "legendFormat": "Request Rate"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Response Time (95th percentile)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th Percentile"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "CPU Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(process_cpu_user_seconds_total[5m]) * 100",
+            "legendFormat": "CPU Usage %"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes / 1024 / 1024",
+            "legendFormat": "Memory Usage (MB)"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Task Success Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(ai_orchestrator_completed_tasks_total[5m]) / (rate(ai_orchestrator_completed_tasks_total[5m]) + rate(ai_orchestrator_failed_tasks_total[5m])) * 100",
+            "legendFormat": "Success Rate %"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Agent Performance",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_agent_performance",
+            "legendFormat": "Agent Performance"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m]) * 100",
+            "legendFormat": "Error Rate %"
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    },
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 0,
+    "links": []
+  }
+}

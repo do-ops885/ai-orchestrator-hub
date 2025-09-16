@@ -92,6 +92,7 @@ pub use agents::{
 };
 pub use communication::handle_websocket;
 pub use communication::mcp::{HiveMCPServer, MCPToolHandler};
+pub use communication::{ClientMessage, WebSocketMessage};
 pub use core::{HiveCoordinator, SwarmIntelligenceEngine};
 pub use infrastructure::{
     CircuitBreaker, IntelligentAlertingSystem, MetricsCollector, PerformanceOptimizer,
@@ -131,6 +132,9 @@ pub struct AppState {
     pub swarm_intelligence: std::sync::Arc<tokio::sync::RwLock<SwarmIntelligenceEngine>>,
     /// Persistence manager for state recovery and checkpointing
     pub persistence_manager: std::sync::Arc<PersistenceManager>,
+    /// Multi-tier intelligent cache manager for optimized data access
+    pub cache_manager:
+        std::sync::Arc<crate::infrastructure::intelligent_cache::MultiTierCacheManager>,
     /// Adaptive learning system for continuous improvement
     pub adaptive_learning: std::sync::Arc<tokio::sync::RwLock<AdaptiveLearningSystem>>,
     /// Rate limiter for API protection
@@ -139,4 +143,6 @@ pub struct AppState {
     pub performance_optimizer: std::sync::Arc<PerformanceOptimizer>,
     /// Security auditor for security logging
     pub security_auditor: std::sync::Arc<SecurityAuditor>,
+    /// Broadcast channel for real-time event-driven updates
+    pub update_tx: Option<tokio::sync::broadcast::Sender<WebSocketMessage>>,
 }

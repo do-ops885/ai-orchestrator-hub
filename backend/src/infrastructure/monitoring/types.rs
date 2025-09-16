@@ -37,7 +37,7 @@ pub struct AgentHealth {
     pub resource_usage: ResourceHealth,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum HealthStatus {
     Healthy,
     Warning,

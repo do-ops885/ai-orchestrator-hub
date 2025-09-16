@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BACKEND_DIR="$REPO_ROOT/backend"
 FRONTEND_DIR="$REPO_ROOT/frontend"
+SECURITY_REPORTS_DIR="$REPO_ROOT/security-reports"
 
 # Colors for output
 RED='\033[0;31m'
@@ -84,7 +85,7 @@ check_secrets() {
         # Look for API keys, passwords, etc.
         secrets_found=0
 
-        if grep -r "password\|PASSWORD\|secret\|SECRET\|key\|KEY\|token\|TOKEN" --include="*.rs" --include="*.ts" --include="*.js" --include="*.json" --exclude-dir=node_modules --exclude-dir=target --exclude-dir=.git . | grep -v "example\|test\|mock\|fake" > secrets_scan.txt 2>/dev/null; then
+        if grep -r "password\|PASSWORD\|secret\|SECRET\|key\|KEY\|token\|TOKEN" --include="*.rs" --include="*.ts" --include="*.js" --include="*.json" --exclude-dir=node_modules --exclude-dir=target --exclude-dir=.git . | grep -v "example\|test\|mock\|fake" > "$SECURITY_REPORTS_DIR/secrets_scan.txt" 2>/dev/null; then
             log "WARN" "Potential secrets found in code"
             secrets_found=1
         fi
@@ -117,7 +118,7 @@ check_file_permissions() {
 generate_report() {
     log "INFO" "Generating security audit report..."
 
-    local report_file="$REPO_ROOT/security-audit-report-$(date +%Y%m%d-%H%M%S).txt"
+    local report_file="$SECURITY_REPORTS_DIR/security-audit-report-$(date +%Y%m%d-%H%M%S).txt"
 
     echo "AI Orchestrator Hub Security Audit Report" > "$report_file"
     echo "Generated: $(date)" >> "$report_file"
@@ -125,7 +126,7 @@ generate_report() {
     echo "" >> "$report_file"
     echo "Audit Results:" >> "$report_file"
     echo "- Node.js Dependencies: Scanned" >> "$report_file"
-    echo "- Secrets Check: $([[ -f "$REPO_ROOT/secrets_scan.txt" ]] && echo "Issues found" || echo "Clean")" >> "$report_file"
+    echo "- Secrets Check: $([[ -f "$SECURITY_REPORTS_DIR/secrets_scan.txt" ]] && echo "Issues found" || echo "Clean")" >> "$report_file"
     echo "- File Permissions: Checked" >> "$report_file"
     echo "" >> "$report_file"
     echo "Recommendations:" >> "$report_file"

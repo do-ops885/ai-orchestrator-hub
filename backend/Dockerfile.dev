@@ -1,0 +1,35 @@
+# Development Dockerfile for AI Orchestrator Hub Backend
+FROM rust:1.75-slim
+
+# Install development dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    sqlite3 \
+    libsqlite3-dev \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install cargo-watch for hot reloading
+RUN cargo install cargo-watch
+
+# Set working directory
+WORKDIR /app
+
+# Copy Cargo files first for better caching
+COPY Cargo.toml Cargo.lock ./
+
+# Copy source code
+COPY src ./src
+COPY benches ./benches
+COPY tests ./tests
+
+# Create data directory
+RUN mkdir -p /app/data
+
+# Expose port
+EXPOSE 8080
+
+# Default command for development
+CMD ["cargo", "watch", "-x", "run"]

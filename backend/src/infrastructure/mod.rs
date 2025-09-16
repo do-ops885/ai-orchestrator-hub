@@ -3,6 +3,16 @@ pub mod async_optimizer;
 pub mod benchmarks;
 /// Intelligent caching system with TTL and size management
 pub mod cache;
+/// Cache invalidation manager with dependency tracking
+pub mod cache_invalidation;
+/// Cache performance monitoring and metrics
+pub mod cache_monitoring;
+/// Cache optimization strategies and benchmarks
+pub mod cache_optimization;
+/// Cache warming and prefetching system
+pub mod cache_warming;
+/// Cached database query wrapper with intelligent caching
+pub mod cached_query;
 /// Circuit breaker pattern implementation for fault tolerance
 pub mod circuit_breaker;
 /// Intelligent alerting system with predictive analytics
@@ -35,12 +45,18 @@ pub use benchmarks::{
     PerformanceMonitor as BenchmarkPerformanceMonitor,
 };
 pub use cache::*;
+pub use cache_invalidation::*;
+pub use cache_monitoring::*;
+pub use cache_optimization::*;
+pub use cache_warming::*;
+pub use cached_query::*;
 pub use circuit_breaker::*;
 pub use intelligent_alerting::*;
+pub use intelligent_cache::*;
 pub use memory_pool::*;
 pub use metrics::{MetricsCollector, PerformanceMetrics, SystemMetrics};
 pub use middleware::*;
-pub use monitoring::{AgentMonitor, PerformanceMonitor as MonitoringPerformanceMonitor};
+pub use monitoring::{AgentMonitor, PerformanceMonitor as MonitoringPerformanceMonitor, ProductionMonitoringSystem, ProductionMonitoringConfig};
 pub use performance_optimizer::PerformanceOptimizer;
 pub use persistence::*;
 pub use resource_manager::*;

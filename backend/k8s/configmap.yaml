@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-orchestrator-config
+  labels:
+    app: ai-orchestrator-backend
+data:
+  log_level: "info"
+  redis_url: "redis://redis-service:6379"
+  metrics_collection_interval_ms: "5000"
+  alert_check_interval_ms: "30000"
+  max_agents: "1000"
+  max_concurrent_tasks: "500"
+  cpu_threshold: "80.0"
+  memory_threshold: "85.0"
+  monitoring_interval_secs: "10"
+  metrics_retention_days: "30"
+  cors_origins: '["https://your-domain.com"]'
+  websocket_timeout_secs: "300"
+  max_connections: "10000"

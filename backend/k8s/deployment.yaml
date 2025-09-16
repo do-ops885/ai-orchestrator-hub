@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-orchestrator-backend
+  labels:
+    app: ai-orchestrator-backend
+    version: v1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-orchestrator-backend
+  template:
+    metadata:
+      labels:
+        app: ai-orchestrator-backend
+        version: v1
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+      containers:
+      - name: ai-orchestrator
+        image: ai-orchestrator-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: RUST_ENV
+          value: "production"
+        - name: SERVER_HOST
+          value: "0.0.0.0"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: ai-orchestrator-config
+              key: log_level
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ai-orchestrator-secrets
+              key: database_url
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ai-orchestrator-secrets
+              key: jwt_secret
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: ai-orchestrator-config
+              key: redis_url
+        - name: MONITORING_ENABLED
+          value: "true"
+        - name: METRICS_COLLECTION_INTERVAL_MS
+          valueFrom:
+            configMapKeyRef:
+              name: ai-orchestrator-config
+              key: metrics_collection_interval_ms
+        - name: ALERT_CHECK_INTERVAL_MS
+          valueFrom:
+            configMapKeyRef:
+              name: ai-orchestrator-config
+              key: alert_check_interval_ms
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: data-storage
+          mountPath: /app/data
+        - name: logs-storage
+          mountPath: /app/logs
+      volumes:
+      - name: data-storage
+        persistentVolumeClaim:
+          claimName: ai-orchestrator-data-pvc
+      - name: logs-storage
+        emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - ai-orchestrator-backend
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: "node-type"
+        operator: "Equal"
+        value: "compute-optimized"
+        effect: "NoSchedule"

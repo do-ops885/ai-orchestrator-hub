@@ -1,0 +1,89 @@
+# Default values for ai-orchestrator
+replicaCount: 3
+
+image:
+  repository: ai-orchestrator-backend
+  tag: "latest"
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 8080
+  websocketPort: 8081
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: api.your-domain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: ai-orchestrator-tls
+      hosts:
+        - api.your-domain.com
+
+config:
+  logLevel: "info"
+  redisUrl: "redis://redis-service:6379"
+  metricsCollectionIntervalMs: "5000"
+  alertCheckIntervalMs: "30000"
+  maxAgents: "1000"
+  maxConcurrentTasks: "500"
+  cpuThreshold: "80.0"
+  memoryThreshold: "85.0"
+  monitoringIntervalSecs: "10"
+  metricsRetentionDays: "30"
+  corsOrigins: '["https://your-domain.com"]'
+  websocketTimeoutSecs: "300"
+  maxConnections: "10000"
+
+secrets:
+  databaseUrl: "postgres://user:pass@db_host:5432/db_name"
+  jwtSecret: "your-jwt-secret-key-here"
+  redisPassword: "your-redis-password"
+  encryptionKey: "your-256-bit-encryption-key"
+  apiKey: "your-api-key-for-external-services"
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+persistence:
+  enabled: true
+  size: 50Gi
+  storageClass: standard
+
+networkPolicy:
+  enabled: true
+
+monitoring:
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true
+
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: "secure_password_123"
+    username: "ai_user"
+    password: "secure_password_123"
+    database: "ai_orchestrator"
+
+redis:
+  enabled: true
+  auth:
+    password: "secure_password_123"

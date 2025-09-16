@@ -1,0 +1,286 @@
+groups:
+  - name: ai_orchestrator_alerts
+    rules:
+      # System Health Alerts
+      - alert: SystemHealthCritical
+        expr: ai_orchestrator_system_health_score < 0.5
+        for: 5m
+        labels:
+          severity: critical
+          service: ai-orchestrator
+        annotations:
+          summary: "Critical system health degradation"
+          description: "System health score is below 50% for more than 5 minutes"
+          runbook_url: "https://docs.company.com/runbooks/system-health"
+
+      - alert: SystemHealthWarning
+        expr: ai_orchestrator_system_health_score < 0.7
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "System health warning"
+          description: "System health score is below 70% for more than 10 minutes"
+
+      # CPU Usage Alerts
+      - alert: HighCPUUsageCritical
+        expr: ai_orchestrator_cpu_usage_percent > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: ai-orchestrator
+        annotations:
+          summary: "Critical CPU usage"
+          description: "CPU usage is above 90% for more than 5 minutes"
+          value: "{{ $value }}%"
+
+      - alert: HighCPUUsageWarning
+        expr: ai_orchestrator_cpu_usage_percent > 75
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 75% for more than 10 minutes"
+          value: "{{ $value }}%"
+
+      # Memory Usage Alerts
+      - alert: HighMemoryUsageCritical
+        expr: ai_orchestrator_memory_usage_percent > 95
+        for: 5m
+        labels:
+          severity: critical
+          service: ai-orchestrator
+        annotations:
+          summary: "Critical memory usage"
+          description: "Memory usage is above 95% for more than 5 minutes"
+          value: "{{ $value }}%"
+
+      - alert: HighMemoryUsageWarning
+        expr: ai_orchestrator_memory_usage_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 80% for more than 10 minutes"
+          value: "{{ $value }}%"
+
+      # Agent Health Alerts
+      - alert: AgentFailureRateCritical
+        expr: ai_orchestrator_failed_agents / ai_orchestrator_total_agents > 0.15
+        for: 5m
+        labels:
+          severity: critical
+          service: ai-orchestrator
+        annotations:
+          summary: "Critical agent failure rate"
+          description: "Agent failure rate is above 15% for more than 5 minutes"
+          value: "{{ $value }}%"
+
+      - alert: AgentFailureRateWarning
+        expr: ai_orchestrator_failed_agents / ai_orchestrator_total_agents > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "High agent failure rate"
+          description: "Agent failure rate is above 5% for more than 10 minutes"
+          value: "{{ $value }}%"
+
+      - alert: LowAgentUtilization
+        expr: ai_orchestrator_agent_utilization_rate < 30
+        for: 15m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "Low agent utilization"
+          description: "Agent utilization is below 30% for more than 15 minutes"
+          value: "{{ $value }}%"
+
+      # Task Performance Alerts
+      - alert: HighTaskFailureRateCritical
+        expr: ai_orchestrator_tasks_failed / ai_orchestrator_tasks_submitted > 0.25
+        for: 5m
+        labels:
+          severity: critical
+          service: ai-orchestrator
+        annotations:
+          summary: "Critical task failure rate"
+          description: "Task failure rate is above 25% for more than 5 minutes"
+          value: "{{ $value }}%"
+
+      - alert: HighTaskFailureRateWarning
+        expr: ai_orchestrator_tasks_failed / ai_orchestrator_tasks_submitted > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "High task failure rate"
+          description: "Task failure rate is above 10% for more than 10 minutes"
+          value: "{{ $value }}%"
+
+      - alert: TaskQueueBacklog
+        expr: ai_orchestrator_tasks_in_queue > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "Task queue backlog"
+          description: "Task queue has more than 1000 pending tasks for more than 5 minutes"
+          value: "{{ $value }}"
+
+      # Error Rate Alerts
+      - alert: HighErrorRateCritical
+        expr: ai_orchestrator_error_rate_per_minute > 10
+        for: 5m
+        labels:
+          severity: critical
+          service: ai-orchestrator
+        annotations:
+          summary: "Critical error rate"
+          description: "Error rate is above 10 per minute for more than 5 minutes"
+          value: "{{ $value }}/min"
+
+      - alert: HighErrorRateWarning
+        expr: ai_orchestrator_error_rate_per_minute > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "High error rate"
+          description: "Error rate is above 2 per minute for more than 10 minutes"
+          value: "{{ $value }}/min"
+
+      # Business Metrics Alerts
+      - alert: LowTaskCompletionRate
+        expr: ai_orchestrator_task_completion_rate < 95
+        for: 15m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "Low task completion rate"
+          description: "Task completion rate is below 95% for more than 15 minutes"
+          value: "{{ $value }}%"
+
+      - alert: LowSystemUptime
+        expr: ai_orchestrator_system_uptime_percentage < 99.9
+        for: 30m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "Low system uptime"
+          description: "System uptime is below 99.9% for more than 30 minutes"
+          value: "{{ $value }}%"
+
+      # Throughput Alerts
+      - alert: ThroughputDrop
+        expr: (ai_orchestrator_system_throughput_tasks_per_second - ai_orchestrator_system_throughput_tasks_per_second offset 1h) / ai_orchestrator_system_throughput_tasks_per_second offset 1h < -0.2
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "System throughput drop"
+          description: "System throughput has dropped by more than 20% compared to 1 hour ago"
+          value: "{{ $value }}%"
+
+      # Alert Volume Alerts
+      - alert: HighAlertVolume
+        expr: increase(ai_orchestrator_total_alerts[1h]) > 50
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "High alert volume"
+          description: "More than 50 alerts generated in the last hour"
+          value: "{{ $value }}"
+
+      # Network Alerts
+      - alert: HighNetworkUsage
+        expr: rate(ai_orchestrator_network_bytes_in[5m]) + rate(ai_orchestrator_network_bytes_out[5m]) > 100000000
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "High network usage"
+          description: "Network usage is above 100MB/s for more than 10 minutes"
+          value: "{{ $value }} bytes/s"
+
+      # WebSocket Connection Alerts
+      - alert: LowWebSocketConnections
+        expr: ai_orchestrator_websocket_connections < 1
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "Low WebSocket connections"
+          description: "WebSocket connection count is below 1 for more than 5 minutes"
+          value: "{{ $value }}"
+
+      # Disk I/O Alerts
+      - alert: HighDiskIO
+        expr: ai_orchestrator_disk_reads_per_second + ai_orchestrator_disk_writes_per_second > 1000
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+        annotations:
+          summary: "High disk I/O"
+          description: "Disk I/O operations per second is above 1000 for more than 10 minutes"
+          value: "{{ $value }} ops/s"
+
+  - name: ai_orchestrator_predictive_alerts
+    rules:
+      # Predictive Alerts
+      - alert: PredictedPerformanceDegradation
+        expr: ai_orchestrator_system_health_score < 0.8 and predict_linear(ai_orchestrator_system_health_score[1h], 1*3600) < 0.6
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+          alert_type: predictive
+        annotations:
+          summary: "Predicted performance degradation"
+          description: "System health is predicted to drop below 60% within the next hour"
+          prediction_time: "1h"
+          current_value: "{{ $value }}"
+
+      - alert: PredictedHighCPUUsage
+        expr: ai_orchestrator_cpu_usage_percent < 80 and predict_linear(ai_orchestrator_cpu_usage_percent[30m], 30*60) > 85
+        for: 10m
+        labels:
+          severity: info
+          service: ai-orchestrator
+          alert_type: predictive
+        annotations:
+          summary: "Predicted high CPU usage"
+          description: "CPU usage is predicted to exceed 85% within the next 30 minutes"
+          prediction_time: "30m"
+          current_value: "{{ $value }}%"
+
+      - alert: PredictedMemoryExhaustion
+        expr: ai_orchestrator_memory_usage_percent < 85 and predict_linear(ai_orchestrator_memory_usage_percent[1h], 1*3600) > 90
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-orchestrator
+          alert_type: predictive
+        annotations:
+          summary: "Predicted memory exhaustion"
+          description: "Memory usage is predicted to exceed 90% within the next hour"
+          prediction_time: "1h"
+          current_value: "{{ $value }}%"

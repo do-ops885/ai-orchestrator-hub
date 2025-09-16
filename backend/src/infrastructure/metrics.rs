@@ -1,3 +1,4 @@
+use crate::utils::error::HiveResult;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -358,7 +359,7 @@ impl MetricsCollector {
     }
 
     /// Collect comprehensive system metrics
-    pub async fn collect_system_metrics(&self) -> anyhow::Result<SystemMetrics> {
+    pub async fn collect_system_metrics(&self) -> HiveResult<SystemMetrics> {
         let mut current = self.current_metrics.write().await;
 
         // Update resource usage with enhanced metrics
@@ -369,7 +370,7 @@ impl MetricsCollector {
         Ok(current.clone())
     }
 
-    fn get_network_metrics(&self) -> anyhow::Result<NetworkMetrics> {
+    fn get_network_metrics(&self) -> HiveResult<NetworkMetrics> {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
@@ -384,7 +385,7 @@ impl MetricsCollector {
         })
     }
 
-    fn get_disk_metrics(&self) -> anyhow::Result<DiskMetrics> {
+    fn get_disk_metrics(&self) -> HiveResult<DiskMetrics> {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();

@@ -156,6 +156,64 @@ fn concurrent_benchmark(c: &mut Criterion) {
     });
 }
 
+/// Benchmark async file I/O operations (simulating optimized_agent.rs improvements)
+fn async_file_io_benchmark(c: &mut Criterion) {
+    c.bench_function("async_file_io_optimization", |b| {
+        b.iter(|| {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                // Simulate the optimized file I/O pattern from optimized_agent.rs
+                let result = tokio::task::spawn_blocking(|| {
+                    // Simulate synchronous file reading (like /proc/meminfo)
+                    let mut total = 0u64;
+                    for i in 0..1000 {
+                        total = total.wrapping_add(i);
+                    }
+                    total
+                })
+                .await
+                .unwrap_or(0);
+
+                black_box(result);
+            });
+        });
+    });
+}
+
+/// Benchmark CPU-intensive computation moved to blocking threads
+fn blocking_computation_benchmark(c: &mut Criterion) {
+    c.bench_function("blocking_computation_optimization", |b| {
+        b.iter(|| {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                // Simulate the pattern from adaptive_verification.rs
+                // where heavy computation is moved to spawn_blocking
+                let computations = vec![100, 200, 300, 400, 500];
+
+                let mut handles = vec![];
+                for &size in &computations {
+                    let handle = tokio::task::spawn_blocking(move || {
+                        let mut result = 0u64;
+                        for i in 0..size {
+                            result = result.wrapping_add(i);
+                            result = result.wrapping_mul(17);
+                        }
+                        result
+                    });
+                    handles.push(handle);
+                }
+
+                let mut total = 0u64;
+                for handle in handles {
+                    total = total.wrapping_add(handle.await.unwrap_or(0));
+                }
+
+                black_box(total);
+            });
+        });
+    });
+}
+
 criterion_group!(
     benches,
     cpu_intensive_benchmark,
@@ -165,7 +223,9 @@ criterion_group!(
     string_benchmark,
     arc_benchmark,
     matrix_benchmark,
-    concurrent_benchmark
+    concurrent_benchmark,
+    async_file_io_benchmark,
+    blocking_computation_benchmark
 );
 
 fn main() {

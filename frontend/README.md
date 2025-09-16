@@ -1,18 +1,19 @@
-# Multiagent Hive Frontend
+# AI Orchestrator Hub Frontend
 
-The frontend component of the Multiagent Hive System, built with Next.js, React, and TypeScript for a modern, responsive user interface.
+The frontend component of the AI Orchestrator Hub, built with Next.js, React, and TypeScript for a modern, responsive user interface.
 
 ## Overview
 
 This Next.js-based frontend provides:
 
 - **Real-time dashboard** for monitoring agent swarms
-- **Interactive visualizations** of swarm behavior
+- **Interactive visualizations** of swarm behavior and evolution
 - **Task management interface** for creating and monitoring tasks
 - **Agent configuration tools** for setting up and managing agents
 - **Performance metrics** with charts and analytics
 - **Responsive design** that works on all devices
 - **Accessibility features** following WCAG 2.1 AA standards
+- **Error recovery system** with automatic fallback mechanisms
 
 ## Architecture
 
@@ -24,6 +25,7 @@ This Next.js-based frontend provides:
 - **State Management**: Zustand for client-side state
 - **Charts**: Recharts for data visualization
 - **Icons**: Lucide React for consistent iconography
+- **Testing**: Vitest for unit tests, Playwright for E2E tests
 - **Build Tool**: Next.js built-in bundler with optimizations
 
 ### Project Structure
@@ -37,26 +39,33 @@ frontend/
 │   │   ├── page.tsx            # Home page
 │   │   └── api/                # API routes (if needed)
 │   ├── components/             # React components
-│   │   ├── AgentManager.tsx    # Agent management
+│   │   ├── AgentManager.test.tsx # Agent management (with tests)
 │   │   ├── HiveDashboard.tsx   # Main dashboard
 │   │   ├── MetricsPanel.tsx    # Metrics display
 │   │   ├── NeuralMetrics.tsx   # Neural processing metrics
 │   │   ├── ResourceMonitor.tsx # System resources
 │   │   ├── SwarmVisualization.tsx # Swarm visualization
 │   │   ├── TaskManager.tsx     # Task management
+│   │   ├── [16+ components]    # Additional components
 │   │   └── ui/                 # Reusable UI components
+│   ├── hooks/                  # Custom React hooks
+│   │   └── useErrorRecovery.ts # Error recovery hook
 │   ├── store/                  # State management
 │   │   └── hiveStore.ts        # Zustand store
-│   └── lib/                    # Utilities
-│       ├── api.ts              # API client
-│       ├── types.ts            # TypeScript types
-│       └── utils.ts            # Helper functions
+│   └── utils/                  # Utilities
+│       ├── errorLogger.ts      # Error logging utilities
+│       └── [additional utils]
+├── e2e/                        # End-to-end tests
+│   └── dashboard.spec.ts       # Dashboard E2E tests
 ├── public/                     # Static assets
+├── training/                   # Training data
 ├── eslint.config.js            # ESLint configuration
 ├── next.config.js              # Next.js configuration
 ├── package.json                # Dependencies
 ├── tailwind.config.js          # Tailwind configuration
-└── tsconfig.json               # TypeScript configuration
+├── tsconfig.json               # TypeScript configuration
+├── vitest.config.ts            # Vitest configuration
+└── playwright.config.ts        # Playwright configuration
 ```
 
 ## Quick Start
@@ -71,8 +80,8 @@ frontend/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/multiagent-hive.git
-cd multiagent-hive/frontend
+git clone https://github.com/do-ops885/ai-orchestrator-hub.git
+cd ai-orchestrator-hub/frontend
 
 # Install dependencies
 npm install
@@ -110,6 +119,25 @@ function AgentCreator() {
 }
 ```
 
+### Development Workflow
+
+```bash
+# Start development server
+npm run dev
+
+# Run tests
+npm test
+
+# Run linting
+npm run lint
+
+# Build for production
+npm run build
+
+# Run E2E tests
+npm run test:e2e
+```
+
 ## Configuration
 
 ### Environment Variables
@@ -122,7 +150,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_WS_URL=ws://localhost:3001/ws
 
 # Application Settings
-NEXT_PUBLIC_APP_NAME="Multiagent Hive"
+NEXT_PUBLIC_APP_NAME="AI Orchestrator Hub"
 NEXT_PUBLIC_APP_VERSION="0.1.0-alpha.1"
 NEXT_PUBLIC_APP_ENV=development
 
@@ -709,11 +737,38 @@ module.exports = {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   }
 }
+```
+
+### Development Workflow
+
+```bash
+# Start development server
+npm run dev
+
+# Run linting
+npm run lint
+
+# Fix linting issues
+npm run lint:fix
+
+# Type checking
+npm run type-check
+
+# Run unit tests
+npm test
+
+# Run E2E tests
+npm run test:e2e
+
+# Build for production
+npm run build
 ```
 
 ### Development Workflow
@@ -773,6 +828,28 @@ describe('AgentCard', () => {
     fireEvent.click(screen.getByRole('button'));
     expect(mockOnSelect).toHaveBeenCalledWith(mockAgent);
   });
+});
+```
+
+### End-to-End Testing
+
+```typescript
+// e2e/dashboard.spec.ts
+import { test, expect } from '@playwright/test';
+
+test('dashboard loads and displays agents', async ({ page }) => {
+  await page.goto('http://localhost:3000');
+
+  // Wait for dashboard to load
+  await page.waitForSelector('[data-testid="hive-dashboard"]');
+
+  // Check if agents are displayed
+  const agentCards = page.locator('[data-testid="agent-card"]');
+  await expect(agentCards).toHaveCountGreaterThan(0);
+
+  // Check real-time updates
+  const metricsPanel = page.locator('[data-testid="metrics-panel"]');
+  await expect(metricsPanel).toBeVisible();
 });
 ```
 

@@ -18,6 +18,7 @@ A sophisticated **hybrid neural multiagent orchestration system** implementing a
 - [Quick Start](#quick-start)
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Agent Lifecycle](#agent-lifecycle)
 - [API Documentation](#api-documentation)
 - [Development](#development)
 - [Deployment](#deployment)
@@ -33,14 +34,15 @@ A sophisticated **hybrid neural multiagent orchestration system** implementing a
 The AI Orchestrator Hub is a cutting-edge implementation of swarm intelligence that combines neural processing, real-time communication, adaptive learning, and AI integration. Designed with a "CPU-native, GPU-optional" philosophy, it delivers maximum intelligence on minimal hardware while scaling to utilize advanced resources when available.
 
 **Key Capabilities:**
-- 🤖 **Multiagent Swarm Intelligence** with adaptive coordination
+- 🤖 **Multiagent Swarm Intelligence** with adaptive coordination and evolution
 - 🧠 **Hybrid Neural Processing** (basic NLP + optional FANN networks)
-- 📊 **Advanced Monitoring & Alerting** with predictive analytics
+- 📊 **Advanced Monitoring & Alerting** with predictive analytics and health checks
 - 🔄 **Real-time Communication** via WebSocket with MCP protocol support
 - 💾 **Intelligent Persistence** with state recovery and checkpointing
-- 🛡️ **Enterprise Security** with rate limiting, auditing, and validation
+- 🛡️ **Enterprise Security** with rate limiting, auditing, and input validation
 - 🚀 **AI Integration** with OpenAI, Anthropic, and custom models
 - ⚡ **Performance Optimization** with circuit breakers and auto-scaling
+- 🧪 **Comprehensive Testing** with integration, chaos engineering, and performance regression tests
 
 ## System Architecture
 
@@ -48,7 +50,7 @@ The AI Orchestrator Hub is a cutting-edge implementation of swarm intelligence t
 
 #### Backend (Rust)
 - **Main Entry**: `backend/src/main.rs` - Enhanced Axum web server with advanced middleware
-- **Hive Coordinator**: `backend/src/core/hive.rs` - Central orchestration with swarm intelligence
+- **Hive Coordinator**: `backend/src/core/hive/` - Central orchestration with swarm intelligence
 - **Agent System**: `backend/src/agents/` - Modular agent implementations with evolution and recovery
 - **Task Management**: `backend/src/tasks/` - Advanced task scheduling with work stealing
 - **Communication**: `backend/src/communication/` - WebSocket + MCP protocol support
@@ -123,7 +125,7 @@ The AI Orchestrator Hub is a cutting-edge implementation of swarm intelligence t
 git clone https://github.com/do-ops885/ai-orchestrator-hub.git
 cd ai-orchestrator-hub
 
-# Backend with basic NLP
+# Backend with basic NLP (default)
 cd backend
 cargo run
 
@@ -153,6 +155,7 @@ cargo run --bin mcp_server
 - **MCP Server**: `http://localhost:3002` (when running standalone)
 - **Health Check**: `http://localhost:3001/health`
 - **Metrics**: `http://localhost:3001/metrics`
+- **API Documentation**: `http://localhost:3001/docs` (when available)
 
 ## API Endpoints
 - **Agents**: `GET/POST /api/agents`, `GET/PUT/DELETE /api/agents/{id}`
@@ -161,6 +164,7 @@ cargo run --bin mcp_server
 - **Resources**: `GET /api/resources` (system resource information)
 - **Health**: `GET /health` (comprehensive health check)
 - **Metrics**: `GET /metrics` (performance metrics)
+- **WebSocket Events**: Real-time updates via `ws://localhost:3001/ws`
 
 ## Data Structures
 
@@ -205,6 +209,20 @@ cargo run --features advanced-neural
 
 # Run MCP server for external integrations
 cargo run --bin mcp_server
+```
+
+### Frontend Setup
+
+```bash
+# Install Node.js dependencies
+cd frontend
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
 
 ### Frontend Setup
@@ -288,6 +306,52 @@ The system supports multiple build configurations:
 - `advanced-neural`: Enables ruv-FANN neural networks
 - `gpu-acceleration`: GPU support (requires compatible hardware)
 
+## Agent Lifecycle
+
+The AI Orchestrator Hub implements a comprehensive agent lifecycle management system that covers the complete journey of agents from creation to retirement. This includes sophisticated state management, adaptive learning, real-time communication, and intelligent scaling.
+
+### Key Lifecycle Components
+
+#### Agent Types & Roles
+- **Worker Agents**: General-purpose task execution with adaptive capabilities
+- **Coordinator Agents**: Leadership and orchestration with decision-making authority
+- **Specialist Agents**: Domain-specific expertise with targeted capabilities
+- **Learner Agents**: Continuous learning and pattern recognition
+
+#### Lifecycle States
+- **Created**: Initial agent instantiation and configuration
+- **Idle**: Available for task assignment with energy regeneration
+- **Working**: Active task execution with performance monitoring
+- **Learning**: Processing experiences and capability evolution
+- **Communicating**: Inter-agent coordination and swarm intelligence
+- **Failed**: Error state with automatic recovery mechanisms
+- **Inactive**: Temporary suspension with state preservation
+
+#### Communication Patterns
+- **Task Communication**: Structured messaging for task assignment and completion
+- **Coordination Communication**: Swarm intelligence and resource management
+- **Real-time WebSocket**: Bidirectional communication with event streaming
+- **MCP Protocol**: External AI tool integration and interoperability
+
+### Advanced Features
+
+#### Adaptive Learning
+- Continuous capability evolution based on task performance
+- Experience-based proficiency adjustments
+- Pattern recognition and predictive optimization
+
+#### Intelligent Scaling
+- Dynamic agent creation based on workload demands
+- Resource-aware scaling with performance optimization
+- Auto-scaling configurations for Kubernetes and Docker Swarm
+
+#### Monitoring & Debugging
+- Comprehensive health checks and performance metrics
+- Real-time monitoring dashboards with WebSocket updates
+- Diagnostic tools for troubleshooting and optimization
+
+For complete details on agent lifecycle management, deployment strategies, and best practices, see the [Agent Lifecycle Documentation](docs/agent-lifecycle.md).
+
 ## API Documentation
 
 ### REST Endpoints
@@ -370,6 +434,8 @@ cargo test                    # Basic tests
 cargo test --features advanced-neural  # With neural features
 cargo test --all-features     # All features enabled
 cargo test --test integration_tests  # Integration tests
+cargo test --test chaos_engineering_tests  # Chaos engineering tests
+cargo test --test performance_regression_tests  # Performance regression tests
 ```
 
 ### Frontend Testing
@@ -380,6 +446,7 @@ npm test                      # Unit tests
 npm run test:coverage         # Test coverage
 npm run lint                  # ESLint checks
 npm run build                 # Build verification
+npm run test:e2e              # End-to-end tests (when configured)
 ```
 
 ### Performance Benchmarks
@@ -417,16 +484,21 @@ cd backend
 cargo build                    # Build with default features
 cargo run                      # Run basic version
 cargo run --features advanced-neural  # Run with neural features
+cargo test                     # Run tests
+cargo clippy --all-features    # Comprehensive linting
+cargo fmt --all                # Code formatting
 
 # Frontend development
 cd frontend
 npm install                    # Install dependencies
 npm run dev                    # Start development server
-
-# Linting and formatting
-cargo clippy --all-features    # Comprehensive linting
-cargo fmt --all                # Code formatting
+npm test                       # Run tests
 npm run lint                   # Frontend linting
+npm run build                  # Production build
+
+# Full system testing
+cd backend && cargo test --all-features
+cd ../frontend && npm test && npm run build
 ```
 
 ### Examples and Demos
@@ -532,6 +604,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 rustc --version  # Should be 1.70+
 
 # Clean and rebuild
+cd backend
 cargo clean
 cargo build
 
@@ -543,6 +616,7 @@ lsof -i :3001
 
 ```bash
 # Clear node modules and reinstall
+cd frontend
 rm -rf node_modules package-lock.json
 npm install
 
@@ -553,14 +627,23 @@ node --version  # Should be 18+
 #### WebSocket Connection Issues
 
 - Ensure backend is running on port 3001
-- Check firewall settings
+- Check firewall settings for WebSocket connections
 - Verify CORS configuration in production
+- Check browser console for connection errors
+
+#### Agent Communication Problems
+
+- Verify MCP server is running if using external integrations
+- Check agent registration and heartbeat monitoring
+- Review swarm coordination logs for communication failures
+- Ensure proper message passing between agents
 
 #### Performance Issues
 
 - Monitor system resources with the ResourceMonitor component
 - Consider using `advanced-neural` features for better performance
 - Adjust `MAX_AGENTS` and `TASK_QUEUE_SIZE` in configuration
+- Check for memory leaks in long-running processes
 
 ### Getting Help
 
@@ -596,6 +679,7 @@ node --version  # Should be 18+
 
 ```bash
 # Neural processing examples
+cd backend
 cargo run --features advanced-neural --example neural_comparison
 cargo run --features advanced-neural --example advanced_neural_test
 cargo run --features advanced-neural --example lstm_demo
@@ -614,16 +698,14 @@ cargo run --example swarm_coordination_demo
 cargo run --example simple_verification_demo
 ```
 
-## Performance Benchmarks
+### Testing Infrastructure
 
-| Configuration | Agents | Tasks/sec | Memory Usage | CPU Usage | Features |
-|---------------|--------|-----------|--------------|-----------|----------|
-| Basic NLP     | 100    | 50-75     | 256MB        | 15%       | Core swarm intelligence |
-| Basic NLP     | 500    | 200-300   | 512MB        | 35%       | + Adaptive learning |
-| Advanced Neural| 100   | 75-100    | 384MB        | 25%       | + FANN networks |
-| Advanced Neural| 500   | 350-500   | 768MB        | 55%       | + Neural optimization |
-| Full Featured | 1000   | 500-750   | 1.2GB        | 70%       | + Persistence, monitoring |
-| High Performance| 5000  | 1000+     | 2.5GB        | 85%       | + GPU acceleration |
+The project includes comprehensive testing with:
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: API integration testing
+- **Chaos Engineering Tests**: Fault injection and recovery testing
+- **Performance Regression Tests**: Automated performance monitoring
+- **End-to-End Tests**: Playwright-based UI testing
 
 **System Requirements:**
 - **Minimum**: 2GB RAM, 2 CPU cores, 1GB storage
@@ -647,4 +729,3 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 - **Security**: [Ring](https://github.com/briansmith/ring) for cryptography, [jsonwebtoken](https://github.com/Keats/jsonwebtoken) for auth
 - **Monitoring**: Custom metrics collection with [tracing](https://tracing.rs/) for observability
 - **MCP Protocol**: [Model Context Protocol](https://modelcontextprotocol.io/) for AI tool integration
-# TEST: GitHub Actions workflow test - Tue Sep  9 08:52:14 UTC 2025

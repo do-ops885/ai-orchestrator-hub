@@ -1,6 +1,6 @@
-# Multiagent Hive Backend
+# AI Orchestrator Hub Backend
 
-The backend component of the Multiagent Hive System, built with Rust for high performance and reliability.
+The backend component of the AI Orchestrator Hub, built with Rust for high performance and reliability.
 
 ## Overview
 
@@ -11,10 +11,15 @@ This Rust-based backend provides the core swarm intelligence engine with:
 - **Hybrid neural processing** (CPU-native with optional GPU acceleration)
 - **RESTful API** for external integrations
 - **Model Context Protocol (MCP)** support for tool integration
-- **Extensible agent system** with capability-based matching
-- **Comprehensive monitoring** and metrics collection
+- **Extensible agent system** with capability-based matching and evolution
+- **Comprehensive monitoring** and metrics collection with intelligent alerting
 - **Simple verification system** for lightweight task validation
 - **Auto-scaling and intelligent fallback** for resilience
+- **Advanced testing infrastructure** with integration and chaos engineering tests
+- **Intelligent caching** with multi-tier cache management
+- **Security auditing** and structured logging
+- **Circuit breaker pattern** for fault tolerance
+- **Performance optimization** with adaptive learning
 
 ## Architecture
 
@@ -25,49 +30,64 @@ backend/
 ├── src/
 │   ├── main.rs              # Application entry point with Axum server
 │   ├── lib.rs               # Library exports and module declarations
+│   ├── server.rs            # Server configuration and setup
+│   ├── init.rs              # Application initialization
 │   ├── agents/              # Agent system implementation
-│   │   ├── agent.rs         # Core agent logic and behaviors
-│   │   ├── verification.rs  # Simple verification system
+│   │   ├── adaptive_verification.rs
+│   │   ├── agent_evolution.rs
+│   │   ├── [11+ agent implementations]
 │   │   └── mod.rs
 │   ├── api/                 # API response types and validation
 │   │   ├── responses.rs     # Standardized API responses
 │   │   └── mod.rs
 │   ├── communication/       # WebSocket and MCP handling
+│   │   ├── communication.rs
+│   │   ├── mcp_http.rs
+│   │   └── [2+ communication modules]
 │   ├── core/                # Core swarm intelligence logic
-│   │   ├── hive.rs          # HiveCoordinator - main system coordinator
-│   │   ├── swarm_intelligence.rs # Swarm formation algorithms
-│   │   └── mod.rs
+│   │   ├── hive/
+│   │   │   ├── [7+ hive coordination modules]
+│   │   ├── auto_scaling.rs  # Dynamic agent scaling
+│   │   └── [5+ core modules]
 │   ├── infrastructure/      # Infrastructure and utilities
-│   │   ├── metrics.rs       # Metrics collection system
-│   │   ├── persistence.rs   # Data persistence layer
-│   │   └── mod.rs
+│   │   ├── monitoring/
+│   │   │   ├── [12+ monitoring modules]
+│   │   ├── async_optimizer.rs
+│   │   └── [18+ infrastructure modules]
 │   ├── neural/              # Neural processing engine
+│   │   ├── adaptive_learning.rs
 │   │   ├── core.rs          # Hybrid neural processor
-│   │   ├── nlp.rs           # Natural language processing
-│   │   └── mod.rs
+│   │   └── [7+ neural modules]
 │   ├── tasks/               # Task management system
+│   │   ├── mod.rs
 │   │   ├── task.rs          # Task definitions and queue
-│   │   └── mod.rs
+│   │   └── [1+ task modules]
 │   └── utils/               # Shared utilities
+│       ├── auth.rs          # Authentication utilities
 │       ├── config.rs        # Configuration management
-│       ├── error.rs         # Error handling types
-│       └── mod.rs
+│       └── [11+ utility modules]
 ├── examples/                # Example applications
 ├── tests/                   # Integration tests
 ├── benches/                 # Performance benchmarks
+├── data/                    # Application data directory
+├── settings/                # Configuration files
 └── Cargo.toml              # Rust dependencies
 ```
 
 ### Key Features
 
-- **Agent Types**: Worker, Coordinator, Specialist, Learner
+- **Agent Types**: Worker, Coordinator, Specialist, Learner with evolution capabilities
 - **Neural Modes**: Basic NLP (default), Advanced FANN networks, GPU acceleration
 - **Communication**: WebSocket real-time updates, REST API, MCP protocol
-- **Persistence**: SQLite with encryption and backup support
-- **Security**: JWT authentication, input validation, rate limiting, security auditing
-- **Monitoring**: Comprehensive metrics, intelligent alerting, health checks
-- **Verification**: Simple verification system with configurable tiers
-- **Auto-scaling**: Dynamic agent scaling based on workload
+- **Persistence**: SQLite with encryption, compression, and backup support
+- **Security**: JWT authentication, input validation, rate limiting, security auditing, circuit breaker
+- **Monitoring**: Comprehensive metrics, intelligent alerting, health checks, telemetry
+- **Verification**: Simple verification system with configurable tiers and adaptive learning
+- **Auto-scaling**: Dynamic agent scaling based on workload with intelligent fallback
+- **Caching**: Multi-tier intelligent caching with invalidation strategies
+- **Testing**: Comprehensive test suite with integration, chaos engineering, and performance tests
+- **Recovery**: Agent recovery management and fault tolerance
+- **Performance**: Adaptive learning system and performance optimization
 
 ## Quick Start
 
@@ -80,8 +100,8 @@ backend/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/multiagent-hive.git
-cd multiagent-hive/backend
+git clone https://github.com/do-ops885/ai-orchestrator-hub.git
+cd ai-orchestrator-hub/backend
 
 # Build the project
 cargo build
@@ -93,7 +113,7 @@ cargo run
 ### Basic Usage
 
 ```rust
-use multiagent_hive::HiveCoordinator;
+use ai_orchestrator_hub::HiveCoordinator;
 use serde_json::json;
 
 #[tokio::main]
@@ -182,40 +202,93 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Configuration
 
-### Environment Variables
+### Configuration Files
 
-The system uses TOML configuration files. Default configuration is in `settings/default.toml`:
+The system uses TOML configuration files with environment variable overrides. Default configuration is in `settings/default.toml`:
 
 ```toml
 [server]
-host = "localhost"
+host = "0.0.0.0"
 port = 3001
+cors_origins = ["http://localhost:3000"]
+websocket_timeout_secs = 300
+max_connections = 1000
+
+[agents]
+max_agents = 100
+default_energy = 100.0
+energy_decay_rate = 0.1
+learning_rate = 0.01
+max_memory_size = 1000
+
+[tasks]
+max_concurrent_tasks = 50
+task_timeout_secs = 300
+retry_attempts = 3
+priority_levels = 4
+
+[resources]
+cpu_threshold = 80.0
+memory_threshold = 85.0
+auto_scaling_enabled = true
+monitoring_interval_secs = 30
+
+[neural]
+enable_advanced_neural = false
+batch_size = 32
+learning_rate = 0.001
+max_iterations = 1000
 
 [logging]
 level = "info"
 format = "json"
+max_file_size_mb = 100
 
 [performance]
 cpu_warning_threshold = 70.0
 cpu_critical_threshold = 90.0
 memory_warning_threshold = 80.0
 memory_critical_threshold = 95.0
-metrics_collection_interval_ms = 30000
-alert_check_interval_ms = 60000
+metrics_collection_interval_ms = 5000
+alert_check_interval_ms = 30000
+circuit_breaker_failure_threshold = 5
+circuit_breaker_recovery_timeout_ms = 30000
 
-[neural]
-learning_rate = 0.01
-momentum = 0.9
-decay_factor = 0.95
-min_confidence_threshold = 0.7
+[monitoring]
+monitoring_interval_secs = 5
+metrics_retention_days = 7
+enable_agent_discovery = true
+enable_health_monitoring = true
+enable_performance_monitoring = true
+enable_behavior_analysis = true
+enable_dashboards = true
+enable_alerting = true
+enable_diagnostics = true
+enable_reporting = true
+```
 
-[persistence]
-checkpoint_interval_minutes = 5
-max_snapshots = 20
-compression_enabled = true
-encryption_enabled = false
-backup_enabled = true
-backup_retention_days = 7
+### Environment Variables
+
+Environment variables can override configuration file settings:
+
+```bash
+# Server Configuration
+export HIVE_SERVER__HOST=0.0.0.0
+export HIVE_SERVER__PORT=3001
+export HIVE_SERVER__CORS_ORIGINS='["http://localhost:3000"]'
+
+# Logging & Monitoring
+export HIVE_LOGGING__LEVEL=info
+export HIVE_LOGGING__FORMAT=json
+export HIVE_PERFORMANCE__METRICS_COLLECTION_INTERVAL_MS=5000
+
+# Neural Processing
+export HIVE_NEURAL__ENABLE_ADVANCED_NEURAL=false
+export HIVE_AGENTS__MAX_AGENTS=100
+
+# Security
+export HIVE_SECURITY__JWT_SECRET=your-secret-key-here
+export HIVE_SECURITY__AUDIT_LOGGING_ENABLED=true
 ```
 
 ### Feature Flags
@@ -244,40 +317,79 @@ cargo run --all-features
 GET    /                     # Server status message
 GET    /health               # Comprehensive health check
 GET    /metrics              # System metrics and trends
+GET    /debug/system         # Debug system information
 ```
 
 #### Agents
 
 ```http
-GET    /api/agents           # List all agents
-POST   /api/agents           # Create new agent
+GET    /api/agents           # List all agents with status
+POST   /api/agents           # Create new agent with validation
 ```
 
 #### Tasks
 
 ```http
-GET    /api/tasks            # List all tasks
-POST   /api/tasks            # Create new task
+GET    /api/tasks            # List all tasks with status
+POST   /api/tasks            # Create new task with validation
 ```
 
 #### Hive Management
 
 ```http
-GET    /api/hive/status      # Get current hive status
-GET    /api/resources        # Get resource information
+GET    /api/hive/status      # Get current hive status and metrics
+GET    /api/resources        # Get system resource information
+```
+
+#### MCP Integration
+
+```http
+GET    /api/mcp/health       # MCP server health check
+POST   /api/mcp/tools        # Execute MCP tools
+GET    /api/mcp/resources    # List MCP resources
 ```
 
 ### WebSocket Events
 
-Connect to `ws://localhost:3001/ws` for real-time updates:
+Connect to `ws://localhost:3001/ws` for real-time updates with standardized message format:
 
 ```javascript
 const ws = new WebSocket('ws://localhost:3001/ws');
 
 ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    console.log('Received:', data);
+    const message = JSON.parse(event.data);
+    console.log('Message type:', message.message_type);
+    console.log('Data:', message.data);
+    console.log('Timestamp:', message.timestamp);
 };
+```
+
+#### Supported Message Types
+
+- **`hive_status`**: Complete hive status and metrics
+- **`agents_update`**: Agent list with current states and capabilities
+- **`metrics_update`**: Real-time performance metrics and swarm data
+- **`agent_created`**: New agent creation confirmation
+- **`task_created`**: New task creation confirmation
+- **`error`**: Error messages with correlation IDs
+
+#### Client Message Format
+
+Send messages to the server:
+
+```javascript
+const message = {
+    action: "create_agent",
+    payload: {
+        name: "Worker-1",
+        type: "worker",
+        capabilities: [...]
+    },
+    correlation_id: "optional-id",
+    timeout_ms: 30000
+};
+
+ws.send(JSON.stringify(message));
 ```
 
 ### API Response Format
@@ -296,33 +408,62 @@ All API responses follow a standardized format:
 
 ### MCP Integration
 
-The backend implements MCP 1.0 for external tool integration. MCP tools are available through the communication system.
+The backend implements MCP (Model Context Protocol) 1.0 for external tool integration with standardized JSON-RPC communication.
 
-### MCP Integration
+#### MCP Server
 
-The backend implements MCP 1.0 for external tool integration:
+The MCP server provides tools for external AI models to interact with the hive system:
 
 ```json
 {
-  "mcp": {
-    "version": "1.0",
-    "tools": [
-      {
-        "name": "create_swarm_agent",
-        "description": "Create a new agent with specified capabilities",
-        "input_schema": {
-          "type": "object",
-          "properties": {
-            "name": {"type": "string"},
-            "agent_type": {"type": "string"},
-            "capabilities": {"type": "array"}
-          }
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "create_swarm_agent",
+    "arguments": {
+      "name": "AssistantAgent",
+      "type": "specialist",
+      "capabilities": [
+        {
+          "name": "data_analysis",
+          "proficiency": 0.9,
+          "learning_rate": 0.1
         }
-      }
-    ]
+      ]
+    }
   }
 }
 ```
+
+#### Available MCP Tools
+
+- **`create_swarm_agent`**: Create agents with custom capabilities and behaviors
+- **`assign_swarm_task`**: Distribute tasks with intelligent agent matching
+- **`get_swarm_status`**: Retrieve comprehensive hive status and metrics
+- **`analyze_with_nlp`**: Perform advanced NLP analysis using neural networks
+- **`coordinate_agents`**: Trigger swarm coordination and formation optimization
+- **`get_performance_metrics`**: Access detailed performance analytics
+- **`manage_resources`**: Monitor and optimize system resource usage
+
+#### MCP Resources
+
+- **`hive://status`**: Live system status with real-time updates
+- **`hive://agents`**: Agent information with capability profiles
+- **`hive://tasks`**: Task queue with execution status and history
+- **`hive://metrics`**: Performance metrics and alerting data
+- **`hive://resources`**: System resource utilization and optimization
+
+#### Standalone MCP Server
+
+Run the dedicated MCP server for external integrations:
+
+```bash
+cd backend
+cargo run --bin mcp_server
+```
+
+Access at `http://localhost:3002` with WebSocket support at `ws://localhost:3002/ws`
 
 ## Development
 
@@ -331,47 +472,38 @@ The backend implements MCP 1.0 for external tool integration:
 ```
 src/
 ├── agents/              # Agent implementations
-│   ├── mod.rs
-│   ├── agent.rs         # Core agent logic and behaviors
-│   ├── verification.rs  # Simple verification system
-│   ├── verification_engine.rs
-│   ├── verification_strategies.rs
-│   └── ...
+│   ├── adaptive_verification.rs
+│   ├── agent_evolution.rs
+│   ├── [11+ agent implementations]
+│   └── mod.rs
 ├── api/                 # API response types
-│   ├── mod.rs
 │   ├── responses.rs     # Standardized API responses
-│   └── validation logic
+│   └── mod.rs
 ├── communication/       # Communication protocols
-│   ├── mod.rs
 │   ├── communication.rs # Communication utilities
-│   ├── websocket.rs     # WebSocket handling
-│   └── mcp.rs          # MCP protocol
+│   ├── mcp_http.rs      # MCP HTTP handling
+│   └── [2+ communication modules]
 ├── core/               # Core system logic
-│   ├── mod.rs
-│   ├── hive.rs         # HiveCoordinator - main system
-│   ├── swarm_intelligence.rs
+│   ├── hive/
+│   │   ├── [7+ hive coordination modules]
 │   ├── auto_scaling.rs # Dynamic agent scaling
-│   └── fallback.rs     # Intelligent fallback system
+│   └── [5+ core modules]
 ├── infrastructure/     # Infrastructure components
-│   ├── mod.rs
-│   ├── metrics.rs      # Metrics collection system
-│   ├── persistence.rs  # Data persistence layer
-│   ├── cache.rs        # Caching layer
-│   ├── monitoring.rs   # System monitoring
-│   └── security_middleware.rs
+│   ├── monitoring/
+│   │   ├── [12+ monitoring modules]
+│   ├── async_optimizer.rs
+│   └── [18+ infrastructure modules]
 ├── neural/            # Neural processing
-│   ├── mod.rs
-│   ├── core.rs         # Hybrid neural processor
-│   ├── nlp.rs         # Natural language processing
 │   ├── adaptive_learning.rs
-│   └── training.rs
+│   ├── core.rs         # Hybrid neural processor
+│   └── [7+ neural modules]
 ├── tasks/             # Task management
-│   ├── mod.rs
-│   ├── task.rs        # Task definitions and queue
-│   └── work_stealing_queue.rs
+│   ├── task.rs         # Task definitions and queue
+│   └── mod.rs
 └── utils/             # Utilities
-    ├── mod.rs
-    ├── config.rs      # Configuration management
+    ├── auth.rs         # Authentication utilities
+    ├── config.rs       # Configuration management
+    └── [11+ utility modules]
     ├── error.rs       # Error handling types
     ├── validation.rs  # Input validation
     └── structured_logging.rs
@@ -403,7 +535,9 @@ cargo test
 cargo test agents
 
 # Run integration tests
-cargo test --test comprehensive_test_suite
+cargo test --test api_integration_tests
+cargo test --test chaos_engineering_tests
+cargo test --test performance_regression_tests
 
 # Run with coverage (requires cargo-tarpaulin)
 cargo tarpaulin --out Html
@@ -433,7 +567,7 @@ cargo doc --document-private-items
 ### Basic Agent Creation
 
 ```rust
-use multiagent_hive::HiveCoordinator;
+use ai_orchestrator_hub::HiveCoordinator;
 use serde_json::json;
 
 #[tokio::main]
@@ -467,7 +601,7 @@ async fn main() -> anyhow::Result<()> {
 ### Task Processing with Simple Verification
 
 ```rust
-use multiagent_hive::HiveCoordinator;
+use ai_orchestrator_hub::HiveCoordinator;
 use serde_json::json;
 
 #[tokio::main]
@@ -505,7 +639,7 @@ async fn main() -> anyhow::Result<()> {
 ### Neural Processing
 
 ```rust
-use multiagent_hive::neural::HybridNeuralProcessor;
+use ai_orchestrator_hub::neural::HybridNeuralProcessor;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

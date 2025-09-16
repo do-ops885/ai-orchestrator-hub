@@ -56,6 +56,7 @@
 
 use crate::infrastructure::resource_manager::ResourceManager;
 use crate::utils::error::HiveResult;
+use crate::utils::error_handling::{safe_json, safe_option};
 
 use super::agent_management::AgentManager;
 use super::coordinator::CoordinationMessage;
@@ -294,8 +295,8 @@ impl ProcessManager {
     /// Returns error if any background process fails to start.
     pub async fn start_all_processes(
         &self,
-        agent_manager: &AgentManager,
-        task_distributor: &TaskDistributor,
+        agent_manager: &Arc<AgentManager>,
+        task_distributor: &Arc<TaskDistributor>,
         metrics_collector: &MetricsCollector,
         resource_manager: &Arc<ResourceManager>,
     ) -> HiveResult<()> {
@@ -303,16 +304,16 @@ impl ProcessManager {
 
         // Start work stealing process
         handles.push(
-            self.start_work_stealing_process(agent_manager.clone(), task_distributor.clone())
+            self.start_work_stealing_process(agent_manager, task_distributor)
                 .await,
         );
 
         // Start learning process
-        handles.push(self.start_learning_process(agent_manager.clone()).await);
+        handles.push(self.start_learning_process((**agent_manager).clone()).await);
 
         // Start swarm coordination process
         handles.push(
-            self.start_swarm_coordination_process(agent_manager.clone())
+            self.start_swarm_coordination_process((**agent_manager).clone())
                 .await,
         );
 
@@ -415,10 +416,13 @@ impl ProcessManager {
     /// Returns a JoinHandle for the background task.
     async fn start_work_stealing_process(
         &self,
-        agent_manager: AgentManager,
-        task_distributor: TaskDistributor,
+        agent_manager: &Arc<AgentManager>,
+        task_distributor: &Arc<TaskDistributor>,
     ) -> tokio::task::JoinHandle<()> {
         let interval_duration = self.config.work_stealing_interval;
+
+        let agent_manager_clone = Arc::clone(agent_manager);
+        let task_distributor_clone = Arc::clone(task_distributor);
 
         tokio::spawn(async move {
             let mut interval = interval(interval_duration);
@@ -427,13 +431,13 @@ impl ProcessManager {
                 interval.tick().await;
 
                 // Get available agents
-                let agents = agent_manager.get_all_agents().await;
+                let agents = agent_manager_clone.get_all_agents().await;
                 if agents.is_empty() {
                     continue;
                 }
 
                 // Distribute tasks
-                if let Err(e) = task_distributor.distribute_tasks(&agents).await {
+                if let Err(e) = task_distributor_clone.distribute_tasks(&agents).await {
                     tracing::error!("Work stealing distribution failed: {}", e);
                 }
             }
@@ -756,8 +760,8 @@ impl ProcessManager {
     /// # async fn example(process_manager: &ProcessManager) {
     /// let status = process_manager.get_process_status().await;
     ///
-    /// let total_processes = status["total_processes"].as_u64().unwrap_or(0);
-    /// let active_processes = status["active_processes"].as_u64().unwrap_or(0);
+    /// let total_processes = status["total_processes"].as_u64().unwrap_or_default();
+    /// let active_processes = status["active_processes"].as_u64().unwrap_or_default();
     ///
     /// println!("Processes: {}/{} active", active_processes, total_processes);
     ///
@@ -973,7 +977,7 @@ mod tests {
         assert_eq!(status["total_processes"], 0);
         assert_eq!(status["active_processes"], 0);
 
-        let config = status["configuration"].as_object().unwrap();
+        let config = safe_json::get_object(&status, "configuration")?;
         assert!(config.contains_key("work_stealing_interval_ms"));
         assert!(config.contains_key("learning_interval_ms"));
         assert!(config.contains_key("swarm_coordination_interval_ms"));
@@ -1021,7 +1025,9 @@ mod tests {
 
         let status = process_manager.get_process_status().await;
         assert_eq!(status["total_processes"], 5);
-        assert!(status["active_processes"].as_u64().unwrap() >= 0);
+        assert!(
+            safe_json::get_optional_number(&status, "active_processes").unwrap_or_default() >= 0.0
+        );
 
         Ok(())
     }
@@ -1204,7 +1210,7 @@ mod tests {
         process_manager.update_config(custom_config).await;
 
         let status = process_manager.get_process_status().await;
-        let config = status["configuration"].as_object().unwrap();
+        let config = safe_json::get_object(&status, "configuration")?;
 
         assert_eq!(config["work_stealing_interval_ms"], 250);
         assert_eq!(config["learning_interval_ms"], 45000);
@@ -1362,11 +1368,10 @@ mod tests {
         assert!(status.get("active_processes").is_some());
         assert!(status.get("configuration").is_some());
 
-        let config = status.get("configuration").unwrap();
-        assert!(config.is_object());
+        let config = safe_json::get_object(&status, "configuration")?;
 
         // Verify configuration fields
-        let config_obj = config.as_object().unwrap();
+        let config_obj = config;
         assert!(config_obj.contains_key("work_stealing_interval_ms"));
         assert!(config_obj.contains_key("learning_interval_ms"));
         assert!(config_obj.contains_key("swarm_coordination_interval_ms"));

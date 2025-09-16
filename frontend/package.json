@@ -1,6 +1,6 @@
 {
   "name": "multiagent-hive-frontend",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,6 +18,8 @@
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:e2e:websocket": "playwright test websocket-mock.spec.ts",
+    "test:e2e:websocket:ui": "playwright test websocket-mock.spec.ts --ui",
     "agent:discover": "node scripts/agent-discover.js",
     "agent:catalog": "node scripts/agent-catalog.js",
     "agent:map": "node scripts/agent-map.js",
@@ -85,6 +87,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.13",
     "@ai-sdk/openai": "^2.0.5",
+    "@playwright/test": "^1.40.0",
     "@types/node": "^22.9.0",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.0.0",
@@ -99,7 +102,6 @@
     "eslint-plugin-vitest": "^0.5.4",
     "jsdom": "^23.0.1",
     "lucide-react": "^0.542.0",
-    "@playwright/test": "^1.40.0",
     "next": "^15.5.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -113,6 +115,7 @@
     "@testing-library/user-event": "^14.5.2",
     "@types/node": "^22.9.0",
     "@types/react-dom": "^19.0.0",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.41.0",
     "@vitejs/plugin-react": "^5.0.2",
@@ -130,6 +133,7 @@
     "postcss": "^8.4.47",
     "prettier": "^3.6.2",
     "tailwindcss": "^3.4.17",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "ws": "^8.18.0"
   }
 }

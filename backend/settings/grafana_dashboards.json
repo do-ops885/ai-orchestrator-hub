@@ -1,0 +1,305 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "AI Orchestrator Hub - Production Monitoring",
+    "tags": ["ai-orchestrator", "production", "monitoring"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "System Health Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_system_health_score",
+            "legendFormat": "System Health"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "options": {
+                  "match": "null",
+                  "result": {
+                    "text": "N/A"
+                  }
+                },
+                "type": "special"
+              }
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "orange",
+                  "value": 0.5
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.7
+                },
+                {
+                  "color": "green",
+                  "value": 0.9
+                }
+              ]
+            },
+            "unit": "percentunit"
+          }
+        },
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "CPU Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_cpu_usage_percent",
+            "legendFormat": "CPU Usage %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 6,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_memory_usage_percent",
+            "legendFormat": "Memory Usage %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 4
+        }
+      },
+      {
+        "id": 4,
+        "title": "Agent Health Status",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_active_agents",
+            "legendFormat": "Active Agents"
+          },
+          {
+            "expr": "ai_orchestrator_failed_agents",
+            "legendFormat": "Failed Agents"
+          },
+          {
+            "expr": "ai_orchestrator_idle_agents",
+            "legendFormat": "Idle Agents"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 4
+        }
+      },
+      {
+        "id": 5,
+        "title": "Task Performance",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_task_success_rate",
+            "legendFormat": "Task Success Rate %"
+          },
+          {
+            "expr": "ai_orchestrator_tasks_in_queue",
+            "legendFormat": "Tasks in Queue"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 6,
+        "title": "System Throughput",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_system_throughput_tasks_per_second",
+            "legendFormat": "Tasks/Second"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      },
+      {
+        "id": 7,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_error_rate_per_minute",
+            "legendFormat": "Errors/Minute"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "errors/min"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 12
+        }
+      },
+      {
+        "id": 8,
+        "title": "Business Metrics",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_task_completion_rate",
+            "legendFormat": "Task Completion Rate"
+          },
+          {
+            "expr": "ai_orchestrator_agent_utilization_rate",
+            "legendFormat": "Agent Utilization"
+          },
+          {
+            "expr": "ai_orchestrator_system_uptime_percentage",
+            "legendFormat": "System Uptime"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        },
+        "gridPos": {
+          "h": 4,
+          "w": 12,
+          "x": 12,
+          "y": 12
+        }
+      },
+      {
+        "id": 9,
+        "title": "Active Alerts",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_alerts_last_hour",
+            "legendFormat": "Alerts Last Hour"
+          },
+          {
+            "expr": "ai_orchestrator_critical_alerts_24h",
+            "legendFormat": "Critical Alerts 24h"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        }
+      },
+      {
+        "id": 10,
+        "title": "Network I/O",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ai_orchestrator_network_bytes_in",
+            "legendFormat": "Bytes In"
+          },
+          {
+            "expr": "ai_orchestrator_network_bytes_out",
+            "legendFormat": "Bytes Out"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    },
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 0,
+    "links": []
+  }
+}

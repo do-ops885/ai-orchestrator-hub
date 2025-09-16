@@ -15,43 +15,54 @@ Compilation failures in the backend preventing successful builds.
 - Linker errors or missing libraries
 
 ### Root Causes
-- Outdated dependencies
+- Outdated dependencies or Rust toolchain
 - Missing system libraries (e.g., OpenSSL, SQLite)
-- Rust version incompatibility
-- Conflicting crate versions
+- Rust version incompatibility (requires 1.70+)
+- Conflicting crate versions or feature flags
+- Missing development dependencies
 
 ### Step-by-Step Solutions
 1. Update Rust toolchain:
-   ```bash
-   rustup update
-   ```
+    ```bash
+    rustup update
+    rustup component add rustfmt clippy
+    ```
 
 2. Check Rust version compatibility:
-   ```bash
-   rustc --version
-   # Ensure version matches backend/Cargo.toml requirements
-   ```
+    ```bash
+    rustc --version
+    # Should be 1.70+ for this project
+    ```
 
 3. Clean and rebuild:
-   ```bash
-   cd backend
-   cargo clean
-   cargo build
-   ```
+    ```bash
+    cd backend
+    cargo clean
+    cargo build
+    ```
 
 4. Update dependencies:
-   ```bash
-   cargo update
-   ```
+    ```bash
+    cargo update
+    ```
 
 5. Install missing system dependencies:
-   ```bash
-   # Ubuntu/Debian
-   sudo apt-get install libssl-dev sqlite3 libsqlite3-dev
+    ```bash
+    # Ubuntu/Debian
+    sudo apt-get install libssl-dev sqlite3 libsqlite3-dev pkg-config
 
-   # macOS
-   brew install openssl sqlite
-   ```
+    # macOS
+    brew install openssl sqlite pkg-config
+
+    # Windows (using vcpkg)
+    vcpkg install openssl sqlite3
+    ```
+
+6. Check for feature flag conflicts:
+    ```bash
+    # Try building with default features first
+    cargo build --no-default-features
+    ```
 
 ### Prevention Tips
 - Regularly run `cargo update` to keep dependencies current
@@ -221,11 +232,24 @@ WebSocket connections failing between frontend and backend or between agents.
    ```
 
 4. Enable WebSocket debugging:
-   ```bash
-   # Backend: Add logging
-   cd backend
-   RUST_LOG=debug cargo run
-   ```
+    ```bash
+    # Backend: Add detailed logging
+    cd backend
+    RUST_LOG=trace cargo run
+    ```
+
+5. Check WebSocket server configuration:
+    ```bash
+    # Verify WebSocket settings in configuration
+    cat backend/settings/default.toml | grep -A 10 "ws\|websocket"
+    ```
+
+6. Test with WebSocket client tools:
+    ```bash
+    # Install websocat for testing
+    cargo install websocat
+    websocat ws://localhost:3001/ws
+    ```
 
 ### Prevention Tips
 - Use secure WebSocket (WSS) in production
@@ -255,10 +279,14 @@ Agents unable to communicate or coordinate properly.
 
 ### Step-by-Step Solutions
 1. Check agent status:
-   ```bash
-   # Use swarm-coordinator agent
-   opencode swarm-coordinator "Check the current status of the multiagent hive"
-   ```
+    ```bash
+    # Check service status using the MCP service script
+    ./scripts/run-mcp-service.sh status
+
+    # Or check via API
+    curl -X GET http://localhost:3001/api/agents \
+      -H "Accept: application/json"
+    ```
 
 2. Verify MCP configuration:
    ```bash
@@ -293,7 +321,160 @@ If agent coordination fails consistently, review swarm intelligence algorithms i
 
 ---
 
-## 6. Performance Issues
+## 6. Configuration Issues
+
+### Problem: Application Configuration Problems
+Configuration files not loading correctly or environment variables not being applied.
+
+### Symptoms
+- Application fails to start with configuration errors
+- Features not working as expected
+- Database connection failures
+- API endpoints returning unexpected errors
+
+### Root Causes
+- Missing or malformed configuration files
+- Incorrect environment variable names
+- Permission issues on configuration files
+- Configuration conflicts between different environments
+
+### Step-by-Step Solutions
+1. Validate configuration files:
+   ```bash
+   # Check backend configuration
+   cd backend
+   cat settings/default.toml
+   cat settings/development.toml
+   cat settings/production.toml
+
+   # Validate TOML syntax
+   python3 -c "import tomllib; tomllib.load(open('settings/default.toml', 'rb'))"
+   ```
+
+2. Check environment variables:
+   ```bash
+   # List all environment variables
+   env | grep -E "(API|DB|REDIS|JWT)"
+
+   # Check for required variables
+   echo "API_KEY: $API_KEY"
+   echo "DATABASE_URL: $DATABASE_URL"
+   ```
+
+3. Test configuration loading:
+    ```bash
+    # Backend: Check if the application starts without errors
+    cd backend
+    timeout 10s cargo run || echo "Configuration loaded successfully (timed out after 10s as expected)"
+
+    # Check for any configuration-related error messages in logs
+    ```
+
+4. Validate file permissions:
+   ```bash
+   # Check configuration file permissions
+   ls -la backend/settings/
+   ls -la frontend/.env*
+
+   # Ensure files are readable
+   chmod 644 backend/settings/*.toml
+   ```
+
+5. Check for configuration conflicts:
+   ```bash
+   # Look for duplicate keys or conflicts
+   grep -r "database" backend/settings/ | sort
+   ```
+
+### Prevention Tips
+- Use configuration validation on startup
+- Document all required environment variables
+- Implement configuration schema validation
+- Use different configurations for different environments
+
+### When to Escalate
+If configuration issues persist across environments, review the configuration management system.
+
+---
+
+## 7. Frontend-Specific Issues
+
+### Problem: React/TypeScript Frontend Problems
+Frontend application not loading, rendering incorrectly, or throwing JavaScript errors.
+
+### Symptoms
+- White screen of death
+- JavaScript console errors
+- Component not rendering
+- API calls failing from frontend
+- Build failures in frontend
+
+### Root Causes
+- Missing dependencies or version conflicts
+- TypeScript compilation errors
+- React component lifecycle issues
+- API endpoint mismatches
+- Browser compatibility issues
+
+### Step-by-Step Solutions
+1. Check browser console for errors:
+   ```javascript
+   // Open browser DevTools (F12)
+   // Check Console tab for JavaScript errors
+   // Check Network tab for failed API calls
+   ```
+
+2. Validate frontend dependencies:
+   ```bash
+   cd frontend
+   npm list --depth=0
+   npm audit
+   ```
+
+3. Check TypeScript compilation:
+   ```bash
+   cd frontend
+   npm run type-check
+   npx tsc --noEmit
+   ```
+
+4. Test API connectivity from frontend:
+    ```javascript
+    // In browser console
+    fetch('/health')
+      .then(r => r.json())
+      .then(d => console.log('API Response:', d))
+      .catch(e => console.error('API Error:', e));
+    ```
+
+5. Clear frontend cache and rebuild:
+   ```bash
+   cd frontend
+   rm -rf node_modules/.cache
+   rm -rf .next
+   npm install
+   npm run build
+   ```
+
+6. Check environment configuration:
+   ```bash
+   cd frontend
+   cat .env.local
+   cat .env.development
+   ```
+
+### Prevention Tips
+- Use TypeScript strict mode
+- Implement error boundaries for React components
+- Add comprehensive logging to frontend
+- Use ESLint and Prettier for code quality
+
+### When to Escalate
+If frontend issues are related to backend API changes, coordinate with backend team.
+
+---
+
+## 8. Performance Issues
 
 ### Problem: Slow Response Times or High Resource Usage
 Application performance degradation affecting user experience.
@@ -349,7 +530,7 @@ If performance issues persist after optimization, consider hardware upgrades or 
 
 ---
 
-## 7. Deployment Problems
+## 9. Deployment Problems
 
 ### Problem: Application Deployment Failures
 Issues deploying the application to production or staging environments.
@@ -406,7 +587,7 @@ If deployment issues are due to infrastructure problems, involve DevOps team.
 
 ---
 
-## 8. Testing Issues
+## 10. Testing Issues
 
 ### Problem: Test Failures or Inconsistencies
 Unit, integration, or end-to-end tests failing unexpectedly.
@@ -468,7 +649,7 @@ If tests fail due to fundamental architecture issues, review test strategy with 
 
 ---
 
-## 9. Security-Related Issues
+## 11. Security-Related Issues
 
 ### Problem: Security Vulnerabilities or Access Control Failures
 Security breaches, unauthorized access, or vulnerability alerts.
@@ -529,7 +710,99 @@ For any suspected security breach, immediately notify security team and follow i
 
 ---
 
-## 10. General Debugging Tips
+## 12. API Integration Issues
+
+### Problem: API Communication and Integration Problems
+Issues with communication between frontend, backend, and external services.
+
+### Symptoms
+- Frontend unable to connect to backend APIs
+- CORS errors in browser
+- Authentication failures between services
+- WebSocket connection issues
+- API timeouts or connection refused errors
+
+### Root Causes
+- Incorrect API base URLs or endpoints
+- CORS configuration issues
+- Authentication token problems
+- Network connectivity issues
+- Service discovery failures
+- API version mismatches
+
+### Step-by-Step Solutions
+1. Test API connectivity:
+   ```bash
+   # Test backend API directly
+   curl -X GET http://localhost:3001/health \
+     -H "Accept: application/json"
+
+   # Test with authentication
+   curl -X GET http://localhost:3001/api/agents \
+     -H "Accept: application/json" \
+     -H "X-API-Key: your-api-key"
+   ```
+
+2. Check CORS configuration:
+   ```bash
+   # Backend: Check CORS settings in server.rs
+   grep -n "CORS\|cors" backend/src/server.rs
+
+   # Frontend: Check API base URL
+   grep -r "localhost:3001\|api" frontend/src/
+   ```
+
+3. Validate WebSocket connections:
+   ```bash
+   # Test WebSocket connection
+   websocat ws://localhost:3001/ws
+
+   # Or use browser console
+   const ws = new WebSocket('ws://localhost:3001/ws');
+   ws.onopen = () => console.log('Connected');
+   ws.onerror = (e) => console.error('Error:', e);
+   ```
+
+4. Check service ports and availability:
+   ```bash
+   # Check if backend is running
+   netstat -tlnp | grep 3001
+
+   # Check if frontend dev server is running
+   netstat -tlnp | grep 3000
+   ```
+
+5. Validate API authentication:
+   ```bash
+   # Test with invalid API key
+   curl -X GET http://localhost:3001/api/agents \
+     -H "X-API-Key: invalid-key"
+
+   # Should return 401 Unauthorized
+   ```
+
+6. Check network configuration:
+   ```bash
+   # Test local connectivity
+   ping localhost
+
+   # Check firewall rules
+   sudo ufw status
+   ```
+
+### Prevention Tips
+- Use environment-specific API URLs
+- Implement proper error handling for API calls
+- Add API health checks to startup process
+- Document all API endpoints and authentication requirements
+- Use API versioning to prevent breaking changes
+
+### When to Escalate
+If API integration issues are due to network infrastructure problems, involve DevOps team.
+
+---
+
+## 13. General Debugging Tips
 
 ### Problem: General Debugging Strategies
 Approaches for diagnosing and resolving various issues not covered above.
@@ -577,10 +850,18 @@ Approaches for diagnosing and resolving various issues not covered above.
    # See monitoring/ directory
    ```
 
+5. Use the debug endpoint for comprehensive system inspection:
+   ```bash
+   curl -X GET http://localhost:3001/debug/system \
+     -H "Accept: application/json" \
+     -H "X-API-Key: your-api-key"
+   ```
+
 ### Prevention Tips
 - Implement structured logging with correlation IDs
 - Use feature flags for gradual rollouts
 - Maintain comprehensive documentation
+- Regular health checks and monitoring
 
 ### When to Escalate
 If issues require deep architectural changes, involve the core development team.

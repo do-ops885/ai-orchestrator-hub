@@ -373,14 +373,14 @@ impl CreateSwarmAgentTool {
 impl MCPToolHandler for CreateSwarmAgentTool {
     async fn execute(&self, params: &Value) -> Result<Value> {
         let agent_type_str = params
-            .get("agent_type")
+            .get("type")
             .and_then(|v| v.as_str())
-            .unwrap_or("Worker");
+            .unwrap_or("worker");
 
         let _agent_type = match agent_type_str {
-            "Coordinator" => AgentType::Coordinator,
-            "Learner" => AgentType::Learner,
-            "Specialist" => {
+            "coordinator" => AgentType::Coordinator,
+            "learner" => AgentType::Learner,
+            "specialist" => {
                 let specialization = params
                     .get("specialization")
                     .and_then(|v| v.as_str())
@@ -392,7 +392,7 @@ impl MCPToolHandler for CreateSwarmAgentTool {
 
         let hive = self.hive.write().await;
         let config = json!({
-            "agent_type": agent_type_str,
+            "type": agent_type_str,
             "specialization": params.get("specialization").and_then(|v| v.as_str()).unwrap_or("general")
         });
         let agent_id = hive.create_agent(config).await?;
@@ -408,9 +408,9 @@ impl MCPToolHandler for CreateSwarmAgentTool {
         json!({
             "type": "object",
             "properties": {
-                "agent_type": {
+                "type": {
                     "type": "string",
-                    "enum": ["Worker", "Coordinator", "Specialist", "Learner"],
+                    "enum": ["worker", "coordinator", "specialist", "learner"],
                     "description": "Type of agent to create"
                 },
                 "specialization": {
@@ -418,7 +418,7 @@ impl MCPToolHandler for CreateSwarmAgentTool {
                     "description": "Specialization for Specialist agents"
                 }
             },
-            "required": ["agent_type"]
+            "required": ["type"]
         })
     }
 
@@ -756,7 +756,7 @@ impl MCPToolHandler for ListAgentsTool {
                 "agent_type": {
                     "type": "string",
                     "description": "Filter by agent type",
-                    "enum": ["Worker", "Coordinator", "Specialist", "Learner"]
+                    "enum": ["worker", "coordinator", "specialist", "learner"]
                 },
                 "active_only": {
                     "type": "boolean",
@@ -952,14 +952,14 @@ impl MCPToolHandler for BatchCreateAgentsTool {
             .unwrap_or(1) as usize;
 
         let agent_type_str = params
-            .get("agent_type")
+            .get("type")
             .and_then(|v| v.as_str())
-            .unwrap_or("Worker");
+            .unwrap_or("worker");
 
         let _agent_type = match agent_type_str {
-            "Coordinator" => AgentType::Coordinator,
-            "Specialist" => AgentType::Specialist("general".to_string()),
-            "Learner" => AgentType::Learner,
+            "coordinator" => AgentType::Coordinator,
+            "specialist" => AgentType::Specialist("general".to_string()),
+            "learner" => AgentType::Learner,
             _ => AgentType::Worker,
         };
 
@@ -968,9 +968,9 @@ impl MCPToolHandler for BatchCreateAgentsTool {
 
         for _ in 0..count.min(10) {
             // Limit to 10 agents per batch
-            let config = if agent_type_str == "Specialist" {
+            let config = if agent_type_str == "specialist" {
                 json!({
-                    "type": "specialist:general"
+                    "type": "specialist"
                 })
             } else {
                 json!({
@@ -1000,11 +1000,11 @@ impl MCPToolHandler for BatchCreateAgentsTool {
                     "maximum": 10,
                     "default": 1
                 },
-                "agent_type": {
+                "type": {
                     "type": "string",
                     "description": "Type of agents to create",
-                    "enum": ["Worker", "Coordinator", "Specialist", "Learner"],
-                    "default": "Worker"
+                    "enum": ["worker", "coordinator", "specialist", "learner"],
+                    "default": "worker"
                 }
             },
             "required": []

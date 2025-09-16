@@ -8,15 +8,12 @@
     "plan": {
       "model": "chutes/zai-org/GLM-4.5-FP8"
     },
-
-
     "git": {
       "model": "nvidia/deepseek-ai/deepseek-v3.1"
     },
     "junior-developer": {
       "model": "nvidia/deepseek-ai/deepseek-v3.1"
     },
->
     "learner": {
       "model": "nvidia/deepseek-ai/deepseek-v3.1"
     },
@@ -47,7 +44,7 @@
     },
     "multiagent-hive": {
       "type": "local",
-      "command": ["/workspaces/ai-orchestrator-hub/backend/target/debug/mcp_server"],
+      "command": ["/workspaces/ai-orchestrator-hub/backend/target/release/mcp_server"],
       "enabled": true
     },
   },

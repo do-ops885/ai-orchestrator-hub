@@ -4,7 +4,7 @@
 //! without the complexity of mandatory agent pairs. Leverages existing NLP and neural
 //! processing capabilities for intelligent verification.
 
-use anyhow::Result;
+// use anyhow::Result; // Replaced with HiveResult
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -13,9 +13,12 @@ use std::sync::Arc;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
-use crate::agents::Agent;
+use crate::agents::{Agent, AgentBehavior, CommunicationComplexity};
+use crate::communication::patterns::CommunicationConfig;
+use crate::communication::protocols::{MessageEnvelope, MessagePayload, MessageType};
 use crate::neural::NLPProcessor;
 use crate::tasks::{Task, TaskResult};
+use crate::utils::error::HiveResult;
 
 /// Lightweight verification result
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -179,7 +182,7 @@ impl SimpleVerificationSystem {
         task: &Task,
         result: &TaskResult,
         original_goal: Option<&str>,
-    ) -> Result<SimpleVerificationResult> {
+    ) -> HiveResult<SimpleVerificationResult> {
         let start_time = std::time::Instant::now();
 
         // Determine verification tier based on task priority and type
@@ -322,7 +325,7 @@ impl SimpleVerificationSystem {
         task: &Task,
         result: &TaskResult,
         original_goal: Option<&str>,
-    ) -> Result<SimpleVerificationResult> {
+    ) -> HiveResult<SimpleVerificationResult> {
         let mut issues = Vec::new();
         let mut scores = HashMap::new();
 
@@ -407,7 +410,7 @@ impl SimpleVerificationSystem {
         task: &Task,
         result: &TaskResult,
         original_goal: Option<&str>,
-    ) -> Result<SimpleVerificationResult> {
+    ) -> HiveResult<SimpleVerificationResult> {
         // First run standard verification
         let mut standard_result = self
             .standard_verification(task, result, original_goal)
@@ -828,6 +831,165 @@ impl SimpleVerificationSystem {
     }
 }
 
+#[async_trait]
+impl AgentBehavior for SimpleVerificationSystem {
+    async fn execute_task(&mut self, task: Task) -> HiveResult<TaskResult> {
+        // Verification systems don't execute tasks directly
+        Err(crate::utils::error::HiveError::AgentExecutionFailed {
+            reason: "SimpleVerificationSystem does not execute tasks directly".to_string(),
+        })
+    }
+
+    async fn communicate(
+        &mut self,
+        envelope: MessageEnvelope,
+    ) -> HiveResult<Option<MessageEnvelope>> {
+        // Standardized communication pattern for simple verification
+        let complexity = match envelope.priority {
+            crate::communication::patterns::MessagePriority::Low => CommunicationComplexity::Simple,
+            crate::communication::patterns::MessagePriority::Normal => {
+                CommunicationComplexity::Standard
+            }
+            crate::communication::patterns::MessagePriority::High => {
+                CommunicationComplexity::Complex
+            }
+            crate::communication::patterns::MessagePriority::Critical => {
+                CommunicationComplexity::Heavy
+            }
+        };
+
+        // Use standardized delay based on complexity
+        let delay_ms = match complexity {
+            CommunicationComplexity::Simple => 50,
+            CommunicationComplexity::Standard => 100,
+            CommunicationComplexity::Complex => 200,
+            CommunicationComplexity::Heavy => 500,
+        };
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+
+        match envelope.message_type {
+            MessageType::Request => {
+                let response_payload = match &envelope.payload {
+                    MessagePayload::Text(text) => MessagePayload::Text(format!(
+                        "Simple verification system acknowledging: {} - Ready to verify tasks",
+                        text
+                    )),
+                    MessagePayload::Json(json) => {
+                        let metrics = self.get_metrics().await;
+                        MessagePayload::Json(serde_json::json!({
+                            "response": "Simple verification system ready",
+                            "current_metrics": {
+                                "total_verifications": metrics.total_verifications,
+                                "passed_rate": if metrics.total_verifications > 0 {
+                                    metrics.passed_verifications as f64 / metrics.total_verifications as f64
+                                } else { 0.0 }
+                            },
+                            "original_request": json
+                        }))
+                    }
+                    _ => MessagePayload::Text(
+                        "Simple verification system acknowledged message".to_string(),
+                    ),
+                };
+
+                let response = MessageEnvelope::new_response(
+                    &envelope,
+                    uuid::Uuid::new_v4(),
+                    response_payload,
+                );
+                Ok(Some(response))
+            }
+            MessageType::Broadcast => {
+                tracing::info!(
+                    "Simple verification system received broadcast: {:?}",
+                    envelope.payload
+                );
+                Ok(None)
+            }
+            MessageType::CoordinationRequest => {
+                // Handle coordination for verification standards
+                if let MessagePayload::CoordinationData {
+                    performance_metrics,
+                    ..
+                } = &envelope.payload
+                {
+                    tracing::info!(
+                        "Received coordination data for verification standards: {:?}",
+                        performance_metrics
+                    );
+                }
+                Ok(None)
+            }
+            _ => {
+                let response = MessageEnvelope::new_response(
+                    &envelope,
+                    uuid::Uuid::new_v4(),
+                    MessagePayload::Text(format!(
+                        "Simple verification system processed message of type {:?}",
+                        envelope.message_type
+                    )),
+                );
+                Ok(Some(response))
+            }
+        }
+    }
+
+    async fn request_response(
+        &mut self,
+        request: MessageEnvelope,
+        timeout: std::time::Duration,
+    ) -> HiveResult<MessageEnvelope> {
+        // Simulate processing time for verification
+        tokio::time::sleep(timeout / 4).await;
+
+        let metrics = self.get_metrics().await;
+        let response = MessageEnvelope::new_response(
+            &request,
+            uuid::Uuid::new_v4(),
+            MessagePayload::Json(serde_json::json!({
+                "response": "Simple verification system processed request",
+                "verification_metrics": {
+                    "total_verifications": metrics.total_verifications,
+                    "passed_verifications": metrics.passed_verifications,
+                    "failed_verifications": metrics.failed_verifications,
+                    "average_time_ms": metrics.average_verification_time_ms
+                },
+                "processing_timeout": timeout.as_millis()
+            })),
+        );
+
+        Ok(response)
+    }
+
+    async fn learn(&mut self, _nlp_processor: &NLPProcessor) -> HiveResult<()> {
+        // Simple verification learning could involve adjusting thresholds
+        debug!("Simple verification system learning triggered");
+        Ok(())
+    }
+
+    async fn update_position(
+        &mut self,
+        _swarm_center: (f64, f64),
+        _neighbors: &[Agent],
+    ) -> HiveResult<()> {
+        // Verification systems don't participate in swarm positioning
+        Ok(())
+    }
+
+    fn get_communication_config(&self) -> CommunicationConfig {
+        CommunicationConfig {
+            default_timeout: std::time::Duration::from_secs(15),
+            max_retries: 2,
+            retry_delay: std::time::Duration::from_millis(100),
+            max_concurrent_messages: 100,
+            buffer_size: 2048,
+            enable_compression: false,
+            delivery_guarantee: crate::communication::patterns::DeliveryGuarantee::AtLeastOnce,
+        }
+    }
+}
+
 /// Trait for integrating with existing agent system
 #[async_trait]
 pub trait SimpleVerificationCapable {
@@ -838,7 +1000,7 @@ pub trait SimpleVerificationCapable {
         result: &TaskResult,
         original_goal: Option<&str>,
         verification_system: &SimpleVerificationSystem,
-    ) -> Result<SimpleVerificationResult>;
+    ) -> HiveResult<SimpleVerificationResult>;
 }
 
 /// Implementation for existing Agent struct
@@ -850,7 +1012,7 @@ impl SimpleVerificationCapable for Agent {
         result: &TaskResult,
         original_goal: Option<&str>,
         verification_system: &SimpleVerificationSystem,
-    ) -> Result<SimpleVerificationResult> {
+    ) -> HiveResult<SimpleVerificationResult> {
         verification_system
             .verify_task_result(task, result, original_goal)
             .await

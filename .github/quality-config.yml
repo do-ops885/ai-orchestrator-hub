@@ -1,0 +1,107 @@
+# Quality Metrics Configuration
+# This file defines quality thresholds, monitoring settings, and alerting rules
+
+# Code Coverage Thresholds
+coverage:
+  typescript:
+    minimum: 80
+    target: 90
+  rust:
+    minimum: 75
+    target: 85
+
+# Complexity Thresholds
+complexity:
+  typescript:
+    maximum_per_function: 15
+    maximum_per_file: 50
+    high_complexity_files_allowed: 5
+  rust:
+    maximum_per_function: 20
+    maximum_per_file: 60
+    high_complexity_files_allowed: 3
+
+# Performance Benchmarks
+performance:
+  regression_threshold: 10  # Maximum allowed performance degradation (%)
+  benchmark_timeout: 300    # Benchmark timeout in seconds
+  required_benchmarks: 6    # Minimum number of benchmarks to run
+
+# Security Thresholds
+security:
+  maximum_vulnerabilities: 0
+  maximum_secrets_allowed: 0
+  critical_security_failures_block_merge: true
+  high_severity_vulns_allowed: 0
+
+# Quality Gates
+quality_gates:
+  require_coverage: true
+  require_complexity_check: true
+  require_performance_benchmarks: false  # Set to true when benchmarks are stable
+  require_security_scan: true
+  block_on_quality_failures: true
+
+# Monitoring and Alerting
+monitoring:
+  metrics_retention_days: 90
+  alert_on_trends: true
+  trend_analysis_window: 10  # Number of data points for trend analysis
+  alert_cooldown_hours: 24   # Minimum time between similar alerts
+
+# Alert Rules
+alerts:
+  coverage_drop:
+    enabled: true
+    threshold: 5  # Alert if coverage drops by more than 5%
+    severity: medium
+  complexity_increase:
+    enabled: true
+    threshold: 2  # Alert if high complexity files increase by more than 2
+    severity: medium
+  vulnerability_introduction:
+    enabled: true
+    threshold: 1  # Alert on any new vulnerability
+    severity: high
+  performance_regression:
+    enabled: true
+    threshold: 10  # Alert if performance degrades by more than 10%
+    severity: medium
+  frequent_failures:
+    enabled: true
+    threshold: 3  # Alert if more than 3 failures in last 5 runs
+    severity: high
+
+# Reporting
+reporting:
+  generate_trend_reports: true
+  include_recommendations: true
+  dashboard_update_frequency: daily
+  export_formats: [json, markdown]
+
+# Integration Settings
+integrations:
+  codecov:
+    enabled: true
+    project_token: null  # Set via secrets
+  sonarcloud:
+    enabled: false
+    project_key: null
+  slack_notifications:
+    enabled: false
+    webhook_url: null  # Set via secrets
+  github_issues:
+    create_on_alerts: false
+    labels: ["quality", "automated"]
+
+# Custom Metrics
+custom_metrics:
+  enabled: false
+  metrics: []
+  thresholds: {}
+
+# Development Overrides
+development:
+  relaxed_thresholds: false
+  skip_performance_checks: false
+  reduced_alert_frequency: false

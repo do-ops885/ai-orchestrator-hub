@@ -2,22 +2,67 @@
 # This file contains settings optimized for production environment
 
 [server]
+host = "0.0.0.0"
 port = 8080
-max_connections = 10000
+max_connections = 50000
+websocket_timeout_secs = 600
+cors_origins = ["https://yourdomain.com", "https://app.yourdomain.com"]
 
 [agents]
-max_agents = 1000
+max_agents = 2000
+default_energy = 100.0
+energy_decay_rate = 0.05
+learning_rate = 0.02
+max_memory_size = 2000
 
 [tasks]
-max_concurrent_tasks = 500
+max_concurrent_tasks = 1000
+task_timeout_secs = 600
+retry_attempts = 5
+priority_levels = 5
+
+[resources]
+cpu_threshold = 75.0
+memory_threshold = 80.0
+auto_scaling_enabled = true
+monitoring_interval_secs = 15
+
+[neural]
+enable_advanced_neural = true
+batch_size = 64
+learning_rate = 0.001
+max_iterations = 2000
 
 [logging]
 level = "warn"
+format = "json"
 file_path = "/var/log/ai-orchestrator.log"
+max_file_size_mb = 500
+
+[performance]
+cpu_warning_threshold = 70.0
+cpu_critical_threshold = 85.0
+memory_warning_threshold = 75.0
+memory_critical_threshold = 90.0
+metrics_collection_interval_ms = 2000
+alert_check_interval_ms = 15000
+circuit_breaker_failure_threshold = 3
+circuit_breaker_recovery_timeout_ms = 20000
 
 [monitoring]
-monitoring_interval_secs = 10
-metrics_retention_days = 30
+monitoring_interval_secs = 5
+metrics_retention_days = 60
+alert_threshold = 0.85
+metrics_endpoint = "http://localhost:9090/metrics"
+health_endpoint = "http://localhost:9090/health"
+enable_agent_discovery = true
+enable_health_monitoring = true
+enable_performance_monitoring = true
+enable_behavior_analysis = true
+enable_dashboards = true
+enable_alerting = true
+enable_diagnostics = true
+enable_reporting = true
 enable_automation = true
 enable_external_integration = true
 
@@ -26,5 +71,35 @@ default_health_score = 0.95
 
 [monitoring.diagnostics.component_health_scores]
 database = 0.98
-cache = 0.95
-network = 0.96
+cache = 0.96
+network = 0.97
+cpu = 0.94
+memory = 0.95
+
+# Performance optimization settings
+[performance.streaming]
+buffer_size = 131072  # 128KB
+max_chunk_size = 2097152  # 2MB
+enable_compression = true
+compression_level = 6
+parallel_workers = 16
+memory_pool_size = 200
+enable_memory_pool = true
+
+[performance.caching]
+max_size_mb = 1024
+ttl_secs = 1800
+enable_adaptive_ttl = true
+enable_prefetching = true
+cache_compression = true
+
+[performance.memory]
+pool_size_mb = 512
+gc_threshold_mb = 1024
+memory_monitoring_interval_ms = 5000
+
+[performance.cpu]
+worker_threads = 32
+task_queue_size = 10000
+enable_simd = true
+cpu_affinity = true

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -110,11 +111,40 @@ impl WebhookTelemetrySubscriber {
 impl TelemetrySubscriber for WebhookTelemetrySubscriber {
     fn on_event(
         &self,
-        _event: &TelemetryEvent,
+        event: &TelemetryEvent,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // In a real implementation, this would be async
-        // For now, we'll just log the intent
-        info!("📡 Would send telemetry event to webhook: {}", self.url);
+        // Spawn an async task to send the webhook without blocking
+        let url = self.url.clone();
+        let event_json = serde_json::to_string(event)?;
+
+        tokio::spawn(async move {
+            match reqwest::Client::new()
+                .post(&url)
+                .header("Content-Type", "application/json")
+                .body(event_json)
+                .send()
+                .await
+            {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        info!("📡 Successfully sent telemetry event to webhook: {}", url);
+                    } else {
+                        warn!(
+                            "📡 Failed to send telemetry event to webhook {}: HTTP {}",
+                            url,
+                            response.status()
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "📡 Failed to send telemetry event to webhook {}: {}",
+                        url, e
+                    );
+                }
+            }
+        });
+
         Ok(())
     }
 

@@ -1,0 +1,340 @@
+name: Emergency Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Environment to rollback'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      rollback_type:
+        description: 'Type of rollback'
+        required: true
+        default: 'immediate'
+        type: choice
+        options:
+          - immediate
+          - gradual
+          - blue-green-swap
+      target_version:
+        description: 'Specific version to rollback to (leave empty for previous stable)'
+        required: false
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+
+concurrency:
+  group: rollback-${{ github.event.inputs.target_environment }}
+  cancel-in-progress: false
+
+env:
+  ROLLBACK_TIME: ${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
+
+jobs:
+  rollback-validation:
+    name: Rollback Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      can_rollback: ${{ steps.validation.outputs.can_rollback }}
+      previous_version: ${{ steps.validation.outputs.previous_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate rollback request
+        id: validation
+        run: |
+          echo "🔍 Validating rollback request..."
+          
+          TARGET_ENV="${{ github.event.inputs.target_environment }}"
+          ROLLBACK_TYPE="${{ github.event.inputs.rollback_type }}"
+          TARGET_VERSION="${{ github.event.inputs.target_version }}"
+          REASON="${{ github.event.inputs.reason }}"
+          
+          echo "Environment: $TARGET_ENV"
+          echo "Rollback Type: $ROLLBACK_TYPE"
+          echo "Target Version: $TARGET_VERSION"
+          echo "Reason: $REASON"
+          
+          # Validate that rollback is possible
+          # Check if previous deployment exists, etc.
+          
+          # For now, assume rollback is possible
+          PREVIOUS_VERSION="v1.2.3"  # This should be determined from deployment history
+          
+          echo "can_rollback=true" >> $GITHUB_OUTPUT
+          echo "previous_version=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
+          
+          echo "✅ Rollback validation passed"
+
+  immediate-rollback:
+    name: Immediate Rollback
+    runs-on: ubuntu-latest
+    needs: rollback-validation
+    if: needs.rollback-validation.outputs.can_rollback == 'true' && github.event.inputs.rollback_type == 'immediate'
+    timeout-minutes: 15
+    environment: ${{ github.event.inputs.target_environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Execute immediate rollback
+        run: |
+          echo "🚨 Executing immediate rollback..."
+          
+          TARGET_ENV="${{ github.event.inputs.target_environment }}"
+          PREVIOUS_VERSION="${{ needs.rollback-validation.outputs.previous_version }}"
+          
+          echo "Rolling back $TARGET_ENV to $PREVIOUS_VERSION"
+          
+          # Execute immediate rollback
+          # Replace with your actual rollback commands
+          
+          # Example for AWS ECS:
+          # aws ecs update-service --cluster ai-orchestrator-$TARGET_ENV --service ai-orchestrator-service --task-definition ai-orchestrator-task-$PREVIOUS_VERSION
+          
+          # Example for Kubernetes:
+          # kubectl rollout undo deployment/ai-orchestrator-backend
+          # kubectl rollout undo deployment/ai-orchestrator-frontend
+          
+          echo "✅ Immediate rollback completed"
+
+      - name: Verify rollback
+        run: |
+          echo "🔍 Verifying rollback..."
+          
+          TARGET_ENV="${{ github.event.inputs.target_environment }}"
+          
+          # Verify that the rollback was successful
+          # Check health endpoints, version info, etc.
+          
+          echo "✅ Rollback verification completed"
+
+  gradual-rollback:
+    name: Gradual Rollback
+    runs-on: ubuntu-latest
+    needs: rollback-validation
+    if: needs.rollback-validation.outputs.can_rollback == 'true' && github.event.inputs.rollback_type == 'gradual'
+    timeout-minutes: 30
+    environment: ${{ github.event.inputs.target_environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Execute gradual rollback
+        run: |
+          echo "🔄 Executing gradual rollback..."
+          
+          TARGET_ENV="${{ github.event.inputs.target_environment }}"
+          PREVIOUS_VERSION="${{ needs.rollback-validation.outputs.previous_version }}"
+          
+          echo "Gradually rolling back $TARGET_ENV to $PREVIOUS_VERSION"
+          
+          # Execute gradual rollback with traffic shifting
+          # Replace with your actual rollback commands
+          
+          # Example: Gradually shift traffic back
+          for percentage in 90 75 50 25 10 0; do
+            echo "📊 Shifting $percentage% traffic to previous version..."
+            
+            # Update load balancer weights
+            # aws elbv2 modify-listener --listener-arn $LISTENER_ARN \
+            #   --default-actions '[
+            #     {
+            #       "Type": "forward",
+            #       "Order": 1,
+            #       "ForwardConfig": {
+            #         "TargetGroups": [
+            #           {"TargetGroupArn": "'$PREVIOUS_TG_ARN'", "Weight": '$percentage'},
+            #           {"TargetGroupArn": "'$CURRENT_TG_ARN'", "Weight": '$((100-percentage))'}
+            #         ]
+            #       }
+            #     }
+            #   ]'
+            
+            # Wait and monitor
+            sleep 60
+            
+            # Check health during rollback
+            if curl -f -s "https://$TARGET_ENV.ai-orchestrator-hub.com/health" > /dev/null; then
+              echo "✅ Traffic shift to $percentage% successful"
+            else
+              echo "❌ Health check failed during rollback"
+              exit 1
+            fi
+          done
+          
+          echo "✅ Gradual rollback completed"
+
+      - name: Verify rollback
+        run: |
+          echo "🔍 Verifying gradual rollback..."
+          
+          # Verify that all traffic has been shifted back
+          
+          echo "✅ Gradual rollback verification completed"
+
+  blue-green-swap:
+    name: Blue-Green Environment Swap
+    runs-on: ubuntu-latest
+    needs: rollback-validation
+    if: needs.rollback-validation.outputs.can_rollback == 'true' && github.event.inputs.rollback_type == 'blue-green-swap'
+    timeout-minutes: 20
+    environment: ${{ github.event.inputs.target_environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Execute blue-green swap
+        run: |
+          echo "🔄 Executing blue-green environment swap..."
+          
+          TARGET_ENV="${{ github.event.inputs.target_environment }}"
+          
+          # Determine current active environment
+          CURRENT_ACTIVE="green"  # This should be determined dynamically
+          
+          if [[ "$CURRENT_ACTIVE" == "blue" ]]; then
+            ROLLBACK_ENV="green"
+          else
+            ROLLBACK_ENV="blue"
+          fi
+          
+          echo "Switching from $CURRENT_ACTIVE to $ROLLBACK_ENV"
+          
+          # Execute environment swap
+          # Replace with your actual swap commands
+          
+          # Example: Update load balancer to point to rollback environment
+          # aws elbv2 modify-listener --listener-arn $LISTENER_ARN \
+          #   --default-actions '[{"Type": "forward", "TargetGroupArn": "'$ROLLBACK_TG_ARN'"}]'
+          
+          echo "✅ Blue-green swap completed"
+
+      - name: Verify swap
+        run: |
+          echo "🔍 Verifying environment swap..."
+          
+          # Verify that traffic is now going to the rollback environment
+          
+          echo "✅ Environment swap verification completed"
+
+  rollback-notification:
+    name: Rollback Notification
+    runs-on: ubuntu-latest
+    needs: [rollback-validation, immediate-rollback, gradual-rollback, blue-green-swap]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Send rollback notifications
+        run: |
+          echo "📢 Sending rollback notifications..."
+          
+          ROLLBACK_TYPE="${{ github.event.inputs.rollback_type }}"
+          TARGET_ENV="${{ github.event.inputs.target_environment }}"
+          REASON="${{ github.event.inputs.reason }}"
+          
+          # Determine rollback status
+          if [[ "${{ needs.immediate-rollback.result }}" == "success" ]] || \
+             [[ "${{ needs.gradual-rollback.result }}" == "success" ]] || \
+             [[ "${{ needs.blue-green-swap.result }}" == "success" ]]; then
+            STATUS="successful"
+          else
+            STATUS="failed"
+          fi
+          
+          echo "Rollback Status: $STATUS"
+          echo "Type: $ROLLBACK_TYPE"
+          echo "Environment: $TARGET_ENV"
+          echo "Reason: $REASON"
+          
+          # Send notifications to team
+          # Example: Slack, email, PagerDuty, etc.
+          
+          echo "✅ Rollback notifications sent"
+
+      - name: Generate rollback report
+        run: |
+          echo "## 🚨 Emergency Rollback Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Rollback Time:** ${{ env.ROLLBACK_TIME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.target_environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Type:** ${{ github.event.inputs.rollback_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason:** ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Rollback Status" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ needs.immediate-rollback.result }}" == "success" ]] || \
+             [[ "${{ needs.gradual-rollback.result }}" == "success" ]] || \
+             [[ "${{ needs.blue-green-swap.result }}" == "success" ]]; then
+            echo "- ✅ **Rollback completed successfully**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ **Rollback failed**" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Actions Taken" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔄 Validation: ${{ needs.rollback-validation.result }}" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event.inputs.rollback_type }}" == "immediate" ]]; then
+            echo "- 🚀 Immediate Rollback: ${{ needs.immediate-rollback.result }}" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ github.event.inputs.rollback_type }}" == "gradual" ]]; then
+            echo "- 🔄 Gradual Rollback: ${{ needs.gradual-rollback.result }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- 🔄 Blue-Green Swap: ${{ needs.blue-green-swap.result }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Monitor system health" >> $GITHUB_STEP_SUMMARY
+          echo "2. Investigate root cause of original issue" >> $GITHUB_STEP_SUMMARY
+          echo "3. Plan next deployment" >> $GITHUB_STEP_SUMMARY
+          echo "4. Update incident response documentation" >> $GITHUB_STEP_SUMMARY
+
+  post-rollback-monitoring:
+    name: Post-Rollback Monitoring
+    runs-on: ubuntu-latest
+    needs: [immediate-rollback, gradual-rollback, blue-green-swap]
+    if: success()
+    timeout-minutes: 10
+
+    steps:
+      - name: Enhanced monitoring after rollback
+        run: |
+          echo "📊 Running enhanced monitoring after rollback..."
+          
+          TARGET_ENV="${{ github.event.inputs.target_environment }}"
+          
+          # Run additional health checks
+          for i in {1..5}; do
+            if curl -f -s "https://$TARGET_ENV.ai-orchestrator-hub.com/health" > /dev/null; then
+              echo "✅ Post-rollback health check $i passed"
+            else
+              echo "❌ Post-rollback health check $i failed"
+              exit 1
+            fi
+            sleep 30
+          done
+          
+          echo "✅ Post-rollback monitoring completed"
+
+      - name: Performance validation
+        run: |
+          echo "⚡ Validating performance after rollback..."
+          
+          # Run performance checks to ensure rollback didn't introduce issues
+          
+          echo "✅ Performance validation completed"

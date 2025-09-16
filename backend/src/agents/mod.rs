@@ -22,6 +22,8 @@ pub mod verification;
 // pub mod verification_engine;
 // Concrete verification strategies (temporarily disabled)
 // pub mod verification_strategies;
+#[cfg(test)]
+mod communication_test;
 pub use agent::*;
 pub use recovery::*;
 pub use simple_verification::*;

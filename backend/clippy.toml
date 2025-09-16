@@ -14,6 +14,14 @@ too-many-arguments-threshold = 7
 too-many-lines-threshold = 100
 type-complexity-threshold = 250
 
+# CRITICAL SECURITY: Unwrap() Prevention Rules
+disallowed-methods = [
+    "std::result::Result::unwrap",
+    "std::option::Option::unwrap",
+    "std::result::Result::expect", 
+    "std::option::Option::expect",
+]
+
 # Memory and performance thresholds
 pass-by-value-size-limit = 256
 trivial-copy-size-limit = 64

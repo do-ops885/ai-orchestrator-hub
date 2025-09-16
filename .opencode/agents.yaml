@@ -71,7 +71,7 @@ agents:
   - name: rust-developer
     description: Rust backend development specialist for AI Orchestrator Hub
     category: Backend
-  - name: memory_agent
+  - name: memory-agent
     description: The Memory Agent manages agent memory systems and learning retention. It handles experience storage, pattern recognition, and social connection tracking for enhanced agent intelligence.
     category: Learning
   - name: swarm-architect
@@ -113,7 +113,7 @@ agents:
   - name: performance-optimizer
     description: System performance optimization and monitoring specialist
     category: Performance
-  - name: optimized_agent
+  - name: optimized-agent
     description: The Optimized Agent is a performance-focused agent implementation that uses advanced optimization techniques including SIMD vectorization and CPU-specific optimizations for maximum efficiency.
     category: Performance
   - name: github-documentation-architect

@@ -195,7 +195,7 @@ export function DataErrorFallback({ onRetry }: { onRetry?: () => void }) {
 // Loading fallback for when data is being fetched
 export function LoadingFallback({ message = 'Loading...' }: { message?: string }) {
   return (
-    <div className="min-h-[200px] flex items-center justify-center">
+    <div className="min-h-[200px] flex items-center justify-center" data-testid="loading-fallback">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
         <p className="text-gray-600">{message}</p>

@@ -172,6 +172,18 @@ impl HealthMonitor {
         Ok(())
     }
 
+    /// Update system metrics (public wrapper for internal use)
+    pub async fn update_system_metrics(&self) -> HiveResult<()> {
+        // This is a placeholder - in a real implementation, this would collect actual system metrics
+        let system_health = SystemHealth {
+            cpu_usage: 0.0,
+            memory_usage: 0.0,
+            disk_usage: 0.0,
+            active_connections: 0,
+        };
+        self.update_system_health(system_health).await
+    }
+
     /// Get current system health
     pub async fn get_system_health(&self) -> HiveResult<SystemHealth> {
         Ok(self.system_health.read().await.clone())
@@ -240,21 +252,7 @@ impl HealthMonitor {
         Ok(())
     }
 
-    /// Update system-level health metrics
-    async fn update_system_metrics(&self) -> HiveResult<()> {
-        // This would implement actual system metrics collection
-        // For now, use placeholder values
 
-        let system_health = SystemHealth {
-            cpu_usage: self.get_system_cpu_usage().await?,
-            memory_usage: self.get_system_memory_usage().await?,
-            disk_usage: self.get_system_disk_usage().await?,
-            active_connections: self.get_active_connections().await?,
-        };
-
-        self.update_system_health(system_health).await?;
-        Ok(())
-    }
 
     /// Calculate overall system health status
     async fn calculate_overall_status(

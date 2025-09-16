@@ -18,6 +18,7 @@ use crate::communication;
 use crate::communication::mcp_http;
 use crate::infrastructure::metrics::{AgentMetrics, AlertLevel, TaskMetrics};
 use crate::infrastructure::middleware::security_headers_middleware;
+use crate::utils::error::{HiveError, HiveResult};
 use crate::utils::structured_logging::{SecurityEventDetails, SecurityEventType, StructuredLogger};
 use crate::utils::validation::InputValidator;
 use crate::AppState;
@@ -591,13 +592,13 @@ async fn health_check(
     // Perform comprehensive health checks
     let hive_status = state.hive.read().await.get_status().await;
     let metrics_health = state.metrics.get_current_metrics().await;
-    let resource_info = state
-        .hive
-        .read()
-        .await
-        .get_resource_info()
-        .await
-        .unwrap_or(json!({}));
+    let resource_info = match state.hive.read().await.get_resource_info().await {
+        Ok(info) => info,
+        Err(e) => {
+            warn!("Failed to get resource info for health check: {}", e);
+            json!({})
+        }
+    };
 
     // Extract metrics from hive status JSON
     let hive_metrics = hive_status
@@ -705,34 +706,34 @@ async fn debug_system_info(
 
     let hive_status = state.hive.read().await.get_status().await;
     let agents_info = state.hive.read().await.get_agents_info().await;
-    let tasks_info = state
-        .hive
-        .read()
-        .await
-        .get_tasks_info()
-        .await
-        .unwrap_or(json!({}));
-    let resource_info = state
-        .hive
-        .read()
-        .await
-        .get_resource_info()
-        .await
-        .unwrap_or(json!({}));
-    let memory_stats = state
-        .hive
-        .read()
-        .await
-        .get_memory_stats()
-        .await
-        .unwrap_or(json!({}));
-    let queue_health = state
-        .hive
-        .read()
-        .await
-        .check_queue_health()
-        .await
-        .unwrap_or(json!({}));
+    let tasks_info = match state.hive.read().await.get_tasks_info().await {
+        Ok(info) => info,
+        Err(e) => {
+            warn!("Failed to get tasks info for debug: {}", e);
+            json!({})
+        }
+    };
+    let resource_info = match state.hive.read().await.get_resource_info().await {
+        Ok(info) => info,
+        Err(e) => {
+            warn!("Failed to get resource info for debug: {}", e);
+            json!({})
+        }
+    };
+    let memory_stats = match state.hive.read().await.get_memory_stats().await {
+        Ok(stats) => stats,
+        Err(e) => {
+            warn!("Failed to get memory stats for debug: {}", e);
+            json!({})
+        }
+    };
+    let queue_health = match state.hive.read().await.check_queue_health().await {
+        Ok(health) => health,
+        Err(e) => {
+            warn!("Failed to check queue health for debug: {}", e);
+            json!({})
+        }
+    };
     let agent_health = state.hive.read().await.check_agent_health();
 
     let duration = start_time.elapsed();

@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use uuid::Uuid;
 
+use crate::utils::error::HiveResult;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskPriority {
     Low,
@@ -175,7 +177,7 @@ impl TaskQueue {
     }
 
     /// Cleanup old tasks based on age
-    pub async fn cleanup_old_tasks(&mut self, cutoff_time: DateTime<Utc>) -> anyhow::Result<usize> {
+    pub async fn cleanup_old_tasks(&mut self, cutoff_time: DateTime<Utc>) -> HiveResult<usize> {
         let mut removed_count = 0;
 
         // Remove old pending tasks

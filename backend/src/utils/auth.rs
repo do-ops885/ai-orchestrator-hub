@@ -608,7 +608,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_authentication_flow() {
+    async fn test_authentication_flow() -> Result<(), Box<dyn std::error::Error>> {
         let security_auditor = Arc::new(SecurityAuditor::new(true));
         let auth_manager = AuthManager::new(
             "test_secret",
@@ -626,8 +626,7 @@ mod tests {
                 Some("127.0.0.1".to_string()),
                 Some("test-agent".to_string()),
             )
-            .await
-            .expect("Failed to authenticate user");
+            .await?;
 
         assert!(!token.is_empty());
         assert!(!session_id.is_empty());
@@ -635,30 +634,29 @@ mod tests {
         // Test token validation
         let claims = auth_manager
             .validate_token(&token)
-            .await
-            .expect("Failed to validate token");
+            .await?;
         assert_eq!(claims.sub, "test_user");
         assert_eq!(claims.session_id, session_id);
 
         // Test permission check
         let has_permission = auth_manager
             .check_permission(&session_id, Permission::AgentManagement)
-            .await
-            .expect("Failed to check permission");
+            .await?;
         assert!(has_permission);
 
         // Test logout
         auth_manager
             .logout(&session_id)
-            .await
-            .expect("Failed to logout");
+            .await?;
 
         // Session should be gone
         assert!(auth_manager.get_session_info(&session_id).await.is_none());
+
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_api_key_authentication() {
+    async fn test_api_key_authentication() -> Result<(), Box<dyn std::error::Error>> {
         let security_auditor = Arc::new(SecurityAuditor::new(true));
         let auth_manager = AuthManager::new(
             "test_secret",
@@ -679,8 +677,7 @@ mod tests {
                 None,
                 Some(1000),
             )
-            .await
-            .expect("Failed to create API key");
+            .await?;
 
         assert!(!key_id.is_empty());
         assert!(!api_key.is_empty());
@@ -688,48 +685,47 @@ mod tests {
         // Validate API key
         let validated_permissions = auth_manager
             .validate_api_key(&api_key)
-            .await
-            .expect("Failed to validate API key");
+            .await?;
         assert_eq!(validated_permissions, permissions);
+
+        Ok(())
     }
 
     #[test]
-    fn test_argon2id_password_hashing() {
+    fn test_argon2id_password_hashing() -> Result<(), Box<dyn std::error::Error>> {
         // Test that Argon2id hashing works with OWASP-recommended parameters
         let api_key = "test_api_key_123";
-        let hash = AuthManager::hash_api_key(api_key).expect("Failed to hash API key");
+        let hash = AuthManager::hash_api_key(api_key)?;
 
         // Verify the hash is in PHC string format
         assert!(hash.starts_with("$argon2id$"));
 
         // Verify the password against the hash
-        let is_valid =
-            AuthManager::verify_api_key(api_key, &hash).expect("Failed to verify API key");
+        let is_valid = AuthManager::verify_api_key(api_key, &hash)?;
         assert!(is_valid);
 
         // Verify that wrong password fails
-        let is_valid_wrong =
-            AuthManager::verify_api_key("wrong_password", &hash).expect("Failed to verify API key");
+        let is_valid_wrong = AuthManager::verify_api_key("wrong_password", &hash)?;
         assert!(!is_valid_wrong);
+
+        Ok(())
     }
 
     #[test]
-    fn test_argon2id_hashing_security() {
+    fn test_argon2id_hashing_security() -> Result<(), Box<dyn std::error::Error>> {
         // Test that Argon2id hashing produces different hashes for the same input (due to salting)
         let api_key = "test_api_key_security";
 
         // Hash the same password multiple times
-        let hash1 = AuthManager::hash_api_key(api_key).expect("Failed to hash API key");
-        let hash2 = AuthManager::hash_api_key(api_key).expect("Failed to hash API key");
+        let hash1 = AuthManager::hash_api_key(api_key)?;
+        let hash2 = AuthManager::hash_api_key(api_key)?;
 
         // Hashes should be different due to different salts
         assert_ne!(hash1, hash2);
 
         // But both should verify correctly
-        let is_valid1 =
-            AuthManager::verify_api_key(api_key, &hash1).expect("Failed to verify API key");
-        let is_valid2 =
-            AuthManager::verify_api_key(api_key, &hash2).expect("Failed to verify API key");
+        let is_valid1 = AuthManager::verify_api_key(api_key, &hash1)?;
+        let is_valid2 = AuthManager::verify_api_key(api_key, &hash2)?;
 
         assert!(is_valid1);
         assert!(is_valid2);
@@ -737,5 +733,7 @@ mod tests {
         // Verify it's using Argon2id algorithm
         assert!(hash1.starts_with("$argon2id$"));
         assert!(hash2.starts_with("$argon2id$"));
+
+        Ok(())
     }
 }

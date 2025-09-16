@@ -19,6 +19,16 @@ impl Reporting {
         Self
     }
 
+    pub async fn start(&self) -> HiveResult<()> {
+        tracing::info!("Reporting started");
+        Ok(())
+    }
+
+    pub async fn stop(&self) -> HiveResult<()> {
+        tracing::info!("Reporting stopped");
+        Ok(())
+    }
+
     pub async fn generate_report(&self, report_type: ReportType) -> HiveResult<String> {
         match report_type {
             ReportType::Health => Ok("Health Report: All systems operational".to_string()),

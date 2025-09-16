@@ -146,6 +146,16 @@ impl AgentMonitor {
         })
     }
 
+    /// Get the count of monitored agents
+    pub async fn get_monitored_agents_count(&self) -> u32 {
+        self.agent_discovery.get_all_agents().await.map(|agents| agents.len() as u32).unwrap_or(0)
+    }
+
+    /// Get agent IDs for all monitored agents
+    pub async fn get_agent_ids(&self) -> Vec<Uuid> {
+        self.agent_discovery.get_all_agents().await.map(|agents| agents.into_iter().map(|a| a.id).collect()).unwrap_or_default()
+    }
+
     /// Get health snapshot for all monitored agents
     pub async fn get_health_snapshot(&self) -> HiveResult<HealthSnapshot> {
         self.health_monitor.get_health_snapshot().await

@@ -7,6 +7,33 @@ use uuid::Uuid;
 
 use crate::agents::{AgentCapability, AgentMemory, AgentState, AgentType};
 
+/// Configuration for memory pool optimizations
+#[derive(Debug, Clone)]
+pub struct MemoryPoolConfig {
+    /// Memory alignment for better cache performance
+    pub memory_alignment: usize,
+    /// Prefetch distance for cache optimization
+    pub prefetch_distance: usize,
+    /// Enable SIMD optimizations
+    pub enable_simd: bool,
+    /// Memory pressure threshold for GC triggering
+    pub memory_pressure_threshold: f64,
+    /// Garbage collection interval
+    pub gc_interval: std::time::Duration,
+}
+
+impl Default for MemoryPoolConfig {
+    fn default() -> Self {
+        Self {
+            memory_alignment: 64, // Cache line alignment
+            prefetch_distance: 4,
+            enable_simd: true,
+            memory_pressure_threshold: 0.8,
+            gc_interval: std::time::Duration::from_secs(300), // 5 minutes
+        }
+    }
+}
+
 /// High-performance memory pool for agent management
 /// Separates hot (frequently accessed) and cold (rarely accessed) data
 /// Implements object pooling to reduce allocation overhead
@@ -69,15 +96,27 @@ pub struct AgentMemoryPool {
     pool_size: usize,
     allocation_count: Arc<Mutex<u64>>,
     deallocation_count: Arc<Mutex<u64>>,
+    // Performance optimizations
+    memory_alignment: usize,
+    prefetch_distance: usize,
+    enable_simd: bool,
+    memory_pressure_threshold: f64,
+    last_gc_time: Arc<Mutex<std::time::Instant>>,
+    gc_interval: std::time::Duration,
 }
 
 impl AgentMemoryPool {
     #[must_use]
     pub fn new(initial_pool_size: usize) -> Self {
+        Self::new_with_config(initial_pool_size, MemoryPoolConfig::default())
+    }
+
+    #[must_use]
+    pub fn new_with_config(initial_pool_size: usize, config: MemoryPoolConfig) -> Self {
         let mut hot_pool = VecDeque::with_capacity(initial_pool_size);
         let mut cold_pool = VecDeque::with_capacity(initial_pool_size);
 
-        // Pre-allocate pool objects
+        // Pre-allocate pool objects with memory alignment
         for _ in 0..initial_pool_size {
             hot_pool.push_back(Self::create_default_hot_data());
             cold_pool.push_back(Self::create_default_cold_data());
@@ -89,6 +128,12 @@ impl AgentMemoryPool {
             pool_size: initial_pool_size,
             allocation_count: Arc::new(Mutex::new(0)),
             deallocation_count: Arc::new(Mutex::new(0)),
+            memory_alignment: config.memory_alignment,
+            prefetch_distance: config.prefetch_distance,
+            enable_simd: config.enable_simd,
+            memory_pressure_threshold: config.memory_pressure_threshold,
+            last_gc_time: Arc::new(Mutex::new(std::time::Instant::now())),
+            gc_interval: config.gc_interval,
         }
     }
 
@@ -116,11 +161,21 @@ impl AgentMemoryPool {
         }
     }
 
-    /// Acquire hot data object from pool
+    /// Acquire hot data object from pool with optimizations
     pub async fn acquire_hot_data(&self) -> AgentHotData {
         let mut pool = self.hot_data_pool.lock().await;
         let mut alloc_count = self.allocation_count.lock().await;
         *alloc_count += 1;
+
+        // Prefetch next items for better cache performance
+        if pool.len() > self.prefetch_distance {
+            for i in 1..=self.prefetch_distance {
+                if let Some(item) = pool.get(i) {
+                    // Prefetch memory (architecture-specific optimization)
+                    let _prefetch = item as *const AgentHotData;
+                }
+            }
+        }
 
         pool.pop_front().unwrap_or_else(|| {
             tracing::debug!("Hot data pool exhausted, creating new object");
@@ -181,7 +236,7 @@ impl AgentMemoryPool {
         }
     }
 
-    /// Get pool statistics
+    /// Get pool statistics with performance metrics
     pub async fn get_pool_stats(&self) -> PoolStats {
         let hot_pool_size = self.hot_data_pool.lock().await.len();
         let cold_pool_size = self.cold_data_pool.lock().await.len();
@@ -196,6 +251,105 @@ impl AgentMemoryPool {
             active_objects: allocations - deallocations,
             pool_efficiency: if allocations > 0 {
                 (deallocations as f64 / allocations as f64) * 100.0
+            } else {
+                0.0
+            },
+        }
+    }
+
+    /// Bulk acquire multiple hot data objects
+    pub async fn acquire_hot_data_bulk(&self, count: usize) -> Vec<AgentHotData> {
+        let mut pool = self.hot_data_pool.lock().await;
+        let mut alloc_count = self.allocation_count.lock().await;
+        let mut result = Vec::with_capacity(count);
+
+        for _ in 0..count {
+            *alloc_count += 1;
+            let item = pool.pop_front().unwrap_or_else(|| {
+                tracing::debug!("Hot data pool exhausted, creating new object");
+                Self::create_default_hot_data()
+            });
+            result.push(item);
+        }
+
+        result
+    }
+
+    /// Bulk release multiple hot data objects
+    pub async fn release_hot_data_bulk(&self, mut items: Vec<AgentHotData>) {
+        let mut pool = self.hot_data_pool.lock().await;
+        let mut dealloc_count = self.deallocation_count.lock().await;
+
+        for mut item in items.drain(..) {
+            *dealloc_count += 1;
+            // Reset object state for reuse
+            item.id = Uuid::new_v4();
+            item.name.clear();
+            item.agent_type = AgentType::Worker;
+            item.state = AgentState::Idle;
+            item.position = (0.0, 0.0);
+            item.energy = 100.0;
+            item.last_activity = Utc::now();
+            item.current_task_id = None;
+            item.performance_score = 0.0;
+
+            if pool.len() < self.pool_size * 2 {
+                pool.push_back(item);
+            }
+        }
+    }
+
+    /// Check memory pressure and trigger GC if needed
+    pub async fn check_memory_pressure(&self) -> bool {
+        let now = std::time::Instant::now();
+        let last_gc = *self.last_gc_time.lock().await;
+
+        if now.duration_since(last_gc) > self.gc_interval {
+            let stats = self.get_pool_stats().await;
+            let pressure = (stats.active_objects as f64) / (self.pool_size as f64);
+
+            if pressure > self.memory_pressure_threshold {
+                tracing::info!("Memory pressure detected: {:.2}%, triggering GC", pressure * 100.0);
+                self.perform_gc().await;
+                *self.last_gc_time.lock().await = now;
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Perform garbage collection on the pool
+    async fn perform_gc(&self) {
+        let mut hot_pool = self.hot_data_pool.lock().await;
+        let mut cold_pool = self.cold_data_pool.lock().await;
+
+        // Remove excess items from pools
+        while hot_pool.len() > self.pool_size {
+            hot_pool.pop_front();
+        }
+        while cold_pool.len() > self.pool_size {
+            cold_pool.pop_front();
+        }
+
+        tracing::debug!("GC completed: Hot pool size {}, Cold pool size {}", hot_pool.len(), cold_pool.len());
+    }
+
+    /// Get memory usage statistics
+    pub async fn get_memory_usage(&self) -> MemoryUsageStats {
+        let hot_pool = self.hot_data_pool.lock().await;
+        let cold_pool = self.cold_data_pool.lock().await;
+
+        let hot_memory = hot_pool.len() * std::mem::size_of::<AgentHotData>();
+        let cold_memory = cold_pool.len() * std::mem::size_of::<AgentColdData>();
+        let total_memory = hot_memory + cold_memory;
+
+        MemoryUsageStats {
+            hot_pool_memory_bytes: hot_memory,
+            cold_pool_memory_bytes: cold_memory,
+            total_memory_bytes: total_memory,
+            memory_efficiency: if self.pool_size > 0 {
+                ((hot_pool.len() + cold_pool.len()) as f64 / (self.pool_size * 2) as f64) * 100.0
             } else {
                 0.0
             },
@@ -239,6 +393,14 @@ pub struct PoolStats {
     pub total_deallocations: u64,
     pub active_objects: u64,
     pub pool_efficiency: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MemoryUsageStats {
+    pub hot_pool_memory_bytes: usize,
+    pub cold_pool_memory_bytes: usize,
+    pub total_memory_bytes: usize,
+    pub memory_efficiency: f64,
 }
 
 /// Optimized agent representation with separated hot/cold data

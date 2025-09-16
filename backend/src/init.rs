@@ -3,7 +3,6 @@
 //! This module handles the initialization of all system components,
 //! configuration loading, and dependency injection setup.
 
-use anyhow::Context;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn, Level};
@@ -13,25 +12,28 @@ use crate::infrastructure::persistence::PersistenceConfig;
 use crate::infrastructure::{IntelligentAlertConfig, StorageBackend};
 use crate::neural::AdaptiveLearningConfig;
 use crate::utils::config::HiveConfig;
+use crate::utils::error::{HiveError, HiveResult};
 use crate::utils::security::SecurityConfig;
 use crate::utils::structured_logging::{SecurityEventDetails, SecurityEventType, StructuredLogger};
 use crate::{
-    AdaptiveLearningSystem, AgentRecoveryManager, AppState, CircuitBreaker, HiveCoordinator,
-    IntelligentAlertingSystem, MetricsCollector, PerformanceOptimizer, PersistenceManager,
-    RateLimiter, SecurityAuditor, SwarmIntelligenceEngine,
+    core::hive::HiveCoordinator, AdaptiveLearningSystem, AgentRecoveryManager, AppState,
+    CircuitBreaker, IntelligentAlertingSystem, MetricsCollector, PerformanceOptimizer,
+    PersistenceManager, RateLimiter, SecurityAuditor, SwarmIntelligenceEngine,
 };
 
 use chrono::Utc;
 use std::time::Duration;
 
 /// Initialize the entire system with all components
-pub async fn initialize_system() -> anyhow::Result<AppState> {
+pub async fn initialize_system() -> HiveResult<AppState> {
     // Load and validate configuration with enhanced error handling
     let config = Arc::new(match HiveConfig::load() {
         Ok(config) => config,
         Err(e) => {
             eprintln!("❌ Configuration error: {e}");
-            return Err(e.into());
+            return Err(HiveError::ConfigurationError {
+                reason: format!("Failed to load configuration: {e}"),
+            });
         }
     });
 
@@ -70,13 +72,14 @@ pub async fn initialize_system() -> anyhow::Result<AppState> {
     let rate_limiter = initialize_rate_limiter();
     let performance_optimizer = initialize_performance_optimizer().await?;
     let security_auditor = initialize_security_auditor();
+    let cache_manager = initialize_cache_manager().await?;
 
     // Initialize the hive coordinator with enhanced capabilities
-    let hive = Arc::new(RwLock::new(
-        HiveCoordinator::new()
-            .await
-            .context("hive coordinator initialization")?,
-    ));
+    let hive = Arc::new(RwLock::new(HiveCoordinator::new().await.map_err(|e| {
+        HiveError::ResourceInitializationFailed {
+            reason: format!("Failed to initialize hive coordinator: {e}"),
+        }
+    })?));
     info!("✅ Hive coordinator initialized with enhanced error handling");
 
     // Log security event for system startup
@@ -106,10 +109,12 @@ pub async fn initialize_system() -> anyhow::Result<AppState> {
         recovery_manager,
         swarm_intelligence,
         persistence_manager,
+        cache_manager,
         adaptive_learning,
         rate_limiter,
         performance_optimizer,
         security_auditor,
+        update_tx: None,
     };
 
     info!("🎯 All enhanced components initialized successfully");
@@ -118,7 +123,7 @@ pub async fn initialize_system() -> anyhow::Result<AppState> {
 }
 
 /// Initialize metrics collection system
-async fn initialize_metrics(config: &HiveConfig) -> anyhow::Result<Arc<MetricsCollector>> {
+async fn initialize_metrics(config: &HiveConfig) -> HiveResult<Arc<MetricsCollector>> {
     // Initialize enhanced metrics collector with custom thresholds
     let metric_thresholds = crate::infrastructure::metrics::MetricThresholds {
         cpu_warning: config.performance.cpu_warning_threshold.unwrap_or(70.0),
@@ -141,7 +146,7 @@ async fn initialize_metrics(config: &HiveConfig) -> anyhow::Result<Arc<MetricsCo
 /// Initialize intelligent alerting system
 async fn initialize_alerting(
     _metrics: &Arc<MetricsCollector>,
-) -> anyhow::Result<Arc<IntelligentAlertingSystem>> {
+) -> HiveResult<Arc<IntelligentAlertingSystem>> {
     // Initialize advanced metrics collector with predictive analytics
     let advanced_metrics = Arc::new(MetricsCollector::new(2000));
     info!("🔮 Advanced metrics collector initialized with predictive analytics");
@@ -196,14 +201,14 @@ fn initialize_recovery_manager() -> Arc<AgentRecoveryManager> {
 }
 
 /// Initialize swarm intelligence engine
-async fn initialize_swarm_intelligence() -> anyhow::Result<Arc<RwLock<SwarmIntelligenceEngine>>> {
+async fn initialize_swarm_intelligence() -> HiveResult<Arc<RwLock<SwarmIntelligenceEngine>>> {
     let swarm_intelligence = Arc::new(RwLock::new(SwarmIntelligenceEngine::new()));
     info!("✅ Swarm intelligence engine initialized");
     Ok(swarm_intelligence)
 }
 
 /// Initialize persistence system
-async fn initialize_persistence(_config: &HiveConfig) -> anyhow::Result<Arc<PersistenceManager>> {
+async fn initialize_persistence(_config: &HiveConfig) -> HiveResult<Arc<PersistenceManager>> {
     // Load encryption key from secure sources
     let encryption_key = PersistenceManager::load_encryption_key();
     let encryption_enabled = encryption_key.is_some();
@@ -232,11 +237,27 @@ async fn initialize_persistence(_config: &HiveConfig) -> anyhow::Result<Arc<Pers
         incremental_backup: true,
     };
 
-    // Create data directory if it doesn't exist
-    if let Err(e) = std::fs::create_dir_all("./data") {
+    // Create data directory if it doesn't exist (async to avoid blocking)
+    if let Err(e) = tokio::task::spawn_blocking(|| std::fs::create_dir_all("./data"))
+        .await
+        .unwrap_or_else(|_| {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "spawn_blocking failed",
+            ))
+        })
+    {
         warn!("Failed to create data directory: {}", e);
     }
-    if let Err(e) = std::fs::create_dir_all("./data/backups") {
+    if let Err(e) = tokio::task::spawn_blocking(|| std::fs::create_dir_all("./data/backups"))
+        .await
+        .unwrap_or_else(|_| {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "spawn_blocking failed",
+            ))
+        })
+    {
         warn!("Failed to create backup directory: {}", e);
     }
 
@@ -244,7 +265,9 @@ async fn initialize_persistence(_config: &HiveConfig) -> anyhow::Result<Arc<Pers
         Ok(manager) => manager,
         Err(e) => {
             error!("Failed to initialize persistence manager: {}", e);
-            return Err(e.into());
+            return Err(HiveError::ResourceInitializationFailed {
+                reason: format!("Failed to initialize persistence manager: {e}"),
+            });
         }
     });
     info!("✅ Persistence manager initialized with SQLite backend");
@@ -253,7 +276,7 @@ async fn initialize_persistence(_config: &HiveConfig) -> anyhow::Result<Arc<Pers
 }
 
 /// Initialize adaptive learning system
-async fn initialize_adaptive_learning() -> anyhow::Result<Arc<RwLock<AdaptiveLearningSystem>>> {
+async fn initialize_adaptive_learning() -> HiveResult<Arc<RwLock<AdaptiveLearningSystem>>> {
     // Initialize adaptive learning system
     let adaptive_learning_config = AdaptiveLearningConfig {
         learning_rate: 0.01,
@@ -286,7 +309,7 @@ fn initialize_rate_limiter() -> Arc<RateLimiter> {
 }
 
 /// Initialize performance optimizer
-async fn initialize_performance_optimizer() -> anyhow::Result<Arc<PerformanceOptimizer>> {
+async fn initialize_performance_optimizer() -> HiveResult<Arc<PerformanceOptimizer>> {
     // Initialize performance optimizer
     let performance_config = PerformanceConfig::default();
     let performance_optimizer = Arc::new(PerformanceOptimizer::new(performance_config));
@@ -303,4 +326,30 @@ fn initialize_security_auditor() -> Arc<SecurityAuditor> {
     let security_auditor = Arc::new(SecurityAuditor::new(security_config.audit_logging_enabled));
     info!("🔒 Security auditor initialized with audit logging");
     security_auditor
+}
+
+/// Initialize intelligent cache manager
+async fn initialize_cache_manager(
+) -> HiveResult<Arc<crate::infrastructure::intelligent_cache::MultiTierCacheManager>> {
+    let cache_manager =
+        Arc::new(crate::infrastructure::intelligent_cache::MultiTierCacheManager::new());
+
+    // Start cache optimization background tasks
+    let (l1_handle, l2_handle) = cache_manager.start_optimization();
+
+    // Don't block on these handles, just log that they've started
+    tokio::spawn(async move {
+        if let Err(e) = l1_handle.await {
+            tracing::error!("L1 cache optimization task failed: {}", e);
+        }
+    });
+
+    tokio::spawn(async move {
+        if let Err(e) = l2_handle.await {
+            tracing::error!("L2 cache optimization task failed: {}", e);
+        }
+    });
+
+    info!("📋 Multi-tier intelligent cache manager initialized with optimization");
+    Ok(cache_manager)
 }

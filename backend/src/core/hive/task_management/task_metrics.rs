@@ -181,26 +181,45 @@ impl TaskMetricsCollector {
             });
 
             if result.success {
-                entry["tasks_completed"] =
-                    (entry["tasks_completed"].as_u64().unwrap_or(0) + 1).into();
+                let current_completed = entry
+                    .get("tasks_completed")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or_default();
+                entry["tasks_completed"] = (current_completed + 1).into();
             } else {
-                entry["tasks_failed"] = (entry["tasks_failed"].as_u64().unwrap_or(0) + 1).into();
+                let current_failed = entry
+                    .get("tasks_failed")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or_default();
+                entry["tasks_failed"] = (current_failed + 1).into();
             }
 
+            let current_total_time = entry
+                .get("total_execution_time_ms")
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default();
             entry["total_execution_time_ms"] =
-                (entry["total_execution_time_ms"].as_u64().unwrap_or(0) + result.execution_time_ms)
-                    .into();
+                (current_total_time + result.execution_time_ms).into();
         }
 
         // Calculate success rates and averages for agents
         for (_, agent_data) in agent_performance.iter_mut() {
-            let completed = agent_data["tasks_completed"].as_u64().unwrap_or(0);
-            let failed = agent_data["tasks_failed"].as_u64().unwrap_or(0);
+            let completed = agent_data
+                .get("tasks_completed")
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default();
+            let failed = agent_data
+                .get("tasks_failed")
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default();
             let total = completed + failed;
 
             if total > 0 {
                 agent_data["success_rate"] = serde_json::json!(completed as f64 / total as f64);
-                let total_time = agent_data["total_execution_time_ms"].as_u64().unwrap_or(0);
+                let total_time = agent_data
+                    .get("total_execution_time_ms")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or_default();
                 agent_data["average_execution_time_ms"] =
                     serde_json::json!(total_time as f64 / total as f64);
             }

@@ -1,0 +1,18 @@
+
+📈 Load Test Results:
+===================
+Duration: 30.01s
+Total Requests: 18772
+Successful Requests: 0
+Failed Requests: 18772
+Requests/sec: 625.55
+Success Rate: 0.00%
+Average Response Time: 0.00ms
+P50 Response Time: 0.00ms
+P95 Response Time: 0.00ms
+P99 Response Time: 0.00ms
+
+❌ Top Errors:
+  : 18772 times
+
+✅ Load test completed!

@@ -99,6 +99,9 @@ class ErrorLogger {
   ): ErrorReport['category'] {
     const message = error.message.toLowerCase()
 
+    if (context?.componentName || message.includes('component') || message.includes('render')) {
+      return 'ui'
+    }
     if (
       message.includes('network') ||
       message.includes('fetch') ||
@@ -108,9 +111,6 @@ class ErrorLogger {
     }
     if (message.includes('api') || message.includes('http') || message.includes('request')) {
       return 'api'
-    }
-    if (context?.componentName || message.includes('component') || message.includes('render')) {
-      return 'ui'
     }
 
     return 'javascript'

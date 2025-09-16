@@ -4,7 +4,7 @@
 //! and independently verified by a verification agent. This ensures that results are validated
 //! against original goals rather than just execution criteria.
 
-use anyhow::Result;
+// use anyhow::Result; // Replaced with HiveResult
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -12,9 +12,13 @@ use std::collections::HashMap;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
-use crate::agents::Agent;
+use crate::agents::{Agent, AgentBehavior, CommunicationComplexity};
+use crate::communication::patterns::CommunicationConfig;
+use crate::communication::protocols::{MessageEnvelope, MessagePayload, MessageType};
 use crate::neural::NLPProcessor;
 use crate::tasks::{Task, TaskResult};
+use crate::utils::error::HiveError;
+use crate::utils::error::HiveResult;
 
 /// Enhanced task structure that includes verification requirements
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -179,7 +183,7 @@ pub struct AgentPair {
 }
 
 /// Performance metrics for agent pairs
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct PairMetrics {
     pub total_tasks: u32,
     pub successful_verifications: u32,
@@ -230,7 +234,7 @@ pub trait VerificationStrategy: Send + Sync {
         task: &VerifiableTask,
         result: &TaskResult,
         original_goal: &str,
-    ) -> Result<VerificationResult>;
+    ) -> HiveResult<VerificationResult>;
 
     /// Get the criteria this strategy uses for verification
     fn get_verification_criteria(&self) -> Vec<String>;
@@ -258,12 +262,13 @@ impl PairCoordinator {
         primary_agent: Uuid,
         verification_agent: Uuid,
         specialization: String,
-    ) -> Result<Uuid> {
+    ) -> HiveResult<Uuid> {
         // Ensure agents are different
         if primary_agent == verification_agent {
-            return Err(anyhow::anyhow!(
-                "Primary and verification agents must be different"
-            ));
+            return Err(HiveError::ValidationError {
+                field: "agent_pair".to_string(),
+                reason: "Primary and verification agents must be different".to_string(),
+            });
         }
 
         let pair_id = Uuid::new_v4();
@@ -296,7 +301,7 @@ impl PairCoordinator {
         &self,
         task: &VerifiableTask,
         available_agents: &[Agent],
-    ) -> Result<Option<Uuid>> {
+    ) -> HiveResult<Option<Uuid>> {
         let mut best_pair_id = None;
         let mut best_score = 0.0;
 
@@ -374,7 +379,7 @@ impl PairCoordinator {
         pair_id: Uuid,
         verification_result: &VerificationResult,
         verification_duration: chrono::Duration,
-    ) -> Result<()> {
+    ) -> HiveResult<()> {
         if let Some(metrics) = self.pair_performance_metrics.get_mut(&pair_id) {
             metrics.total_tasks += 1;
 
@@ -431,7 +436,7 @@ impl PairCoordinator {
     }
 
     /// Remove underperforming pairs
-    pub fn cleanup_underperforming_pairs(&mut self, min_trust_threshold: f64) -> Result<usize> {
+    pub fn cleanup_underperforming_pairs(&mut self, min_trust_threshold: f64) -> HiveResult<usize> {
         let mut removed_count = 0;
         let mut pairs_to_remove = Vec::new();
 
@@ -575,6 +580,183 @@ impl VerifiableTask {
         // For multiple methods requirement, this would need additional logic
         // to track multiple verification results
         true
+    }
+}
+
+#[async_trait]
+impl AgentBehavior for PairCoordinator {
+    async fn execute_task(&mut self, task: Task) -> HiveResult<TaskResult> {
+        // Pair coordinator doesn't execute tasks directly - it coordinates pairs
+        Err(crate::utils::error::HiveError::AgentExecutionFailed {
+            reason: "PairCoordinator does not execute tasks directly".to_string(),
+        })
+    }
+
+    async fn communicate(
+        &mut self,
+        envelope: MessageEnvelope,
+    ) -> HiveResult<Option<MessageEnvelope>> {
+        // Standardized communication pattern for pair coordination
+        let complexity = match envelope.priority {
+            crate::communication::patterns::MessagePriority::Low => CommunicationComplexity::Simple,
+            crate::communication::patterns::MessagePriority::Normal => {
+                CommunicationComplexity::Standard
+            }
+            crate::communication::patterns::MessagePriority::High => {
+                CommunicationComplexity::Complex
+            }
+            crate::communication::patterns::MessagePriority::Critical => {
+                CommunicationComplexity::Heavy
+            }
+        };
+
+        // Use standardized delay based on complexity
+        let delay_ms = match complexity {
+            CommunicationComplexity::Simple => 50,
+            CommunicationComplexity::Standard => 100,
+            CommunicationComplexity::Complex => 200,
+            CommunicationComplexity::Heavy => 500,
+        };
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+
+        match envelope.message_type {
+            MessageType::Request => {
+                let response_payload = match &envelope.payload {
+                    MessagePayload::Text(text) => MessagePayload::Text(format!(
+                        "Pair coordinator acknowledging: {} - Managing {} agent pairs",
+                        text,
+                        self.active_pairs.len()
+                    )),
+                    MessagePayload::Json(json) => {
+                        let stats = self.get_pair_statistics();
+                        MessagePayload::Json(serde_json::json!({
+                            "response": "Pair coordinator ready",
+                            "active_pairs": self.active_pairs.len(),
+                            "pair_statistics": stats,
+                            "original_request": json
+                        }))
+                    }
+                    _ => MessagePayload::Text(format!(
+                        "Pair coordinator acknowledged message - managing {} pairs",
+                        self.active_pairs.len()
+                    )),
+                };
+
+                let response = MessageEnvelope::new_response(
+                    &envelope,
+                    uuid::Uuid::new_v4(),
+                    response_payload,
+                );
+                Ok(Some(response))
+            }
+            MessageType::Broadcast => {
+                tracing::info!(
+                    "Pair coordinator received broadcast: {:?}",
+                    envelope.payload
+                );
+                Ok(None)
+            }
+            MessageType::CoordinationRequest => {
+                // Handle coordination for pair management
+                if let MessagePayload::CoordinationData {
+                    performance_metrics,
+                    ..
+                } = &envelope.payload
+                {
+                    tracing::info!(
+                        "Received coordination data for pair management: {:?}",
+                        performance_metrics
+                    );
+                    // Could trigger pair cleanup or creation based on metrics
+                }
+                Ok(None)
+            }
+            MessageType::TaskAssigned => {
+                // Handle task assignment coordination
+                if let MessagePayload::TaskInfo {
+                    task_id,
+                    assigned_agent,
+                    ..
+                } = &envelope.payload
+                {
+                    tracing::info!(
+                        "Task {} assigned to agent {:?} - coordinating verification pair",
+                        task_id,
+                        assigned_agent
+                    );
+                }
+                Ok(None)
+            }
+            _ => {
+                let response = MessageEnvelope::new_response(
+                    &envelope,
+                    uuid::Uuid::new_v4(),
+                    MessagePayload::Text(format!(
+                        "Pair coordinator processed message of type {:?} - {} active pairs",
+                        envelope.message_type,
+                        self.active_pairs.len()
+                    )),
+                );
+                Ok(Some(response))
+            }
+        }
+    }
+
+    async fn request_response(
+        &mut self,
+        request: MessageEnvelope,
+        timeout: std::time::Duration,
+    ) -> HiveResult<MessageEnvelope> {
+        // Simulate processing time for coordination
+        tokio::time::sleep(timeout / 4).await;
+
+        let stats = self.get_pair_statistics();
+        let response = MessageEnvelope::new_response(
+            &request,
+            uuid::Uuid::new_v4(),
+            MessagePayload::Json(serde_json::json!({
+                "response": "Pair coordinator processed request",
+                "coordination_stats": {
+                    "active_pairs": self.active_pairs.len(),
+                    "pair_performance": stats,
+                    "verification_standards": {
+                        "min_goal_alignment": self.verification_standards.min_goal_alignment_score,
+                        "min_confidence": self.verification_standards.min_verification_confidence
+                    }
+                },
+                "processing_timeout": timeout.as_millis()
+            })),
+        );
+
+        Ok(response)
+    }
+
+    async fn learn(&mut self, _nlp_processor: &NLPProcessor) -> HiveResult<()> {
+        // Pair coordinator learning could involve optimizing pair selection
+        debug!("Pair coordinator learning triggered - could optimize pair matching");
+        Ok(())
+    }
+
+    async fn update_position(
+        &mut self,
+        _swarm_center: (f64, f64),
+        _neighbors: &[Agent],
+    ) -> HiveResult<()> {
+        // Pair coordinators don't participate in swarm positioning
+        Ok(())
+    }
+
+    fn get_communication_config(&self) -> CommunicationConfig {
+        CommunicationConfig {
+            default_timeout: std::time::Duration::from_secs(20),
+            max_retries: 3,
+            retry_delay: std::time::Duration::from_millis(150),
+            max_concurrent_messages: 75,
+            buffer_size: 3072,
+            enable_compression: true,
+            delivery_guarantee: crate::communication::patterns::DeliveryGuarantee::AtLeastOnce,
+        }
     }
 }
 

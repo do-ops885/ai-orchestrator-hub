@@ -560,11 +560,10 @@ mod tests {
         assert_eq!(results.len(), 3);
 
         for (i, result) in results.iter().enumerate() {
-            assert!(result.is_ok());
-            assert_eq!(
-                result.as_ref().expect("Result should be Ok"),
-                &(i as i32 + 1)
-            );
+            let value = result.as_ref().map_err(|e| Box::new(e.clone()) as Box<dyn std::error::Error>)?;
+            if value != &(i as i32 + 1) {
+                return Err(format!("Expected {}, got {}", i as i32 + 1, value).into());
+            }
         }
 
         Ok(())

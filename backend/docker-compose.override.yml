@@ -1,0 +1,48 @@
+version: '3.8'
+
+# Override file for development environment
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.override.yml up
+
+services:
+  ai-orchestrator-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+      - /app/target
+    environment:
+      - RUST_ENV=development
+      - RUST_LOG=debug
+      - DATABASE_URL=sqlite:///app/data/hive_persistence.db
+    command: cargo watch -x run
+
+  postgres:
+    environment:
+      - POSTGRES_DB=ai_orchestrator_dev
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  # Development tools
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@local.dev
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    depends_on:
+      - postgres
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0
+    depends_on:
+      - redis

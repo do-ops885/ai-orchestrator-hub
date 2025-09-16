@@ -23,7 +23,7 @@ mod tests {
                 return; // Gracefully skip the test instead of panicking
             }
         };
-        assert_eq!(coordinator.get_agent_count().await, 0);
+        assert_eq!(coordinator.get_agent_count(), 0);
 
         // Check initial status
         let status = coordinator.get_status().await;
@@ -57,7 +57,7 @@ mod tests {
                 return; // Gracefully skip the test instead of panicking
             }
         };
-        assert_eq!(hive.get_agent_count().await, 1);
+        assert_eq!(hive.get_agent_count(), 1);
 
         let agent = match hive.get_agent(worker_id).await {
             Some(agent) => agent,
@@ -309,7 +309,7 @@ mod tests {
             "ai_reviewer_agent": "00000000-0000-0000-0000-000000000000"
         });
 
-        let result = hive.configure_simple_verification(config);
+        let result = hive.configure_simple_verification(config).await;
         assert!(result.is_ok());
     }
 
@@ -361,23 +361,16 @@ mod tests {
         // Create an agent capable of performing tasks
         let agent_config =
             create_agent_config("TestAgent", "worker", Some(vec![("general", 0.8, 0.1)]));
-        let _agent_id = hive.create_agent(agent_config).await.unwrap();
+        let agent_id = hive.create_agent(agent_config).await.unwrap();
 
         // Create a task
         let task_config = create_task_config("Verification test", "general", 1, None);
         let task_id = hive.create_task(task_config).await.unwrap();
 
-        // Add task to legacy queue for verification test
-        {
-            let task = create_test_task("Verification test", "general", TaskPriority::Medium);
-            let mut queue = hive.task_queue.write().await;
-            queue.add_task(task);
-        }
+        // Task is already created and should be available in the system
 
         // Execute with verification
-        let result = hive
-            .execute_task_with_simple_verification(task_id, Some("Complete the general task"))
-            .await;
+        let result = hive.execute_task_with_verification(task_id, agent_id).await;
 
         // Should succeed (though the specific task might not be found in pending queue)
         // This tests the method signature and basic functionality
@@ -413,7 +406,7 @@ mod tests {
 
         // Verify all agents were created with unique IDs
         assert_eq!(agent_ids.len(), 5);
-        assert_eq!(hive.agents.len(), 5);
+        assert_eq!(hive.get_agent_count(), 5);
 
         // Check that all IDs are unique
         for i in 0..agent_ids.len() {

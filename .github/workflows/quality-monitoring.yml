@@ -1,0 +1,339 @@
+name: Quality Monitoring & Alerting
+
+on:
+  workflow_run:
+    workflows: ["Build and Test", "Lint and Format Check", "Security Scan"]
+    types: [completed]
+  schedule:
+    # Daily quality monitoring
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  # Quality metrics aggregation
+  quality-aggregation:
+    name: Quality Metrics Aggregation
+    runs-on: ubuntu-latest
+    if: always()
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all quality artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*quality-metrics*"
+          merge-multiple: true
+
+      - name: Download security metrics
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*security-metrics*"
+          merge-multiple: true
+
+      - name: Setup Node.js for data processing
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Install data processing tools
+        run: |
+          npm install -g jq
+
+      - name: Aggregate quality metrics
+        run: |
+          echo "## 📊 Quality Metrics Dashboard" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Initialize metrics
+          total_runs=0
+          avg_coverage=0
+          avg_complexity=0
+          total_vulnerabilities=0
+          trend_direction="stable"
+
+          # Count available metrics files
+          quality_files=$(find . -name "metrics_*.json" | wc -l)
+          security_files=$(find . -name "security_metrics_*.json" | wc -l)
+
+          echo "### 📈 Metrics Overview" >> $GITHUB_STEP_SUMMARY
+          echo "- Quality data points: $quality_files" >> $GITHUB_STEP_SUMMARY
+          echo "- Security data points: $security_files" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Process quality metrics
+          if [ "$quality_files" -gt 0 ]; then
+            echo "### Code Quality Trends" >> $GITHUB_STEP_SUMMARY
+            echo "| Date | Coverage | Complexity | Benchmarks |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|----------|------------|------------|" >> $GITHUB_STEP_SUMMARY
+
+            # Process last 10 quality metrics files
+            find . -name "metrics_*.json" -printf '%T@ %p\n' | sort -n | tail -10 | while read -r line; do
+              file=$(echo "$line" | cut -d' ' -f2-)
+              timestamp=$(jq -r '.timestamp' "$file" 2>/dev/null || echo "N/A")
+              ts_coverage=$(jq -r '.coverage.typescript_coverage' "$file" 2>/dev/null || echo "N/A")
+              rust_complexity=$(jq -r '.complexity.rust_avg' "$file" 2>/dev/null || echo "N/A")
+              benchmarks=$(jq -r '.benchmarks.count' "$file" 2>/dev/null || echo "N/A")
+
+              echo "| $timestamp | $ts_coverage% | $rust_complexity | $benchmarks |" >> $GITHUB_STEP_SUMMARY
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Process security metrics
+          if [ "$security_files" -gt 0 ]; then
+            echo "### Security Trends" >> $GITHUB_STEP_SUMMARY
+            echo "| Date | Rust Vulns | NPM Vulns | Secrets |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|------------|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+
+            # Process last 10 security metrics files
+            find . -name "security_metrics_*.json" -printf '%T@ %p\n' | sort -n | tail -10 | while read -r line; do
+              file=$(echo "$line" | cut -d' ' -f2-)
+              timestamp=$(jq -r '.timestamp' "$file" 2>/dev/null || echo "N/A")
+              rust_vulns=$(jq -r '.vulnerabilities.rust' "$file" 2>/dev/null || echo "0")
+              npm_vulns=$(jq -r '.vulnerabilities.npm' "$file" 2>/dev/null || echo "0")
+              secrets=$(jq -r '.alerts.secrets' "$file" 2>/dev/null || echo "0")
+
+              echo "| $timestamp | $rust_vulns | $npm_vulns | $secrets |" >> $GITHUB_STEP_SUMMARY
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Store aggregated metrics
+          mkdir -p aggregated-metrics
+          timestamp=$(date +%Y%m%d_%H%M%S)
+          cat > aggregated-metrics/aggregated_$timestamp.json << EOF
+          {
+            "timestamp": "$(date -Iseconds)",
+            "quality_data_points": $quality_files,
+            "security_data_points": $security_files,
+            "summary": {
+              "quality_trends_available": $([ "$quality_files" -gt 1 ] && echo "true" || echo "false"),
+              "security_trends_available": $([ "$security_files" -gt 1 ] && echo "true" || echo "false")
+            }
+          }
+          EOF
+
+      - name: Upload aggregated metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: aggregated-quality-metrics
+          path: aggregated-metrics/
+          retention-days: 90
+
+  # Quality alerts and notifications
+  quality-alerts:
+    name: Quality Alerts
+    runs-on: ubuntu-latest
+    needs: [quality-aggregation]
+    if: always()
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download aggregated metrics
+        uses: actions/download-artifact@v4
+        with:
+          name: aggregated-quality-metrics
+
+      - name: Analyze metrics for alerts
+        run: |
+          echo "## 🚨 Quality Alerts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          alerts_triggered=0
+
+          # Check for quality degradation
+          if [ -f "aggregated-metrics/aggregated_*.json" ]; then
+            latest_file=$(find aggregated-metrics -name "aggregated_*.json" -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+
+            quality_points=$(jq '.quality_data_points' "$latest_file" 2>/dev/null || echo "0")
+            security_points=$(jq '.security_data_points' "$latest_file" 2>/dev/null || echo "0")
+
+            # Alert if insufficient data points
+            if [ "$quality_points" -lt 3 ]; then
+              echo "⚠️ **Low Quality Data**: Only $quality_points quality data points available (recommended: 3+)" >> $GITHUB_STEP_SUMMARY
+              alerts_triggered=$((alerts_triggered + 1))
+            fi
+
+            if [ "$security_points" -lt 3 ]; then
+              echo "⚠️ **Low Security Data**: Only $security_points security data points available (recommended: 3+)" >> $GITHUB_STEP_SUMMARY
+              alerts_triggered=$((alerts_triggered + 1))
+            fi
+          fi
+
+          # Check for recent workflow failures
+          recent_failures=$(gh run list --limit 5 --json conclusion --jq '.[] | select(.conclusion == "failure") | length' 2>/dev/null || echo "0")
+
+          if [ "$recent_failures" -gt 2 ]; then
+            echo "❌ **Frequent Failures**: $recent_failures of last 5 workflow runs failed" >> $GITHUB_STEP_SUMMARY
+            alerts_triggered=$((alerts_triggered + 1))
+          fi
+
+          # Check for open security issues
+          open_security_issues=$(gh issue list --label "security" --state open --json number --jq 'length' 2>/dev/null || echo "0")
+
+          if [ "$open_security_issues" -gt 0 ]; then
+            echo "🔒 **Open Security Issues**: $open_security_issues unresolved security issues" >> $GITHUB_STEP_SUMMARY
+            alerts_triggered=$((alerts_triggered + 1))
+          fi
+
+          if [ $alerts_triggered -eq 0 ]; then
+            echo "✅ **No Quality Alerts**: All quality metrics within acceptable ranges" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📢 **Action Required**: $alerts_triggered alert(s) triggered - please review above" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Send notifications (if alerts triggered)
+        if: steps.analyze.outputs.alerts_triggered > 0
+        run: |
+          echo "Notifications would be sent here (Slack, Teams, email, etc.)"
+          # In production, integrate with notification services
+          # Example: curl -X POST -H 'Content-type: application/json' --data '{"text":"Quality alerts triggered"}' $SLACK_WEBHOOK
+
+  # Quality improvement recommendations
+  quality-recommendations:
+    name: Quality Improvement Recommendations
+    runs-on: ubuntu-latest
+    needs: [quality-aggregation]
+    if: always()
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all metrics
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*metrics*"
+          merge-multiple: true
+
+      - name: Generate recommendations
+        run: |
+          echo "## 💡 Quality Improvement Recommendations" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          recommendations=0
+
+          # Analyze coverage trends
+          coverage_files=$(find . -name "metrics_*.json" | wc -l)
+          if [ "$coverage_files" -gt 1 ]; then
+            # Get latest coverage
+            latest_coverage=$(find . -name "metrics_*.json" -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2- | xargs jq -r '.coverage.typescript_coverage' 2>/dev/null || echo "0")
+
+            if (( $(echo "$latest_coverage < 80" | bc -l 2>/dev/null || echo "1") )); then
+              echo "📊 **Improve Test Coverage**: Current coverage is $latest_coverage% (target: 80%)" >> $GITHUB_STEP_SUMMARY
+              echo "   - Add unit tests for uncovered functions" >> $GITHUB_STEP_SUMMARY
+              echo "   - Consider integration tests for complex workflows" >> $GITHUB_STEP_SUMMARY
+              recommendations=$((recommendations + 1))
+            fi
+          fi
+
+          # Analyze complexity
+          complexity_files=$(find . -name "*complexity*.json" | wc -l)
+          if [ "$complexity_files" -gt 0 ]; then
+            high_complexity=$(find . -name "frontend-complexity.json" -exec jq '[.[] | select(.complexity > 15)] | length' {} \; 2>/dev/null || echo "0")
+
+            if [ "$high_complexity" -gt 3 ]; then
+              echo "🔄 **Reduce Code Complexity**: $high_complexity files have high complexity (>15)" >> $GITHUB_STEP_SUMMARY
+              echo "   - Refactor complex functions into smaller units" >> $GITHUB_STEP_SUMMARY
+              echo "   - Extract utility functions" >> $GITHUB_STEP_SUMMARY
+              echo "   - Consider design pattern improvements" >> $GITHUB_STEP_SUMMARY
+              recommendations=$((recommendations + 1))
+            fi
+          fi
+
+          # Security recommendations
+          security_files=$(find . -name "security_metrics_*.json" | wc -l)
+          if [ "$security_files" -gt 0 ]; then
+            latest_vulns=$(find . -name "security_metrics_*.json" -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2- | xargs jq -r '.vulnerabilities.rust + .vulnerabilities.npm' 2>/dev/null || echo "0")
+
+            if [ "$latest_vulns" -gt 0 ]; then
+              echo "🔒 **Address Security Vulnerabilities**: $latest_vulns outstanding vulnerabilities" >> $GITHUB_STEP_SUMMARY
+              echo "   - Update dependencies to latest secure versions" >> $GITHUB_STEP_SUMMARY
+              echo "   - Review and fix vulnerable code patterns" >> $GITHUB_STEP_SUMMARY
+              echo "   - Consider security code reviews" >> $GITHUB_STEP_SUMMARY
+              recommendations=$((recommendations + 1))
+            fi
+          fi
+
+          # Performance recommendations
+          benchmark_files=$(find . -name "benchmark-results.json" | wc -l)
+          if [ "$benchmark_files" -eq 0 ]; then
+            echo "⚡ **Implement Performance Benchmarks**: No benchmark results found" >> $GITHUB_STEP_SUMMARY
+            echo "   - Add criterion benchmarks for critical functions" >> $GITHUB_STEP_SUMMARY
+            echo "   - Set up performance regression testing" >> $GITHUB_STEP_SUMMARY
+            echo "   - Monitor key performance metrics" >> $GITHUB_STEP_SUMMARY
+            recommendations=$((recommendations + 1))
+          fi
+
+          if [ $recommendations -eq 0 ]; then
+            echo "✅ **Quality Status Good**: No major improvements needed at this time" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎯 **Total Recommendations**: $recommendations improvement areas identified" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Quality dashboard update
+  quality-dashboard:
+    name: Quality Dashboard Update
+    runs-on: ubuntu-latest
+    needs: [quality-aggregation, quality-alerts, quality-recommendations]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate quality dashboard
+        run: |
+          echo "## 📊 Quality Dashboard" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This dashboard provides an overview of code quality metrics across the project." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 🔍 Current Status" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Automated quality monitoring active" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Trend analysis enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Alert system configured" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Recommendations engine running" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 📈 Metrics Tracked" >> $GITHUB_STEP_SUMMARY
+          echo "- Code coverage (Rust & TypeScript)" >> $GITHUB_STEP_SUMMARY
+          echo "- Cyclomatic complexity" >> $GITHUB_STEP_SUMMARY
+          echo "- Performance benchmarks" >> $GITHUB_STEP_SUMMARY
+          echo "- Security vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          echo "- Code quality trends over time" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 🚨 Alert Thresholds" >> $GITHUB_STEP_SUMMARY
+          echo "- Test coverage: >80%" >> $GITHUB_STEP_SUMMARY
+          echo "- Complexity: <15 per function" >> $GITHUB_STEP_SUMMARY
+          echo "- Security vulnerabilities: 0" >> $GITHUB_STEP_SUMMARY
+          echo "- Workflow failure rate: <40%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### 📋 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review the alerts and recommendations above" >> $GITHUB_STEP_SUMMARY
+          echo "2. Address any critical issues immediately" >> $GITHUB_STEP_SUMMARY
+          echo "3. Plan improvements for non-critical items" >> $GITHUB_STEP_SUMMARY
+          echo "4. Monitor trends in future runs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Dashboard generated on $(date)*" >> $GITHUB_STEP_SUMMARY

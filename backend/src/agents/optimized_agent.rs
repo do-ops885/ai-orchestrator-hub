@@ -1,12 +1,17 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use tokio::task;
 
-use crate::agents::{Agent, AgentBehavior, AgentCapability, AgentType, Experience};
+use crate::agents::{
+    Agent, AgentBehavior, AgentCapability, AgentState, AgentType, CommunicationComplexity,
+    Experience,
+};
+use crate::communication::patterns::{CommunicationConfig, MessagePriority};
+use crate::communication::protocols::{MessageEnvelope, MessagePayload, MessageType};
 use crate::neural::{CpuOptimizer, NLPProcessor, QuantizedOps, QuantizedWeights, VectorizedOps};
 use crate::tasks::{Task, TaskResult};
+use crate::utils::error::HiveResult;
 
 /// CPU-optimized agent with SIMD acceleration and quantized neural processing
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +59,24 @@ impl OptimizedAgent {
     pub fn new(name: String, agent_type: AgentType, optimization_level: OptimizationLevel) -> Self {
         let base_agent = Agent::new(name, agent_type);
         let resource_constraints = Self::detect_resource_constraints();
+
+        Self {
+            base_agent,
+            optimization_level,
+            quantized_capabilities: None,
+            performance_profile: PerformanceProfile::default(),
+            resource_constraints,
+        }
+    }
+
+    /// Async version of new() that properly handles file I/O in async contexts
+    pub async fn new_async(
+        name: String,
+        agent_type: AgentType,
+        optimization_level: OptimizationLevel,
+    ) -> Self {
+        let base_agent = Agent::new(name, agent_type);
+        let resource_constraints = Self::detect_resource_constraints_async().await;
 
         Self {
             base_agent,
@@ -112,11 +135,36 @@ impl OptimizedAgent {
         }
     }
 
+    async fn detect_resource_constraints_async() -> ResourceConstraints {
+        // Use spawn_blocking for file I/O operations to avoid blocking the async runtime
+        let (available_memory, battery_mode) =
+            task::spawn_blocking(|| (Self::get_available_memory_mb(), Self::is_battery_powered()))
+                .await
+                .unwrap_or_else(|_| {
+                    tracing::warn!(
+                        "Failed to detect system resources asynchronously, using defaults"
+                    );
+                    (2048.0, false)
+                });
+
+        let cpu_count = num_cpus::get();
+
+        ResourceConstraints {
+            max_memory_mb: (available_memory * 0.8) as usize, // Use 80% of available memory
+            max_cpu_threads: cpu_count.min(4),                // Limit to 4 threads for efficiency
+            battery_mode,
+            thermal_throttling: false,
+        }
+    }
+
     fn get_available_memory_mb() -> f64 {
-        // Simplified memory detection - in real implementation, use system APIs
+        // Optimized memory detection with better error handling
         #[cfg(target_os = "linux")]
         {
+            // Use std::fs::read_to_string for synchronous contexts
+            // In async contexts, this should be called via spawn_blocking
             if let Ok(meminfo) = std::fs::read_to_string("/proc/meminfo") {
+                // More efficient parsing - look for MemAvailable first
                 for line in meminfo.lines() {
                     if line.starts_with("MemAvailable:") {
                         if let Some(kb_str) = line.split_whitespace().nth(1) {
@@ -126,6 +174,8 @@ impl OptimizedAgent {
                         }
                     }
                 }
+            } else {
+                tracing::debug!("Failed to read /proc/meminfo, using fallback memory detection");
             }
         }
 
@@ -147,7 +197,7 @@ impl OptimizedAgent {
 
     /// Optimize agent capabilities using quantization
     #[allow(clippy::unnecessary_wraps)]
-    pub fn optimize_capabilities(&mut self) -> Result<()> {
+    pub fn optimize_capabilities(&mut self) -> HiveResult<()> {
         let capability_count = self.base_agent.capabilities.len();
         if capability_count == 0 {
             return Ok(());
@@ -368,7 +418,12 @@ impl Default for PerformanceProfile {
 
 #[async_trait]
 impl AgentBehavior for OptimizedAgent {
-    async fn execute_task(&mut self, task: Task) -> Result<TaskResult> {
+    async fn execute_task(&mut self, task: Task) -> HiveResult<TaskResult> {
+        // Standardized state management
+        let _previous_state = self.base_agent.state;
+        self.base_agent.state = AgentState::Working;
+        self.base_agent.last_active = Utc::now();
+
         let start_time = std::time::Instant::now();
         let start_memory = self.performance_profile.memory_usage_mb;
 
@@ -386,6 +441,7 @@ impl AgentBehavior for OptimizedAgent {
         tokio::time::sleep(tokio::time::Duration::from_millis(processing_time)).await;
 
         let success = rand::random::<f64>() < success_probability;
+        let execution_time = start_time.elapsed().as_millis() as u64;
 
         // Create experience with optimization metadata
         let experience = Experience {
@@ -412,12 +468,15 @@ impl AgentBehavior for OptimizedAgent {
         self.base_agent.learn_from_experience(experience);
 
         // Update performance metrics
-        let elapsed_ms = start_time.elapsed().as_millis() as f64;
+        let elapsed_ms = execution_time as f64;
         let current_memory = start_memory + 5.0; // Simulate memory usage
         self.update_performance_profile(elapsed_ms, current_memory);
 
         // Adaptive resource management
         self.adapt_to_resources();
+
+        // Standardized state restoration
+        self.base_agent.state = AgentState::Idle;
 
         Ok(TaskResult {
             task_id: task.id,
@@ -441,44 +500,185 @@ impl AgentBehavior for OptimizedAgent {
                 Some("Optimization failed".to_string())
             },
             completed_at: Utc::now(),
-            execution_time: elapsed_ms as u64,
+            execution_time,
             quality_score: if success { Some(0.8) } else { Some(0.2) },
             learned_insights: vec!["CPU optimization applied".to_string()],
         })
     }
 
-    async fn communicate(&mut self, message: &str, target_agent: Option<Uuid>) -> Result<String> {
+    async fn communicate(
+        &mut self,
+        envelope: MessageEnvelope,
+    ) -> HiveResult<Option<MessageEnvelope>> {
+        // Standardized state management
+        let _previous_state = self.base_agent.state;
+        self.base_agent.state = AgentState::Communicating;
+        self.base_agent.last_active = Utc::now();
+
         // Use optimized text processing for communication
         let start_time = std::time::Instant::now();
 
-        // Simulate optimized communication processing
-        let processing_delay = match self.optimization_level {
-            OptimizationLevel::Minimal => 50,
-            OptimizationLevel::Standard => 25,
-            OptimizationLevel::Aggressive => 10,
+        // Use optimized communication processing with standardized delays
+        let complexity = match envelope.priority {
+            MessagePriority::Low => CommunicationComplexity::Simple,
+            MessagePriority::Normal => CommunicationComplexity::Standard,
+            MessagePriority::High => CommunicationComplexity::Complex,
+            MessagePriority::Critical => CommunicationComplexity::Heavy,
         };
 
-        tokio::time::sleep(tokio::time::Duration::from_millis(processing_delay)).await;
-
-        let response = match target_agent {
-            Some(target) => format!(
-                "Optimized agent {} responding to {}: Acknowledged - {} (processed in {}ms)",
-                self.base_agent.name,
-                target,
-                message,
-                start_time.elapsed().as_millis()
-            ),
-            None => format!(
-                "Optimized agent {} broadcasting: {} (SIMD: {})",
-                self.base_agent.name, message, self.performance_profile.simd_acceleration
-            ),
+        // Use standardized delay (optimized agents get faster processing)
+        let base_delay = match (complexity, &self.optimization_level) {
+            (CommunicationComplexity::Simple, OptimizationLevel::Aggressive) => 10,
+            (CommunicationComplexity::Simple, _) => 25,
+            (CommunicationComplexity::Standard, OptimizationLevel::Aggressive) => 25,
+            (CommunicationComplexity::Standard, _) => 50,
+            (CommunicationComplexity::Complex, OptimizationLevel::Aggressive) => 50,
+            (CommunicationComplexity::Complex, _) => 100,
+            (CommunicationComplexity::Heavy, OptimizationLevel::Aggressive) => 100,
+            (CommunicationComplexity::Heavy, _) => 200,
         };
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(base_delay)).await;
+
+        // Process the message based on type with optimization-specific handling
+        let response = match envelope.message_type {
+            MessageType::Request => {
+                let response_payload = match &envelope.payload {
+                    MessagePayload::Text(text) => {
+                        MessagePayload::Text(format!(
+                            "Optimized agent {} responding to {}: Acknowledged - {} (processed in {}ms, SIMD: {})",
+                            self.base_agent.name,
+                            envelope.sender_id,
+                            text,
+                            start_time.elapsed().as_millis(),
+                            self.performance_profile.simd_acceleration
+                        ))
+                    }
+                    MessagePayload::Json(json) => {
+                        MessagePayload::Json(serde_json::json!({
+                            "response": format!("Optimized agent {} acknowledged request", self.base_agent.name),
+                            "processing_time_ms": start_time.elapsed().as_millis(),
+                            "optimization_level": format!("{:?}", self.optimization_level),
+                            "simd_enabled": self.performance_profile.simd_acceleration,
+                            "original_request": json
+                        }))
+                    }
+                    _ => MessagePayload::Text(format!(
+                        "Optimized agent {} acknowledged message (processed in {}ms)",
+                        self.base_agent.name,
+                        start_time.elapsed().as_millis()
+                    )),
+                };
+
+                Some(MessageEnvelope::new_response(
+                    &envelope,
+                    self.base_agent.id,
+                    response_payload,
+                ))
+            }
+            MessageType::Broadcast => {
+                // For broadcasts, log with optimization metrics
+                tracing::info!(
+                    "Optimized agent {} received broadcast from {}: {:?} (optimization: {:?}, SIMD: {})",
+                    self.base_agent.name,
+                    envelope.sender_id,
+                    envelope.payload,
+                    self.optimization_level,
+                    self.performance_profile.simd_acceleration
+                );
+                None
+            }
+            MessageType::TaskAssigned => {
+                // Handle task assignment with optimization info
+                if let MessagePayload::TaskInfo { task_id, .. } = &envelope.payload {
+                    tracing::info!(
+                        "Optimized agent {} received task assignment: {} (level: {:?})",
+                        self.base_agent.name,
+                        task_id,
+                        self.optimization_level
+                    );
+                }
+                None
+            }
+            _ => {
+                let response = MessageEnvelope::new_response(
+                    &envelope,
+                    self.base_agent.id,
+                    MessagePayload::Text(format!(
+                        "Optimized agent {} processed message of type {:?} (processed in {}ms, optimization: {:?})",
+                        self.base_agent.name,
+                        envelope.message_type,
+                        start_time.elapsed().as_millis(),
+                        self.optimization_level
+                    )),
+                );
+                Some(response)
+            }
+        };
+
+        // Update performance metrics
+        let elapsed_ms = start_time.elapsed().as_millis() as f64;
+        self.update_performance_profile(elapsed_ms, self.performance_profile.memory_usage_mb);
+
+        // Standardized state restoration
+        self.base_agent.state = AgentState::Idle;
+        Ok(response)
+    }
+
+    async fn request_response(
+        &mut self,
+        request: MessageEnvelope,
+        timeout: std::time::Duration,
+    ) -> HiveResult<MessageEnvelope> {
+        // Use optimized request-response with faster processing
+        // Optimized agents process requests faster
+        let processing_time = match self.optimization_level {
+            OptimizationLevel::Minimal => timeout / 4,
+            OptimizationLevel::Standard => timeout / 6,
+            OptimizationLevel::Aggressive => timeout / 8,
+        };
+
+        tokio::time::sleep(processing_time).await;
+
+        let response = MessageEnvelope::new_response(
+            &request,
+            self.base_agent.id,
+            MessagePayload::Text(format!(
+                "Optimized agent {} processed request with timeout {:?} (optimization: {:?})",
+                self.base_agent.name, timeout, self.optimization_level
+            )),
+        );
 
         Ok(response)
     }
 
-    async fn learn(&mut self, nlp_processor: &NLPProcessor) -> Result<()> {
-        // Delegate to base agent but with performance tracking
+    fn get_communication_config(&self) -> CommunicationConfig {
+        // Optimized agents have different communication configurations
+        let mut config = CommunicationConfig::default();
+
+        match self.optimization_level {
+            OptimizationLevel::Minimal => {
+                config.max_retries = 2;
+                config.default_timeout = std::time::Duration::from_secs(15);
+            }
+            OptimizationLevel::Standard => {
+                config.max_retries = 3;
+                config.default_timeout = std::time::Duration::from_secs(10);
+                config.enable_compression = true;
+            }
+            OptimizationLevel::Aggressive => {
+                config.max_retries = 3;
+                config.default_timeout = std::time::Duration::from_secs(5);
+                config.enable_compression = true;
+                config.max_concurrent_messages = 2000;
+            }
+        }
+
+        config
+    }
+
+    async fn learn(&mut self, nlp_processor: &NLPProcessor) -> HiveResult<()> {
+        // Standardized state management is handled by base agent
         let start_time = std::time::Instant::now();
 
         let result = self.base_agent.learn(nlp_processor).await;
@@ -493,7 +693,7 @@ impl AgentBehavior for OptimizedAgent {
         &mut self,
         swarm_center: (f64, f64),
         neighbors: &[Agent],
-    ) -> Result<()> {
+    ) -> HiveResult<()> {
         // Use optimized position calculations
         let start_time = std::time::Instant::now();
 

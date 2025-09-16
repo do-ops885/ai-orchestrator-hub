@@ -1,3 +1,4 @@
+use crate::utils::error::HiveResult;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -39,7 +40,7 @@ pub struct ResourceManager {
 }
 
 impl ResourceManager {
-    pub async fn new() -> anyhow::Result<Self> {
+    pub async fn new() -> HiveResult<Self> {
         let system_resources = Self::detect_system_resources().await?;
         let hardware_class = Self::classify_hardware(&system_resources);
         let profile = Self::create_optimal_profile(&hardware_class, &system_resources);
@@ -52,7 +53,7 @@ impl ResourceManager {
         })
     }
 
-    async fn detect_system_resources() -> anyhow::Result<SystemResources> {
+    async fn detect_system_resources() -> HiveResult<SystemResources> {
         let cpu_cores = num_cpus::get();
         let available_memory = Self::get_available_memory();
         let simd_capabilities = vec!["SSE4.1".to_string(), "AVX2".to_string()]; // Simplified for Phase 2
@@ -112,7 +113,7 @@ impl ResourceManager {
         }
     }
 
-    pub async fn update_system_metrics(&self) -> anyhow::Result<()> {
+    pub async fn update_system_metrics(&self) -> HiveResult<()> {
         let mut resources = self.system_resources.write().await;
 
         // Update CPU and memory usage
@@ -128,7 +129,7 @@ impl ResourceManager {
         Ok(())
     }
 
-    async fn auto_optimize(&self, resources: &SystemResources) -> anyhow::Result<()> {
+    async fn auto_optimize(&self, resources: &SystemResources) -> HiveResult<()> {
         let mut profile = self.current_profile.write().await;
 
         // Reduce load if system is under stress
@@ -182,7 +183,7 @@ impl ResourceManager {
         (resources, profile, self.hardware_class.clone())
     }
 
-    pub async fn set_profile(&self, new_profile: ResourceProfile) -> anyhow::Result<()> {
+    pub async fn set_profile(&self, new_profile: ResourceProfile) -> HiveResult<()> {
         let mut profile = self.current_profile.write().await;
         *profile = new_profile;
         tracing::info!("Resource profile updated: {}", profile.profile_name);

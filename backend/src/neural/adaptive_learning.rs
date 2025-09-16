@@ -1,5 +1,6 @@
 use crate::agents::agent::Agent;
 use crate::neural::NLPProcessor;
+use crate::utils::error::HiveResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{debug, info, warn};
@@ -55,7 +56,7 @@ pub struct LearningEvent {
 }
 
 impl AdaptiveLearningSystem {
-    pub async fn new(config: AdaptiveLearningConfig) -> anyhow::Result<Self> {
+    pub async fn new(config: AdaptiveLearningConfig) -> HiveResult<Self> {
         Ok(Self {
             config,
             patterns: HashMap::new(),
@@ -69,7 +70,7 @@ impl AdaptiveLearningSystem {
         agent: &Agent,
         context: &str,
         outcome: f64,
-    ) -> anyhow::Result<()> {
+    ) -> HiveResult<()> {
         let features = self.extract_features(agent, context).await?;
         let pattern_id = Self::generate_pattern_id(&features);
 
@@ -140,7 +141,7 @@ impl AdaptiveLearningSystem {
         Ok(())
     }
 
-    pub async fn predict_outcome(&self, agent: &Agent, context: &str) -> anyhow::Result<f64> {
+    pub async fn predict_outcome(&self, agent: &Agent, context: &str) -> HiveResult<f64> {
         let features = self.extract_features(agent, context).await?;
         let pattern_id = Self::generate_pattern_id(&features);
 
@@ -196,7 +197,7 @@ impl AdaptiveLearningSystem {
         }
     }
 
-    async fn extract_features(&self, agent: &Agent, context: &str) -> anyhow::Result<Vec<f64>> {
+    async fn extract_features(&self, agent: &Agent, context: &str) -> HiveResult<Vec<f64>> {
         // Agent features
         let mut features = vec![
             agent.energy,
@@ -390,24 +391,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_learning_from_interaction() {
+    async fn test_learning_from_interaction() -> Result<(), Box<dyn std::error::Error>> {
         let mut learning_system = AdaptiveLearningSystem::new(AdaptiveLearningConfig::default())
-            .await
-            .expect("Failed to create AdaptiveLearningSystem");
+            .await?;
         let agent = create_test_agent();
 
-        let result = learning_system
+        learning_system
             .learn_from_interaction(&agent, "test context", 0.8)
-            .await;
-        assert!(result.is_ok());
+            .await?;
         assert!(!learning_system.patterns.is_empty());
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_pattern_confidence_update() {
+    async fn test_pattern_confidence_update() -> Result<(), Box<dyn std::error::Error>> {
         let mut learning_system = AdaptiveLearningSystem::new(AdaptiveLearningConfig::default())
-            .await
-            .expect("Failed to create AdaptiveLearningSystem");
+            .await?;
         let agent = create_test_agent();
 
         // Learn from multiple interactions
@@ -415,35 +414,33 @@ mod tests {
             let outcome = if i < 4 { 0.9 } else { 0.1 }; // Mostly successful
             learning_system
                 .learn_from_interaction(&agent, "consistent context", outcome)
-                .await
-                .expect("Failed to learn from interaction");
+                .await?;
         }
 
         let prediction = learning_system
             .predict_outcome(&agent, "consistent context")
-            .await
-            .expect("Failed to predict outcome");
+            .await?;
         assert!(prediction > 0.5); // Should predict success
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_pattern_cleanup() {
+    async fn test_pattern_cleanup() -> Result<(), Box<dyn std::error::Error>> {
         let config = AdaptiveLearningConfig {
             pattern_retention_days: 0, // Immediate cleanup
             ..Default::default()
         };
         let mut learning_system = AdaptiveLearningSystem::new(config)
-            .await
-            .expect("Failed to create AdaptiveLearningSystem");
+            .await?;
         let agent = create_test_agent();
 
         learning_system
             .learn_from_interaction(&agent, "test", 0.5)
-            .await
-            .expect("Failed to learn from interaction");
+            .await?;
         assert_eq!(learning_system.patterns.len(), 1);
 
         learning_system.cleanup_old_patterns();
         assert_eq!(learning_system.patterns.len(), 0);
+        Ok(())
     }
 }

@@ -1,5 +1,6 @@
 use crate::agents::agent::{Agent, AgentType};
 use crate::tasks::task::{Task, TaskPriority};
+use crate::utils::error::HiveResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{debug, info, warn};
@@ -87,7 +88,7 @@ impl SwarmIntelligenceEngine {
         &mut self,
         agents: &[Agent],
         task: &Task,
-    ) -> anyhow::Result<SwarmFormation> {
+    ) -> HiveResult<SwarmFormation> {
         info!("Optimizing formation for task: {}", task.id);
 
         let formation_type = self.determine_optimal_formation(task, agents)?;
@@ -118,7 +119,7 @@ impl SwarmIntelligenceEngine {
         &self,
         task: &Task,
         agents: &[Agent],
-    ) -> anyhow::Result<FormationType> {
+    ) -> HiveResult<FormationType> {
         let agent_count = agents.len();
 
         // Consider task characteristics and available agents
@@ -155,7 +156,7 @@ impl SwarmIntelligenceEngine {
         agents: &[Agent],
         task: &Task,
         formation_type: &FormationType,
-    ) -> anyhow::Result<Vec<Uuid>> {
+    ) -> HiveResult<Vec<Uuid>> {
         let mut selected = Vec::new();
 
         // Filter agents by required capabilities
@@ -165,7 +166,9 @@ impl SwarmIntelligenceEngine {
             .collect();
 
         if capable_agents.is_empty() {
-            return Err(anyhow::anyhow!("No capable agents found for task"));
+            return Err(crate::utils::error::HiveError::AgentNotFound {
+                id: "No capable agents found for task".to_string(),
+            });
         }
 
         match formation_type {
@@ -209,7 +212,7 @@ impl SwarmIntelligenceEngine {
         Ok(selected)
     }
 
-    fn select_star_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
+    fn select_star_formation(&self, agents: &[&Agent]) -> HiveResult<Vec<Uuid>> {
         let mut selected = Vec::new();
 
         // Select one coordinator
@@ -238,7 +241,7 @@ impl SwarmIntelligenceEngine {
         Ok(selected)
     }
 
-    fn select_chain_formation(&self, agents: &[&Agent], task: &Task) -> anyhow::Result<Vec<Uuid>> {
+    fn select_chain_formation(&self, agents: &[&Agent], task: &Task) -> HiveResult<Vec<Uuid>> {
         let mut sorted_agents = agents.to_vec();
         sorted_agents.sort_by(|a, b| {
             let a_score = self.calculate_agent_score(a, task);
@@ -251,7 +254,7 @@ impl SwarmIntelligenceEngine {
         Ok(sorted_agents.into_iter().take(4).map(|a| a.id).collect())
     }
 
-    fn select_hierarchy_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
+    fn select_hierarchy_formation(&self, agents: &[&Agent]) -> HiveResult<Vec<Uuid>> {
         let mut selected = Vec::new();
 
         // Select leader (coordinator or highest scoring agent)
@@ -292,7 +295,7 @@ impl SwarmIntelligenceEngine {
         Ok(selected)
     }
 
-    fn select_mesh_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
+    fn select_mesh_formation(&self, agents: &[&Agent]) -> HiveResult<Vec<Uuid>> {
         // Select diverse set of agents for mesh network
         let mut selected = Vec::new();
         let mut agent_types_used = std::collections::HashSet::new();
@@ -313,7 +316,7 @@ impl SwarmIntelligenceEngine {
         Ok(selected)
     }
 
-    fn select_ring_formation(&self, agents: &[&Agent]) -> anyhow::Result<Vec<Uuid>> {
+    fn select_ring_formation(&self, agents: &[&Agent]) -> HiveResult<Vec<Uuid>> {
         // Select agents with balanced capabilities for ring formation
         let mut selected = Vec::new();
 
@@ -432,7 +435,7 @@ impl SwarmIntelligenceEngine {
         self.formations.values().collect()
     }
 
-    pub fn rebalance_formations(&mut self, agents: &[Agent]) -> anyhow::Result<Vec<Uuid>> {
+    pub fn rebalance_formations(&mut self, agents: &[Agent]) -> HiveResult<Vec<Uuid>> {
         let mut rebalanced_formations = Vec::new();
 
         // Find underperforming formations

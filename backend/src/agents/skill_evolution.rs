@@ -4,16 +4,20 @@
 //! Agents can learn new skills, improve existing ones, and adapt their capabilities
 //! based on task performance and environmental feedback.
 
-use crate::agents::{Agent, AgentCapability};
+use crate::agents::{Agent, AgentBehavior, AgentCapability, CommunicationComplexity};
+use crate::communication::patterns::CommunicationConfig;
+use crate::communication::protocols::{MessageEnvelope, MessagePayload, MessageType};
 use crate::neural::NLPProcessor;
+use crate::utils::error::HiveResult;
 use anyhow::Result;
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use rand;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 /// Skill evolution system that manages agent learning and capability development
@@ -209,6 +213,158 @@ pub struct SkillEvolutionConfig {
     pub enable_skill_transfer: bool,
     pub enable_peer_learning: bool,
     pub learning_efficiency_factor: f64,
+}
+
+#[async_trait]
+impl AgentBehavior for SkillEvolutionSystem {
+    async fn execute_task(
+        &mut self,
+        task: crate::tasks::Task,
+    ) -> HiveResult<crate::tasks::TaskResult> {
+        // Skill evolution systems don't execute tasks directly
+        Err(crate::utils::error::HiveError::AgentExecutionFailed {
+            reason: "SkillEvolutionSystem does not execute tasks directly".to_string(),
+        })
+    }
+
+    async fn communicate(
+        &mut self,
+        envelope: MessageEnvelope,
+    ) -> HiveResult<Option<MessageEnvelope>> {
+        // Standardized communication pattern for skill evolution
+        let complexity = match envelope.priority {
+            crate::communication::patterns::MessagePriority::Low => CommunicationComplexity::Simple,
+            crate::communication::patterns::MessagePriority::Normal => {
+                CommunicationComplexity::Standard
+            }
+            crate::communication::patterns::MessagePriority::High => {
+                CommunicationComplexity::Complex
+            }
+            crate::communication::patterns::MessagePriority::Critical => {
+                CommunicationComplexity::Heavy
+            }
+        };
+
+        // Use standardized delay based on complexity
+        let delay_ms = match complexity {
+            CommunicationComplexity::Simple => 50,
+            CommunicationComplexity::Standard => 100,
+            CommunicationComplexity::Complex => 200,
+            CommunicationComplexity::Heavy => 500,
+        };
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+
+        match envelope.message_type {
+            MessageType::Request => {
+                let response_payload = match &envelope.payload {
+                    MessagePayload::Text(text) => MessagePayload::Text(format!(
+                        "Skill evolution system acknowledging: {} - Managing skill development",
+                        text
+                    )),
+                    MessagePayload::Json(json) => {
+                        let stats = self.get_evolution_stats().await;
+                        MessagePayload::Json(serde_json::json!({
+                            "response": "Skill evolution system ready",
+                            "evolution_stats": stats,
+                            "original_request": json
+                        }))
+                    }
+                    _ => MessagePayload::Text(
+                        "Skill evolution system acknowledged message".to_string(),
+                    ),
+                };
+
+                let response = MessageEnvelope::new_response(
+                    &envelope,
+                    uuid::Uuid::new_v4(),
+                    response_payload,
+                );
+                Ok(Some(response))
+            }
+            MessageType::Broadcast => {
+                tracing::info!(
+                    "Skill evolution system received broadcast: {:?}",
+                    envelope.payload
+                );
+                Ok(None)
+            }
+            MessageType::CoordinationRequest => {
+                // Handle coordination for skill development
+                if let MessagePayload::CoordinationData {
+                    performance_metrics,
+                    ..
+                } = &envelope.payload
+                {
+                    tracing::info!(
+                        "Received coordination data for skill evolution: {:?}",
+                        performance_metrics
+                    );
+                }
+                Ok(None)
+            }
+            _ => {
+                let response = MessageEnvelope::new_response(
+                    &envelope,
+                    uuid::Uuid::new_v4(),
+                    MessagePayload::Text(format!(
+                        "Skill evolution system processed message of type {:?}",
+                        envelope.message_type
+                    )),
+                );
+                Ok(Some(response))
+            }
+        }
+    }
+
+    async fn request_response(
+        &mut self,
+        request: MessageEnvelope,
+        timeout: std::time::Duration,
+    ) -> HiveResult<MessageEnvelope> {
+        // Simulate processing time for skill evolution
+        tokio::time::sleep(timeout / 4).await;
+
+        let stats = self.get_evolution_stats().await;
+        let response = MessageEnvelope::new_response(
+            &request,
+            uuid::Uuid::new_v4(),
+            MessagePayload::Json(serde_json::json!({
+                "response": "Skill evolution system processed request",
+                "evolution_statistics": stats,
+                "processing_timeout": timeout.as_millis()
+            })),
+        );
+
+        Ok(response)
+    }
+
+    async fn learn(&mut self, _nlp_processor: &NLPProcessor) -> HiveResult<()> {
+        // Skill evolution is inherently about learning
+        debug!("Skill evolution system learning triggered - core functionality");
+        Ok(())
+    }
+
+    async fn update_position(
+        &mut self,
+        _swarm_center: (f64, f64),
+        _neighbors: &[Agent],
+    ) -> HiveResult<()> {
+        // Skill evolution systems don't participate in swarm positioning
+        Ok(())
+    }
+
+    fn get_communication_config(&self) -> CommunicationConfig {
+        CommunicationConfig {
+            default_timeout: std::time::Duration::from_secs(25),
+            max_retries: 3,
+            retry_delay: std::time::Duration::from_millis(200),
+            max_concurrent_messages: 60,
+            buffer_size: 4096,
+            enable_compression: true,
+            delivery_guarantee: crate::communication::patterns::DeliveryGuarantee::AtLeastOnce,
+        }
+    }
 }
 
 impl SkillEvolutionSystem {

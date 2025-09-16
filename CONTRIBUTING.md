@@ -1,6 +1,6 @@
-# Contributing to Multiagent Hive System
+# Contributing to AI Orchestrator Hub
 
-Thank you for your interest in contributing to the Multiagent Hive System! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to the AI Orchestrator Hub! This document provides guidelines and information for contributors.
 
 ## Table of Contents
 
@@ -11,6 +11,7 @@ Thank you for your interest in contributing to the Multiagent Hive System! This 
 - [Code Standards](#code-standards)
 - [Testing](#testing)
 - [Documentation](#documentation)
+- [Security Report Organization](#security-report-organization)
 - [Pull Request Process](#pull-request-process)
 - [Issue Reporting](#issue-reporting)
 
@@ -47,6 +48,8 @@ cd backend
 cargo build                    # Build with default features
 cargo test                     # Run basic tests
 cargo test --all-features      # Test all feature combinations
+cargo test --test api_integration_tests  # Run API integration tests
+cargo test --test chaos_engineering_tests  # Run chaos engineering tests
 cargo clippy --all-features    # Comprehensive linting
 cargo fmt --all                # Format code
 ```
@@ -82,6 +85,22 @@ cd frontend
 npm run dev
 ```
 
+### Running Tests
+
+```bash
+# Backend tests
+cd backend
+cargo test --all-features          # All unit tests
+cargo test --test api_integration_tests # API integration tests
+cargo test --test chaos_engineering_tests # Chaos engineering tests
+cargo test --test performance_regression_tests # Performance tests
+
+# Frontend tests
+cd frontend
+npm test                           # Unit tests
+npm run test:e2e                   # End-to-end tests
+```
+
 ### Feature Development Setup
 
 ```bash
@@ -91,6 +110,10 @@ cargo run --all-features
 
 # Run specific feature combinations
 cargo run --features advanced-neural,gpu-acceleration
+
+# Test with different configurations
+cargo test --features advanced-neural
+cargo test --test performance_regression_tests
 ```
 
 ## Contribution Guidelines
@@ -166,7 +189,9 @@ cargo test --all-features
 cargo test test_name
 
 # Run integration tests
-cargo test --test integration_tests
+cargo test --test api_integration_tests
+cargo test --test chaos_engineering_tests
+cargo test --test performance_regression_tests
 
 # Run examples as tests
 cargo test --examples
@@ -197,18 +222,22 @@ npm run test:e2e
 # Backend comprehensive testing
 cd backend
 cargo test --all-features          # All unit tests
-cargo test --test integration_tests # Integration tests
+cargo test --test api_integration_tests # API integration tests
+cargo test --test chaos_engineering_tests # Chaos engineering tests
+cargo test --test performance_regression_tests # Performance tests
 cargo clippy --all-features        # Linting
 cargo fmt --all --check            # Format check
 
 # Frontend comprehensive testing
 cd frontend
 npm test                           # Unit tests
+npm run test:e2e                   # End-to-end tests
 npm run lint:check                 # Linting
 npm run build                      # Build verification
 
-# End-to-end testing
-# Start backend and frontend, then run e2e tests
+# Full system testing
+cd backend && cargo test --all-features
+cd ../frontend && npm test && npm run build
 ```
 
 ### Test Requirements
@@ -270,13 +299,16 @@ pub fn function_name(param1: &str, param2: i32) -> Result<ReturnType> {
     # Backend tests
     cd backend
     cargo test --all-features
-    cargo test --test integration_tests
+    cargo test --test api_integration_tests
+    cargo test --test chaos_engineering_tests
+    cargo test --test performance_regression_tests
     cargo clippy --all-features
     cargo fmt --all --check
 
     # Frontend tests
     cd frontend
     npm test
+    npm run test:e2e
     npm run lint:check
     npm run build
     ```
@@ -380,6 +412,8 @@ We use the following labels to categorize issues:
 - **Persistence**: Check `./data/` directory for database files
 - **Security**: Test rate limiting and authentication
 - **Monitoring**: Use intelligent alerting for anomaly detection
+- **API Testing**: Use the API integration tests for endpoint validation
+- **Performance**: Run performance regression tests for optimization
 
 ### Architecture Guidelines
 
@@ -388,6 +422,84 @@ We use the following labels to categorize issues:
 - Implement proper error handling
 - Consider backward compatibility
 - Design for extensibility
+
+## Security Report Organization
+
+### Security Reports Folder Structure
+
+All security-related reports, scans, and audit outputs **must** be placed in the `security-reports/` folder at the project root. This is the **standard and only accepted location** for security reports to ensure:
+
+- **Consistency**: All security reports are in one predictable location
+- **Automation**: CI/CD pipelines and scripts know where to find and process reports
+- **Security**: Prevents accidental exposure of sensitive security information
+- **Maintenance**: Easier to manage, backup, and clean up security reports
+
+### Required Security Report Locations
+
+| Report Type | Required Location | File Naming Convention |
+|-------------|-------------------|----------------------|
+| Cargo Audit | `security-reports/cargo-audit-*.json` | `cargo-audit-YYYYMMDD-HHMMSS.json` |
+| NPM Audit | `security-reports/npm-audit-*.json` | `npm-audit-YYYYMMDD-HHMMSS.json` |
+| Secrets Scan | `security-reports/secrets-scan-*.txt` | `secrets-scan-YYYYMMDD-HHMMSS.txt` |
+| CodeQL Results | `security-reports/codeql-*.sarif` | `codeql-YYYYMMDD-HHMMSS.sarif` |
+| Container Scan | `security-reports/container-scan-*.sarif` | `container-scan-YYYYMMDD-HHMMSS.sarif` |
+| Dependency Review | `security-reports/dependency-review-*.json` | `dependency-review-YYYYMMDD-HHMMSS.json` |
+| Security Metrics | `security-reports/security-metrics-*.json` | `security-metrics-YYYYMMDD-HHMMSS.json` |
+
+### Security Report Generation Guidelines
+
+When creating scripts or tools that generate security reports:
+
+1. **Always use the `security-reports/` folder** as the output directory
+2. **Use timestamped filenames** to prevent overwrites and maintain history
+3. **Include file extensions** appropriate to the report format (.json, .txt, .sarif, etc.)
+4. **Document output locations** in script comments and documentation
+5. **Use absolute paths** when possible to avoid path resolution issues
+
+### Example Script Template
+
+```bash
+#!/bin/bash
+# Security Report Generation Template
+
+# Define security reports directory
+SECURITY_REPORTS_DIR="security-reports"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+# Create directory if it doesn't exist
+mkdir -p "$SECURITY_REPORTS_DIR"
+
+# Generate security report with proper naming
+REPORT_FILE="$SECURITY_REPORTS_DIR/cargo-audit-$TIMESTAMP.json"
+
+# Run security scan
+cargo audit --format json --output "$REPORT_FILE"
+
+echo "Security report generated: $REPORT_FILE"
+```
+
+### Validation and Enforcement
+
+- **Pre-commit hooks** will check for misplaced security files
+- **CI/CD pipelines** validate that security reports are in the correct location
+- **Automated scripts** ensure proper directory structure
+- **Pull request checks** will fail if security reports are in wrong locations
+
+### Migration of Existing Reports
+
+If you find security reports in incorrect locations:
+
+1. Move them to `security-reports/` folder
+2. Rename with proper timestamp format if needed
+3. Update any scripts that reference the old locations
+4. Test that automated processes still work correctly
+
+### Security Report Retention
+
+- **Local retention**: Keep reports for active development cycles
+- **CI/CD retention**: Configure artifact retention policies appropriately
+- **Cleanup**: Use automated cleanup scripts for old reports
+- **Archival**: Move important reports to long-term storage when needed
 
 ## Getting Help
 
@@ -406,4 +518,4 @@ Contributors will be recognized in:
 - Release notes for significant contributions
 - The project's contributors page
 
-Thank you for contributing to the Multiagent Hive System!
+Thank you for contributing to the AI Orchestrator Hub!

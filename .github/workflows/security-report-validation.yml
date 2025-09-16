@@ -1,0 +1,360 @@
+name: Security Report Location Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'security-reports/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'security-reports/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-security-reports:
+    name: Validate Security Report Locations
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup structured logging
+        uses: ./.github/actions/setup-logging
+        with:
+          correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Validate security reports directory structure
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Validating security reports directory structure"
+
+          # Check if security-reports directory exists
+          if [ ! -d "security-reports" ]; then
+            log_structured "ERROR" "security-reports directory does not exist"
+            echo "❌ **security-reports directory missing**" >> $GITHUB_STEP_SUMMARY
+            echo "The security-reports/ directory must exist at the project root." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✅ **security-reports directory exists**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for misplaced security files
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Checking for misplaced security files"
+
+          # Define security-related file patterns that should NOT be elsewhere
+          SECURITY_PATTERNS=(
+            "*audit*.json"
+            "*security*.json"
+            "*secrets*.txt"
+            "*scan*.txt"
+            "*vulnerability*.json"
+            "*codeql*.sarif"
+            "*trivy*.sarif"
+            "*dependency*.json"
+          )
+
+          MISPLACED_FILES=()
+
+          # Check common directories where security files might be misplaced
+          DIRECTORIES_TO_CHECK=(
+            "backend"
+            "frontend"
+            "docs"
+            "scripts"
+            ".github"
+            "tests"
+            "monitoring"
+            "benchmarks"
+            "training"
+          )
+
+          for dir in "${DIRECTORIES_TO_CHECK[@]}"; do
+            if [ -d "$dir" ]; then
+              for pattern in "${SECURITY_PATTERNS[@]}"; do
+                # Find files matching security patterns in non-security directories
+                while IFS= read -r -d '' file; do
+                  # Skip if it's in security-reports directory
+                  if [[ "$file" != security-reports/* ]]; then
+                    MISPLACED_FILES+=("$file")
+                  fi
+                done < <(find "$dir" -name "$pattern" -type f -print0 2>/dev/null)
+              done
+            fi
+          done
+
+          # Check root directory for security files not in security-reports
+          for pattern in "${SECURITY_PATTERNS[@]}"; do
+            while IFS= read -r -d '' file; do
+              # Only flag files that are clearly security-related and not in security-reports
+              if [[ "$file" != security-reports/* ]] && [[ "$file" =~ (audit|security|secrets|scan|vulnerability|codeql|trivy|dependency) ]]; then
+                MISPLACED_FILES+=("$file")
+              fi
+            done < <(find . -maxdepth 1 -name "$pattern" -type f -print0 2>/dev/null)
+          done
+
+          if [ ${#MISPLACED_FILES[@]} -gt 0 ]; then
+            log_structured "ERROR" "Found ${#MISPLACED_FILES[@]} misplaced security files"
+            echo "❌ **Misplaced Security Files Detected**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| File Location | Issue |" >> $GITHUB_STEP_SUMMARY
+            echo "|---------------|-------|" >> $GITHUB_STEP_SUMMARY
+
+            for file in "${MISPLACED_FILES[@]}"; do
+              echo "| \`$file\` | Must be moved to \`security-reports/\` |" >> $GITHUB_STEP_SUMMARY
+            done
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required:** Move all security-related files to the \`security-reports/\` directory." >> $GITHUB_STEP_SUMMARY
+            echo "See [Contributing Guide - Security Report Organization](CONTRIBUTING.md#security-report-organization) for details." >> $GITHUB_STEP_SUMMARY
+
+            exit 1
+          else
+            echo "✅ **No misplaced security files found**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Validate security report naming conventions
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Validating security report naming conventions"
+
+          INVALID_NAMING=()
+
+          if [ -d "security-reports" ]; then
+            # Check for files that don't follow naming conventions
+            while IFS= read -r file; do
+              filename=$(basename "$file")
+
+              # Check if filename follows expected patterns
+              if [[ ! "$filename" =~ ^(cargo-audit|npm-audit|secrets-scan|codeql|container-scan|dependency-review|security-metrics)-[0-9]{8}-[0-9]{6}\.(json|txt|sarif)$ ]]; then
+                # Allow some legacy files but flag them for migration
+                if [[ "$filename" =~ (audit|security|secrets|scan|vulnerability|codeql|trivy|dependency) ]]; then
+                  INVALID_NAMING+=("$file")
+                fi
+              fi
+            done < <(find security-reports -type f \( -name "*.json" -o -name "*.txt" -o -name "*.sarif" \))
+          fi
+
+          if [ ${#INVALID_NAMING[@]} -gt 0 ]; then
+            log_structured "WARNING" "Found ${#INVALID_NAMING[@]} files with non-standard naming"
+            echo "⚠️ **Non-standard Security Report Names**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| File | Recommended Name |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|------------------|" >> $GITHUB_STEP_SUMMARY
+
+            for file in "${INVALID_NAMING[@]}"; do
+              filename=$(basename "$file")
+              # Suggest proper naming based on content
+              if [[ "$filename" =~ cargo ]]; then
+                suggestion="cargo-audit-$(date +%Y%m%d-%H%M%S).json"
+              elif [[ "$filename" =~ npm ]]; then
+                suggestion="npm-audit-$(date +%Y%m%d-%H%M%S).json"
+              elif [[ "$filename" =~ secrets ]]; then
+                suggestion="secrets-scan-$(date +%Y%m%d-%H%M%S).txt"
+              elif [[ "$filename" =~ codeql ]]; then
+                suggestion="codeql-$(date +%Y%m%d-%H%M%S).sarif"
+              elif [[ "$filename" =~ container|trivy ]]; then
+                suggestion="container-scan-$(date +%Y%m%d-%H%M%S).sarif"
+              elif [[ "$filename" =~ dependency ]]; then
+                suggestion="dependency-review-$(date +%Y%m%d-%H%M%S).json"
+              else
+                suggestion="security-report-$(date +%Y%m%d-%H%M%S).json"
+              fi
+              echo "| \`$filename\` | \`$suggestion\` |" >> $GITHUB_STEP_SUMMARY
+            done
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Recommendation:** Rename files to follow standard naming conventions." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All security reports follow naming conventions**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Validate security report file permissions
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Validating security report file permissions"
+
+          INVALID_PERMISSIONS=()
+
+          if [ -d "security-reports" ]; then
+            # Check for files with overly permissive permissions
+            while IFS= read -r file; do
+              permissions=$(stat -c "%a" "$file")
+              # Flag files that are world-writable or world-readable in group/other
+              if [[ "$permissions" =~ [2367]$ ]]; then
+                INVALID_PERMISSIONS+=("$file:$permissions")
+              fi
+            done < <(find security-reports -type f)
+          fi
+
+          if [ ${#INVALID_PERMISSIONS[@]} -gt 0 ]; then
+            log_structured "WARNING" "Found ${#INVALID_PERMISSIONS[@]} files with overly permissive permissions"
+            echo "⚠️ **Security Files with Overly Permissive Permissions**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| File | Permissions | Issue |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|-------------|-------|" >> $GITHUB_STEP_SUMMARY
+
+            for item in "${INVALID_PERMISSIONS[@]}"; do
+              file=$(echo "$item" | cut -d: -f1)
+              perms=$(echo "$item" | cut -d: -f2)
+              echo "| \`$file\` | \`$perms\` | Should be 644 or 600 |" >> $GITHUB_STEP_SUMMARY
+            done
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Security Risk:** Files contain sensitive information and should not be world-readable." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All security report files have appropriate permissions**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Generate security reports summary
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Generating security reports summary"
+
+          echo "## 📊 Security Reports Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d "security-reports" ]; then
+            total_files=$(find security-reports -type f | wc -l)
+            json_files=$(find security-reports -name "*.json" | wc -l)
+            txt_files=$(find security-reports -name "*.txt" | wc -l)
+            sarif_files=$(find security-reports -name "*.sarif" | wc -l)
+
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Security Files | $total_files |" >> $GITHUB_STEP_SUMMARY
+            echo "| JSON Reports | $json_files |" >> $GITHUB_STEP_SUMMARY
+            echo "| Text Reports | $txt_files |" >> $GITHUB_STEP_SUMMARY
+            echo "| SARIF Reports | $sarif_files |" >> $GITHUB_STEP_SUMMARY
+
+            if [ $total_files -gt 0 ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Recent Security Reports" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "| Report | Last Modified | Size |" >> $GITHUB_STEP_SUMMARY
+              echo "|--------|---------------|------|" >> $GITHUB_STEP_SUMMARY
+
+              # Show 5 most recent reports
+              find security-reports -type f -printf '%T@ %p\n' | sort -n | tail -5 | while read -r line; do
+                timestamp=$(echo "$line" | cut -d' ' -f1)
+                file=$(echo "$line" | cut -d' ' -f2-)
+                filename=$(basename "$file")
+                size=$(du -h "$file" | cut -f1)
+                date_str=$(date -d "@$timestamp" +"%Y-%m-%d %H:%M")
+                echo "| \`$filename\` | $date_str | $size |" >> $GITHUB_STEP_SUMMARY
+              done
+            fi
+          else
+            echo "No security-reports directory found." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Cleanup logging
+        if: always()
+        uses: ./.github/actions/cleanup-logging
+        with:
+          final-status: ${{ job.status }}
+
+  validate-scripts:
+    name: Validate Security Scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup structured logging
+        uses: ./.github/actions/setup-logging
+        with:
+          correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Check security scripts for proper output directories
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Checking security scripts for proper output directories"
+
+          SCRIPT_ISSUES=()
+
+          # Find all scripts that might generate security reports
+          SECURITY_SCRIPTS=(
+            "scripts/security_audit.sh"
+            "scripts/unwrap-prevention-monitor.sh"
+            ".github/workflows/security.yml"
+            ".github/workflows/security-report-validation.yml"
+          )
+
+          for script in "${SECURITY_SCRIPTS[@]}"; do
+            if [ -f "$script" ]; then
+              # Check if script contains security-reports directory references
+              if ! grep -q "security-reports" "$script"; then
+                SCRIPT_ISSUES+=("$script:missing_security_reports_reference")
+              fi
+
+              # Check for hardcoded paths that might be incorrect
+              if grep -q "\.\./security-reports\|\./security-reports" "$script"; then
+                SCRIPT_ISSUES+=("$script:potentially_incorrect_path")
+              fi
+            fi
+          done
+
+          # Check for any bash scripts that might generate security output
+          while IFS= read -r script; do
+            if grep -q "audit\|security\|scan\|vulnerability" "$script"; then
+              if ! grep -q "security-reports" "$script"; then
+                SCRIPT_ISSUES+=("$script:security_script_missing_reports_dir")
+              fi
+            fi
+          done < <(find scripts -name "*.sh" -type f)
+
+          if [ ${#SCRIPT_ISSUES[@]} -gt 0 ]; then
+            log_structured "WARNING" "Found ${#SCRIPT_ISSUES[@]} script issues"
+            echo "⚠️ **Security Script Issues Detected**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Script | Issue |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+
+            for issue in "${SCRIPT_ISSUES[@]}"; do
+              script=$(echo "$issue" | cut -d: -f1)
+              problem=$(echo "$issue" | cut -d: -f2)
+              case $problem in
+                "missing_security_reports_reference")
+                  description="Missing reference to security-reports directory"
+                  ;;
+                "potentially_incorrect_path")
+                  description="Potentially incorrect relative path to security-reports"
+                  ;;
+                "security_script_missing_reports_dir")
+                  description="Security-related script missing security-reports output directory"
+                  ;;
+                *)
+                  description="Unknown issue"
+                  ;;
+              esac
+              echo "| \`$script\` | $description |" >> $GITHUB_STEP_SUMMARY
+            done
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Recommendation:** Update scripts to use \`security-reports/\` as output directory." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All security scripts properly reference security-reports directory**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Cleanup logging
+        if: always()
+        uses: ./.github/actions/cleanup-logging
+        with:
+          final-status: ${{ job.status }}

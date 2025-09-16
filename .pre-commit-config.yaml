@@ -23,10 +23,24 @@ repos:
           files: \.rs$
           pass_filenames: false
 
-        - id: eslint-check
-          name: eslint check
-          entry: bash -c 'cd frontend && npm run lint:check'
-          language: system
-          files: \.(ts|tsx|js)$
-          exclude: ^frontend/scripts/neural-.*\.js$
-          pass_filenames: false
+         - id: eslint-check
+           name: eslint check
+           entry: bash -c 'cd frontend && npm run lint:check'
+           language: system
+           files: \.(ts|tsx|js)$
+           exclude: ^frontend/scripts/neural-.*\.js$
+           pass_filenames: false
+
+         - id: security-reports-location
+           name: security reports location check
+           entry: bash -c './scripts/validate-security-reports-location.sh'
+           language: system
+           files: .*
+           pass_filenames: false
+
+         - id: security-reports-naming
+           name: security reports naming convention
+           entry: bash -c './scripts/validate-security-reports-naming.sh'
+           language: system
+           files: security-reports/.*
+           pass_filenames: false

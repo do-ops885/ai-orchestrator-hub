@@ -9,11 +9,12 @@
 //! - Comprehensive monitoring and observability
 //! - Production-ready error handling and configuration
 
+use crate::utils::error::HiveResult;
 use multiagent_hive::*;
 use tracing::info;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> HiveResult<()> {
     // Initialize the entire system
     let app_state = init::initialize_system().await?;
 

@@ -1,0 +1,137 @@
+# Production Monitoring Configuration
+# Comprehensive monitoring setup for production environment
+
+[production_monitoring]
+# Health monitoring settings
+health_check_interval_seconds = 30
+performance_collection_interval_seconds = 15
+metrics_retention_hours = 168  # 7 days
+alert_evaluation_interval_seconds = 60
+dashboard_refresh_interval_seconds = 30
+
+# Prometheus exporter settings
+enable_prometheus_exporter = true
+prometheus_port = 9090
+
+# Grafana integration
+enable_grafana_integration = true
+grafana_url = "http://grafana.production.local:3000"
+
+# Notification channels
+[[production_monitoring.notification_channels]]
+channel_type = "console"
+enabled = true
+severity_filter = ["info", "warning", "critical"]
+
+[[production_monitoring.notification_channels]]
+channel_type = "webhook"
+endpoint = "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+enabled = true
+severity_filter = ["warning", "critical"]
+
+[[production_monitoring.notification_channels]]
+channel_type = "email"
+endpoint = "alerts@company.com"
+enabled = true
+severity_filter = ["critical"]
+
+# Alerting thresholds
+[production_monitoring.alerting_thresholds]
+agent_health_critical_threshold = 0.5
+agent_health_warning_threshold = 0.7
+system_cpu_critical = 90.0
+system_cpu_warning = 75.0
+system_memory_critical = 95.0
+system_memory_warning = 80.0
+task_failure_rate_critical = 25.0
+task_failure_rate_warning = 10.0
+response_time_critical_ms = 5000.0
+response_time_warning_ms = 1000.0
+error_rate_critical_per_minute = 10.0
+error_rate_warning_per_minute = 2.0
+agent_utilization_low_threshold = 30.0
+throughput_drop_threshold_percent = 20.0
+
+# Business metrics configuration
+[production_monitoring.business_metrics_config]
+enable_business_metrics = true
+task_completion_target_percentage = 95.0
+agent_utilization_target_percentage = 80.0
+system_uptime_target_percentage = 99.9
+customer_satisfaction_target_score = 4.5
+
+# Intelligent alerting configuration
+[intelligent_alerting]
+max_alert_history = 10000
+adaptive_learning_enabled = true
+predictive_alerting_enabled = true
+alert_correlation_window_minutes = 5
+suppression_window_minutes = 30
+escalation_enabled = true
+
+# Metrics collection configuration
+[metrics]
+max_history_size = 10000
+cpu_warning = 70.0
+cpu_critical = 90.0
+memory_warning = 80.0
+memory_critical = 95.0
+task_failure_rate_warning = 10.0
+task_failure_rate_critical = 25.0
+agent_failure_rate_warning = 5.0
+agent_failure_rate_critical = 15.0
+response_time_warning = 1000.0
+response_time_critical = 5000.0
+
+# Telemetry configuration
+[telemetry]
+max_events = 50000
+enable_console_subscriber = true
+enable_webhook_subscriber = true
+webhook_url = "https://api.honeycomb.io/1/events/ai-orchestrator"
+enable_structured_logging = true
+log_level = "info"
+
+# Dashboard configuration
+[dashboard]
+theme = "dark"
+layout = "grid"
+refresh_interval = 30
+enable_real_time_updates = true
+max_widgets = 20
+
+# Log aggregation configuration
+[logging]
+enable_aggregation = true
+aggregation_endpoint = "https://logs.production.local/api/v1/logs"
+batch_size = 100
+flush_interval_seconds = 30
+enable_compression = true
+
+# Tracing configuration
+[tracing]
+enable_distributed_tracing = true
+tracing_endpoint = "https://tracing.production.local/api/v1/spans"
+sample_rate = 0.1
+enable_error_tracing = true
+
+# Security monitoring
+[security]
+enable_security_monitoring = true
+max_failed_login_attempts = 5
+alert_on_suspicious_activity = true
+enable_audit_logging = true
+
+# Performance optimization
+[performance]
+enable_auto_optimization = true
+optimization_interval_minutes = 60
+enable_resource_pooling = true
+max_connection_pool_size = 100
+
+# Backup and recovery
+[backup]
+enable_automated_backups = true
+backup_interval_hours = 24
+backup_retention_days = 30
+enable_point_in_time_recovery = true

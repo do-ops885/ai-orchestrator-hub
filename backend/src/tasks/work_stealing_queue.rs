@@ -10,6 +10,7 @@ use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 
 use crate::tasks::{Task, TaskPriority};
+use crate::utils::error::HiveResult;
 // use crate::agents::Agent;
 
 /// High-performance work-stealing task queue system
@@ -71,7 +72,7 @@ impl AgentTaskQueue {
     }
 
     /// Add task to appropriate queue based on priority
-    pub async fn push_task(&self, task: Task) -> anyhow::Result<()> {
+    pub async fn push_task(&self, task: Task) -> HiveResult<()> {
         match task.priority {
             TaskPriority::High | TaskPriority::Critical => {
                 let mut priority_queue = self.priority_queue.lock().await;
@@ -146,7 +147,7 @@ impl AgentTaskQueue {
     }
 
     /// Clear all tasks from this agent's queues
-    pub async fn clear(&self) -> anyhow::Result<()> {
+    pub async fn clear(&self) -> HiveResult<()> {
         {
             let mut local_queue = self.local_queue.lock().await;
             local_queue.clear();
@@ -216,7 +217,7 @@ impl WorkStealingQueue {
     }
 
     /// Register a new agent with the work-stealing system
-    pub async fn register_agent(&self, agent_id: Uuid) -> anyhow::Result<()> {
+    pub async fn register_agent(&self, agent_id: Uuid) -> HiveResult<()> {
         let agent_queue = AgentTaskQueue::new(agent_id);
         self.agent_queues.insert(agent_id, agent_queue);
 
@@ -225,7 +226,7 @@ impl WorkStealingQueue {
     }
 
     /// Remove agent from the system and redistribute its tasks
-    pub async fn unregister_agent(&self, agent_id: Uuid) -> anyhow::Result<()> {
+    pub async fn unregister_agent(&self, agent_id: Uuid) -> HiveResult<()> {
         if let Some((_, agent_queue)) = self.agent_queues.remove(&agent_id) {
             // Redistribute remaining tasks
             let remaining_tasks = self.drain_agent_tasks(&agent_queue).await;
@@ -239,7 +240,7 @@ impl WorkStealingQueue {
     }
 
     /// Submit a new task to the system
-    pub async fn submit_task(&self, task: Task) -> anyhow::Result<()> {
+    pub async fn submit_task(&self, task: Task) -> HiveResult<()> {
         // Try to assign to best available agent
         if let Some(best_agent_id) = self.load_balancer.find_best_agent(&self.agent_queues).await {
             if let Some(agent_queue) = self.agent_queues.get(&best_agent_id) {
@@ -419,7 +420,7 @@ impl WorkStealingQueue {
     }
 
     /// Clear all tasks from the system
-    pub async fn clear(&self) -> anyhow::Result<()> {
+    pub async fn clear(&self) -> HiveResult<()> {
         // Clear global queue
         {
             let mut global_queue = self.global_queue.lock().await;
@@ -458,10 +459,8 @@ impl WorkStealingQueue {
         metrics.last_updated = Utc::now();
     }
 
-
-
     /// Cleanup old or stale tasks
-    pub async fn cleanup(&self) -> anyhow::Result<()> {
+    pub async fn cleanup(&self) -> HiveResult<()> {
         let cutoff_time = Utc::now() - chrono::Duration::hours(1);
         let mut removed_count = 0;
 

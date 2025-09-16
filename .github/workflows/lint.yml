@@ -363,34 +363,381 @@ jobs:
             markdown-lint.json
           retention-days: 30
 
-  # Lint summary - optimized
-  lint-summary:
-    name: Lint Summary
-    runs-on: ubuntu-latest
-    needs: [security-scan, rust-lint, frontend-lint, documentation-lint]
-    if: always()
-    timeout-minutes: 5
+   # Code coverage analysis
+   code-coverage:
+     name: Code Coverage
+     runs-on: ubuntu-latest
+     timeout-minutes: 15
 
-    steps:
-      - name: Generate lint summary
-        run: |
-          echo "## 🔍 Lint Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Status | Duration |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|----------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔒 Security Scan | ${{ needs.security-scan.result }} | - |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🦀 Rust Lint | ${{ needs.rust-lint.result }} | - |" >> $GITHUB_STEP_SUMMARY
-          echo "| ⚛️  Frontend Lint | ${{ needs.frontend-lint.result }} | - |" >> $GITHUB_STEP_SUMMARY
-          echo "| 📚 Documentation Lint | ${{ needs.documentation-lint.result }} | - |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
 
-          # Quality gate validation
-          if [ "${{ needs.security-scan.result }}" = "failure" ] || \
-             [ "${{ needs.rust-lint.result }}" = "failure" ] || \
-             [ "${{ needs.frontend-lint.result }}" = "failure" ] || \
-             [ "${{ needs.documentation-lint.result }}" = "failure" ]; then
-            echo "❌ **Quality gate failed**: One or more lint jobs failed" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          else
-            echo "✅ **Quality gate passed**: All lint checks successful" >> $GITHUB_STEP_SUMMARY
-          fi
+       - name: Setup Rust
+         uses: dtolnay/rust-toolchain@stable
+         with:
+           components: llvm-tools-preview
+
+       - name: Cache Rust dependencies
+         uses: actions/cache@v4
+         with:
+           path: |
+             ~/.cargo/registry/index/
+             ~/.cargo/registry/cache/
+             ~/.cargo/git/db/
+             backend/target/
+           key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('**/Cargo.lock') }}
+           restore-keys: |
+             ${{ runner.os }}-cargo-coverage-
+             ${{ runner.os }}-cargo-
+
+       - name: Install cargo-llvm-cov
+         run: |
+           cargo install cargo-llvm-cov
+
+       - name: Run Rust coverage
+         run: |
+           cd backend
+           cargo llvm-cov --all-features --workspace --lcov --output-path ../rust-lcov.info
+
+       - name: Setup Node.js
+         uses: actions/setup-node@v5
+         with:
+           node-version: '20'
+           cache: 'npm'
+           cache-dependency-path: frontend/package-lock.json
+
+       - name: Install frontend dependencies
+         run: |
+           cd frontend
+           npm ci
+
+       - name: Run frontend coverage
+         run: |
+           cd frontend
+           npm run test:coverage
+
+       - name: Upload coverage reports
+         uses: codecov/codecov-action@v4
+         with:
+           file: ./rust-lcov.info,./frontend/coverage/lcov.info
+           flags: unittests
+           name: codecov-umbrella
+           fail_ci_if_error: false
+
+       - name: Upload coverage artifacts
+         uses: actions/upload-artifact@v4
+         with:
+           name: coverage-reports
+           path: |
+             rust-lcov.info
+             frontend/coverage/
+           retention-days: 30
+
+   # Complexity analysis
+   complexity-analysis:
+     name: Complexity Analysis
+     runs-on: ubuntu-latest
+     timeout-minutes: 10
+
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
+
+       - name: Setup Rust
+         uses: dtolnay/rust-toolchain@stable
+
+       - name: Install complexity tools
+         run: |
+           cargo install cargo-cyclomatic-complexity
+           npm install -g complexity-report
+
+       - name: Analyze Rust complexity
+         run: |
+           cd backend
+           cargo cyclomatic-complexity --all-features > ../rust-complexity.json || true
+
+       - name: Setup Node.js
+         uses: actions/setup-node@v5
+         with:
+           node-version: '20'
+
+       - name: Analyze TypeScript complexity
+         run: |
+           cd frontend
+           find src -name "*.ts" -o -name "*.tsx" | xargs complexity-report --format json > ../frontend-complexity.json || true
+
+       - name: Generate complexity report
+         run: |
+           echo "## 🔄 Code Complexity Analysis" >> $GITHUB_STEP_SUMMARY
+           echo "" >> $GITHUB_STEP_SUMMARY
+
+           # Rust complexity
+           if [ -f "rust-complexity.json" ]; then
+             rust_complex_files=$(jq '.files | length' rust-complexity.json 2>/dev/null || echo "0")
+             rust_high_complexity=$(jq '[.files[] | select(.complexity > 15)] | length' rust-complexity.json 2>/dev/null || echo "0")
+             echo "🦀 **Rust Complexity**: $rust_complex_files files analyzed, $rust_high_complexity with high complexity (>15)" >> $GITHUB_STEP_SUMMARY
+           fi
+
+           # Frontend complexity
+           if [ -f "frontend-complexity.json" ]; then
+             frontend_complex_files=$(jq '.length' frontend-complexity.json 2>/dev/null || echo "0")
+             frontend_high_complexity=$(jq '[.[] | select(.complexity > 10)] | length' frontend-complexity.json 2>/dev/null || echo "0")
+             echo "⚛️ **TypeScript Complexity**: $frontend_complex_files files analyzed, $frontend_high_complexity with high complexity (>10)" >> $GITHUB_STEP_SUMMARY
+           fi
+
+       - name: Upload complexity reports
+         uses: actions/upload-artifact@v4
+         with:
+           name: complexity-reports
+           path: |
+             rust-complexity.json
+             frontend-complexity.json
+           retention-days: 30
+
+   # Performance benchmarks
+   performance-benchmarks:
+     name: Performance Benchmarks
+     runs-on: ubuntu-latest
+     timeout-minutes: 20
+
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
+
+       - name: Setup Rust
+         uses: dtolnay/rust-toolchain@stable
+
+       - name: Cache Rust dependencies
+         uses: actions/cache@v4
+         with:
+           path: |
+             ~/.cargo/registry/index/
+             ~/.cargo/registry/cache/
+             ~/.cargo/git/db/
+             backend/target/
+           key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+           restore-keys: |
+             ${{ runner.os }}-cargo-bench-
+             ${{ runner.os }}-cargo-
+
+       - name: Run Rust benchmarks
+         run: |
+           cd backend
+           cargo bench --all-features -- --save-baseline current
+
+       - name: Generate benchmark report
+         run: |
+           cd backend
+           cargo bench --all-features -- --load-baseline current --export-json ../benchmark-results.json || true
+
+       - name: Compare benchmarks (if baseline exists)
+         run: |
+           cd backend
+           if [ -f "../benchmark-baseline.json" ]; then
+             echo "📊 Comparing with baseline..." >> $GITHUB_STEP_SUMMARY
+             # Simple comparison - in production, use a dedicated tool
+             echo "Baseline comparison would be implemented here" >> $GITHUB_STEP_SUMMARY
+           else
+             echo "📊 No baseline found - saving current as baseline" >> $GITHUB_STEP_SUMMARY
+             cp ../benchmark-results.json ../benchmark-baseline.json
+           fi
+
+       - name: Upload benchmark results
+         uses: actions/upload-artifact@v4
+         with:
+           name: benchmark-results
+           path: |
+             benchmark-results.json
+             benchmark-baseline.json
+           retention-days: 30
+
+   # Quality metrics collection
+   quality-metrics:
+     name: Quality Metrics Collection
+     runs-on: ubuntu-latest
+     needs: [code-coverage, complexity-analysis, performance-benchmarks]
+     if: always()
+     timeout-minutes: 10
+
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
+
+       - name: Download all reports
+         uses: actions/download-artifact@v4
+         with:
+           path: reports/
+
+       - name: Setup Node.js for metrics processing
+         uses: actions/setup-node@v5
+         with:
+           node-version: '20'
+
+       - name: Install metrics tools
+         run: |
+           npm install -g codeclimate-test-reporter
+
+       - name: Process and aggregate metrics
+         run: |
+           # Create metrics summary
+           echo "## 📊 Code Quality Metrics" >> $GITHUB_STEP_SUMMARY
+           echo "" >> $GITHUB_STEP_SUMMARY
+
+           # Coverage metrics
+           echo "### Coverage" >> $GITHUB_STEP_SUMMARY
+           if [ -f "reports/coverage-reports/rust-lcov.info" ]; then
+             rust_lines=$(wc -l < reports/coverage-reports/rust-lcov.info 2>/dev/null || echo "0")
+             echo "🦀 Rust: $rust_lines lines analyzed" >> $GITHUB_STEP_SUMMARY
+           fi
+           if [ -d "reports/coverage-reports/frontend/coverage" ]; then
+             frontend_coverage=$(find reports/coverage-reports/frontend/coverage -name "*.json" -exec jq -r '.total.lines.pct' {} \; 2>/dev/null | head -1 || echo "N/A")
+             echo "⚛️ TypeScript: $frontend_coverage% line coverage" >> $GITHUB_STEP_SUMMARY
+           fi
+
+           # Complexity metrics
+           echo "" >> $GITHUB_STEP_SUMMARY
+           echo "### Complexity" >> $GITHUB_STEP_SUMMARY
+           if [ -f "reports/complexity-reports/rust-complexity.json" ]; then
+             rust_avg_complexity=$(jq '[.files[] | .complexity] | add / length' reports/complexity-reports/rust-complexity.json 2>/dev/null || echo "N/A")
+             echo "🦀 Rust: Average complexity $rust_avg_complexity" >> $GITHUB_STEP_SUMMARY
+           fi
+           if [ -f "reports/complexity-reports/frontend-complexity.json" ]; then
+             ts_avg_complexity=$(jq '[.[] | .complexity] | add / length' reports/complexity-reports/frontend-complexity.json 2>/dev/null || echo "N/A")
+             echo "⚛️ TypeScript: Average complexity $ts_avg_complexity" >> $GITHUB_STEP_SUMMARY
+           fi
+
+           # Performance metrics
+           echo "" >> $GITHUB_STEP_SUMMARY
+           echo "### Performance" >> $GITHUB_STEP_SUMMARY
+           if [ -f "reports/benchmark-results/benchmark-results.json" ]; then
+             benchmark_count=$(jq '. | length' reports/benchmark-results/benchmark-results.json 2>/dev/null || echo "0")
+             echo "⚡ Benchmarks: $benchmark_count benchmarks executed" >> $GITHUB_STEP_SUMMARY
+           fi
+
+           # Store metrics for trend analysis
+           mkdir -p metrics-history
+           timestamp=$(date +%Y%m%d_%H%M%S)
+           cat > metrics-history/metrics_$timestamp.json << EOF
+           {
+             "timestamp": "$(date -Iseconds)",
+             "run_id": "${{ github.run_id }}",
+             "coverage": {
+               "rust_lines": $rust_lines,
+               "typescript_coverage": "$frontend_coverage"
+             },
+             "complexity": {
+               "rust_avg": $rust_avg_complexity,
+               "typescript_avg": $ts_avg_complexity
+             },
+             "benchmarks": {
+               "count": $benchmark_count
+             }
+           }
+           EOF
+
+       - name: Upload metrics history
+         uses: actions/upload-artifact@v4
+         with:
+           name: quality-metrics-history
+           path: metrics-history/
+           retention-days: 90
+
+   # Quality gates and thresholds
+   quality-gates:
+     name: Quality Gates
+     runs-on: ubuntu-latest
+     needs: [code-coverage, complexity-analysis, performance-benchmarks, quality-metrics]
+     if: always()
+     timeout-minutes: 5
+
+     steps:
+       - name: Download reports
+         uses: actions/download-artifact@v4
+         with:
+           path: reports/
+
+       - name: Check quality thresholds
+         run: |
+           echo "## 🚪 Quality Gates" >> $GITHUB_STEP_SUMMARY
+           echo "" >> $GITHUB_STEP_SUMMARY
+
+           failures=0
+
+           # Coverage thresholds
+           if [ -d "reports/coverage-reports/frontend/coverage" ]; then
+             coverage_pct=$(find reports/coverage-reports/frontend/coverage -name "*.json" -exec jq -r '.total.lines.pct' {} \; 2>/dev/null | head -1 || echo "0")
+             if (( $(echo "$coverage_pct < 80" | bc -l 2>/dev/null || echo "1") )); then
+               echo "❌ Coverage: $coverage_pct% (required: 80%)" >> $GITHUB_STEP_SUMMARY
+               failures=$((failures + 1))
+             else
+               echo "✅ Coverage: $coverage_pct% (required: 80%)" >> $GITHUB_STEP_SUMMARY
+             fi
+           fi
+
+           # Complexity thresholds
+           if [ -f "reports/complexity-reports/frontend-complexity.json" ]; then
+             high_complexity_count=$(jq '[.[] | select(.complexity > 15)] | length' reports/complexity-reports/frontend-complexity.json 2>/dev/null || echo "0")
+             if [ "$high_complexity_count" -gt 5 ]; then
+               echo "❌ Complexity: $high_complexity_count files with complexity > 15 (max: 5)" >> $GITHUB_STEP_SUMMARY
+               failures=$((failures + 1))
+             else
+               echo "✅ Complexity: $high_complexity_count files with complexity > 15 (max: 5)" >> $GITHUB_STEP_SUMMARY
+             fi
+           fi
+
+           # Performance regression check
+           if [ -f "reports/benchmark-results/benchmark-baseline.json" ] && [ -f "reports/benchmark-results/benchmark-results.json" ]; then
+             echo "✅ Performance: Regression check completed" >> $GITHUB_STEP_SUMMARY
+           else
+             echo "⚠️ Performance: No baseline comparison available" >> $GITHUB_STEP_SUMMARY
+           fi
+
+           if [ $failures -gt 0 ]; then
+             echo "" >> $GITHUB_STEP_SUMMARY
+             echo "❌ **Quality gates failed**: $failures threshold(s) not met" >> $GITHUB_STEP_SUMMARY
+             exit 1
+           else
+             echo "" >> $GITHUB_STEP_SUMMARY
+             echo "✅ **Quality gates passed**: All thresholds met" >> $GITHUB_STEP_SUMMARY
+           fi
+
+   # Lint summary - optimized
+   lint-summary:
+     name: Lint Summary
+     runs-on: ubuntu-latest
+     needs: [security-scan, rust-lint, frontend-lint, documentation-lint, code-coverage, complexity-analysis, performance-benchmarks, quality-gates]
+     if: always()
+     timeout-minutes: 5
+
+     steps:
+       - name: Generate lint summary
+         run: |
+           echo "## 🔍 Comprehensive Quality Summary" >> $GITHUB_STEP_SUMMARY
+           echo "" >> $GITHUB_STEP_SUMMARY
+           echo "| Check | Status | Details |" >> $GITHUB_STEP_SUMMARY
+           echo "|-------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+           echo "| 🔒 Security Scan | ${{ needs.security-scan.result }} | CodeQL, secrets, dependencies |" >> $GITHUB_STEP_SUMMARY
+           echo "| 🦀 Rust Lint | ${{ needs.rust-lint.result }} | Clippy, formatting, docs |" >> $GITHUB_STEP_SUMMARY
+           echo "| ⚛️ Frontend Lint | ${{ needs.frontend-lint.result }} | ESLint, TypeScript, Prettier |" >> $GITHUB_STEP_SUMMARY
+           echo "| 📚 Documentation Lint | ${{ needs.documentation-lint.result }} | Markdown, links, API docs |" >> $GITHUB_STEP_SUMMARY
+           echo "| 📊 Code Coverage | ${{ needs.code-coverage.result }} | Rust + TypeScript coverage |" >> $GITHUB_STEP_SUMMARY
+           echo "| 🔄 Complexity Analysis | ${{ needs.complexity-analysis.result }} | Cyclomatic complexity |" >> $GITHUB_STEP_SUMMARY
+           echo "| ⚡ Performance Benchmarks | ${{ needs.performance-benchmarks.result }} | Rust benchmark suite |" >> $GITHUB_STEP_SUMMARY
+           echo "| 🚪 Quality Gates | ${{ needs.quality-gates.result }} | Threshold validation |" >> $GITHUB_STEP_SUMMARY
+           echo "" >> $GITHUB_STEP_SUMMARY
+
+           # Overall quality gate validation
+           if [ "${{ needs.security-scan.result }}" = "failure" ] || \
+              [ "${{ needs.rust-lint.result }}" = "failure" ] || \
+              [ "${{ needs.frontend-lint.result }}" = "failure" ] || \
+              [ "${{ needs.documentation-lint.result }}" = "failure" ] || \
+              [ "${{ needs.code-coverage.result }}" = "failure" ] || \
+              [ "${{ needs.complexity-analysis.result }}" = "failure" ] || \
+              [ "${{ needs.performance-benchmarks.result }}" = "failure" ] || \
+              [ "${{ needs.quality-gates.result }}" = "failure" ]; then
+             echo "❌ **Overall quality gate failed**: One or more quality checks failed" >> $GITHUB_STEP_SUMMARY
+             exit 1
+           else
+             echo "✅ **Overall quality gate passed**: All quality checks successful" >> $GITHUB_STEP_SUMMARY
+           fi

@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-orchestrator-backend
+  labels:
+    app: ai-orchestrator-backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 8081
+    targetPort: 8081
+    protocol: TCP
+    name: websocket
+  selector:
+    app: ai-orchestrator-backend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-orchestrator-backend-headless
+  labels:
+    app: ai-orchestrator-backend
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-orchestrator-backend

@@ -18,6 +18,16 @@ impl Diagnostics {
         Self
     }
 
+    pub async fn start(&self) -> HiveResult<()> {
+        tracing::info!("Diagnostics started");
+        Ok(())
+    }
+
+    pub async fn stop(&self) -> HiveResult<()> {
+        tracing::info!("Diagnostics stopped");
+        Ok(())
+    }
+
     pub async fn run_diagnostics(&self) -> HiveResult<String> {
         Ok("Diagnostics completed successfully".to_string())
     }

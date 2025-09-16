@@ -123,6 +123,7 @@ pub use task_management::{TaskDistributor, TaskExecutionResult};
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json;
     use std::sync::Arc;
     use tokio::sync::mpsc;
 
@@ -159,13 +160,13 @@ mod tests {
 
         // Verify they can be created and used together
         let agent_status = agent_manager.get_status().await;
-        assert_eq!(agent_status["total_agents"].as_u64().unwrap_or(0), 0);
+        assert_eq!(agent_status["total_agents"].as_u64().unwrap_or_default(), 0);
 
         let task_status = task_distributor.get_status().await;
         assert_eq!(
             task_status["queue"]["legacy_queue_size"]
                 .as_u64()
-                .unwrap_or(0),
+                .unwrap_or_default(),
             0
         );
 
@@ -299,8 +300,15 @@ mod tests {
 
         // Get initial status
         let initial_status = coordinator.get_status().await;
-        let initial_agents = initial_status.get("agents").unwrap().as_object().unwrap();
-        let initial_tasks = initial_status.get("tasks").unwrap().as_object().unwrap();
+        let empty_map = serde_json::Map::new();
+        let initial_agents = initial_status
+            .get("agents")
+            .and_then(|v| v.as_object())
+            .unwrap_or(&empty_map);
+        let initial_tasks = initial_status
+            .get("tasks")
+            .and_then(|v| v.as_object())
+            .unwrap_or(&empty_map);
 
         // Create agent and task
         let agent_config = serde_json::json!({
@@ -322,22 +330,25 @@ mod tests {
 
         // Get updated status
         let updated_status = coordinator.get_status().await;
-        let updated_agents = updated_status.get("agents").unwrap().as_object().unwrap();
-        let updated_tasks = updated_status.get("tasks").unwrap().as_object().unwrap();
+        let updated_agents = updated_status
+            .get("agents")
+            .and_then(|v| v.as_object())
+            .unwrap_or(&empty_map);
+        let updated_tasks = updated_status
+            .get("tasks")
+            .and_then(|v| v.as_object())
+            .unwrap_or(&empty_map);
 
         // Verify status is updated
-        assert!(
-            updated_agents
-                .get("total_agents")
-                .unwrap()
-                .as_u64()
-                .unwrap()
-                > initial_agents
-                    .get("total_agents")
-                    .unwrap()
-                    .as_u64()
-                    .unwrap_or(0)
-        );
+        let updated_total = updated_agents
+            .get("total_agents")
+            .and_then(|v| v.as_u64())
+            .unwrap_or_default();
+        let initial_total = initial_agents
+            .get("total_agents")
+            .and_then(|v| v.as_u64())
+            .unwrap_or_default();
+        assert!(updated_total > initial_total);
 
         // Tasks status should be updated (though exact format may vary)
         assert!(updated_status.get("tasks").is_some());
@@ -372,7 +383,11 @@ mod tests {
 
         // Check that metrics were updated (indicating messages were processed)
         let status = coordinator.get_status().await;
-        let metrics = status.get("metrics").unwrap().as_object().unwrap();
+        let empty_map = serde_json::Map::new();
+        let metrics = status
+            .get("metrics")
+            .and_then(|v| v.as_object())
+            .unwrap_or(&empty_map);
         assert!(metrics.get("agent_metrics").is_some());
         assert!(metrics.get("task_metrics").is_some());
 
@@ -499,13 +514,23 @@ mod tests {
 
         // Wait for all tasks to complete
         for handle in handles {
-            handle.await??;
+            handle.await?;
         }
 
         // Verify final state
         let status = coordinator.get_status().await;
-        let agents = status.get("agents").unwrap().as_object().unwrap();
-        assert_eq!(agents.get("total_agents").unwrap(), 5);
+        let empty_map = serde_json::Map::new();
+        let agents = status
+            .get("agents")
+            .and_then(|v| v.as_object())
+            .unwrap_or(&empty_map);
+        assert_eq!(
+            agents
+                .get("total_agents")
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default(),
+            5
+        );
 
         Ok(())
     }

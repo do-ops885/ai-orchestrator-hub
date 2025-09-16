@@ -1,0 +1,108 @@
+groups:
+  - name: ai-orchestrator-alerts
+    rules:
+      # Application Health Alerts
+      - alert: AIOrchestratorDown
+        expr: up{job="ai-orchestrator-backend"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AI Orchestrator Backend is down"
+          description: "AI Orchestrator Backend has been down for more than 5 minutes."
+
+      - alert: AIOrchestratorHighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate in AI Orchestrator"
+          description: "Error rate is {{ $value }}% which is above 5%."
+
+      # Resource Usage Alerts
+      - alert: AIOrchestratorHighCPUUsage
+        expr: rate(process_cpu_user_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage in AI Orchestrator"
+          description: "CPU usage is above 80%."
+
+      - alert: AIOrchestratorHighMemoryUsage
+        expr: process_resident_memory_bytes / process_virtual_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage in AI Orchestrator"
+          description: "Memory usage is above 85%."
+
+      # Agent System Alerts
+      - alert: LowActiveAgents
+        expr: ai_orchestrator_active_agents < 3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low number of active agents"
+          description: "Only {{ $value }} agents are active, which is below the minimum threshold."
+
+      - alert: HighFailedTasks
+        expr: rate(ai_orchestrator_failed_tasks_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate of failed tasks"
+          description: "Task failure rate is {{ $value }} tasks per second."
+
+      # Queue Alerts
+      - alert: TaskQueueGrowing
+        expr: ai_orchestrator_pending_tasks > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Task queue is growing"
+          description: "There are {{ $value }} pending tasks in the queue."
+
+      # Performance Alerts
+      - alert: SlowResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow response times"
+          description: "95th percentile response time is {{ $value }}s."
+
+      # Database Alerts
+      - alert: DatabaseConnectionIssues
+        expr: ai_orchestrator_db_connections_active > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection usage"
+          description: "Database has {{ $value }} active connections."
+
+      # Kubernetes-specific Alerts
+      - alert: PodRestarting
+        expr: kube_pod_container_status_restarts_total{namespace="ai-orchestrator"} > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pod is restarting frequently"
+          description: "Pod {{ $labels.pod }} has restarted {{ $value }} times."
+
+      - alert: NodeMemoryPressure
+        expr: kube_node_status_condition{condition="MemoryPressure", status="true"}
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node memory pressure"
+          description: "Node {{ $labels.node }} is under memory pressure."

@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
 use tokio::sync::{Mutex, RwLock};
+use tokio::task;
 use uuid::Uuid;
 
 /// Complete system state snapshot
@@ -108,7 +109,7 @@ pub struct CheckpointStats {
     pub last_backup: Option<DateTime<Utc>>,
 }
 
-/// Persistence manager for the hive system
+/// Persistence manager for the hive system with async optimizations
 #[allow(dead_code)]
 pub struct PersistenceManager {
     config: PersistenceConfig,
@@ -117,6 +118,10 @@ pub struct PersistenceManager {
     last_checkpoint: Arc<RwLock<Option<DateTime<Utc>>>>,
     encryption_key: Option<[u8; 32]>,
     backup_manager: Option<BackupManager>,
+    /// Connection pool for optimized database access
+    connection_pool: Arc<tokio::sync::Semaphore>,
+    /// Async optimizer for batching operations
+    async_optimizer: Arc<crate::infrastructure::async_optimizer::AsyncOptimizer>,
 }
 
 impl PersistenceManager {
@@ -126,7 +131,7 @@ impl PersistenceManager {
         std::env::var("HIVE_ENCRYPTION_KEY").ok()
     }
 
-    /// Create a new persistence manager
+    /// Create a new persistence manager with async optimizations
     pub async fn new(config: PersistenceConfig) -> HiveResult<Self> {
         let encryption_key = config.encryption_key.as_ref().map(|s| {
             let mut key = [0u8; 32];
@@ -148,6 +153,22 @@ impl PersistenceManager {
             }
         };
 
+        // Initialize async optimizer for batching operations
+        let optimizer_config = crate::infrastructure::async_optimizer::AsyncOptimizerConfig {
+            max_concurrent_ops: num_cpus::get() * 2, // Conservative concurrency for I/O
+            batch_size: 50,                          // Smaller batches for I/O operations
+            batch_timeout: std::time::Duration::from_millis(100),
+            connection_pool_size: 10,
+            enable_prioritization: true,
+            metrics_interval: std::time::Duration::from_secs(60), // Less frequent for I/O
+        };
+        let async_optimizer = Arc::new(
+            crate::infrastructure::async_optimizer::AsyncOptimizer::new(optimizer_config),
+        );
+
+        // Connection pool semaphore for limiting concurrent database connections
+        let connection_pool = Arc::new(tokio::sync::Semaphore::new(5));
+
         Ok(Self {
             config,
             storage,
@@ -155,6 +176,8 @@ impl PersistenceManager {
             last_checkpoint: Arc::new(RwLock::new(None)),
             encryption_key,
             backup_manager: None,
+            connection_pool,
+            async_optimizer,
         })
     }
 
@@ -517,148 +540,197 @@ impl StorageProvider for SQLiteStorage {
     }
     #[allow(clippy::cast_possible_wrap)]
     async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String> {
-        let json_data =
-            serde_json::to_string(snapshot).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to serialize snapshot: {e}"),
+        // Move serialization and database operations to blocking thread
+        let snapshot_id = snapshot.snapshot_id;
+        let snapshot_clone = snapshot.clone();
+        let conn = Arc::clone(&self.connection);
+
+        task::spawn_blocking(move || {
+            let json_data = serde_json::to_string(&snapshot_clone)
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to serialize snapshot: {e}"),
+                })?;
+
+            let conn_guard = conn.blocking_lock();
+            conn_guard.execute(
+                "INSERT INTO snapshots (id, timestamp, version, size_bytes, agent_count, task_count, description, data)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    snapshot_clone.snapshot_id.to_string(),
+                    snapshot_clone.timestamp.to_rfc3339(),
+                    snapshot_clone.version,
+                    json_data.len() as i64,
+                    snapshot_clone.agents.len() as i64,
+                    snapshot_clone.tasks.len() as i64,
+                    "Automated checkpoint",
+                    json_data
+                ],
+            ).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to save snapshot to database: {e}"),
             })?;
 
-        let conn = self.connection.lock().await;
-        conn.execute(
-            "INSERT INTO snapshots (id, timestamp, version, size_bytes, agent_count, task_count, description, data)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                snapshot.snapshot_id.to_string(),
-                snapshot.timestamp.to_rfc3339(),
-                snapshot.version,
-                json_data.len() as i64,
-                snapshot.agents.len() as i64,
-                snapshot.tasks.len() as i64,
-                "Automated checkpoint",
-                json_data
-            ],
-        ).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to save snapshot to database: {e}"),
-        })?;
-
-        Ok(snapshot.snapshot_id.to_string())
+            Ok(snapshot_id.to_string())
+        })
+        .await
+        .map_err(|e| HiveError::OperationFailed {
+            reason: format!("Database task panicked: {e}"),
+        })?
     }
 
     async fn load_snapshot(&self, snapshot_id: &str) -> HiveResult<SystemSnapshot> {
-        let conn = self.connection.lock().await;
-        let mut stmt = conn
-            .prepare("SELECT data FROM snapshots WHERE id = ?1")
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to prepare load query: {e}"),
-            })?;
+        // Move database query and deserialization to blocking thread
+        let snapshot_id = snapshot_id.to_string();
+        let conn = Arc::clone(&self.connection);
 
-        let json_data: String = stmt
-            .query_row(params![snapshot_id], |row| row.get(0))
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to load snapshot: {e}"),
-            })?;
+        task::spawn_blocking(move || {
+            let conn_guard = conn.blocking_lock();
+            let mut stmt = conn_guard
+                .prepare("SELECT data FROM snapshots WHERE id = ?1")
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to prepare load query: {e}"),
+                })?;
 
-        let snapshot: SystemSnapshot =
-            serde_json::from_str(&json_data).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to deserialize snapshot: {e}"),
-            })?;
+            let json_data: String = stmt
+                .query_row(params![snapshot_id], |row| row.get(0))
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to load snapshot: {e}"),
+                })?;
 
-        Ok(snapshot)
+            let snapshot: SystemSnapshot =
+                serde_json::from_str(&json_data).map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to deserialize snapshot: {e}"),
+                })?;
+
+            Ok(snapshot)
+        })
+        .await
+        .map_err(|e| HiveError::OperationFailed {
+            reason: format!("Database task panicked: {e}"),
+        })?
     }
 
     async fn list_snapshots(&self) -> HiveResult<Vec<CheckpointMetadata>> {
-        let conn = self.connection.lock().await;
-        let mut stmt = conn
-            .prepare("SELECT id, timestamp, size_bytes, agent_count, task_count, description FROM snapshots ORDER BY timestamp DESC")
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to prepare list query: {e}"),
+        // Move database query to blocking thread
+        let conn = Arc::clone(&self.connection);
+
+        task::spawn_blocking(move || {
+            let conn_guard = conn.blocking_lock();
+            let mut stmt = conn_guard
+                .prepare("SELECT id, timestamp, size_bytes, agent_count, task_count, description FROM snapshots ORDER BY timestamp DESC")
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to prepare list query: {e}"),
+                })?;
+
+            let mut rows = stmt.query([]).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to execute list query: {e}"),
             })?;
 
-        let mut rows = stmt.query([]).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to execute list query: {e}"),
-        })?;
+            let mut snapshots = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let id: String = row.get(0).map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to get id: {e}"),
+                })?;
+                let timestamp: String = row.get(1).map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to get timestamp: {e}"),
+                })?;
+                let size_bytes: i64 = row.get(2).map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to get size_bytes: {e}"),
+                })?;
+                let agent_count: i64 = row.get(3).map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to get agent_count: {e}"),
+                })?;
+                let task_count: i64 = row.get(4).map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to get task_count: {e}"),
+                })?;
+                let description: String = row.get(5).map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to get description: {e}"),
+                })?;
 
-        let mut snapshots = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let id: String = row.get(0).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to get id: {e}"),
-            })?;
-            let timestamp: String = row.get(1).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to get timestamp: {e}"),
-            })?;
-            let size_bytes: i64 = row.get(2).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to get size_bytes: {e}"),
-            })?;
-            let agent_count: i64 = row.get(3).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to get agent_count: {e}"),
-            })?;
-            let task_count: i64 = row.get(4).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to get task_count: {e}"),
-            })?;
-            let description: String = row.get(5).map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to get description: {e}"),
-            })?;
+                let checkpoint = CheckpointMetadata {
+                    checkpoint_id: uuid::Uuid::parse_str(&id).unwrap_or_else(|_| uuid::Uuid::new_v4()),
+                    timestamp: DateTime::parse_from_rfc3339(&timestamp)
+                        .map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc)),
+                    size_bytes: size_bytes as u64,
+                    compression_ratio: 1.0, // Not stored
+                    agent_count: agent_count as usize,
+                    task_count: task_count as usize,
+                    description,
+                };
+                snapshots.push(checkpoint);
+            }
 
-            let checkpoint = CheckpointMetadata {
-                checkpoint_id: uuid::Uuid::parse_str(&id).unwrap_or_else(|_| uuid::Uuid::new_v4()),
-                timestamp: DateTime::parse_from_rfc3339(&timestamp)
-                    .map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc)),
-                size_bytes: size_bytes as u64,
-                compression_ratio: 1.0, // Not stored
-                agent_count: agent_count as usize,
-                task_count: task_count as usize,
-                description,
-            };
-            snapshots.push(checkpoint);
-        }
-
-        Ok(snapshots)
+            Ok(snapshots)
+        })
+        .await
+        .map_err(|e| HiveError::OperationFailed {
+            reason: format!("Database task panicked: {e}"),
+        })?
     }
 
     async fn delete_snapshot(&self, snapshot_id: &str) -> HiveResult<()> {
-        let conn = self.connection.lock().await;
-        conn.execute("DELETE FROM snapshots WHERE id = ?1", params![snapshot_id])
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to delete snapshot: {e}"),
-            })?;
-        Ok(())
+        let snapshot_id = snapshot_id.to_string();
+        let conn = Arc::clone(&self.connection);
+
+        task::spawn_blocking(move || {
+            let conn_guard = conn.blocking_lock();
+            conn_guard
+                .execute("DELETE FROM snapshots WHERE id = ?1", params![snapshot_id])
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to delete snapshot: {e}"),
+                })?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| HiveError::OperationFailed {
+            reason: format!("Database task panicked: {e}"),
+        })?
     }
 
     #[allow(clippy::cast_possible_wrap)]
     async fn cleanup_old_snapshots(&self, max_count: usize) -> HiveResult<usize> {
-        let conn = self.connection.lock().await;
+        let max_count = max_count;
+        let conn = Arc::clone(&self.connection);
 
-        // Get count of snapshots to delete
-        let mut count_stmt = conn
-            .prepare("SELECT COUNT(*) FROM snapshots")
-            .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to prepare count query: {e}"),
-            })?;
+        task::spawn_blocking(move || {
+            let conn_guard = conn.blocking_lock();
 
-        let total_count: i64 =
-            count_stmt
-                .query_row([], |row| row.get(0))
+            // Get count of snapshots to delete
+            let mut count_stmt = conn_guard
+                .prepare("SELECT COUNT(*) FROM snapshots")
                 .map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to get snapshot count: {e}"),
+                    reason: format!("Failed to prepare count query: {e}"),
                 })?;
 
-        if total_count <= max_count as i64 {
-            return Ok(0);
-        }
+            let total_count: i64 = count_stmt.query_row([], |row| row.get(0)).map_err(|e| {
+                HiveError::OperationFailed {
+                    reason: format!("Failed to get snapshot count: {e}"),
+                }
+            })?;
 
-        let to_delete = total_count - max_count as i64;
+            if total_count <= max_count as i64 {
+                return Ok(0);
+            }
 
-        // Delete oldest snapshots
-        conn.execute(
-            "DELETE FROM snapshots WHERE id IN (
-                SELECT id FROM snapshots ORDER BY timestamp ASC LIMIT ?1
-            )",
-            params![to_delete],
-        )
+            let to_delete = total_count - max_count as i64;
+
+            // Delete oldest snapshots
+            conn_guard
+                .execute(
+                    "DELETE FROM snapshots WHERE id IN (
+                    SELECT id FROM snapshots ORDER BY timestamp ASC LIMIT ?1
+                )",
+                    params![to_delete],
+                )
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to cleanup old snapshots: {e}"),
+                })?;
+
+            Ok(to_delete as usize)
+        })
+        .await
         .map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to cleanup old snapshots: {e}"),
-        })?;
-
-        Ok(to_delete as usize)
+            reason: format!("Database task panicked: {e}"),
+        })?
     }
 }
 

@@ -1,5 +1,5 @@
 use multiagent_hive::infrastructure::benchmarks::{
-    create_default_benchmark_suite, PerformanceConfig, PerformanceMonitor
+    create_default_benchmark_suite, PerformanceConfig, PerformanceMonitor,
 };
 use std::time::Duration;
 use tokio;
@@ -35,9 +35,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for result in &results {
         println!("✅ {}:", result.test_id);
         println!("   Duration: {:.2}ms", result.duration_ms);
-        println!("   Throughput: {:.2} ops/sec", result.throughput_ops_per_sec);
-        println!("   Memory Usage: {:.2} MB", result.memory_usage.average_memory_mb);
-        println!("   Memory Growth: {:.2} MB", result.memory_usage.memory_growth_mb);
+        println!(
+            "   Throughput: {:.2} ops/sec",
+            result.throughput_ops_per_sec
+        );
+        println!(
+            "   Memory Usage: {:.2} MB",
+            result.memory_usage.average_memory_mb
+        );
+        println!(
+            "   Memory Growth: {:.2} MB",
+            result.memory_usage.memory_growth_mb
+        );
         println!("   Iterations: {}", result.iterations_completed);
         println!("   Success: {}", result.success);
 

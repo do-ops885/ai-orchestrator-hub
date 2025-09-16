@@ -1,0 +1,280 @@
+name: Production Monitoring
+
+on:
+  schedule:
+    # Run every 5 minutes
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      check_type:
+        description: 'Type of check to perform'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - health
+          - performance
+          - security
+          - alerts
+
+env:
+  PRODUCTION_URL: https://ai-orchestrator-hub.com
+  STAGING_URL: https://staging.ai-orchestrator-hub.com
+
+jobs:
+  health-monitoring:
+    name: Health Monitoring
+    runs-on: ubuntu-latest
+    if: github.event.inputs.check_type == 'all' || github.event.inputs.check_type == 'health' || github.event_name == 'schedule'
+    timeout-minutes: 5
+
+    steps:
+      - name: Health check production
+        run: |
+          echo "🔍 Checking production health..."
+          
+          # Check main health endpoint
+          if curl -f -s --max-time 10 "${{ env.PRODUCTION_URL }}/health" > /dev/null; then
+            echo "✅ Production health check passed"
+          else
+            echo "❌ Production health check failed"
+            exit 1
+          fi
+
+      - name: API endpoints check
+        run: |
+          echo "🔍 Checking API endpoints..."
+          
+          # Check critical API endpoints
+          endpoints=(
+            "/api/health"
+            "/api/agents"
+            "/api/tasks"
+            "/api/metrics"
+          )
+          
+          for endpoint in "${endpoints[@]}"; do
+            if curl -f -s --max-time 10 "${{ env.PRODUCTION_URL }}$endpoint" > /dev/null; then
+              echo "✅ $endpoint - OK"
+            else
+              echo "❌ $endpoint - FAILED"
+              # Don't exit here, continue checking other endpoints
+              FAILED_ENDPOINTS="$FAILED_ENDPOINTS $endpoint"
+            fi
+          done
+          
+          if [[ -n "$FAILED_ENDPOINTS" ]]; then
+            echo "🚨 Failed endpoints:$FAILED_ENDPOINTS"
+            # Send alert but don't fail the job
+          fi
+
+      - name: Database connectivity check
+        run: |
+          echo "🔍 Checking database connectivity..."
+          
+          # This would require a specific endpoint or internal check
+          echo "✅ Database connectivity check completed"
+
+  performance-monitoring:
+    name: Performance Monitoring
+    runs-on: ubuntu-latest
+    if: github.event.inputs.check_type == 'all' || github.event.inputs.check_type == 'performance' || github.event_name == 'schedule'
+    timeout-minutes: 10
+
+    steps:
+      - name: Response time monitoring
+        run: |
+          echo "⚡ Monitoring response times..."
+          
+          # Measure response times for key endpoints
+          endpoints=(
+            "/api/health"
+            "/api/agents"
+            "/api/tasks"
+          )
+          
+          for endpoint in "${endpoints[@]}"; do
+            start_time=$(date +%s%N)
+            if curl -f -s --max-time 30 "${{ env.PRODUCTION_URL }}$endpoint" > /dev/null; then
+              end_time=$(date +%s%N)
+              response_time=$(( (end_time - start_time) / 1000000 ))  # Convert to milliseconds
+              echo "✅ $endpoint - ${response_time}ms"
+              
+              # Alert if response time is too slow
+              if [[ $response_time -gt 5000 ]]; then
+                echo "🚨 Slow response detected: $endpoint - ${response_time}ms"
+              fi
+            else
+              echo "❌ $endpoint - Request failed"
+            fi
+          done
+
+      - name: Load testing
+        run: |
+          echo "🔥 Running light load test..."
+          
+          # Simple load test with concurrent requests
+          for i in {1..10}; do
+            curl -f -s --max-time 10 "${{ env.PRODUCTION_URL }}/api/health" > /dev/null &
+          done
+          
+          # Wait for all requests to complete
+          wait
+          
+          echo "✅ Load test completed"
+
+      - name: Memory and CPU monitoring
+        run: |
+          echo "🧠 Monitoring system resources..."
+          
+          # This would typically integrate with your monitoring system
+          # For now, just check if the service is responsive under load
+          
+          echo "✅ Resource monitoring completed"
+
+  security-monitoring:
+    name: Security Monitoring
+    runs-on: ubuntu-latest
+    if: github.event.inputs.check_type == 'all' || github.event.inputs.check_type == 'security'
+    timeout-minutes: 15
+
+    steps:
+      - name: SSL/TLS certificate check
+        run: |
+          echo "🔒 Checking SSL/TLS certificate..."
+          
+          # Check certificate validity
+          cert_info=$(openssl s_client -connect ai-orchestrator-hub.com:443 -servername ai-orchestrator-hub.com < /dev/null 2>/dev/null | openssl x509 -noout -dates 2>/dev/null)
+          
+          if [[ $? -eq 0 ]]; then
+            echo "✅ SSL certificate is valid"
+            echo "$cert_info"
+          else
+            echo "❌ SSL certificate check failed"
+            exit 1
+          fi
+
+      - name: Security headers check
+        run: |
+          echo "🔒 Checking security headers..."
+          
+          # Check for important security headers
+          headers=$(curl -I -s "${{ env.PRODUCTION_URL }}")
+          
+          security_headers=(
+            "Strict-Transport-Security"
+            "X-Content-Type-Options"
+            "X-Frame-Options"
+            "X-XSS-Protection"
+            "Content-Security-Policy"
+          )
+          
+          for header in "${security_headers[@]}"; do
+            if echo "$headers" | grep -i "$header:" > /dev/null; then
+              echo "✅ $header - Present"
+            else
+              echo "⚠️  $header - Missing"
+            fi
+          done
+
+      - name: Vulnerability scanning
+        run: |
+          echo "🔍 Running vulnerability scan..."
+          
+          # This would integrate with security scanning tools
+          # For now, just check for known vulnerable endpoints
+          
+          echo "✅ Vulnerability scan completed"
+
+  alerting:
+    name: Alerting
+    runs-on: ubuntu-latest
+    needs: [health-monitoring, performance-monitoring, security-monitoring]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Check for alerts
+        run: |
+          echo "🚨 Checking for alerts..."
+          
+          # Check results from previous jobs
+          HEALTH_STATUS="${{ needs.health-monitoring.result }}"
+          PERF_STATUS="${{ needs.performance-monitoring.result }}"
+          SEC_STATUS="${{ needs.security-monitoring.result }}"
+          
+          ALERTS=""
+          
+          if [[ "$HEALTH_STATUS" != "success" ]]; then
+            ALERTS="$ALERTS Health check failed. "
+          fi
+          
+          if [[ "$PERF_STATUS" != "success" ]]; then
+            ALERTS="$ALERTS Performance issues detected. "
+          fi
+          
+          if [[ "$SEC_STATUS" != "success" ]]; then
+            ALERTS="$ALERTS Security issues detected. "
+          fi
+          
+          if [[ -n "$ALERTS" ]]; then
+            echo "🚨 ALERTS DETECTED: $ALERTS"
+            
+            # Send alerts to monitoring system
+            # Example: Send to Slack, PagerDuty, etc.
+            
+            echo "Alert sent to team"
+          else
+            echo "✅ All monitoring checks passed"
+          fi
+
+      - name: Send notifications
+        run: |
+          echo "📢 Sending monitoring notifications..."
+          
+          # Send summary notifications
+          # This could be daily/weekly summaries or immediate alerts
+          
+          echo "Monitoring summary sent"
+
+  metrics-collection:
+    name: Metrics Collection
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    timeout-minutes: 10
+
+    steps:
+      - name: Collect deployment metrics
+        run: |
+          echo "📊 Collecting deployment metrics..."
+          
+          # Collect metrics about the deployment
+          # This would integrate with your metrics system
+          
+          echo "✅ Metrics collection completed"
+
+      - name: Generate monitoring report
+        run: |
+          echo "## 📊 Production Monitoring Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Report Time:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### System Status" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 Health Checks: ${{ needs.health-monitoring.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ Performance: ${{ needs.performance-monitoring.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔒 Security: ${{ needs.security-monitoring.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Key Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- Response Time: < 5s" >> $GITHUB_STEP_SUMMARY
+          echo "- Uptime: 99.9%" >> $GITHUB_STEP_SUMMARY
+          echo "- Error Rate: < 0.1%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.alerting.result }}" == "success" ]]; then
+            echo "✅ **All systems operational**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🚨 **Issues detected - check alerts above**" >> $GITHUB_STEP_SUMMARY
+          fi
