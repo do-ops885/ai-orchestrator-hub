@@ -132,6 +132,10 @@ harness = false
 name = "bench_runner"
 path = "bench_runner.rs"
 
+[[bin]]
+name = "mcp_server"
+path = "src/bin/mcp_server.rs"
+
 [lints.rust]
 # Rust compiler lints
 unsafe_code = "warn"

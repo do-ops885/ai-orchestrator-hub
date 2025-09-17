@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test'
-import { waitForWebSocketConnection, WebSocketTestUtils } from '../src/test/playwright-websocket-utils'
+import {
+  waitForWebSocketConnection,
+  WebSocketTestUtils,
+} from '../src/test/playwright-websocket-utils'
 
 test.describe('Dashboard E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
@@ -7,11 +10,14 @@ test.describe('Dashboard E2E Tests', () => {
     await page.goto('/')
 
     // Wait for either the main dashboard or connection error screen to load
-    await page.waitForFunction(() => {
-      const mainHeading = document.querySelector('h1:has-text("🐝 Multiagent Hive System")')
-      const connectionError = document.querySelector('h1:has-text("Connection Failed")')
-      return mainHeading !== null || connectionError !== null
-    }, { timeout: 10000 })
+    await page.waitForFunction(
+      () => {
+        const mainHeading = document.querySelector('h1:has-text("🐝 Multiagent Hive System")')
+        const connectionError = document.querySelector('h1:has-text("Connection Failed")')
+        return mainHeading !== null || connectionError !== null
+      },
+      { timeout: 10000 },
+    )
   })
 
   test('should load dashboard successfully', async ({ page }) => {
@@ -117,10 +123,13 @@ test.describe('Dashboard E2E Tests', () => {
     await expect(connectionStatus).toContainText('Connected')
 
     // Verify initial data is loaded
-    await page.waitForFunction(() => {
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.hiveStatus !== null && store?.agents?.length > 0
-    }, { timeout: 5000 })
+    await page.waitForFunction(
+      () => {
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.hiveStatus !== null && store?.agents?.length > 0
+      },
+      { timeout: 5000 },
+    )
 
     // Verify hive status contains expected data
     const hiveStatus = await page.evaluate(() => {
@@ -153,8 +162,8 @@ test.describe('Dashboard E2E Tests', () => {
     })
 
     // At least one metric should have changed due to mock randomization
-    const metricsChanged = Object.keys(initialMetrics).some(key =>
-      initialMetrics[key] !== updatedMetrics[key]
+    const metricsChanged = Object.keys(initialMetrics).some(
+      key => initialMetrics[key] !== updatedMetrics[key],
     )
     expect(metricsChanged).toBe(true)
   })

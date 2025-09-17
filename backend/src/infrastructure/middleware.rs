@@ -95,24 +95,33 @@ pub async fn security_headers_middleware(request: Request, next: Next) -> Respon
 
     let headers = response.headers_mut();
 
-    // These are static strings that should always parse correctly
-    if let Ok(value) = "nosniff".parse() {
-        headers.insert("X-Content-Type-Options", value);
-    }
-    if let Ok(value) = "DENY".parse() {
-        headers.insert("X-Frame-Options", value);
-    }
-    if let Ok(value) = "1; mode=block".parse() {
-        headers.insert("X-XSS-Protection", value);
-    }
-    if let Ok(value) = "strict-origin-when-cross-origin".parse() {
-        headers.insert("Referrer-Policy", value);
-    }
-    if let Ok(value) =
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
-            .parse()
-    {
-        headers.insert("Content-Security-Policy", value);
+    // These are static strings that should always parse correctly, but we handle errors gracefully
+    let security_headers = [
+        ("X-Content-Type-Options", "nosniff"),
+        ("X-Frame-Options", "DENY"),
+        ("X-XSS-Protection", "1; mode=block"),
+        ("Referrer-Policy", "strict-origin-when-cross-origin"),
+        (
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+        ),
+    ];
+
+    for (header_name, header_value) in security_headers {
+        match header_value.parse() {
+            Ok(parsed_value) => {
+                headers.insert(header_name, parsed_value);
+            }
+            Err(e) => {
+                warn!(
+                    header_name = header_name,
+                    header_value = header_value,
+                    error = ?e,
+                    "Failed to parse security header value"
+                );
+                // Continue processing other headers rather than panicking
+            }
+        }
     }
 
     response

@@ -157,7 +157,7 @@ describe('HiveStore', () => {
         JSON.stringify({
           action: 'create_agent',
           payload: config,
-        })
+        }),
       )
     })
 
@@ -184,7 +184,7 @@ describe('HiveStore', () => {
         JSON.stringify({
           action: 'create_task',
           payload: config,
-        })
+        }),
       )
     })
   })
@@ -192,7 +192,19 @@ describe('HiveStore', () => {
   describe('updateAgents', () => {
     it('should update agents array', () => {
       const { updateAgents } = useHiveStore.getState()
-      const agents = [{ id: '1', name: 'Agent 1', type: 'worker', state: 'active', capabilities: [], position: [0, 0], energy: 100, experience_count: 0, social_connections: 0 }]
+      const agents = [
+        {
+          id: '1',
+          name: 'Agent 1',
+          type: 'worker',
+          state: 'active',
+          capabilities: [],
+          position: [0, 0],
+          energy: 100,
+          experience_count: 0,
+          social_connections: 0,
+        },
+      ]
 
       updateAgents(agents)
 
@@ -204,7 +216,16 @@ describe('HiveStore', () => {
   describe('updateTasks', () => {
     it('should update tasks array', () => {
       const { updateTasks } = useHiveStore.getState()
-      const tasks = [{ id: '1', description: 'Task 1', type: 'computation', priority: 1, status: 'pending', created_at: '2023-01-01' }]
+      const tasks = [
+        {
+          id: '1',
+          description: 'Task 1',
+          type: 'computation',
+          priority: 1,
+          status: 'pending',
+          created_at: '2023-01-01',
+        },
+      ]
 
       updateTasks(tasks)
 
@@ -235,7 +256,7 @@ describe('HiveStore', () => {
       const { getConnectionStats } = useHiveStore.getState()
       const stats = getConnectionStats()
 
-      expect(stats.successRate).toBe(2/3)
+      expect(stats.successRate).toBe(2 / 3)
       expect(stats.averageLatency).toBe(150)
       expect(stats.stability).toBeGreaterThan(0)
     })
@@ -251,11 +272,20 @@ describe('HiveStore', () => {
         mockWebSocket.onopen({} as Event)
       }
 
-      const statusData = { hive_id: 'test', created_at: '2023-01-01', last_update: '2023-01-01', metrics: { total_agents: 5 }, swarm_center: [0, 0], total_energy: 100 }
+      const statusData = {
+        hive_id: 'test',
+        created_at: '2023-01-01',
+        last_update: '2023-01-01',
+        metrics: { total_agents: 5 },
+        swarm_center: [0, 0],
+        total_energy: 100,
+      }
 
       // Simulate message
       if (mockWebSocket && mockWebSocket.onmessage) {
-        mockWebSocket.onmessage({ data: JSON.stringify({ message_type: 'hive_status', data: statusData }) } as MessageEvent)
+        mockWebSocket.onmessage({
+          data: JSON.stringify({ message_type: 'hive_status', data: statusData }),
+        } as MessageEvent)
       }
 
       const state = useHiveStore.getState()
@@ -274,7 +304,9 @@ describe('HiveStore', () => {
       const agentsData = [{ id: '1', name: 'Agent 1' }]
 
       if (mockWebSocket && mockWebSocket.onmessage) {
-        mockWebSocket.onmessage({ data: JSON.stringify({ message_type: 'agents_update', data: { agents: agentsData } }) } as MessageEvent)
+        mockWebSocket.onmessage({
+          data: JSON.stringify({ message_type: 'agents_update', data: { agents: agentsData } }),
+        } as MessageEvent)
       }
 
       const state = useHiveStore.getState()
@@ -293,7 +325,9 @@ describe('HiveStore', () => {
       const tasksData = [{ id: '1', description: 'Task 1' }]
 
       if (mockWebSocket && mockWebSocket.onmessage) {
-        mockWebSocket.onmessage({ data: JSON.stringify({ message_type: 'tasks_update', data: { tasks: tasksData } }) } as MessageEvent)
+        mockWebSocket.onmessage({
+          data: JSON.stringify({ message_type: 'tasks_update', data: { tasks: tasksData } }),
+        } as MessageEvent)
       }
 
       const state = useHiveStore.getState()
@@ -311,13 +345,24 @@ describe('HiveStore', () => {
 
       // Set initial tasks
       useHiveStore.setState({
-        tasks: [{ id: '1', description: 'Task 1', type: 'computation', priority: 1, status: 'pending', created_at: '2023-01-01' }],
+        tasks: [
+          {
+            id: '1',
+            description: 'Task 1',
+            type: 'computation',
+            priority: 1,
+            status: 'pending',
+            created_at: '2023-01-01',
+          },
+        ],
       })
 
       const updatedTask = { id: '1', status: 'completed', completed_at: '2023-01-02' }
 
       if (mockWebSocket && mockWebSocket.onmessage) {
-        mockWebSocket.onmessage({ data: JSON.stringify({ message_type: 'task_status_update', data: { task: updatedTask } }) } as MessageEvent)
+        mockWebSocket.onmessage({
+          data: JSON.stringify({ message_type: 'task_status_update', data: { task: updatedTask } }),
+        } as MessageEvent)
       }
 
       const state = useHiveStore.getState()

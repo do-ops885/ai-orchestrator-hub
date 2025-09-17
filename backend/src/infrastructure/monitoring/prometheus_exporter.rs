@@ -4,13 +4,13 @@
 //! and integration with Grafana dashboards.
 
 use super::production_monitoring::ProductionMonitoringSystem;
-use crate::infrastructure::metrics::{MetricsCollector, SystemMetrics, AlertLevel};
+use crate::infrastructure::metrics::{AlertLevel, MetricsCollector, SystemMetrics};
 use crate::utils::error::HiveResult;
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use warp::Filter;
-use chrono::{DateTime, Utc};
 
 /// Prometheus metrics exporter
 pub struct PrometheusExporter {
@@ -56,28 +56,24 @@ impl PrometheusExporter {
     /// Start the Prometheus metrics server
     pub async fn start(&self) -> HiveResult<()> {
         let port = self.port;
-        let metrics_route = warp::path("metrics")
-            .map(|| {
-                // For now, return a simple response
-                // In a real implementation, this would generate actual metrics
-                warp::reply::with_header(
-                    "# AI Orchestrator Hub Metrics\n# Metrics generation not yet implemented\n",
-                    "content-type",
-                    "text/plain; version=0.0.4; charset=utf-8"
-                )
-            });
+        let metrics_route = warp::path("metrics").map(|| {
+            // For now, return a simple response
+            // In a real implementation, this would generate actual metrics
+            warp::reply::with_header(
+                "# AI Orchestrator Hub Metrics\n# Metrics generation not yet implemented\n",
+                "content-type",
+                "text/plain; version=0.0.4; charset=utf-8",
+            )
+        });
 
-        let health_route = warp::path("health")
-            .map(|| warp::reply::html("OK"));
+        let health_route = warp::path("health").map(|| warp::reply::html("OK"));
 
         let routes = metrics_route.or(health_route);
 
         tracing::info!("Starting Prometheus metrics server on port {}", port);
 
         tokio::spawn(async move {
-            warp::serve(routes)
-                .run(([0, 0, 0, 0], port))
-                .await;
+            warp::serve(routes).run(([0, 0, 0, 0], port)).await;
         });
 
         Ok(())
@@ -124,9 +120,7 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_cpu_usage_percent Current CPU usage percentage\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_cpu_usage_percent gauge\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_cpu_usage_percent gauge\n"));
         output.push_str(&format!(
             "ai_orchestrator_cpu_usage_percent{} {}\n",
             "", metrics.resource_usage.cpu_usage_percent
@@ -226,9 +220,7 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_total_agents Total number of registered agents\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_total_agents gauge\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_total_agents gauge\n"));
         output.push_str(&format!(
             "ai_orchestrator_total_agents{} {}\n",
             "", metrics.agent_metrics.total_agents
@@ -237,9 +229,7 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_active_agents Number of active agents\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_active_agents gauge\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_active_agents gauge\n"));
         output.push_str(&format!(
             "ai_orchestrator_active_agents{} {}\n",
             "", metrics.agent_metrics.active_agents
@@ -248,9 +238,7 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_idle_agents Number of idle agents\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_idle_agents gauge\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_idle_agents gauge\n"));
         output.push_str(&format!(
             "ai_orchestrator_idle_agents{} {}\n",
             "", metrics.agent_metrics.idle_agents
@@ -259,9 +247,7 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_failed_agents Number of failed agents\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_failed_agents gauge\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_failed_agents gauge\n"));
         output.push_str(&format!(
             "ai_orchestrator_failed_agents{} {}\n",
             "", metrics.agent_metrics.failed_agents
@@ -351,9 +337,7 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_tasks_submitted Total tasks submitted\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_tasks_submitted counter\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_tasks_submitted counter\n"));
         output.push_str(&format!(
             "ai_orchestrator_tasks_submitted{} {}\n",
             "", metrics.task_metrics.total_tasks_submitted
@@ -362,9 +346,7 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_tasks_completed Total tasks completed\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_tasks_completed counter\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_tasks_completed counter\n"));
         output.push_str(&format!(
             "ai_orchestrator_tasks_completed{} {}\n",
             "", metrics.task_metrics.total_tasks_completed
@@ -373,9 +355,7 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_tasks_failed Total tasks failed\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_tasks_failed counter\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_tasks_failed counter\n"));
         output.push_str(&format!(
             "ai_orchestrator_tasks_failed{} {}\n",
             "", metrics.task_metrics.total_tasks_failed
@@ -385,9 +365,7 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_tasks_in_queue Current tasks in queue\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_tasks_in_queue gauge\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_tasks_in_queue gauge\n"));
         output.push_str(&format!(
             "ai_orchestrator_tasks_in_queue{} {}\n",
             "", metrics.task_metrics.tasks_in_queue
@@ -407,12 +385,11 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_task_success_rate Task success rate percentage\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_task_success_rate gauge\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_task_success_rate gauge\n"));
         output.push_str(&format!(
             "ai_orchestrator_task_success_rate{} {}\n",
-            "", metrics.task_metrics.task_success_rate * 100.0
+            "",
+            metrics.task_metrics.task_success_rate * 100.0
         ));
 
         output.push_str("\n");
@@ -427,9 +404,7 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_total_errors Total number of errors\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_total_errors counter\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_total_errors counter\n"));
         output.push_str(&format!(
             "ai_orchestrator_total_errors{} {}\n",
             "", metrics.error_metrics.total_errors
@@ -438,9 +413,7 @@ impl PrometheusExporter {
         output.push_str(&format!(
             "# HELP ai_orchestrator_critical_errors Number of critical errors\n"
         ));
-        output.push_str(&format!(
-            "# TYPE ai_orchestrator_critical_errors counter\n"
-        ));
+        output.push_str(&format!("# TYPE ai_orchestrator_critical_errors counter\n"));
         output.push_str(&format!(
             "ai_orchestrator_critical_errors{} {}\n",
             "", metrics.error_metrics.critical_errors
@@ -465,9 +438,7 @@ impl PrometheusExporter {
             output.push_str(&format!(
                 "# HELP ai_orchestrator_errors_by_type Errors by type\n"
             ));
-            output.push_str(&format!(
-                "# TYPE ai_orchestrator_errors_by_type counter\n"
-            ));
+            output.push_str(&format!("# TYPE ai_orchestrator_errors_by_type counter\n"));
             output.push_str(&format!(
                 "ai_orchestrator_errors_by_type{} {}\n",
                 labels, count
@@ -484,78 +455,78 @@ impl PrometheusExporter {
 
         let business_metrics = self.production_monitoring.get_business_metrics().await;
         {
-                // Task completion rate
-                output.push_str(&format!(
+            // Task completion rate
+            output.push_str(&format!(
                     "# HELP ai_orchestrator_task_completion_rate Business metric: task completion rate\n"
                 ));
-                output.push_str(&format!(
-                    "# TYPE ai_orchestrator_task_completion_rate gauge\n"
-                ));
-                output.push_str(&format!(
-                    "ai_orchestrator_task_completion_rate{} {}\n",
-                    "", business_metrics.task_completion_rate
-                ));
+            output.push_str(&format!(
+                "# TYPE ai_orchestrator_task_completion_rate gauge\n"
+            ));
+            output.push_str(&format!(
+                "ai_orchestrator_task_completion_rate{} {}\n",
+                "", business_metrics.task_completion_rate
+            ));
 
-                // Agent utilization
-                output.push_str(&format!(
+            // Agent utilization
+            output.push_str(&format!(
                     "# HELP ai_orchestrator_agent_utilization_rate Business metric: agent utilization rate\n"
                 ));
-                output.push_str(&format!(
-                    "# TYPE ai_orchestrator_agent_utilization_rate gauge\n"
-                ));
-                output.push_str(&format!(
-                    "ai_orchestrator_agent_utilization_rate{} {}\n",
-                    "", business_metrics.agent_utilization_rate
-                ));
+            output.push_str(&format!(
+                "# TYPE ai_orchestrator_agent_utilization_rate gauge\n"
+            ));
+            output.push_str(&format!(
+                "ai_orchestrator_agent_utilization_rate{} {}\n",
+                "", business_metrics.agent_utilization_rate
+            ));
 
-                // System uptime
-                output.push_str(&format!(
-                    "# HELP ai_orchestrator_system_uptime_percentage System uptime percentage\n"
-                ));
-                output.push_str(&format!(
-                    "# TYPE ai_orchestrator_system_uptime_percentage gauge\n"
-                ));
-                output.push_str(&format!(
-                    "ai_orchestrator_system_uptime_percentage{} {}\n",
-                    "", business_metrics.system_uptime_percentage
-                ));
+            // System uptime
+            output.push_str(&format!(
+                "# HELP ai_orchestrator_system_uptime_percentage System uptime percentage\n"
+            ));
+            output.push_str(&format!(
+                "# TYPE ai_orchestrator_system_uptime_percentage gauge\n"
+            ));
+            output.push_str(&format!(
+                "ai_orchestrator_system_uptime_percentage{} {}\n",
+                "", business_metrics.system_uptime_percentage
+            ));
 
-                // Customer satisfaction
-                output.push_str(&format!(
-                    "# HELP ai_orchestrator_customer_satisfaction_score Customer satisfaction score\n"
-                ));
-                output.push_str(&format!(
-                    "# TYPE ai_orchestrator_customer_satisfaction_score gauge\n"
-                ));
-                output.push_str(&format!(
-                    "ai_orchestrator_customer_satisfaction_score{} {}\n",
-                    "", business_metrics.customer_satisfaction_score
-                ));
+            // Customer satisfaction
+            output.push_str(&format!(
+                "# HELP ai_orchestrator_customer_satisfaction_score Customer satisfaction score\n"
+            ));
+            output.push_str(&format!(
+                "# TYPE ai_orchestrator_customer_satisfaction_score gauge\n"
+            ));
+            output.push_str(&format!(
+                "ai_orchestrator_customer_satisfaction_score{} {}\n",
+                "", business_metrics.customer_satisfaction_score
+            ));
 
-                // Total tasks processed
-                output.push_str(&format!(
-                    "# HELP ai_orchestrator_total_tasks_processed Total tasks processed\n"
-                ));
-                output.push_str(&format!(
-                    "# TYPE ai_orchestrator_total_tasks_processed counter\n"
-                ));
-                output.push_str(&format!(
-                    "ai_orchestrator_total_tasks_processed{} {}\n",
-                    "", business_metrics.total_tasks_processed
-                ));
+            // Total tasks processed
+            output.push_str(&format!(
+                "# HELP ai_orchestrator_total_tasks_processed Total tasks processed\n"
+            ));
+            output.push_str(&format!(
+                "# TYPE ai_orchestrator_total_tasks_processed counter\n"
+            ));
+            output.push_str(&format!(
+                "ai_orchestrator_total_tasks_processed{} {}\n",
+                "", business_metrics.total_tasks_processed
+            ));
 
-                // System throughput
-                output.push_str(&format!(
+            // System throughput
+            output.push_str(&format!(
                     "# HELP ai_orchestrator_system_throughput_tasks_per_second System throughput in tasks per second\n"
                 ));
-                output.push_str(&format!(
-                    "# TYPE ai_orchestrator_system_throughput_tasks_per_second gauge\n"
-                ));
-                output.push_str(&format!(
-                    "ai_orchestrator_system_throughput_tasks_per_second{} {}\n",
-                    "", business_metrics.system_throughput_tasks_per_second
-                ));
-            }
+            output.push_str(&format!(
+                "# TYPE ai_orchestrator_system_throughput_tasks_per_second gauge\n"
+            ));
+            output.push_str(&format!(
+                "ai_orchestrator_system_throughput_tasks_per_second{} {}\n",
+                "", business_metrics.system_throughput_tasks_per_second
+            ));
+        }
 
         output.push_str("\n");
         output
@@ -567,51 +538,45 @@ impl PrometheusExporter {
 
         let alert_stats = self.production_monitoring.get_alert_statistics().await;
         {
-                // Alert counts
-                output.push_str(&format!(
-                    "# HELP ai_orchestrator_total_alerts Total number of alerts\n"
-                ));
-                output.push_str(&format!(
-                    "# TYPE ai_orchestrator_total_alerts counter\n"
-                ));
-                output.push_str(&format!(
-                    "ai_orchestrator_total_alerts{} {}\n",
-                    "", alert_stats.total_alerts
-                ));
+            // Alert counts
+            output.push_str(&format!(
+                "# HELP ai_orchestrator_total_alerts Total number of alerts\n"
+            ));
+            output.push_str(&format!("# TYPE ai_orchestrator_total_alerts counter\n"));
+            output.push_str(&format!(
+                "ai_orchestrator_total_alerts{} {}\n",
+                "", alert_stats.total_alerts
+            ));
 
-                output.push_str(&format!(
-                    "# HELP ai_orchestrator_alerts_last_24h Alerts in the last 24 hours\n"
-                ));
-                output.push_str(&format!(
-                    "# TYPE ai_orchestrator_alerts_last_24h gauge\n"
-                ));
-                output.push_str(&format!(
-                    "ai_orchestrator_alerts_last_24h{} {}\n",
-                    "", alert_stats.alerts_last_24h
-                ));
+            output.push_str(&format!(
+                "# HELP ai_orchestrator_alerts_last_24h Alerts in the last 24 hours\n"
+            ));
+            output.push_str(&format!("# TYPE ai_orchestrator_alerts_last_24h gauge\n"));
+            output.push_str(&format!(
+                "ai_orchestrator_alerts_last_24h{} {}\n",
+                "", alert_stats.alerts_last_24h
+            ));
 
-                output.push_str(&format!(
-                    "# HELP ai_orchestrator_alerts_last_hour Alerts in the last hour\n"
-                ));
-                output.push_str(&format!(
-                    "# TYPE ai_orchestrator_alerts_last_hour gauge\n"
-                ));
-                output.push_str(&format!(
-                    "ai_orchestrator_alerts_last_hour{} {}\n",
-                    "", alert_stats.alerts_last_hour
-                ));
+            output.push_str(&format!(
+                "# HELP ai_orchestrator_alerts_last_hour Alerts in the last hour\n"
+            ));
+            output.push_str(&format!("# TYPE ai_orchestrator_alerts_last_hour gauge\n"));
+            output.push_str(&format!(
+                "ai_orchestrator_alerts_last_hour{} {}\n",
+                "", alert_stats.alerts_last_hour
+            ));
 
-                output.push_str(&format!(
-                    "# HELP ai_orchestrator_critical_alerts_24h Critical alerts in the last 24 hours\n"
-                ));
-                output.push_str(&format!(
-                    "# TYPE ai_orchestrator_critical_alerts_24h gauge\n"
-                ));
-                output.push_str(&format!(
-                    "ai_orchestrator_critical_alerts_24h{} {}\n",
-                    "", alert_stats.critical_alerts_24h
-                ));
-            }
+            output.push_str(&format!(
+                "# HELP ai_orchestrator_critical_alerts_24h Critical alerts in the last 24 hours\n"
+            ));
+            output.push_str(&format!(
+                "# TYPE ai_orchestrator_critical_alerts_24h gauge\n"
+            ));
+            output.push_str(&format!(
+                "ai_orchestrator_critical_alerts_24h{} {}\n",
+                "", alert_stats.critical_alerts_24h
+            ));
+        }
 
         output.push_str("\n");
         output
@@ -627,7 +592,8 @@ impl PrometheusExporter {
             let labels = if metric.labels.is_empty() {
                 String::new()
             } else {
-                let label_pairs: Vec<String> = metric.labels
+                let label_pairs: Vec<String> = metric
+                    .labels
                     .iter()
                     .map(|(k, v)| format!(r#"{}="{}""#, k, v))
                     .collect();
@@ -642,18 +608,9 @@ impl PrometheusExporter {
                 PrometheusMetricType::Summary => "summary",
             };
 
-            output.push_str(&format!(
-                "# HELP {} {}\n",
-                metric.name, metric.help
-            ));
-            output.push_str(&format!(
-                "# TYPE {} {}\n",
-                metric.name, type_str
-            ));
-            output.push_str(&format!(
-                "{}{} {}\n",
-                metric.name, labels, metric.value
-            ));
+            output.push_str(&format!("# HELP {} {}\n", metric.name, metric.help));
+            output.push_str(&format!("# TYPE {} {}\n", metric.name, type_str));
+            output.push_str(&format!("{}{} {}\n", metric.name, labels, metric.value));
         }
 
         if !custom_metrics.is_empty() {
@@ -685,8 +642,8 @@ impl PrometheusExporter {
             metric.timestamp = Utc::now();
             Ok(())
         } else {
-            Err(crate::utils::error::HiveError::NotFound { 
-                resource: format!("Custom metric {}", metric_name) 
+            Err(crate::utils::error::HiveError::NotFound {
+                resource: format!("Custom metric {}", metric_name),
             })
         }
     }

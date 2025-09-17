@@ -234,7 +234,7 @@ class MCPTestSuite:
         try:
             response = self.mcp_request("tools/call", {
                 "name": "create_swarm_agent",
-                "arguments": {"agent_type": "Worker"}
+                "arguments": {"agent_type": "worker"}
             })
 
             if "error" in response:
@@ -269,7 +269,7 @@ class MCPTestSuite:
         try:
             response = self.mcp_request("tools/call", {
                 "name": "batch_create_agents",
-                "arguments": {"count": 3, "agent_type": "Worker"}
+                "arguments": {"count": 3, "agent_type": "worker"}
             })
 
             if "error" in response:
@@ -331,8 +331,9 @@ class MCPTestSuite:
                         return False, f"Missing field in swarm status: {field}", status_data
 
                 metrics = status_data.get("metrics", {})
-                if "total_agents" not in metrics:
-                    return False, "Missing total_agents in metrics", status_data
+                agent_metrics = metrics.get("agent_metrics", {})
+                if "total_agents" not in agent_metrics:
+                    return False, "Missing total_agents in agent_metrics", status_data
 
                 return True, "Swarm status retrieved successfully", status_data
 
@@ -347,7 +348,7 @@ class MCPTestSuite:
         try:
             response = self.mcp_request("tools/call", {
                 "name": "list_agents",
-                "arguments": {"agent_type": "Worker"}
+                "arguments": {"agent_type": "worker"}
             })
 
             if "error" in response:
@@ -469,6 +470,222 @@ class MCPTestSuite:
         except Exception as e:
             return False, f"Error handling test failed: {str(e)}", None
 
+    def test_parameter_validation(self):
+        """Test comprehensive parameter validation for MCP tools"""
+        validation_tests = [
+            # Invalid agent_type values
+            {
+                "tool": "create_swarm_agent",
+                "arguments": {"agent_type": "InvalidType"},
+                "expected_error": "Invalid agent type",
+                "description": "Invalid agent_type value"
+            },
+            {
+                "tool": "create_swarm_agent",
+                "arguments": {"agent_type": 123},
+                "expected_error": "Agent type is required",
+                "description": "Non-string agent_type"
+            },
+            {
+                "tool": "create_swarm_agent",
+                "arguments": {"agent_type": None},
+                "expected_error": "Agent type is required",
+                "description": "Null agent_type"
+            },
+
+            # Missing required arguments
+            {
+                "tool": "create_swarm_agent",
+                "arguments": {},
+                "expected_error": "Agent type is required",
+                "description": "Missing required agent_type"
+            },
+            {
+                "tool": "analyze_with_nlp",
+                "arguments": {},
+                "expected_error": "Missing text to analyze",
+                "description": "Missing required text parameter"
+            },
+            {
+                "tool": "assign_swarm_task",
+                "arguments": {"priority": "High"},
+                "expected_error": "Missing required parameter: description",
+                "description": "Missing required description"
+            },
+
+            # Invalid strategy values
+            {
+                "tool": "coordinate_agents",
+                "arguments": {"strategy": "invalid_strategy"},
+                "expected_error": "Invalid strategy",
+                "description": "Invalid strategy value"
+            },
+            {
+                "tool": "coordinate_agents",
+                "arguments": {"strategy": 999},
+                "expected_error": "Missing required parameter: strategy",
+                "description": "Non-string strategy"
+            },
+
+            # Invalid count values
+            {
+                "tool": "batch_create_agents",
+                "arguments": {"count": -1, "agent_type": "worker"},
+                "expected_error": "Invalid count",
+                "description": "Negative count value"
+            },
+            {
+                "tool": "batch_create_agents",
+                "arguments": {"count": 0, "agent_type": "worker"},
+                "expected_error": "Invalid count",
+                "description": "Zero count value"
+            },
+            {
+                "tool": "batch_create_agents",
+                "arguments": {"count": 11, "agent_type": "worker"},
+                "expected_error": "Invalid count",
+                "description": "Count exceeding maximum (10)"
+            },
+            {
+                "tool": "batch_create_agents",
+                "arguments": {"count": "not_a_number", "agent_type": "worker"},
+                "expected_error": "Missing required parameter: count",
+                "description": "Non-numeric count"
+            },
+            {
+                "tool": "batch_create_agents",
+                "arguments": {"count": 3.5, "agent_type": "worker"},
+                "expected_error": "Missing required parameter: count",
+                "description": "Non-integer count"
+            },
+
+            # Missing required for batch create
+            {
+                "tool": "batch_create_agents",
+                "arguments": {"count": 3},
+                "expected_error": "Agent type is required",
+                "description": "Missing required agent_type"
+            },
+            {
+                "tool": "batch_create_agents",
+                "arguments": {"agent_type": "worker"},
+                "expected_error": "Missing required parameter: count",
+                "description": "Missing required count"
+            },
+
+            # Invalid priority values
+            {
+                "tool": "assign_swarm_task",
+                "arguments": {"description": "Test task", "priority": "InvalidPriority"},
+                "expected_error": "Invalid priority",
+                "description": "Invalid priority value"
+            },
+            {
+                "tool": "assign_swarm_task",
+                "arguments": {"description": "Test task", "priority": 123},
+                "expected_error": "Missing required parameter: priority",
+                "description": "Non-string priority"
+            },
+
+            # Invalid filter parameters
+            {
+                "tool": "list_agents",
+                "arguments": {"agent_type": "InvalidFilter"},
+                "expected_error": "Invalid agent_type",
+                "description": "Invalid agent_type filter"
+            },
+            {
+                "tool": "list_tasks",
+                "arguments": {"priority": "InvalidPriority"},
+                "expected_error": "Invalid priority",
+                "description": "Invalid priority filter"
+            },
+            {
+                "tool": "list_tasks",
+                "arguments": {"status": "InvalidStatus"},
+                "expected_error": "Invalid status",
+                "description": "Invalid status filter"
+            },
+
+            # Malformed JSON/empty arguments
+            {
+                "tool": "echo",
+                "arguments": {"message": ""},
+                "expected_error": "Missing required parameter: message",
+                "description": "Empty message parameter"
+            },
+            {
+                "tool": "analyze_with_nlp",
+                "arguments": {"text": ""},
+                "expected_error": "Missing text to analyze",
+                "description": "Empty text parameter"
+            },
+            {
+                "tool": "assign_swarm_task",
+                "arguments": {"description": "", "priority": "Medium"},
+                "expected_error": "Missing required parameter: description",
+                "description": "Empty description"
+            }
+        ]
+
+        passed_tests = 0
+        failed_tests = []
+        
+        for i, test in enumerate(validation_tests):
+            try:
+                response = self.mcp_request("tools/call", {
+                    "name": test["tool"],
+                    "arguments": test["arguments"]
+                })
+
+                # Should have error
+                if "error" not in response:
+                    failed_tests.append({
+                        "test": test["description"],
+                        "reason": "Expected error but got successful response",
+                        "response": response
+                    })
+                    continue
+
+                error = response["error"]
+                error_message = str(error.get("message", "")).lower()
+                
+                # Check if error message contains expected error pattern
+                expected_error = test["expected_error"].lower()
+                if expected_error not in error_message:
+                    failed_tests.append({
+                        "test": test["description"],
+                        "reason": f"Expected error containing '{expected_error}', got: {error_message}",
+                        "response": error
+                    })
+                    continue
+
+                passed_tests += 1
+
+            except Exception as e:
+                failed_tests.append({
+                    "test": test["description"],
+                    "reason": f"Exception during test: {str(e)}",
+                    "exception": str(e)
+                })
+
+        # Summary
+        total_tests = len(validation_tests)
+        success_rate = passed_tests / total_tests * 100 if total_tests > 0 else 0
+        
+        details = {
+            "total_tests": total_tests,
+            "passed_tests": passed_tests,
+            "failed_tests": len(failed_tests),
+            "success_rate": f"{success_rate:.1f}%",
+            "failed_details": failed_tests if failed_tests else None
+        }
+
+        if len(failed_tests) == 0:
+            return True, f"All {total_tests} parameter validation tests passed", details
+        else:
+            return False, f"{len(failed_tests)}/{total_tests} parameter validation tests failed", details
+
     def test_resources_list(self):
         """Test listing MCP resources"""
         try:
@@ -555,6 +772,9 @@ class MCPTestSuite:
         self.run_test("List Agents Tool", self.test_list_agents_tool)
         self.run_test("NLP Analysis Tool", self.test_nlp_analysis_tool)
         self.run_test("Coordinate Agents Tool", self.test_coordinate_agents_tool)
+        
+        # Parameter validation tests
+        self.run_test("Parameter Validation", self.test_parameter_validation)
 
         # Generate report
         self.generate_report()

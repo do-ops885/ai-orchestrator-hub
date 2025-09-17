@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -47,7 +47,7 @@ struct SizeTracker {
     total_entries: usize,
     total_size_bytes: usize,
     average_entry_size: usize,
-    size_distribution: std::collections::BTreeMap<usize, usize>, // size -> count
+    size_distribution: BTreeMap<usize, usize>, // size -> count
 }
 
 #[derive(Debug, Clone)]

@@ -3,10 +3,10 @@
 //! Comprehensive tests for the centralized error handling system to ensure
 //! all modules use consistent error patterns and recovery mechanisms.
 
+use crate::handle_agent_with_centralized_error_recovery;
+use crate::handle_with_centralized_error_recovery;
 use crate::utils::error::*;
 use crate::utils::error_recovery::*;
-use crate::handle_with_centralized_error_recovery;
-use crate::handle_agent_with_centralized_error_recovery;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -210,7 +210,7 @@ async fn test_error_classification_and_recovery() {
             HiveError::ValidationError { .. } => {
                 assert!(matches!(error, HiveError::ValidationError { .. }))
             }
-            _ => panic!("Unexpected error type"),
+            _ => assert!(false, "Unexpected error type: {:?}", error),
         }
     }
 }
@@ -408,6 +408,7 @@ async fn test_error_prevention_and_no_panics() {
             || {
                 Box::pin(async {
                     // Simulate a panic-prone operation
+                    #[allow(clippy::panic)]
                     panic!("This should be caught");
                 })
             },

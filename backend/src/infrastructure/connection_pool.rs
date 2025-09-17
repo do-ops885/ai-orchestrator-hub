@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use rusqlite::{Connection, OpenFlags};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use tokio::sync::{Mutex, Semaphore};
 use tokio::time::{timeout, Duration};
@@ -351,7 +351,7 @@ impl Drop for PooledConnectionHandle {
 
 /// Request caching system
 pub struct RequestCache {
-    cache: Arc<Mutex<std::collections::HashMap<String, CachedResponse>>>,
+    cache: Arc<Mutex<HashMap<String, CachedResponse>>>,
     max_size: usize,
     ttl: Duration,
 }
@@ -374,7 +374,7 @@ impl CachedResponse {
 impl RequestCache {
     pub fn new(max_size: usize, ttl: Duration) -> Self {
         Self {
-            cache: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            cache: Arc::new(Mutex::new(HashMap::new())),
             max_size,
             ttl,
         }

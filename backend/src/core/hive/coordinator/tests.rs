@@ -260,7 +260,9 @@ mod tests {
         // Verify agent exists
         let agent = coordinator.get_agent(agent_id).await;
         assert!(agent.is_some());
-        assert_eq!(agent.unwrap().name, "test_agent");
+        if let Some(agent) = agent {
+            assert_eq!(agent.name, "test_agent");
+        }
 
         Ok(())
     }

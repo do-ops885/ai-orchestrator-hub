@@ -17,7 +17,6 @@ export default async function globalSetup() {
 
     console.log('✅ WebSocket mock server started successfully')
     console.log('📡 Mock server running on ws://localhost:3001/ws')
-
   } catch (error) {
     console.error('❌ Failed to start WebSocket mock server:', error)
     throw error

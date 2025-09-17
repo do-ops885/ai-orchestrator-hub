@@ -534,6 +534,7 @@ impl AuthManager {
 }
 
 /// Authentication middleware for Axum
+#[allow(clippy::type_complexity)]
 pub async fn auth_middleware(
     auth_manager: Arc<AuthManager>,
     required_permission: Option<Permission>,
@@ -632,9 +633,7 @@ mod tests {
         assert!(!session_id.is_empty());
 
         // Test token validation
-        let claims = auth_manager
-            .validate_token(&token)
-            .await?;
+        let claims = auth_manager.validate_token(&token).await?;
         assert_eq!(claims.sub, "test_user");
         assert_eq!(claims.session_id, session_id);
 
@@ -645,9 +644,7 @@ mod tests {
         assert!(has_permission);
 
         // Test logout
-        auth_manager
-            .logout(&session_id)
-            .await?;
+        auth_manager.logout(&session_id).await?;
 
         // Session should be gone
         assert!(auth_manager.get_session_info(&session_id).await.is_none());
@@ -683,9 +680,7 @@ mod tests {
         assert!(!api_key.is_empty());
 
         // Validate API key
-        let validated_permissions = auth_manager
-            .validate_api_key(&api_key)
-            .await?;
+        let validated_permissions = auth_manager.validate_api_key(&api_key).await?;
         assert_eq!(validated_permissions, permissions);
 
         Ok(())

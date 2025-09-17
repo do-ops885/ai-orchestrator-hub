@@ -3,22 +3,26 @@
 //! Comprehensive production monitoring setup that integrates all monitoring components
 //! for enterprise-grade observability and alerting.
 
-use super::types::*;
-use super::health_monitor::HealthMonitor;
-use super::performance_monitor::PerformanceMonitor;
 use super::agent_monitor::AgentMonitor;
 use super::diagnostics::Diagnostics;
-use super::reporting::Reporting;
+use super::health_monitor::HealthMonitor;
 use super::integration::Integration;
-use crate::infrastructure::intelligent_alerting::{IntelligentAlertingSystem, IntelligentAlertConfig};
-use crate::infrastructure::metrics::{MetricsCollector, MetricThresholds};
-use crate::infrastructure::telemetry::{TelemetryCollector, ConsoleTelemetrySubscriber, WebhookTelemetrySubscriber};
+use super::performance_monitor::PerformanceMonitor;
+use super::reporting::Reporting;
+use super::types::*;
+use crate::infrastructure::intelligent_alerting::{
+    IntelligentAlertConfig, IntelligentAlertingSystem,
+};
+use crate::infrastructure::metrics::{MetricThresholds, MetricsCollector};
+use crate::infrastructure::telemetry::{
+    ConsoleTelemetrySubscriber, TelemetryCollector, WebhookTelemetrySubscriber,
+};
 use crate::utils::config::MonitoringConfig;
 use crate::utils::error::HiveResult;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Production monitoring configuration
 #[derive(Debug, Clone)]
@@ -113,14 +117,16 @@ impl Default for ProductionMonitoringConfig {
             prometheus_port: 9090,
             enable_grafana_integration: true,
             grafana_url: Some("http://localhost:3000".to_string()),
-            notification_channels: vec![
-                NotificationChannelConfig {
-                    channel_type: "console".to_string(),
-                    endpoint: None,
-                    enabled: true,
-                    severity_filter: vec!["info".to_string(), "warning".to_string(), "critical".to_string()],
-                },
-            ],
+            notification_channels: vec![NotificationChannelConfig {
+                channel_type: "console".to_string(),
+                endpoint: None,
+                enabled: true,
+                severity_filter: vec![
+                    "info".to_string(),
+                    "warning".to_string(),
+                    "critical".to_string(),
+                ],
+            }],
             alerting_thresholds: ProductionAlertThresholds::default(),
             business_metrics_config: BusinessMetricsConfig::default(),
         }
@@ -184,14 +190,18 @@ impl ProductionMonitoringSystem {
         let telemetry_collector = Arc::new(TelemetryCollector::new(50000));
 
         // Add console subscriber by default
-        telemetry_collector.add_subscriber(Box::new(ConsoleTelemetrySubscriber)).await;
+        telemetry_collector
+            .add_subscriber(Box::new(ConsoleTelemetrySubscriber))
+            .await;
 
         // Add webhook subscribers based on configuration
         for channel in &config.notification_channels {
             if channel.enabled && channel.channel_type == "webhook" {
                 if let Some(endpoint) = &channel.endpoint {
                     let webhook_subscriber = WebhookTelemetrySubscriber::new(endpoint.clone());
-                    telemetry_collector.add_subscriber(Box::new(webhook_subscriber)).await;
+                    telemetry_collector
+                        .add_subscriber(Box::new(webhook_subscriber))
+                        .await;
                 }
             }
         }
@@ -200,32 +210,35 @@ impl ProductionMonitoringSystem {
             config,
             health_monitor: Arc::new(HealthMonitor::new()),
             performance_monitor: Arc::new(PerformanceMonitor::new()),
-            agent_monitor: Arc::new(AgentMonitor::new(crate::utils::config::MonitoringConfig {
-                monitoring_interval_secs: 30,
-                metrics_retention_days: 7,
-                alert_threshold: 0.8,
-                metrics_endpoint: "/metrics".to_string(),
-                health_endpoint: "/health".to_string(),
-                enable_agent_discovery: true,
-                enable_health_monitoring: true,
-                enable_performance_monitoring: true,
-                enable_behavior_analysis: true,
-                enable_dashboards: true,
-                enable_alerting: true,
-                enable_diagnostics: true,
-                enable_reporting: true,
-                enable_automation: true,
-                enable_external_integration: true,
-                diagnostics: crate::utils::config::DiagnosticsConfig {
-                    component_health_scores: std::collections::HashMap::new(),
-                    component_issues: std::collections::HashMap::new(),
-                    component_recommendations: std::collections::HashMap::new(),
-                    network_components: vec![],
-                    default_health_score: 1.0,
-                    performance_bottlenecks: vec![],
-                    optimization_opportunities: vec![],
-                },
-            }).await?),
+            agent_monitor: Arc::new(
+                AgentMonitor::new(crate::utils::config::MonitoringConfig {
+                    monitoring_interval_secs: 30,
+                    metrics_retention_days: 7,
+                    alert_threshold: 0.8,
+                    metrics_endpoint: "/metrics".to_string(),
+                    health_endpoint: "/health".to_string(),
+                    enable_agent_discovery: true,
+                    enable_health_monitoring: true,
+                    enable_performance_monitoring: true,
+                    enable_behavior_analysis: true,
+                    enable_dashboards: true,
+                    enable_alerting: true,
+                    enable_diagnostics: true,
+                    enable_reporting: true,
+                    enable_automation: true,
+                    enable_external_integration: true,
+                    diagnostics: crate::utils::config::DiagnosticsConfig {
+                        component_health_scores: HashMap::new(),
+                        component_issues: HashMap::new(),
+                        component_recommendations: HashMap::new(),
+                        network_components: vec![],
+                        default_health_score: 1.0,
+                        performance_bottlenecks: vec![],
+                        optimization_opportunities: vec![],
+                    },
+                })
+                .await?,
+            ),
             diagnostics: Arc::new(Diagnostics::new()),
             reporting: Arc::new(Reporting::new()),
             integration: Arc::new(Integration::new()),
@@ -304,35 +317,44 @@ impl ProductionMonitoringSystem {
         *self.business_metrics.write().await = metrics.clone();
 
         // Record telemetry event
-        self.telemetry_collector.record_event(
-            crate::infrastructure::telemetry::EventType::PerformanceMetric,
-            "business_metrics".to_string(),
-            serde_json::json!({
-                "task_completion_rate": metrics.task_completion_rate,
-                "agent_utilization_rate": metrics.agent_utilization_rate,
-                "system_uptime_percentage": metrics.system_uptime_percentage,
-                "total_tasks_processed": metrics.total_tasks_processed,
-                "system_throughput": metrics.system_throughput_tasks_per_second
-            }),
-            crate::infrastructure::telemetry::Severity::Info,
-        ).await;
+        self.telemetry_collector
+            .record_event(
+                crate::infrastructure::telemetry::EventType::PerformanceMetric,
+                "business_metrics".to_string(),
+                serde_json::json!({
+                    "task_completion_rate": metrics.task_completion_rate,
+                    "agent_utilization_rate": metrics.agent_utilization_rate,
+                    "system_uptime_percentage": metrics.system_uptime_percentage,
+                    "total_tasks_processed": metrics.total_tasks_processed,
+                    "system_throughput": metrics.system_throughput_tasks_per_second
+                }),
+                crate::infrastructure::telemetry::Severity::Info,
+            )
+            .await;
 
         Ok(())
     }
 
     /// Process intelligent alerts
-    pub async fn process_alerts(&self) -> HiveResult<Vec<crate::infrastructure::intelligent_alerting::IntelligentAlert>> {
-        self.intelligent_alerting.process_intelligent_alerts().await.map_err(|e| {
-            crate::utils::error::HiveError::AlertingSystemError {
+    pub async fn process_alerts(
+        &self,
+    ) -> HiveResult<Vec<crate::infrastructure::intelligent_alerting::IntelligentAlert>> {
+        self.intelligent_alerting
+            .process_intelligent_alerts()
+            .await
+            .map_err(|e| crate::utils::error::HiveError::AlertingSystemError {
                 alert_type: "intelligent".to_string(),
                 reason: e.to_string(),
-            }
-        })
+            })
     }
 
     /// Get monitoring status
     pub async fn get_monitoring_status(&self) -> MonitoringStatus {
-        let alerts_count = self.intelligent_alerting.get_alert_statistics().await.total_alerts as u32;
+        let alerts_count = self
+            .intelligent_alerting
+            .get_alert_statistics()
+            .await
+            .total_alerts as u32;
         let monitored_agents = self.agent_monitor.get_monitored_agents_count().await;
 
         MonitoringStatus {
@@ -396,9 +418,9 @@ impl ProductionMonitoringSystem {
         {
             let system = Arc::clone(&system);
             tokio::spawn(async move {
-                let mut interval = tokio::time::interval(
-                    std::time::Duration::from_secs(system.config.health_check_interval_seconds)
-                );
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(
+                    system.config.health_check_interval_seconds,
+                ));
 
                 while *system.monitoring_active.read().await {
                     interval.tick().await;
@@ -414,9 +436,9 @@ impl ProductionMonitoringSystem {
         {
             let system = Arc::clone(&system);
             tokio::spawn(async move {
-                let mut interval = tokio::time::interval(
-                    std::time::Duration::from_secs(system.config.performance_collection_interval_seconds)
-                );
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(
+                    system.config.performance_collection_interval_seconds,
+                ));
 
                 while *system.monitoring_active.read().await {
                     interval.tick().await;
@@ -432,9 +454,9 @@ impl ProductionMonitoringSystem {
         {
             let system = Arc::clone(&system);
             tokio::spawn(async move {
-                let mut interval = tokio::time::interval(
-                    std::time::Duration::from_secs(system.config.alert_evaluation_interval_seconds)
-                );
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(
+                    system.config.alert_evaluation_interval_seconds,
+                ));
 
                 while *system.monitoring_active.read().await {
                     interval.tick().await;
@@ -476,7 +498,9 @@ impl ProductionMonitoringSystem {
             if let Some(mut agent_health) = self.health_monitor.get_agent_health(agent_id).await? {
                 if agent_health.status != health_status {
                     agent_health.status = health_status;
-                    self.health_monitor.update_agent_health(agent_health).await?;
+                    self.health_monitor
+                        .update_agent_health(agent_health)
+                        .await?;
                 }
             }
         }
@@ -490,10 +514,18 @@ impl ProductionMonitoringSystem {
         let system_metrics = self.metrics_collector.collect_system_metrics().await?;
 
         // Update performance metrics
-        self.metrics_collector.update_performance_metrics(system_metrics.performance).await;
-        self.metrics_collector.update_resource_metrics(system_metrics.resource_usage).await;
-        self.metrics_collector.update_agent_metrics(system_metrics.agent_metrics).await;
-        self.metrics_collector.update_task_metrics(system_metrics.task_metrics).await;
+        self.metrics_collector
+            .update_performance_metrics(system_metrics.performance)
+            .await;
+        self.metrics_collector
+            .update_resource_metrics(system_metrics.resource_usage)
+            .await;
+        self.metrics_collector
+            .update_agent_metrics(system_metrics.agent_metrics)
+            .await;
+        self.metrics_collector
+            .update_task_metrics(system_metrics.task_metrics)
+            .await;
 
         // Snapshot for historical data
         self.metrics_collector.snapshot_current_metrics().await;
@@ -510,22 +542,28 @@ impl ProductionMonitoringSystem {
 
             // Record alert telemetry
             for alert in &alerts {
-                self.telemetry_collector.record_event(
-                    crate::infrastructure::telemetry::EventType::SystemAlert,
-                    "alert_system".to_string(),
-                    serde_json::json!({
-                        "alert_title": alert.base_alert.title,
-                        "severity": format!("{:?}", alert.base_alert.level),
-                        "description": alert.base_alert.description,
-                        "predicted": alert.predicted,
-                        "confidence": alert.confidence
-                    }),
-                    match alert.base_alert.level {
-                        crate::infrastructure::metrics::AlertLevel::Critical => crate::infrastructure::telemetry::Severity::Critical,
-                        crate::infrastructure::metrics::AlertLevel::Warning => crate::infrastructure::telemetry::Severity::Warning,
-                        _ => crate::infrastructure::telemetry::Severity::Info,
-                    },
-                ).await;
+                self.telemetry_collector
+                    .record_event(
+                        crate::infrastructure::telemetry::EventType::SystemAlert,
+                        "alert_system".to_string(),
+                        serde_json::json!({
+                            "alert_title": alert.base_alert.title,
+                            "severity": format!("{:?}", alert.base_alert.level),
+                            "description": alert.base_alert.description,
+                            "predicted": alert.predicted,
+                            "confidence": alert.confidence
+                        }),
+                        match alert.base_alert.level {
+                            crate::infrastructure::metrics::AlertLevel::Critical => {
+                                crate::infrastructure::telemetry::Severity::Critical
+                            }
+                            crate::infrastructure::metrics::AlertLevel::Warning => {
+                                crate::infrastructure::telemetry::Severity::Warning
+                            }
+                            _ => crate::infrastructure::telemetry::Severity::Info,
+                        },
+                    )
+                    .await;
             }
         }
 
@@ -539,7 +577,8 @@ impl ProductionMonitoringSystem {
         // Calculate business metrics
         let task_completion_rate = if current_metrics.task_metrics.total_tasks_submitted > 0 {
             (current_metrics.task_metrics.total_tasks_completed as f64
-                / current_metrics.task_metrics.total_tasks_submitted as f64) * 100.0
+                / current_metrics.task_metrics.total_tasks_submitted as f64)
+                * 100.0
         } else {
             0.0
         };
@@ -561,7 +600,9 @@ impl ProductionMonitoringSystem {
             total_tasks_processed: current_metrics.task_metrics.total_tasks_completed,
             average_task_duration_ms: current_metrics.task_metrics.average_task_duration_ms,
             peak_concurrent_users: 100, // Placeholder
-            system_throughput_tasks_per_second: current_metrics.performance.throughput_tasks_per_second,
+            system_throughput_tasks_per_second: current_metrics
+                .performance
+                .throughput_tasks_per_second,
             timestamp: chrono::Utc::now(),
         };
 
@@ -571,19 +612,27 @@ impl ProductionMonitoringSystem {
     }
 
     /// Add notification channel
-    pub async fn add_notification_channel(&self, channel: NotificationChannelConfig) -> HiveResult<()> {
+    pub async fn add_notification_channel(
+        &self,
+        channel: NotificationChannelConfig,
+    ) -> HiveResult<()> {
         match channel.channel_type.as_str() {
             "webhook" => {
                 if let Some(endpoint) = &channel.endpoint {
                     let webhook_subscriber = WebhookTelemetrySubscriber::new(endpoint.clone());
-                    self.telemetry_collector.add_subscriber(Box::new(webhook_subscriber)).await;
+                    self.telemetry_collector
+                        .add_subscriber(Box::new(webhook_subscriber))
+                        .await;
                 }
             }
             "console" => {
                 // Console is already added by default
             }
             _ => {
-                warn!("Unsupported notification channel type: {}", channel.channel_type);
+                warn!(
+                    "Unsupported notification channel type: {}",
+                    channel.channel_type
+                );
             }
         }
 
@@ -592,7 +641,9 @@ impl ProductionMonitoringSystem {
     }
 
     /// Get alert statistics
-    pub async fn get_alert_statistics(&self) -> crate::infrastructure::intelligent_alerting::AlertStatistics {
+    pub async fn get_alert_statistics(
+        &self,
+    ) -> crate::infrastructure::intelligent_alerting::AlertStatistics {
         self.intelligent_alerting.get_alert_statistics().await
     }
 
@@ -612,23 +663,38 @@ impl ProductionMonitoringSystem {
 
         // Test health monitoring
         let health_snapshot = self.get_system_health_snapshot().await?;
-        info!("✅ Health monitoring test passed - Overall status: {:?}", health_snapshot.overall_status);
+        info!(
+            "✅ Health monitoring test passed - Overall status: {:?}",
+            health_snapshot.overall_status
+        );
 
         // Test performance monitoring
         let performance_summary = self.get_performance_summary().await?;
-        info!("✅ Performance monitoring test passed - Score: {:.1}", performance_summary.overall_score);
+        info!(
+            "✅ Performance monitoring test passed - Score: {:.1}",
+            performance_summary.overall_score
+        );
 
         // Test alert system
         let alerts = self.process_alerts().await?;
-        info!("✅ Alert system test passed - Generated {} alerts", alerts.len());
+        info!(
+            "✅ Alert system test passed - Generated {} alerts",
+            alerts.len()
+        );
 
         // Test business metrics
         let business_metrics = self.get_business_metrics().await;
-        info!("✅ Business metrics test passed - Task completion rate: {:.1}%", business_metrics.task_completion_rate);
+        info!(
+            "✅ Business metrics test passed - Task completion rate: {:.1}%",
+            business_metrics.task_completion_rate
+        );
 
         // Test monitoring report generation
         let report = self.generate_monitoring_report().await?;
-        info!("✅ Monitoring report generation test passed - Report size: {} bytes", report.to_string().len());
+        info!(
+            "✅ Monitoring report generation test passed - Report size: {} bytes",
+            report.to_string().len()
+        );
 
         info!("🎉 All monitoring system tests passed!");
         Ok(())

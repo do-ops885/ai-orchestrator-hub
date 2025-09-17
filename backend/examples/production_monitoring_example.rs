@@ -4,9 +4,12 @@
 //! production monitoring system for the AI Orchestrator Hub.
 
 use ai_orchestrator_hub::infrastructure::{
-    monitoring::{ProductionMonitoringSystem, ProductionMonitoringConfig, EnhancedDashboard, PrometheusExporter},
-    metrics::MetricsCollector,
     intelligent_alerting::IntelligentAlertConfig,
+    metrics::MetricsCollector,
+    monitoring::{
+        EnhancedDashboard, ProductionMonitoringConfig, ProductionMonitoringSystem,
+        PrometheusExporter,
+    },
 };
 use std::sync::Arc;
 use tokio;
@@ -26,14 +29,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         prometheus_port: 9090,
         enable_grafana_integration: true,
         grafana_url: Some("http://localhost:3000".to_string()),
-        notification_channels: vec![
-            super::NotificationChannelConfig {
-                channel_type: "console".to_string(),
-                endpoint: None,
-                enabled: true,
-                severity_filter: vec!["info".to_string(), "warning".to_string(), "critical".to_string()],
-            },
-        ],
+        notification_channels: vec![super::NotificationChannelConfig {
+            channel_type: "console".to_string(),
+            endpoint: None,
+            enabled: true,
+            severity_filter: vec![
+                "info".to_string(),
+                "warning".to_string(),
+                "critical".to_string(),
+            ],
+        }],
         alerting_thresholds: Default::default(),
         business_metrics_config: Default::default(),
     };
@@ -55,7 +60,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let monitoring_system = Arc::new(ProductionMonitoringSystem::new(monitoring_config).await?);
 
     // 5. Create enhanced dashboard
-    let dashboard = EnhancedDashboard::new().with_production_monitoring(Arc::clone(&monitoring_system));
+    let dashboard =
+        EnhancedDashboard::new().with_production_monitoring(Arc::clone(&monitoring_system));
 
     // 6. Create Prometheus exporter
     let prometheus_exporter = PrometheusExporter::new(
@@ -80,12 +86,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✅ Prometheus exporter started on port 9090");
 
     // 8. Set up notification channels
-    monitoring_system.add_notification_channel(super::NotificationChannelConfig {
-        channel_type: "webhook".to_string(),
-        endpoint: Some("https://hooks.slack.com/services/YOUR/WEBHOOK".to_string()),
-        enabled: true,
-        severity_filter: vec!["warning".to_string(), "critical".to_string()],
-    }).await?;
+    monitoring_system
+        .add_notification_channel(super::NotificationChannelConfig {
+            channel_type: "webhook".to_string(),
+            endpoint: Some("https://hooks.slack.com/services/YOUR/WEBHOOK".to_string()),
+            enabled: true,
+            severity_filter: vec!["warning".to_string(), "critical".to_string()],
+        })
+        .await?;
     println!("✅ Notification channels configured");
 
     // 9. Create default dashboard
@@ -111,17 +119,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔄 Simulating monitoring data...");
 
     // Update business metrics
-    monitoring_system.update_business_metrics(super::BusinessMetrics {
-        task_completion_rate: 96.5,
-        agent_utilization_rate: 82.3,
-        system_uptime_percentage: 99.8,
-        customer_satisfaction_score: 4.6,
-        total_tasks_processed: 15420,
-        average_task_duration_ms: 245.0,
-        peak_concurrent_users: 150,
-        system_throughput_tasks_per_second: 12.5,
-        timestamp: chrono::Utc::now(),
-    }).await?;
+    monitoring_system
+        .update_business_metrics(super::BusinessMetrics {
+            task_completion_rate: 96.5,
+            agent_utilization_rate: 82.3,
+            system_uptime_percentage: 99.8,
+            customer_satisfaction_score: 4.6,
+            total_tasks_processed: 15420,
+            average_task_duration_ms: 245.0,
+            peak_concurrent_users: 150,
+            system_throughput_tasks_per_second: 12.5,
+            timestamp: chrono::Utc::now(),
+        })
+        .await?;
 
     // 12. Test the monitoring system
     println!("🧪 Testing monitoring system...");
@@ -131,7 +141,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 13. Generate monitoring report
     println!("📋 Generating monitoring report...");
     let report = monitoring_system.generate_monitoring_report().await?;
-    println!("Monitoring Report:\n{}", serde_json::to_string_pretty(&report)?);
+    println!(
+        "Monitoring Report:\n{}",
+        serde_json::to_string_pretty(&report)?
+    );
 
     // 14. Get dashboard data
     println!("📊 Getting dashboard data...");
@@ -141,45 +154,87 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 15. Display current metrics
     let current_metrics = metrics_collector.get_current_metrics().await;
     println!("📈 Current System Metrics:");
-    println!("  CPU Usage: {:.1}%", current_metrics.resource_usage.cpu_usage_percent);
-    println!("  Memory Usage: {:.1}%", current_metrics.resource_usage.memory_usage_percent);
-    println!("  Active Agents: {}", current_metrics.agent_metrics.active_agents);
-    println!("  Tasks in Queue: {}", current_metrics.task_metrics.tasks_in_queue);
-    println!("  Error Rate: {:.2}/min", current_metrics.error_metrics.error_rate_per_minute);
+    println!(
+        "  CPU Usage: {:.1}%",
+        current_metrics.resource_usage.cpu_usage_percent
+    );
+    println!(
+        "  Memory Usage: {:.1}%",
+        current_metrics.resource_usage.memory_usage_percent
+    );
+    println!(
+        "  Active Agents: {}",
+        current_metrics.agent_metrics.active_agents
+    );
+    println!(
+        "  Tasks in Queue: {}",
+        current_metrics.task_metrics.tasks_in_queue
+    );
+    println!(
+        "  Error Rate: {:.2}/min",
+        current_metrics.error_metrics.error_rate_per_minute
+    );
 
     // 16. Display alert statistics
     let alert_stats = monitoring_system.get_alert_statistics().await;
     println!("🚨 Alert Statistics:");
     println!("  Total Alerts: {}", alert_stats.total_alerts);
     println!("  Alerts (24h): {}", alert_stats.alerts_last_24h);
-    println!("  Critical Alerts (24h): {}", alert_stats.critical_alerts_24h);
+    println!(
+        "  Critical Alerts (24h): {}",
+        alert_stats.critical_alerts_24h
+    );
 
     // 17. Process alerts
     let alerts = monitoring_system.process_alerts().await?;
     if !alerts.is_empty() {
         println!("⚠️  Active Alerts:");
         for alert in alerts.iter().take(5) {
-            println!("  - {}: {}", alert.base_alert.title, alert.base_alert.description);
+            println!(
+                "  - {}: {}",
+                alert.base_alert.title, alert.base_alert.description
+            );
         }
     }
 
     // 18. Get business metrics
     let business_metrics = monitoring_system.get_business_metrics().await;
     println!("💼 Business Metrics:");
-    println!("  Task Completion Rate: {:.1}%", business_metrics.task_completion_rate);
-    println!("  Agent Utilization: {:.1}%", business_metrics.agent_utilization_rate);
-    println!("  System Uptime: {:.1}%", business_metrics.system_uptime_percentage);
-    println!("  Total Tasks Processed: {}", business_metrics.total_tasks_processed);
-    println!("  System Throughput: {:.1} tasks/sec", business_metrics.system_throughput_tasks_per_second);
+    println!(
+        "  Task Completion Rate: {:.1}%",
+        business_metrics.task_completion_rate
+    );
+    println!(
+        "  Agent Utilization: {:.1}%",
+        business_metrics.agent_utilization_rate
+    );
+    println!(
+        "  System Uptime: {:.1}%",
+        business_metrics.system_uptime_percentage
+    );
+    println!(
+        "  Total Tasks Processed: {}",
+        business_metrics.total_tasks_processed
+    );
+    println!(
+        "  System Throughput: {:.1} tasks/sec",
+        business_metrics.system_throughput_tasks_per_second
+    );
 
     // 19. Export dashboard configuration
     let dashboard_config = dashboard.export_dashboard_config().await?;
-    println!("📄 Dashboard configuration exported ({} bytes)", dashboard_config.len());
+    println!(
+        "📄 Dashboard configuration exported ({} bytes)",
+        dashboard_config.len()
+    );
 
     // 20. Generate Prometheus metrics sample
     let prometheus_metrics = prometheus_exporter.generate_metrics().await?;
     println!("📊 Prometheus metrics sample (first 500 chars):");
-    println!("{}", &prometheus_metrics[..prometheus_metrics.len().min(500)]);
+    println!(
+        "{}",
+        &prometheus_metrics[..prometheus_metrics.len().min(500)]
+    );
 
     println!("\n🎉 Production monitoring example completed successfully!");
     println!("📋 Summary:");
@@ -213,9 +268,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 // Helper modules for the example
 mod tests {
+    use chrono::{DateTime, Utc};
     use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
-    use chrono::{DateTime, Utc};
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct NotificationChannelConfig {
@@ -280,6 +335,8 @@ mod tests {
     }
 
     // Type aliases for the example
-    pub type ProductionAlertThresholds = crate::infrastructure::monitoring::production_monitoring::ProductionAlertThresholds;
-    pub type BusinessMetricsConfig = crate::infrastructure::monitoring::production_monitoring::BusinessMetricsConfig;
+    pub type ProductionAlertThresholds =
+        crate::infrastructure::monitoring::production_monitoring::ProductionAlertThresholds;
+    pub type BusinessMetricsConfig =
+        crate::infrastructure::monitoring::production_monitoring::BusinessMetricsConfig;
 }

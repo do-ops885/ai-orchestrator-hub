@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -55,7 +55,7 @@ pub struct AgentHotData {
 pub struct AgentColdData {
     pub capabilities: Vec<AgentCapability>,
     pub memory: AgentMemory,
-    pub social_connections: std::collections::HashMap<Uuid, f64>,
+    pub social_connections: HashMap<Uuid, f64>,
     pub learning_history: Vec<LearningEvent>,
     pub detailed_stats: AgentDetailedStats,
 }
@@ -155,7 +155,7 @@ impl AgentMemoryPool {
         AgentColdData {
             capabilities: Vec::new(),
             memory: AgentMemory::new(),
-            social_connections: std::collections::HashMap::new(),
+            social_connections: HashMap::new(),
             learning_history: Vec::new(),
             detailed_stats: AgentDetailedStats::default(),
         }
@@ -309,7 +309,10 @@ impl AgentMemoryPool {
             let pressure = (stats.active_objects as f64) / (self.pool_size as f64);
 
             if pressure > self.memory_pressure_threshold {
-                tracing::info!("Memory pressure detected: {:.2}%, triggering GC", pressure * 100.0);
+                tracing::info!(
+                    "Memory pressure detected: {:.2}%, triggering GC",
+                    pressure * 100.0
+                );
                 self.perform_gc().await;
                 *self.last_gc_time.lock().await = now;
                 return true;
@@ -332,7 +335,11 @@ impl AgentMemoryPool {
             cold_pool.pop_front();
         }
 
-        tracing::debug!("GC completed: Hot pool size {}, Cold pool size {}", hot_pool.len(), cold_pool.len());
+        tracing::debug!(
+            "GC completed: Hot pool size {}, Cold pool size {}",
+            hot_pool.len(),
+            cold_pool.len()
+        );
     }
 
     /// Get memory usage statistics

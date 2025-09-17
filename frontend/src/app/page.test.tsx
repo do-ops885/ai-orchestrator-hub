@@ -24,7 +24,9 @@ vi.mock('@/components/TaskManager', () => ({
 }))
 
 vi.mock('@/components/ErrorBoundary', () => ({
-  ErrorBoundary: ({ children }: { children: React.ReactNode }) => <div data-testid="error-boundary">{children}</div>,
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="error-boundary">{children}</div>
+  ),
 }))
 
 vi.mock('@/components/FallbackUI', () => ({
@@ -191,10 +193,13 @@ describe('Home Page', () => {
 
     render(<Home />)
 
-    await waitFor(() => {
-      // The component shows "Connection Failed" when there's an error and not connected
-      expect(screen.getByText('Connection Failed')).toBeInTheDocument()
-    }, { timeout: 3000 })
+    await waitFor(
+      () => {
+        // The component shows "Connection Failed" when there's an error and not connected
+        expect(screen.getByText('Connection Failed')).toBeInTheDocument()
+      },
+      { timeout: 3000 },
+    )
   })
 
   it('attempts WebSocket connection on mount', async () => {
@@ -303,8 +308,11 @@ describe('Home Page', () => {
 
     render(<Home />)
 
-    await waitFor(() => {
-      expect(screen.getByText('Disconnected')).toBeInTheDocument()
-    }, { timeout: 3000 })
+    await waitFor(
+      () => {
+        expect(screen.getByText('Disconnected')).toBeInTheDocument()
+      },
+      { timeout: 3000 },
+    )
   })
 })

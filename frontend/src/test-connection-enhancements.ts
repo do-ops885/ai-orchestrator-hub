@@ -27,9 +27,11 @@ export function testEnhancedReconnection() {
     const delay = hiveStore.calculateSmartReconnectDelay(
       scenario.errorType,
       scenario.attemptCount,
-      scenario.stability
+      scenario.stability,
     )
-    console.log(`  Scenario ${index + 1}: ${scenario.errorType} (attempt ${scenario.attemptCount}, stability ${scenario.stability})`)
+    console.log(
+      `  Scenario ${index + 1}: ${scenario.errorType} (attempt ${scenario.attemptCount}, stability ${scenario.stability})`,
+    )
     console.log(`    → Delay: ${delay}ms`)
   })
 
@@ -50,7 +52,9 @@ export function testEnhancedReconnection() {
       successRate: Math.max(0, 1 - test.failures * 0.1),
     }
 
-    console.log(`  Quality Test ${index + 1}: ${test.latency}ms latency, ${test.stability} stability, ${test.failures} failures`)
+    console.log(
+      `  Quality Test ${index + 1}: ${test.latency}ms latency, ${test.stability} stability, ${test.failures} failures`,
+    )
     console.log(`    → Success Rate: ${(mockStats.successRate * 100).toFixed(1)}%`)
   })
 

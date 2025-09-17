@@ -2,11 +2,11 @@
 # https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review
 
 fail_on_severity: moderate
-fail_on_scopes: runtime
+fail_on_scopes:
+  - runtime
 
 vulnerability_check: true
 license_check: true
-dependency_check: true
 
 # Allowed licenses (SPDX license identifiers)
 allow_licenses:
@@ -31,24 +31,6 @@ deny_licenses:
 
 # Base ref for comparison (default: main branch)
 base_ref: main
-
-# Configuration for Rust dependencies
-rust:
-  # Check for security vulnerabilities
-  audit: true
-  # Check for outdated dependencies
-  outdated: true
-  # Minimum allowed version for dependencies
-  min_version: "0.1.0"
-
-# Configuration for Node.js dependencies
-nodejs:
-  # Check for security vulnerabilities
-  audit: true
-  # Check for outdated dependencies
-  outdated: true
-  # Minimum allowed version for dependencies
-  min_version: "1.0.0"
 
 # Custom rules (if needed)
 # rules:

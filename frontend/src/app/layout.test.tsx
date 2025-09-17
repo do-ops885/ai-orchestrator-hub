@@ -16,7 +16,7 @@ describe('RootLayout', () => {
     render(
       <RootLayout>
         <div>{testContent}</div>
-      </RootLayout>
+      </RootLayout>,
     )
 
     expect(screen.getByText(testContent)).toBeInTheDocument()
@@ -26,7 +26,7 @@ describe('RootLayout', () => {
     render(
       <RootLayout>
         <div>Test</div>
-      </RootLayout>
+      </RootLayout>,
     )
 
     // The ClientErrorBoundary should wrap the children
@@ -37,7 +37,7 @@ describe('RootLayout', () => {
     render(
       <RootLayout>
         <div>Test</div>
-      </RootLayout>
+      </RootLayout>,
     )
 
     const html = document.documentElement
@@ -48,7 +48,7 @@ describe('RootLayout', () => {
     render(
       <RootLayout>
         <div>Test</div>
-      </RootLayout>
+      </RootLayout>,
     )
 
     expect(document.body.className).toContain('inter')

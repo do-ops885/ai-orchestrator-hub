@@ -1,3 +1,55 @@
+//! # AI Orchestrator Hub Benchmark Runner
+//!
+//! This crate provides a comprehensive benchmark runner for the AI Orchestrator Hub,
+//! designed to execute performance benchmarks and display detailed results.
+//!
+//! ## Overview
+//!
+//! The benchmark runner performs systematic performance testing of the AI Orchestrator Hub's
+//! core components, including:
+//! - Agent communication throughput
+//! - Neural network processing performance
+//! - Swarm coordination efficiency
+//! - Memory usage patterns
+//! - CPU utilization metrics
+//!
+//! ## Features
+//!
+//! - **Comprehensive Benchmarking**: Executes a full suite of performance tests
+//! - **Real-time Monitoring**: Tracks system resources during benchmark execution
+//! - **Detailed Results**: Provides throughput, memory usage, and custom metrics
+//! - **Performance Statistics**: Aggregates system-wide performance data
+//! - **Error Handling**: Robust error reporting for failed benchmarks
+//!
+//! ## Usage
+//!
+//! Run the benchmark suite with default configuration:
+//!
+//! ```bash
+//! cargo run --bin bench_runner
+//! ```
+//!
+//! The runner will:
+//! 1. Initialize performance monitoring
+//! 2. Execute all configured benchmarks
+//! 3. Display detailed results for each benchmark
+//! 4. Show aggregated performance statistics
+//!
+//! ## Output
+//!
+//! Results include:
+//! - Execution duration in milliseconds
+//! - Operations per second throughput
+//! - Memory usage statistics
+//! - Custom performance metrics
+//! - System-wide performance statistics
+//!
+//! ## Dependencies
+//!
+//! This crate depends on:
+//! - `multiagent_hive`: Core AI Orchestrator Hub functionality
+//! - `tokio`: Async runtime for concurrent operations
+
 use multiagent_hive::infrastructure::benchmarks::{
     create_default_benchmark_suite, PerformanceConfig, PerformanceMonitor,
 };
@@ -16,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Start monitoring
     let monitor_clone = monitor.clone();
     tokio::spawn(async move {
-        monitor_clone.start_monitoring().await;
+        monitor_clone.start_monitoring();
     });
 
     // Create and run benchmark suite

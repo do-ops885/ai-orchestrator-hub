@@ -121,7 +121,7 @@ export class MockWebSocketServer {
             this.clients.delete(ws)
           })
 
-          ws.on('error', (error) => {
+          ws.on('error', error => {
             console.error('Mock WebSocket client error:', error)
             this.clients.delete(ws)
           })
@@ -133,11 +133,10 @@ export class MockWebSocketServer {
           resolve()
         })
 
-        this.wss.on('error', (error) => {
+        this.wss.on('error', error => {
           console.error('Mock WebSocket server error:', error)
           reject(error)
         })
-
       } catch (error) {
         reject(error)
       }
@@ -148,7 +147,7 @@ export class MockWebSocketServer {
    * Stop the mock WebSocket server
    */
   async stop(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       if (this.updateInterval) {
         clearInterval(this.updateInterval)
         this.updateInterval = null
@@ -292,18 +291,21 @@ export class MockWebSocketServer {
    * Update mock metrics with some variation
    */
   private updateMockMetrics(): void {
-    const {metrics} = this.mockData.hive
+    const { metrics } = this.mockData.hive
 
     // Simulate some activity
-    metrics.average_performance = Math.max(0, Math.min(1,
-      metrics.average_performance + (Math.random() - 0.5) * 0.1
-    ))
-    metrics.swarm_cohesion = Math.max(0, Math.min(1,
-      metrics.swarm_cohesion + (Math.random() - 0.5) * 0.05
-    ))
-    metrics.learning_progress = Math.max(0, Math.min(1,
-      metrics.learning_progress + (Math.random() - 0.5) * 0.02
-    ))
+    metrics.average_performance = Math.max(
+      0,
+      Math.min(1, metrics.average_performance + (Math.random() - 0.5) * 0.1),
+    )
+    metrics.swarm_cohesion = Math.max(
+      0,
+      Math.min(1, metrics.swarm_cohesion + (Math.random() - 0.5) * 0.05),
+    )
+    metrics.learning_progress = Math.max(
+      0,
+      Math.min(1, metrics.learning_progress + (Math.random() - 0.5) * 0.02),
+    )
 
     // Update swarm center slightly
     this.mockData.hive.swarm_center = [
@@ -312,8 +314,9 @@ export class MockWebSocketServer {
     ]
 
     // Update total energy
-    this.mockData.hive.total_energy = Math.max(0,
-      this.mockData.hive.total_energy + (Math.random() - 0.5) * 10
+    this.mockData.hive.total_energy = Math.max(
+      0,
+      this.mockData.hive.total_energy + (Math.random() - 0.5) * 10,
     )
 
     this.mockData.hive.last_update = new Date().toISOString()
@@ -348,15 +351,19 @@ export class MockWebSocketServer {
     agents: MockAgent[]
     tasks: MockTask[]
   } {
-    const agents = Array.from({ length: 5 }, (_, i) => this.generateMockAgent({
-      type: ['Worker', 'Coordinator', 'Specialist', 'Learner'][i % 4],
-      name: `Agent-${i + 1}`,
-    }))
+    const agents = Array.from({ length: 5 }, (_, i) =>
+      this.generateMockAgent({
+        type: ['Worker', 'Coordinator', 'Specialist', 'Learner'][i % 4],
+        name: `Agent-${i + 1}`,
+      }),
+    )
 
-    const tasks = Array.from({ length: 3 }, (_, i) => this.generateMockTask({
-      description: `Mock task ${i + 1}`,
-      priority: Math.floor(Math.random() * 5) + 1,
-    }))
+    const tasks = Array.from({ length: 3 }, (_, i) =>
+      this.generateMockTask({
+        description: `Mock task ${i + 1}`,
+        priority: Math.floor(Math.random() * 5) + 1,
+      }),
+    )
 
     return {
       hive: {
@@ -404,10 +411,7 @@ export class MockWebSocketServer {
           learning_rate: Math.random() * 0.1 + 0.05,
         },
       ],
-      position: [
-        Math.random() * 100,
-        Math.random() * 100,
-      ],
+      position: [Math.random() * 100, Math.random() * 100],
       energy: Math.random() * 50 + 50,
       experience_count: Math.floor(Math.random() * 100),
       social_connections: Math.floor(Math.random() * 10),

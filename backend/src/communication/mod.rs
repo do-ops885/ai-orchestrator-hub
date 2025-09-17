@@ -335,7 +335,7 @@ async fn handle_client_message(
     message: ClientMessage,
     state: &AppState,
     comm_manager: &CommunicationManager,
-    client_id: Uuid,
+    _client_id: Uuid,
 ) -> Result<WebSocketMessage, Box<dyn std::error::Error + Send + Sync>> {
     let correlation_id = message.correlation_id.clone();
 

@@ -3,6 +3,7 @@
 ## Build/Lint/Test Commands
 
 ### Backend (Rust)
+
 - **Build**: `cd backend && cargo build`
 - **Test all**: `cd backend && cargo test`
 - **Test single**: `cd backend && cargo test test_function_name`
@@ -11,6 +12,7 @@
 - **Security**: `./scripts/unwrap-prevention-monitor.sh check_unwrap_calls` (REQUIRED)
 
 ### Frontend (TypeScript/React)
+
 - **Build**: `cd frontend && npm run build`
 - **Test all**: `cd frontend && npm test`
 - **Test single**: `cd frontend && npm test -- testName`
@@ -20,19 +22,25 @@
 ## Code Style Guidelines
 
 ### Rust (Backend)
+
 - **Formatting**: rustfmt (100 width, 4 spaces, Unix line endings)
 - **Naming**: snake_case (vars/fns), PascalCase (types), SCREAMING_SNAKE_CASE (consts)
 - **Error handling**: Result<T,E> + Option<T>, avoid unwrap/panic, use `?` operator
 - **Imports**: Group std → external crates → local modules
 - **Types**: Explicit types preferred, use Arc/Rc for shared ownership
 - **Async**: async fn + await, tokio runtime, async channels for agent communication
+- File size: ≤ 500 LOC
 
 ### TypeScript/React (Frontend)
+
 - **Formatting**: ESLint + Prettier (single quotes, no semicolons, trailing commas, 2 spaces)
 - **Naming**: camelCase (vars/fns), PascalCase (components/types)
 - **Error handling**: try/catch, React error boundaries
 - **Imports**: Path mapping (@/), group React → external → internal
 - **Components**: Functional with hooks, composition over inheritance
 - **State**: Zustand for global, local for components
+- File size: ≤ 600 LOC
 
 **🚫 ZERO TOLERANCE for unwrap() calls in production Rust code**
+
+**Remember**: Think step-by-step, analyze first, validate changes, no regressions, no false positive results

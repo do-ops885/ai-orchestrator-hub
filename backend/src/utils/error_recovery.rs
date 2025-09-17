@@ -43,6 +43,7 @@
 
 use crate::utils::error::{HiveError, HiveResult};
 use once_cell::sync::Lazy;
+use rand;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
@@ -363,20 +364,56 @@ pub enum DegradationStrategy {
     TaskRedistribution,
 }
 
-/// Recovery context for tracking recovery attempts
+/// Recovery context for tracking recovery attempts and operation metadata.
+///
+/// This struct maintains comprehensive information about an ongoing recovery
+/// operation, including operation details, attempt history, error information,
+/// and strategy selection. It enables context-aware recovery decision-making
+/// and provides historical context for adaptive recovery strategies.
 #[derive(Debug, Clone)]
 pub struct RecoveryContext {
+    /// Name or identifier of the operation being recovered
     pub operation: String,
+    /// Component or module where the operation is executing
     pub component: String,
+    /// Current number of recovery attempts made for this operation
     pub attempt_count: u32,
+    /// Maximum number of recovery attempts allowed before giving up
     pub max_attempts: u32,
+    /// Timestamp when the recovery operation started
     pub start_time: std::time::Instant,
+    /// Last error message encountered, if any
     pub last_error: Option<String>,
+    /// Currently selected degradation strategy for graceful fallback
     pub degradation_strategy: Option<DegradationStrategy>,
+    /// Additional context-specific information for advanced recovery scenarios
     pub additional_info: std::collections::HashMap<String, String>,
 }
 
 impl RecoveryContext {
+    /// Creates a new `RecoveryContext` with initial values for tracking recovery attempts.
+    ///
+    /// This initializes a recovery context with the operation details, component information,
+    /// and maximum attempt limits. All counters start at zero, and timestamps are set to
+    /// the current time.
+    ///
+    /// # Parameters
+    ///
+    /// * `operation` - Name or identifier of the operation being recovered
+    /// * `component` - Component or module where the operation executes
+    /// * `max_attempts` - Maximum number of recovery attempts allowed
+    ///
+    /// # Returns
+    ///
+    /// A new `RecoveryContext` instance ready for tracking recovery operations.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::RecoveryContext;
+    ///
+    /// let context = RecoveryContext::new("data_processing", "DataProcessor", 3);
+    /// ```
     pub fn new(operation: &str, component: &str, max_attempts: u32) -> Self {
         Self {
             operation: operation.to_string(),
@@ -390,22 +427,120 @@ impl RecoveryContext {
         }
     }
 
+    /// Increments the recovery attempt counter.
+    ///
+    /// This method should be called each time a recovery attempt is made for
+    /// the tracked operation. It updates the internal attempt count which is
+    /// used to determine if further recovery attempts should be made.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::RecoveryContext;
+    ///
+    /// let mut context = RecoveryContext::new("data_processing", "DataProcessor", 3);
+    /// context.increment_attempt();
+    /// assert_eq!(context.attempt_count, 1);
+    /// ```
     pub fn increment_attempt(&mut self) {
         self.attempt_count += 1;
     }
 
+    /// Records an error message encountered during recovery.
+    ///
+    /// This method stores the most recent error message, which can be used for
+    /// logging, debugging, or adaptive strategy selection in subsequent recovery
+    /// attempts.
+    ///
+    /// # Parameters
+    ///
+    /// * `error` - Error message to record
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::RecoveryContext;
+    ///
+    /// let mut context = RecoveryContext::new("data_processing", "DataProcessor", 3);
+    /// context.record_error("Connection timeout");
+    /// assert_eq!(context.last_error, Some("Connection timeout".to_string()));
+    /// ```
     pub fn record_error(&mut self, error: &str) {
         self.last_error = Some(error.to_string());
     }
 
+    /// Sets the current degradation strategy for graceful fallback.
+    ///
+    /// This method specifies which degradation strategy should be used for
+    /// the current recovery operation. The strategy influences how the system
+    /// responds to failures and what fallback mechanisms are employed.
+    ///
+    /// # Parameters
+    ///
+    /// * `strategy` - The `DegradationStrategy` to apply
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::{RecoveryContext, DegradationStrategy};
+    /// use std::time::Duration;
+    ///
+    /// let mut context = RecoveryContext::new("data_processing", "DataProcessor", 3);
+    /// context.set_degradation_strategy(DegradationStrategy::ReturnCached);
+    /// ```
     pub fn set_degradation_strategy(&mut self, strategy: DegradationStrategy) {
         self.degradation_strategy = Some(strategy);
     }
 
+    /// Determines whether further recovery attempts should be made.
+    ///
+    /// This method checks if the current attempt count has reached the maximum
+    /// allowed attempts. It helps prevent infinite recovery loops and ensures
+    /// the system eventually gives up on hopeless recovery scenarios.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if additional recovery attempts are allowed (attempt count
+    /// is less than maximum attempts), `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::RecoveryContext;
+    ///
+    /// let mut context = RecoveryContext::new("data_processing", "DataProcessor", 2);
+    /// context.increment_attempt();
+    /// assert!(context.should_retry());
+    /// context.increment_attempt();
+    /// assert!(!context.should_retry());
+    /// ```
     pub fn should_retry(&self) -> bool {
         self.attempt_count < self.max_attempts
     }
 
+    /// Calculates the elapsed time since the recovery operation started.
+    ///
+    /// This method provides the duration that has passed since the recovery
+    /// context was created, which can be useful for timeout checks, performance
+    /// monitoring, and adaptive strategy selection based on operation duration.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Duration` representing the time elapsed since the recovery
+    /// operation started.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::RecoveryContext;
+    /// use std::thread;
+    /// use std::time::Duration;
+    ///
+    /// let context = RecoveryContext::new("data_processing", "DataProcessor", 3);
+    /// thread::sleep(Duration::from_millis(100));
+    /// let elapsed = context.elapsed_time();
+    /// assert!(elapsed >= Duration::from_millis(100));
+    /// ```
     pub fn elapsed_time(&self) -> std::time::Duration {
         self.start_time.elapsed()
     }
@@ -417,17 +552,45 @@ pub struct AdaptiveErrorRecovery {
     strategy_selector: Box<dyn StrategySelector>,
 }
 
+/// Records the outcome of a recovery operation for historical analysis.
+///
+/// This struct stores comprehensive information about individual recovery
+/// attempts, enabling the system to learn from past experiences and make
+/// better recovery decisions based on historical success patterns.
 #[derive(Debug, Clone)]
 pub struct RecoveryResult {
+    /// Name or identifier of the operation that was recovered
     pub operation: String,
+    /// Component or module where the recovery was attempted
     pub component: String,
+    /// Whether the recovery attempt was successful
     pub success: bool,
+    /// Time taken to complete the recovery operation
     pub duration: std::time::Duration,
+    /// Recovery strategy that was employed during this attempt
     pub strategy_used: Option<DegradationStrategy>,
+    /// Type of error that triggered the recovery, if available
     pub error_type: Option<String>,
 }
 
 impl AdaptiveErrorRecovery {
+    /// Creates a new `AdaptiveErrorRecovery` instance with default configuration.
+    ///
+    /// This initializes the adaptive error recovery system with empty recovery
+    /// history and the default strategy selector, ready to handle recovery
+    /// operations with intelligent, history-based decision making.
+    ///
+    /// # Returns
+    ///
+    /// A new `AdaptiveErrorRecovery` instance ready for adaptive error recovery.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::AdaptiveErrorRecovery;
+    ///
+    /// let adaptive_recovery = AdaptiveErrorRecovery::new();
+    /// ```
     pub fn new() -> Self {
         Self {
             recovery_history: Arc::new(RwLock::new(HashMap::new())),
@@ -836,8 +999,27 @@ impl AdaptiveErrorRecovery {
 }
 
 /// Trait for selecting recovery strategies based on context and history
+/// Trait for selecting recovery strategies based on context and history.
+///
+/// Implementations of this trait provide intelligent strategy selection
+/// capabilities that consider both the current recovery context and
+/// historical recovery outcomes to make optimal recovery decisions.
 #[async_trait::async_trait]
 pub trait StrategySelector: Send + Sync {
+    /// Selects an appropriate recovery strategy based on context and history.
+    ///
+    /// This method analyzes the current recovery context and historical
+    /// recovery results to determine the most suitable degradation strategy
+    /// for the current failure scenario.
+    ///
+    /// # Parameters
+    ///
+    /// * `context` - Current recovery context with operation details and attempt history
+    /// * `history` - Thread-safe access to historical recovery results
+    ///
+    /// # Returns
+    ///
+    /// Returns a `DegradationStrategy` that should be applied to the current recovery scenario.
     async fn select_strategy(
         &self,
         context: &RecoveryContext,
@@ -1449,62 +1631,211 @@ pub struct AgentRecoveryManager {
     recovery_strategies: HashMap<String, Vec<AgentRecoveryStrategy>>,
 }
 
+/// Tracks the recovery state and history for an individual agent.
+///
+/// This struct maintains comprehensive information about an agent's error history,
+/// current recovery strategy, and isolation status to enable intelligent recovery
+/// decision-making and prevent repeated failures.
 #[derive(Debug, Clone)]
 pub struct AgentRecoveryState {
+    /// Unique identifier of the agent being tracked
     pub agent_id: String,
+    /// Timestamp of the most recent failure occurrence
     pub last_failure: Option<std::time::Instant>,
+    /// Total count of failures encountered by this agent
     pub failure_count: u32,
+    /// Number of recovery attempts made for this agent
+    ///
+    /// This tracks how many times the system has attempted to recover this agent
+    /// from various failure conditions. Higher counts may indicate persistent issues
+    /// that require more aggressive recovery strategies or manual intervention.
     pub recovery_attempts: u32,
+    /// Currently active recovery strategy for the agent
+    ///
+    /// Stores the recovery strategy that is currently being applied to this agent.
+    /// This allows the system to track ongoing recovery operations and prevents
+    /// conflicting strategies from being applied simultaneously.
     pub current_strategy: Option<AgentRecoveryStrategy>,
+    /// Timestamp until which the agent is isolated from normal operations
+    ///
+    /// When an agent is isolated (typically during intensive recovery operations),
+    /// this field tracks when the isolation period ends. During isolation, the agent
+    /// may be prevented from receiving new tasks or communicating with other agents
+    /// to allow for uninterrupted recovery.
     pub isolation_until: Option<std::time::Instant>,
 }
 
+/// Comprehensive set of recovery strategies for agent-specific failures.
+///
+/// This enum defines all available recovery strategies that can be applied to agents
+/// experiencing various types of failures. Each strategy is tailored to address
+/// specific failure modes and includes configurable parameters for fine-tuning
+/// the recovery behavior.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AgentRecoveryStrategy {
-    /// Restart agent with exponential backoff
+    /// Restart the agent using exponential backoff to prevent thundering herd
+    ///
+    /// This strategy gradually increases the delay between restart attempts,
+    /// helping to prevent overwhelming the system when multiple agents fail
+    /// simultaneously or when a single agent experiences repeated failures.
     RestartWithBackoff {
+        /// Initial delay before the first restart attempt
         base_delay: Duration,
+        /// Maximum allowable delay between restart attempts
         max_delay: Duration,
     },
-    /// Switch to backup agent instance
-    FailoverToBackup { backup_agent_id: String },
-    /// Temporarily reduce agent capabilities
-    CapabilityReduction { reduced_capabilities: Vec<String> },
-    /// Reset agent memory and learning state
-    MemoryReset { preserve_experiences: bool },
-    /// Enter simplified operation mode
-    SimplifiedMode { timeout: Duration },
-    /// Isolate agent from swarm communication
-    SwarmIsolation { duration: Duration },
-    /// Rollback to previous learning checkpoint
-    LearningRollback { checkpoint_id: String },
-    /// Redistribute workload to peer agents
-    WorkloadRedistribution { target_agents: Vec<String> },
-    /// Retry operation with exponential backoff
-    RetryWithBackoff {
-        max_attempts: u32,
-        base_delay: Duration,
+    /// Failover to a designated backup agent instance
+    ///
+    /// Transfers the failed agent's responsibilities to a pre-configured backup
+    /// agent, allowing continued operation while the primary agent recovers.
+    FailoverToBackup {
+        /// Identifier of the backup agent to assume responsibilities
+        backup_agent_id: String,
     },
-    /// Use alternative dependency
-    UseAlternativeDependency { alternative_name: String },
-    /// Throttle agent operations
-    ThrottleAgent {
-        throttle_factor: f64,
+    /// Temporarily reduce the agent's operational capabilities
+    ///
+    /// Disables non-essential features or reduces functionality to a minimal
+    /// working state, allowing the agent to continue operating with reduced
+    /// capacity while underlying issues are resolved.
+    CapabilityReduction {
+        /// List of specific capabilities to disable or reduce
+        reduced_capabilities: Vec<String>,
+    },
+    /// Reset the agent's memory and learning state while preserving experiences
+    ///
+    /// Clears potentially corrupted memory structures while maintaining the
+    /// agent's accumulated knowledge and experiences to facilitate faster
+    /// recovery with minimal knowledge loss.
+    MemoryReset {
+        /// Whether to preserve the agent's learned experiences during reset
+        preserve_experiences: bool,
+    },
+    /// Enter a simplified operational mode with reduced complexity
+    ///
+    /// Puts the agent into a minimal, highly reliable operational mode that
+    /// disables advanced features and complex behaviors, focusing only on
+    /// essential functionality with automatic timeout.
+    SimplifiedMode {
+        /// Maximum duration to remain in simplified mode before reevaluation
+        timeout: Duration,
+    },
+    /// Isolate the agent from swarm communication and coordination
+    ///
+    /// Temporarily removes the agent from inter-agent communication and task
+    /// distribution to prevent failure propagation and allow focused recovery
+    /// without external干扰.
+    SwarmIsolation {
+        /// Duration of the isolation period
         duration: Duration,
     },
-    /// Increase timeout for operations
-    IncreaseTimeout { timeout_multiplier: f64 },
-    /// Switch communication protocol
-    SwitchCommunicationProtocol { protocol: String },
-    /// Rollback migration to source node
-    RollbackMigration { source_node: String },
-    /// Reset configuration with preservation
-    ResetConfiguration { preserve_custom_settings: bool },
-    /// Resynchronize state from source
-    StateResynchronization { source: String },
+    /// Rollback the agent's learning state to a previous checkpoint
+    ///
+    /// Reverts the agent's model weights, parameters, and learning progress
+    /// to a known-good state, typically used when recent learning has caused
+    /// instability or performance degradation.
+    LearningRollback {
+        /// Identifier of the checkpoint to restore
+        checkpoint_id: String,
+    },
+    /// Redistribute the agent's workload to peer agents
+    ///
+    /// Transfers current and pending tasks from the failed agent to other
+    /// healthy agents in the swarm, ensuring continued task processing
+    /// during the recovery period.
+    WorkloadRedistribution {
+        /// List of target agents capable of handling redistributed tasks
+        target_agents: Vec<String>,
+    },
+    /// Retry the failed operation with exponential backoff
+    ///
+    /// Applies retry logic specifically to the operation that failed, with
+    /// configurable limits and backoff timing to prevent system overload.
+    RetryWithBackoff {
+        /// Maximum number of retry attempts before giving up
+        max_attempts: u32,
+        /// Base delay between retry attempts
+        base_delay: Duration,
+    },
+    /// Switch to an alternative dependency or service
+    ///
+    /// Changes the agent's dependencies to use alternative implementations
+    /// or services when the primary dependencies are causing failures.
+    UseAlternativeDependency {
+        /// Name of the alternative dependency to use
+        alternative_name: String,
+    },
+    /// Throttle the agent's operational throughput
+    ///
+    /// Reduces the agent's processing rate or concurrency to alleviate
+    /// resource pressure or prevent overload conditions that may be
+    /// contributing to failures.
+    ThrottleAgent {
+        /// Factor by which to reduce throughput (0.0-1.0)
+        throttle_factor: f64,
+        /// Duration of the throttling period
+        duration: Duration,
+    },
+    /// Increase timeout allowances for agent operations
+    ///
+    /// Extends operation timeouts to accommodate slower processing that
+    /// may occur during recovery or when the agent is under stress.
+    IncreaseTimeout {
+        /// Multiplier to apply to existing timeout values
+        timeout_multiplier: f64,
+    },
+    /// Switch to an alternative communication protocol
+    ///
+    /// Changes the agent's communication method to use a different protocol
+    /// when the primary protocol is experiencing issues or incompatibilities.
+    SwitchCommunicationProtocol {
+        /// Name of the alternative protocol to use
+        protocol: String,
+    },
+    /// Rollback a failed migration to the source node
+    ///
+    /// Reverts a migration operation by returning the agent to its original
+    /// node or location when the migration process has failed or caused
+    /// instability.
+    RollbackMigration {
+        /// Identifier of the source node to return to
+        source_node: String,
+    },
+    /// Reset the agent's configuration to default values
+    ///
+    /// Restores configuration settings to their default values while
+    /// optionally preserving custom settings that are known to be safe.
+    ResetConfiguration {
+        /// Whether to preserve user-defined custom settings
+        preserve_custom_settings: bool,
+    },
+    /// Resynchronize the agent's state from a reliable source
+    ///
+    /// Updates the agent's internal state by synchronizing with a known-good
+    /// source, typically used when state inconsistencies are detected.
+    StateResynchronization {
+        /// Identifier of the source for resynchronization
+        source: String,
+    },
 }
 
 impl AgentRecoveryManager {
+    /// Creates a new `AgentRecoveryManager` with preconfigured recovery strategies.
+    ///
+    /// This initializes the recovery manager with a comprehensive set of recovery
+    /// strategies mapped to specific agent error types. The strategies are organized
+    /// by error category and include multiple escalation levels for each error type.
+    ///
+    /// # Returns
+    ///
+    /// A new `AgentRecoveryManager` instance ready to handle agent recovery operations.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::AgentRecoveryManager;
+    ///
+    /// let recovery_manager = AgentRecoveryManager::new();
+    /// ```
     pub fn new() -> Self {
         let mut recovery_strategies = HashMap::new();
 
@@ -1824,6 +2155,48 @@ impl AgentRecoveryManager {
         }
     }
 
+    /// Handles an agent error by selecting and applying an appropriate recovery strategy.
+    ///
+    /// This method analyzes the provided error, classifies it, selects the most appropriate
+    /// recovery strategy based on the error type and agent's failure history, and updates
+    /// the agent's recovery state. It coordinates with the agent's failure tracking to
+    /// ensure appropriate strategy escalation for repeated failures.
+    ///
+    /// # Parameters
+    ///
+    /// * `agent_id` - Unique identifier of the agent experiencing the error
+    /// * `error` - The `HiveError` instance representing the failure
+    /// * `context` - Recovery context providing additional operation information
+    ///
+    /// # Returns
+    ///
+    /// Returns `HiveResult<AgentRecoveryStrategy>` containing the selected recovery strategy
+    /// on success, or a `HiveError` if no appropriate strategy is available or if recovery
+    /// strategy selection fails.
+    ///
+    /// # Errors
+    ///
+    /// Returns `HiveError::RecoveryStrategyNotAvailable` if no recovery strategies are
+    /// configured for the specific error type.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use crate::utils::error_recovery::{AgentRecoveryManager, RecoveryContext};
+    /// use crate::utils::error::HiveError;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let recovery_manager = AgentRecoveryManager::new();
+    /// let context = RecoveryContext::new("learning_operation", "NeuralAgent", 3);
+    /// let error = HiveError::AgentLearningFailed {
+    ///     agent_id: "agent-123".to_string(),
+    ///     reason: "Gradient explosion".to_string(),
+    /// };
+    ///
+    /// let strategy = recovery_manager.handle_agent_error("agent-123", &error, &context).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn handle_agent_error(
         &self,
         agent_id: &str,
@@ -1910,6 +2283,46 @@ impl AgentRecoveryManager {
         strategies[strategy_index].clone()
     }
 
+    /// Executes the specified recovery strategy for a given agent.
+    ///
+    /// This method implements the actual recovery actions corresponding to each
+    /// recovery strategy. It handles the coordination and execution of recovery
+    /// operations, including agent restarts, failovers, capability adjustments,
+    /// and other recovery mechanisms.
+    ///
+    /// # Parameters
+    ///
+    /// * `agent_id` - Unique identifier of the agent to recover
+    /// * `strategy` - The `AgentRecoveryStrategy` to execute
+    ///
+    /// # Returns
+    ///
+    /// Returns `HiveResult<()>` indicating success or failure of the recovery execution.
+    /// Successful execution means the recovery operation was initiated; it does not
+    /// guarantee that the underlying issue is resolved.
+    ///
+    /// # Errors
+    ///
+    /// Returns `HiveError` if the recovery execution fails or encounters issues
+    /// during the recovery process.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use crate::utils::error_recovery::{AgentRecoveryManager, AgentRecoveryStrategy};
+    /// use std::time::Duration;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let recovery_manager = AgentRecoveryManager::new();
+    /// let strategy = AgentRecoveryStrategy::RestartWithBackoff {
+    ///     base_delay: Duration::from_secs(5),
+    ///     max_delay: Duration::from_secs(60),
+    /// };
+    ///
+    /// recovery_manager.execute_agent_recovery("agent-123", &strategy).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn execute_agent_recovery(
         &self,
         agent_id: &str,
@@ -2041,6 +2454,33 @@ impl AgentRecoveryManager {
         }
     }
 
+    /// Checks if an agent is currently isolated from normal operations.
+    ///
+    /// This method determines whether an agent is in an isolation period, typically
+    /// during intensive recovery operations. Isolated agents may be prevented from
+    /// receiving new tasks or communicating with other agents to allow for focused
+    /// recovery without external interference.
+    ///
+    /// # Parameters
+    ///
+    /// * `agent_id` - Unique identifier of the agent to check
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the agent is currently isolated (isolation period has not
+    /// expired), `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use crate::utils::error_recovery::AgentRecoveryManager;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let recovery_manager = AgentRecoveryManager::new();
+    /// let is_isolated = recovery_manager.is_agent_isolated("agent-123").await;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn is_agent_isolated(&self, agent_id: &str) -> bool {
         let state = self.agent_states.read().await;
         if let Some(agent_state) = state.get(agent_id) {
@@ -2063,6 +2503,22 @@ pub struct ContextAwareRecovery {
 }
 
 impl ContextAwareRecovery {
+    /// Creates a new instance of ContextAwareRecovery with default configuration.
+    ///
+    /// This initializes the error classifier, adaptive recovery system, and agent recovery manager
+    /// with their default settings for comprehensive error handling and recovery.
+    ///
+    /// # Returns
+    ///
+    /// A new `ContextAwareRecovery` instance ready to handle operations with context-aware recovery.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::ContextAwareRecovery;
+    ///
+    /// let recovery = ContextAwareRecovery::new();
+    /// ```
     pub fn new() -> Self {
         Self {
             error_classifier: ErrorClassifier,
@@ -2071,6 +2527,50 @@ impl ContextAwareRecovery {
         }
     }
 
+    /// Executes an operation with comprehensive context-aware error recovery.
+    ///
+    /// This method provides intelligent error handling that classifies errors, applies appropriate
+    /// retry mechanisms, and uses adaptive recovery strategies based on the operation context
+    /// and error history. It coordinates between different recovery mechanisms to maximize
+    /// the chances of successful operation completion.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `F` - The operation function type that returns a future
+    /// * `T` - The success return type of the operation
+    /// * `E` - The error type that can be displayed
+    ///
+    /// # Parameters
+    ///
+    /// * `operation` - A closure that returns a boxed future representing the operation to execute
+    /// * `operation_name` - A descriptive name for the operation (used for logging and context)
+    /// * `component_name` - The name of the component performing the operation
+    ///
+    /// # Returns
+    ///
+    /// Returns `HiveResult<T>` where `T` is the operation's success result type.
+    /// On success, returns the operation result. On failure after all recovery attempts,
+    /// returns a `HiveError` with details about the failure.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use crate::utils::error_recovery::ContextAwareRecovery;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let recovery = ContextAwareRecovery::new();
+    ///
+    /// let result = recovery.execute_with_context(
+    ///     || Box::pin(async {
+    ///         // Your operation here
+    ///         Ok("success")
+    ///     }),
+    ///     "process_data",
+    ///     "DataProcessor"
+    /// ).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn execute_with_context<F, T, E>(
         &self,
         operation: F,
@@ -2139,29 +2639,333 @@ impl ContextAwareRecovery {
     }
 }
 
-/// Health check system for monitoring error recovery effectiveness
+/// Health monitoring system for tracking error recovery effectiveness across components.
+///
+/// This struct provides centralized health monitoring for the error recovery system,
+/// tracking operation success rates, recovery effectiveness, and overall system health.
+/// It maintains per-component metrics and provides aggregated health scores for the
+/// entire system, enabling proactive monitoring and alerting.
 pub struct RecoveryHealthMonitor {
+    /// Thread-safe storage for health metrics organized by component name
     health_metrics: Arc<RwLock<HashMap<String, HealthMetrics>>>,
 }
 
+/// Metrics tracking the health and performance of error recovery operations.
+///
+/// This struct maintains comprehensive statistics about operation success rates,
+/// recovery effectiveness, and timing information to help monitor system health
+/// and identify components that may need attention or optimization.
 #[derive(Debug, Clone)]
 pub struct HealthMetrics {
+    /// Total number of operations executed by this component.
+    ///
+    /// This includes both successful and failed operations and serves as the
+    /// denominator for calculating success rates and other metrics.
     pub total_operations: u64,
+
+    /// Number of operations that completed successfully without requiring recovery.
+    ///
+    /// This metric helps track the baseline reliability of the component.
     pub successful_operations: u64,
+
+    /// Number of operations that failed and required recovery attempts.
+    ///
+    /// This indicates how often the component encounters errors that need intervention.
     pub failed_operations: u64,
+
+    /// Total number of recovery attempts made for failed operations.
+    ///
+    /// This tracks how aggressively the system attempts to recover from failures.
     pub recovery_attempts: u64,
+
+    /// Number of recovery attempts that successfully resolved the original failure.
+    ///
+    /// This metric measures the effectiveness of the recovery mechanisms.
     pub successful_recoveries: u64,
+
+    /// Average time taken to successfully recover from a failure.
+    ///
+    /// This helps identify recovery mechanisms that may be too slow or inefficient.
     pub average_recovery_time: Duration,
+
+    /// Timestamp of the most recent operation failure.
+    ///
+    /// This helps track recency of failures and can be used for alerting
+    /// when failures become frequent or recent.
     pub last_failure_time: Option<std::time::Instant>,
 }
 
+impl HealthMetrics {
+    /// Creates a new HealthMetrics instance with all metrics initialized to zero.
+    ///
+    /// This provides a clean starting point for tracking a component's health metrics.
+    ///
+    /// # Returns
+    ///
+    /// A new `HealthMetrics` instance with all counters at zero and no failure time recorded.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::HealthMetrics;
+    /// use std::time::Duration;
+    ///
+    /// let metrics = HealthMetrics::new();
+    /// assert_eq!(metrics.total_operations, 0);
+    /// assert_eq!(metrics.successful_operations, 0);
+    /// ```
+    pub fn new() -> Self {
+        Self {
+            total_operations: 0,
+            successful_operations: 0,
+            failed_operations: 0,
+            recovery_attempts: 0,
+            successful_recoveries: 0,
+            average_recovery_time: Duration::from_millis(0),
+            last_failure_time: None,
+        }
+    }
+
+    /// Records the result of an operation, updating the relevant health metrics.
+    ///
+    /// This method updates the total operation count and either the successful or failed
+    /// operation count based on the outcome. For failed operations, it also records
+    /// the current time as the last failure time.
+    ///
+    /// # Parameters
+    ///
+    /// * `success` - Whether the operation completed successfully (`true`) or failed (`false`)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::HealthMetrics;
+    ///
+    /// let mut metrics = HealthMetrics::new();
+    ///
+    /// // Record a successful operation
+    /// metrics.record_operation(true);
+    /// assert_eq!(metrics.total_operations, 1);
+    /// assert_eq!(metrics.successful_operations, 1);
+    ///
+    /// // Record a failed operation
+    /// metrics.record_operation(false);
+    /// assert_eq!(metrics.total_operations, 2);
+    /// assert_eq!(metrics.failed_operations, 1);
+    /// assert!(metrics.last_failure_time.is_some());
+    /// ```
+    pub fn record_operation(&mut self, success: bool) {
+        self.total_operations += 1;
+        if success {
+            self.successful_operations += 1;
+        } else {
+            self.failed_operations += 1;
+            self.last_failure_time = Some(std::time::Instant::now());
+        }
+    }
+
+    /// Records an attempt to recover from a failure and its outcome.
+    ///
+    /// This method updates recovery attempt statistics and recalculates the average
+    /// recovery time using a rolling average formula. Only successful recoveries
+    /// contribute to the average recovery time calculation.
+    ///
+    /// # Parameters
+    ///
+    /// * `success` - Whether the recovery attempt was successful (`true`) or failed (`false`)
+    /// * `duration` - The time taken for the recovery attempt
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::HealthMetrics;
+    /// use std::time::Duration;
+    ///
+    /// let mut metrics = HealthMetrics::new();
+    ///
+    /// // Record a successful recovery
+    /// metrics.record_recovery_attempt(true, Duration::from_millis(100));
+    /// assert_eq!(metrics.recovery_attempts, 1);
+    /// assert_eq!(metrics.successful_recoveries, 1);
+    ///
+    /// // Record another successful recovery
+    /// metrics.record_recovery_attempt(true, Duration::from_millis(200));
+    /// assert_eq!(metrics.average_recovery_time, Duration::from_millis(150));
+    /// ```
+    pub fn record_recovery_attempt(&mut self, success: bool, duration: Duration) {
+        self.recovery_attempts += 1;
+        if success {
+            self.successful_recoveries += 1;
+
+            // Update rolling average
+            let total_time = self.average_recovery_time * (self.successful_recoveries - 1) as u32 + duration;
+            self.average_recovery_time = total_time / self.successful_recoveries as u32;
+        }
+    }
+
+    /// Generates a comprehensive health report for this component.
+    ///
+    /// This method calculates various health indicators including success rate,
+    /// recovery rate, and overall health score based on the collected metrics.
+    ///
+    /// # Returns
+    ///
+    /// A `HealthReport` containing calculated health metrics and scores.
+    /// If no operations have been recorded, returns a perfect health report.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::HealthMetrics;
+    ///
+    /// let mut metrics = HealthMetrics::new();
+    /// metrics.record_operation(true);
+    /// metrics.record_operation(false);
+    /// metrics.record_recovery_attempt(true, std::time::Duration::from_millis(100));
+    ///
+    /// let report = metrics.get_health_report();
+    /// assert_eq!(report.success_rate, 0.5);
+    /// assert_eq!(report.recovery_rate, 1.0);
+    /// ```
+    pub fn get_health_report(&self) -> HealthReport {
+        if self.total_operations == 0 {
+            return HealthReport {
+                success_rate: 1.0,
+                recovery_rate: 1.0,
+                overall_health_score: 1.0,
+                total_operations: 0,
+                average_recovery_time: Duration::from_millis(0),
+            };
+        }
+
+        let success_rate = self.successful_operations as f64 / self.total_operations as f64;
+        let recovery_rate = if self.recovery_attempts > 0 {
+            self.successful_recoveries as f64 / self.recovery_attempts as f64
+        } else {
+            1.0
+        };
+
+        let overall_health_score = (success_rate + recovery_rate) / 2.0;
+
+        HealthReport {
+            success_rate,
+            recovery_rate,
+            overall_health_score,
+            total_operations: self.total_operations,
+            average_recovery_time: self.average_recovery_time,
+        }
+    }
+
+    /// Calculates an overall health score for this component.
+    ///
+    /// The health score is a value between 0.0 and 1.0 that combines success rate
+    /// and recovery rate to provide a single metric for component health.
+    ///
+    /// # Returns
+    ///
+    /// A health score as a `f64` between 0.0 (completely unhealthy) and 1.0 (perfect health).
+    /// Returns 1.0 if no operations have been recorded.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::HealthMetrics;
+    ///
+    /// let mut metrics = HealthMetrics::new();
+    ///
+    /// // No operations - perfect health
+    /// assert_eq!(metrics.get_overall_health_score(), 1.0);
+    ///
+    /// // Mix of success and failure
+    /// metrics.record_operation(true);  // Success
+    /// metrics.record_operation(false); // Failure
+    /// metrics.record_recovery_attempt(true, std::time::Duration::from_millis(100)); // Recovery success
+    ///
+    /// let score = metrics.get_overall_health_score();
+    /// assert!(score > 0.0 && score < 1.0);
+    /// ```
+    pub fn get_overall_health_score(&self) -> f64 {
+        if self.total_operations == 0 {
+            return 1.0;
+        }
+
+        let success_rate = self.successful_operations as f64 / self.total_operations as f64;
+        let recovery_rate = if self.recovery_attempts > 0 {
+            self.successful_recoveries as f64 / self.recovery_attempts as f64
+        } else {
+            1.0
+        };
+
+        (success_rate + recovery_rate) / 2.0
+    }
+}
+
+/// A comprehensive health report containing calculated health metrics.
+#[derive(Debug, Clone)]
+pub struct HealthReport {
+    /// The ratio of successful operations to total operations (0.0 to 1.0).
+    pub success_rate: f64,
+    /// The ratio of successful recoveries to total recovery attempts (0.0 to 1.0).
+    pub recovery_rate: f64,
+    /// Overall health score combining success and recovery rates (0.0 to 1.0).
+    pub overall_health_score: f64,
+    /// Total number of operations recorded.
+    pub total_operations: u64,
+    /// Average time taken for successful recoveries.
+    pub average_recovery_time: Duration,
+}
+
 impl RecoveryHealthMonitor {
+    /// Creates a new `RecoveryHealthMonitor` with empty health metrics storage.
+    ///
+    /// This initializes the health monitoring system with no existing metrics,
+    /// ready to start tracking operation results and recovery attempts from scratch.
+    ///
+    /// # Returns
+    ///
+    /// A new `RecoveryHealthMonitor` instance ready for health monitoring.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::utils::error_recovery::RecoveryHealthMonitor;
+    ///
+    /// let health_monitor = RecoveryHealthMonitor::new();
+    /// ```
     pub fn new() -> Self {
         Self {
             health_metrics: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
+    /// Records the outcome of an operation for health monitoring purposes.
+    ///
+    /// This method updates the health metrics for a specific component based on
+    /// the success or failure of an operation. It tracks total operations,
+    /// success/failure counts, and records the timestamp of failures for
+    /// recency analysis.
+    ///
+    /// # Parameters
+    ///
+    /// * `component` - Name of the component that executed the operation
+    /// * `success` - Whether the operation completed successfully (`true`) or failed (`false`)
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use crate::utils::error_recovery::RecoveryHealthMonitor;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let health_monitor = RecoveryHealthMonitor::new();
+    ///
+    /// // Record a successful operation
+    /// health_monitor.record_operation("DataProcessor", true).await;
+    ///
+    /// // Record a failed operation
+    /// health_monitor.record_operation("NetworkService", false).await;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn record_operation(&self, component: &str, success: bool) {
         let mut metrics = self.health_metrics.write().await;
         let component_metrics = metrics
@@ -2185,6 +2989,35 @@ impl RecoveryHealthMonitor {
         }
     }
 
+    /// Records a recovery attempt and its outcome for health monitoring.
+    ///
+    /// This method updates recovery-specific metrics, including the number of
+    /// recovery attempts, successful recoveries, and calculates the average
+    /// recovery time using a rolling average formula.
+    ///
+    /// # Parameters
+    ///
+    /// * `component` - Name of the component where recovery was attempted
+    /// * `success` - Whether the recovery attempt was successful (`true`) or failed (`false`)
+    /// * `duration` - Time taken for the recovery attempt
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use crate::utils::error_recovery::RecoveryHealthMonitor;
+    /// use std::time::Duration;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let health_monitor = RecoveryHealthMonitor::new();
+    ///
+    /// // Record a successful recovery attempt
+    /// health_monitor.record_recovery_attempt("AgentManager", true, Duration::from_millis(150)).await;
+    ///
+    /// // Record a failed recovery attempt
+    /// health_monitor.record_recovery_attempt("DatabaseService", false, Duration::from_millis(300)).await;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn record_recovery_attempt(
         &self,
         component: &str,
@@ -2207,11 +3040,66 @@ impl RecoveryHealthMonitor {
         }
     }
 
+    /// Retrieves the complete health metrics for a specific component.
+    ///
+    /// This method provides access to all tracked health metrics for a given
+    /// component, including operation statistics, recovery effectiveness,
+    /// and timing information.
+    ///
+    /// # Parameters
+    ///
+    /// * `component` - Name of the component to retrieve metrics for
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(HealthMetrics)` if health data exists for the component,
+    /// or `None` if no metrics have been recorded for that component.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use crate::utils::error_recovery::RecoveryHealthMonitor;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let health_monitor = RecoveryHealthMonitor::new();
+    ///
+    /// // Get health report for a component
+    /// if let Some(metrics) = health_monitor.get_health_report("TaskScheduler").await {
+    ///     println!("Success rate: {:.2}%", metrics.success_rate() * 100.0);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn get_health_report(&self, component: &str) -> Option<HealthMetrics> {
         let metrics = self.health_metrics.read().await;
         metrics.get(component).cloned()
     }
 
+    /// Calculates an overall health score for the entire system.
+    ///
+    /// This method computes a composite health score by averaging the individual
+    /// health scores of all monitored components. The score ranges from 0.0
+    /// (completely unhealthy) to 1.0 (perfect health).
+    ///
+    /// # Returns
+    ///
+    /// Returns a `f64` health score between 0.0 and 1.0. Returns 1.0 if no
+    /// components have been monitored yet (indicating perfect health by default).
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use crate::utils::error_recovery::RecoveryHealthMonitor;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let health_monitor = RecoveryHealthMonitor::new();
+    ///
+    /// // Get overall system health score
+    /// let system_health = health_monitor.get_overall_health_score().await;
+    /// println!("System health score: {:.2}", system_health);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn get_overall_health_score(&self) -> f64 {
         let metrics = self.health_metrics.read().await;
         if metrics.is_empty() {
@@ -2259,6 +3147,11 @@ pub struct CentralizedErrorHandler {
     config: ErrorHandlerConfig,
 }
 
+/// Configuration options for the centralized error handling system.
+///
+/// This struct defines all the configurable parameters that control the behavior
+/// of the error recovery mechanisms, circuit breakers, health monitoring, and
+/// other resilience features in the AI Orchestrator Hub.
 #[derive(Debug, Clone)]
 pub struct ErrorHandlerConfig {
     /// Enable/disable automatic recovery

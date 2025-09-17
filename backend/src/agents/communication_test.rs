@@ -16,8 +16,11 @@ mod tests {
                 .await
                 .expect("Failed to create NLP processor"),
         );
+        let learning_config = crate::neural::adaptive_learning::AdaptiveLearningConfig::default();
         let learning_system = Arc::new(tokio::sync::RwLock::new(
-            crate::neural::adaptive_learning::AdaptiveLearningSystem::new(),
+            crate::neural::adaptive_learning::AdaptiveLearningSystem::new(learning_config)
+                .await
+                .expect("Failed to create learning system"),
         ));
         let config = crate::agents::adaptive_verification::AdaptationConfig::default();
         let mut system = crate::agents::adaptive_verification::AdaptiveVerificationSystem::new(

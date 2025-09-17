@@ -44,11 +44,7 @@ const ErrorInEventComponent = () => {
     }
   }, [shouldThrow])
 
-  return (
-    <button onClick={() => setShouldThrow(true)}>
-      Trigger Error
-    </button>
-  )
+  return <button onClick={() => setShouldThrow(true)}>Trigger Error</button>
 }
 
 // Component that throws an error during render after state change
@@ -78,7 +74,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <div>Test content</div>
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
 
     expect(screen.getByText('Test content')).toBeInTheDocument()
@@ -88,7 +84,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ErrorComponent />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
 
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
@@ -101,7 +97,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary fallback={<div>Custom error message</div>}>
         <ErrorComponent />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
 
     expect(screen.getByText('Custom error message')).toBeInTheDocument()
@@ -112,22 +108,24 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary showDetails={true}>
         <ErrorComponent />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
 
     expect(screen.getByText('Error Details')).toBeInTheDocument()
 
     // Check that the error message is in the document
-    expect(screen.getByText((content, element) => {
-      return element?.tagName === 'PRE' && content.includes('Test error')
-    })).toBeInTheDocument()
+    expect(
+      screen.getByText((content, element) => {
+        return element?.tagName === 'PRE' && content.includes('Test error')
+      }),
+    ).toBeInTheDocument()
   })
 
   it('should not show error details when showDetails is false', () => {
     render(
       <ErrorBoundary showDetails={false}>
         <ErrorComponent />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
 
     expect(screen.queryByText('Error Details')).not.toBeInTheDocument()
@@ -138,7 +136,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ErrorComponent shouldThrow={true} />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
 
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
@@ -155,7 +153,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ErrorComponent />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
 
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
@@ -173,7 +171,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary onError={onErrorMock}>
         <ErrorComponent />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
 
     expect(onErrorMock).toHaveBeenCalledTimes(1)
@@ -181,7 +179,7 @@ describe('ErrorBoundary', () => {
       expect.any(Error),
       expect.objectContaining({
         componentStack: expect.any(String),
-      })
+      }),
     )
   })
 
@@ -189,7 +187,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ErrorInEventComponent />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
 
     // Initially no error
@@ -200,8 +198,6 @@ describe('ErrorBoundary', () => {
 
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
   })
-
-
 })
 
 describe('AsyncErrorBoundary', () => {
@@ -213,7 +209,7 @@ describe('AsyncErrorBoundary', () => {
     render(
       <AsyncErrorBoundary>
         <div>Async content</div>
-      </AsyncErrorBoundary>
+      </AsyncErrorBoundary>,
     )
 
     expect(screen.getByText('Async content')).toBeInTheDocument()
@@ -223,7 +219,7 @@ describe('AsyncErrorBoundary', () => {
     render(
       <AsyncErrorBoundary>
         <DelayedErrorComponent />
-      </AsyncErrorBoundary>
+      </AsyncErrorBoundary>,
     )
 
     // Wait for delayed error to be thrown
@@ -239,7 +235,7 @@ describe('AsyncErrorBoundary', () => {
     render(
       <AsyncErrorBoundary>
         <DelayedErrorComponent />
-      </AsyncErrorBoundary>
+      </AsyncErrorBoundary>,
     )
 
     await waitFor(() => {
@@ -313,7 +309,7 @@ describe('Error Reporting', () => {
     render(
       <ErrorBoundary>
         <ErrorComponent />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     )
 
     // Should have called console.error with error report
@@ -325,7 +321,7 @@ describe('Error Reporting', () => {
         userAgent: expect.any(String),
         url: expect.any(String),
         retryCount: 0,
-      })
+      }),
     )
   })
 })

@@ -795,7 +795,9 @@ pub mod strategies {
             high_frequency_keys.sort_by(|a, b| {
                 let freq_a = patterns.get(a).map(|p| p.access_frequency).unwrap_or(0.0);
                 let freq_b = patterns.get(b).map(|p| p.access_frequency).unwrap_or(0.0);
-                freq_b.partial_cmp(&freq_a).unwrap_or(std::cmp::Ordering::Equal)
+                freq_b
+                    .partial_cmp(&freq_a)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             });
 
             Ok(high_frequency_keys.into_iter().take(50).collect())

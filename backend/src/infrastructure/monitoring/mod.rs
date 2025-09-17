@@ -30,6 +30,6 @@ pub use diagnostics::Diagnostics;
 pub use health_monitor::HealthMonitor;
 pub use integration::Integration;
 pub use performance_monitor::PerformanceMonitor;
-pub use production_monitoring::{ProductionMonitoringSystem, ProductionMonitoringConfig};
+pub use production_monitoring::{ProductionMonitoringConfig, ProductionMonitoringSystem};
 pub use prometheus_exporter::PrometheusExporter;
 pub use reporting::Reporting;

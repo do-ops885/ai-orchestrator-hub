@@ -1,4 +1,4 @@
-use crate::{agents::AgentType, core::HiveCoordinator, tasks::TaskPriority};
+use crate::{core::HiveCoordinator, tasks::TaskPriority};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -372,23 +372,22 @@ impl CreateSwarmAgentTool {
 #[async_trait]
 impl MCPToolHandler for CreateSwarmAgentTool {
     async fn execute(&self, params: &Value) -> Result<Value> {
+        // Support both "type" and "agent_type" parameters for backward compatibility
         let agent_type_str = params
             .get("type")
+            .or_else(|| params.get("agent_type"))
             .and_then(|v| v.as_str())
-            .unwrap_or("worker");
+            .ok_or_else(|| anyhow::anyhow!("Agent type is required. Must be one of: worker, coordinator, specialist, learner"))?;
 
-        let _agent_type = match agent_type_str {
-            "coordinator" => AgentType::Coordinator,
-            "learner" => AgentType::Learner,
-            "specialist" => {
-                let specialization = params
-                    .get("specialization")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("general");
-                AgentType::Specialist(specialization.to_string())
-            }
-            _ => AgentType::Worker,
-        };
+        // Validate agent type before proceeding
+        let valid_types = ["worker", "coordinator", "specialist", "learner"];
+        if !valid_types.contains(&agent_type_str) {
+            return Err(anyhow::anyhow!(
+                "Invalid agent type: {}. Must be one of: {}",
+                agent_type_str,
+                valid_types.join(", ")
+            ));
+        }
 
         let hive = self.hive.write().await;
         let config = json!({
@@ -411,14 +410,22 @@ impl MCPToolHandler for CreateSwarmAgentTool {
                 "type": {
                     "type": "string",
                     "enum": ["worker", "coordinator", "specialist", "learner"],
-                    "description": "Type of agent to create"
+                    "description": "Type of agent to create (alias: agent_type)"
+                },
+                "agent_type": {
+                    "type": "string",
+                    "enum": ["worker", "coordinator", "specialist", "learner"],
+                    "description": "Type of agent to create (alias: type)"
                 },
                 "specialization": {
                     "type": "string",
                     "description": "Specialization for Specialist agents"
                 }
             },
-            "required": ["type"]
+            "anyOf": [
+                {"required": ["type"]},
+                {"required": ["agent_type"]}
+            ]
         })
     }
 
@@ -444,14 +451,24 @@ impl MCPToolHandler for AssignSwarmTaskTool {
         let description = params
             .get("description")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing task description"))?;
+            .ok_or_else(|| anyhow::anyhow!("Missing required parameter: description"))?;
 
         let priority_str = params
             .get("priority")
             .and_then(|v| v.as_str())
-            .unwrap_or("Medium");
+            .ok_or_else(|| anyhow::anyhow!("Missing required parameter: priority"))?;
 
-        let _priority = match priority_str {
+        // Validate priority is one of the allowed values
+        let valid_priorities = ["Low", "Medium", "High", "Critical"];
+        if !valid_priorities.contains(&priority_str) {
+            return Err(anyhow::anyhow!(
+                "Invalid priority: {}. Must be one of: {}",
+                priority_str,
+                valid_priorities.join(", ")
+            ));
+        }
+
+        let _ = match priority_str {
             "Low" => TaskPriority::Low,
             "High" => TaskPriority::High,
             "Critical" => TaskPriority::Critical,
@@ -486,7 +503,7 @@ impl MCPToolHandler for AssignSwarmTaskTool {
                     "description": "Priority level of the task"
                 }
             },
-            "required": ["description"]
+            "required": ["description", "priority"]
         })
     }
 
@@ -544,7 +561,7 @@ impl MCPToolHandler for AnalyzeWithNLPTool {
             .and_then(|v| v.as_str())
             .ok_or_else(|| anyhow::anyhow!("Missing text to analyze"))?;
 
-        let _hive = self.hive.read().await;
+        let _ = self.hive.read().await;
         // Use basic NLP analysis for now
         let analysis = json!({
             "sentiment": "neutral",
@@ -594,7 +611,17 @@ impl MCPToolHandler for CoordinateAgentsTool {
         let strategy = params
             .get("strategy")
             .and_then(|v| v.as_str())
-            .unwrap_or("default");
+            .ok_or_else(|| anyhow::anyhow!("Missing required parameter: strategy"))?;
+
+        // Validate strategy is one of the allowed values
+        let valid_strategies = ["default", "aggressive", "conservative", "balanced"];
+        if !valid_strategies.contains(&strategy) {
+            return Err(anyhow::anyhow!(
+                "Invalid strategy: {}. Must be one of: {}",
+                strategy,
+                valid_strategies.join(", ")
+            ));
+        }
 
         let hive = self.hive.read().await;
         // Basic coordination strategy implementation
@@ -628,7 +655,7 @@ impl MCPToolHandler for CoordinateAgentsTool {
                     "enum": ["default", "aggressive", "conservative", "balanced"]
                 }
             },
-            "required": []
+            "required": ["strategy"]
         })
     }
 
@@ -647,7 +674,7 @@ impl MCPToolHandler for EchoTool {
         let message = params
             .get("message")
             .and_then(|v| v.as_str())
-            .unwrap_or("Hello from MCP!");
+            .ok_or_else(|| anyhow::anyhow!("Missing required parameter: message"))?;
 
         Ok(json!({
             "echo": message,
@@ -664,7 +691,7 @@ impl MCPToolHandler for EchoTool {
                     "description": "Message to echo back"
                 }
             },
-            "required": []
+            "required": ["message"]
         })
     }
 
@@ -718,12 +745,24 @@ impl MCPToolHandler for ListAgentsTool {
         let hive = self.hive.read().await;
         let status = hive.get_status().await;
 
-        // Extract filter parameters
-        let agent_type_filter = params.get("agent_type").and_then(|v| v.as_str());
+        // Extract and validate filter parameters
+        let agent_type_filter = if let Some(agent_type) = params.get("agent_type").and_then(|v| v.as_str()) {
+            let valid_types = ["worker", "coordinator", "specialist", "learner"];
+            if !valid_types.contains(&agent_type) {
+                return Err(anyhow::anyhow!(
+                    "Invalid agent_type: {}. Must be one of: {}",
+                    agent_type,
+                    valid_types.join(", ")
+                ));
+            }
+            Some(agent_type)
+        } else {
+            None
+        };
+
         let active_only = params
             .get("active_only")
-            .and_then(serde_json::Value::as_bool)
-            .unwrap_or(false);
+            .and_then(serde_json::Value::as_bool);
 
         // For now, return basic agent information from status
         let total_agents = status
@@ -789,8 +828,33 @@ impl MCPToolHandler for ListTasksTool {
         let hive = self.hive.read().await;
         let status = hive.get_status().await;
 
-        let priority_filter = params.get("priority").and_then(|v| v.as_str());
-        let status_filter = params.get("status").and_then(|v| v.as_str());
+        let priority_filter = if let Some(priority) = params.get("priority").and_then(|v| v.as_str()) {
+            let valid_priorities = ["Low", "Medium", "High", "Critical"];
+            if !valid_priorities.contains(&priority) {
+                return Err(anyhow::anyhow!(
+                    "Invalid priority: {}. Must be one of: {}",
+                    priority,
+                    valid_priorities.join(", ")
+                ));
+            }
+            Some(priority)
+        } else {
+            None
+        };
+
+        let status_filter = if let Some(status_val) = params.get("status").and_then(|v| v.as_str()) {
+            let valid_statuses = ["Pending", "Running", "Completed", "Failed"];
+            if !valid_statuses.contains(&status_val) {
+                return Err(anyhow::anyhow!(
+                    "Invalid status: {}. Must be one of: {}",
+                    status_val,
+                    valid_statuses.join(", ")
+                ));
+            }
+            Some(status_val)
+        } else {
+            None
+        };
 
         let completed_tasks = status
             .get("metrics")
@@ -859,7 +923,7 @@ impl MCPToolHandler for GetAgentDetailsTool {
         Ok(json!({
             "agent_id": agent_id,
             "status": "active",
-            "type": "Worker",
+            "type": "worker",
             "created_at": chrono::Utc::now().to_rfc3339(),
             "last_activity": chrono::Utc::now().to_rfc3339(),
             "tasks_completed": 0,
@@ -949,25 +1013,34 @@ impl MCPToolHandler for BatchCreateAgentsTool {
         let count = params
             .get("count")
             .and_then(serde_json::Value::as_u64)
-            .unwrap_or(1) as usize;
+            .ok_or_else(|| anyhow::anyhow!("Missing required parameter: count"))? as usize;
 
+        // Validate count is between 1 and 10
+        if count < 1 || count > 10 {
+            return Err(anyhow::anyhow!("Invalid count: {}. Must be between 1 and 10", count));
+        }
+
+        // Support both "type" and "agent_type" parameters for backward compatibility
         let agent_type_str = params
             .get("type")
+            .or_else(|| params.get("agent_type"))
             .and_then(|v| v.as_str())
-            .unwrap_or("worker");
+            .ok_or_else(|| anyhow::anyhow!("Agent type is required. Must be one of: worker, coordinator, specialist, learner"))?;
 
-        let _agent_type = match agent_type_str {
-            "coordinator" => AgentType::Coordinator,
-            "specialist" => AgentType::Specialist("general".to_string()),
-            "learner" => AgentType::Learner,
-            _ => AgentType::Worker,
-        };
+        // Validate agent type before proceeding
+        let valid_types = ["worker", "coordinator", "specialist", "learner"];
+        if !valid_types.contains(&agent_type_str) {
+            return Err(anyhow::anyhow!(
+                "Invalid agent type: {}. Must be one of: {}",
+                agent_type_str,
+                valid_types.join(", ")
+            ));
+        }
 
         let hive = self.hive.write().await;
         let mut created_agents = Vec::new();
 
-        for _ in 0..count.min(10) {
-            // Limit to 10 agents per batch
+        for _ in 0..count {
             let config = if agent_type_str == "specialist" {
                 json!({
                     "type": "specialist"
@@ -997,17 +1070,24 @@ impl MCPToolHandler for BatchCreateAgentsTool {
                     "type": "integer",
                     "description": "Number of agents to create (max 10)",
                     "minimum": 1,
-                    "maximum": 10,
-                    "default": 1
+                    "maximum": 10
                 },
                 "type": {
                     "type": "string",
-                    "description": "Type of agents to create",
-                    "enum": ["worker", "coordinator", "specialist", "learner"],
-                    "default": "worker"
+                    "description": "Type of agents to create (alias: agent_type)",
+                    "enum": ["worker", "coordinator", "specialist", "learner"]
+                },
+                "agent_type": {
+                    "type": "string",
+                    "description": "Type of agents to create (alias: type)",
+                    "enum": ["worker", "coordinator", "specialist", "learner"]
                 }
             },
-            "required": []
+            "anyOf": [
+                {"required": ["type"]},
+                {"required": ["agent_type"]}
+            ],
+            "required": ["count"]
         })
     }
 

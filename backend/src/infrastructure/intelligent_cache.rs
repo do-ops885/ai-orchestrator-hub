@@ -880,7 +880,7 @@ where
 
         let mut total_adaptations = 0;
         let mut avg_ttl_score = 0.0;
-        let mut class_distribution = std::collections::HashMap::new();
+        let mut class_distribution = HashMap::new();
 
         for pattern in patterns.values() {
             total_adaptations += pattern.ttl_history.len();
@@ -1212,7 +1212,7 @@ pub struct TtlAdaptationSummary {
     pub total_patterns: usize,
     pub total_adaptations: usize,
     pub average_ttl_score: f64,
-    pub freshness_class_distribution: std::collections::HashMap<DataFreshnessClass, usize>,
+    pub freshness_class_distribution: HashMap<DataFreshnessClass, usize>,
     pub strategy: TtlAdaptationStrategy,
 }
 
@@ -2271,7 +2271,7 @@ mod tests {
         // Wait for all requests to complete
         let mut results = Vec::new();
         for handle in handles {
-            let result = handle.await??;
+            let result = handle.await?;
             results.push(result);
         }
 
@@ -2434,7 +2434,7 @@ mod tests {
         info!("Cache hit rate: {:.2}%", cache_hit_rate * 100.0);
         info!(
             "Query reduction: {:.2}%",
-            load_reduction.total_load_reduction
+            load_reduction.total_reduction_percentage
         );
         info!("Execution time: {:.2}s", execution_time.as_secs_f64());
         info!(
@@ -2458,7 +2458,7 @@ mod tests {
                 "Should achieve at least 30% cache hit rate for mixed workload"
             );
             assert!(
-                load_reduction.total_load_reduction > 15.0,
+                load_reduction.total_reduction_percentage > 15.0,
                 "Should achieve at least 15% load reduction"
             );
         }

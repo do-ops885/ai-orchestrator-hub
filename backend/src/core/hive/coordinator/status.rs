@@ -22,6 +22,8 @@ impl HiveCoordinator {
     /// - `tasks`: Task queue status and execution statistics
     /// - `metrics`: Performance metrics and system health indicators
     /// - `resources`: Current resource utilization and availability
+    /// - `swarm_center`: Calculated center coordinates of the swarm based on hive_id
+    /// - `total_energy`: Derived energy consumption based on system metrics
     /// - `timestamp`: When the status was generated
     ///
     /// ## Performance
@@ -34,6 +36,20 @@ impl HiveCoordinator {
         let metrics = self.metrics_collector.get_current_metrics().await;
         let resource_info = self.resource_manager.get_system_info().await;
 
+        // Calculate swarm_center based on hive_id
+        // Use a simple hash of the hive_id to generate coordinates
+        let hive_id_str = self.id.to_string();
+        let hash = hive_id_str.chars().map(|c| c as u32).sum::<u32>() as f64;
+        let swarm_center_x = (hash % 1000.0) / 100.0; // Range 0.0 to 10.0
+        let swarm_center_y = ((hash / 1000.0) % 1000.0) / 100.0; // Range 0.0 to 10.0
+
+        // Calculate total_energy from metrics
+        // Combine CPU usage, memory usage, and task efficiency
+        let cpu_energy = metrics.system_metrics.cpu_usage_percent * 0.4;
+        let memory_energy = (metrics.system_metrics.total_memory_usage_mb / 1000.0) * 0.3;
+        let task_energy = (metrics.task_metrics.success_rate * 100.0) * 0.3;
+        let total_energy = cpu_energy + memory_energy + task_energy;
+
         serde_json::json!({
             "hive_id": self.id,
             "agents": agent_status,
@@ -44,6 +60,8 @@ impl HiveCoordinator {
                 "resource_profile": resource_info.1,
                 "hardware_class": resource_info.2
             },
+            "swarm_center": [swarm_center_x, swarm_center_y],
+            "total_energy": total_energy,
             "timestamp": chrono::Utc::now()
         })
     }

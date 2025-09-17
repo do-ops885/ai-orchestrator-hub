@@ -1070,7 +1070,7 @@ mod tests {
         .await?;
 
         let handle = process_manager
-            .start_work_stealing_process(agent_manager, task_distributor)
+            .start_work_stealing_process(&agent_manager, &task_distributor)
             .await;
 
         // Check that the handle is created

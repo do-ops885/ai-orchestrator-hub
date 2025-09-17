@@ -68,15 +68,16 @@ jobs:
           echo "🔎 Scanning for secrets..."
           gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose || true
 
-          if [ -f gitleaks-report.json ]; then
-            secrets_count=$(jq length gitleaks-report.json)
-            echo "✅ Secrets detection completed. Found: $secrets_count potential secrets"
+        if [ -f gitleaks-report.json ]; then
+          secrets_count=$(jq length gitleaks-report.json)
+          echo "✅ Secrets detection completed. Found: $secrets_count potential secrets"
 
-            if [ $secrets_count -gt 0 ]; then
-              echo "⚠️  Potential secrets detected. Please review gitleaks-report.json"
-              echo "::warning::Potential secrets detected. Please review gitleaks-report.json"
-            fi
+          if [ $secrets_count -gt 0 ]; then
+            echo "⚠️  Potential secrets detected. Please review gitleaks-report.json"
+            echo "::warning::Potential secrets detected. Please review gitleaks-report.json"
           fi
+        fi
+        fi
 
       - name: Upload security scan results
         uses: actions/upload-artifact@v4
@@ -216,7 +217,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -400,12 +401,12 @@ jobs:
            cd backend
            cargo llvm-cov --all-features --workspace --lcov --output-path ../rust-lcov.info
 
-       - name: Setup Node.js
-         uses: actions/setup-node@v5
-         with:
-           node-version: '20'
-           cache: 'npm'
-           cache-dependency-path: frontend/package-lock.json
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
        - name: Install frontend dependencies
          run: |
@@ -457,10 +458,10 @@ jobs:
            cd backend
            cargo cyclomatic-complexity --all-features > ../rust-complexity.json || true
 
-       - name: Setup Node.js
-         uses: actions/setup-node@v5
-         with:
-           node-version: '20'
+        - name: Setup Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: '20'
 
        - name: Analyze TypeScript complexity
          run: |
@@ -569,10 +570,10 @@ jobs:
          with:
            path: reports/
 
-       - name: Setup Node.js for metrics processing
-         uses: actions/setup-node@v5
-         with:
-           node-version: '20'
+        - name: Setup Node.js for metrics processing
+          uses: actions/setup-node@v4
+          with:
+            node-version: '20'
 
        - name: Install metrics tools
          run: |

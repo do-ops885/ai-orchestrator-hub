@@ -560,7 +560,9 @@ mod tests {
         assert_eq!(results.len(), 3);
 
         for (i, result) in results.iter().enumerate() {
-            let value = result.as_ref().map_err(|e| Box::new(e.clone()) as Box<dyn std::error::Error>)?;
+            let value = result
+                .as_ref()
+                .map_err(|e| Box::new(e.clone()) as Box<dyn std::error::Error>)?;
             if value != &(i as i32 + 1) {
                 return Err(format!("Expected {}, got {}", i as i32 + 1, value).into());
             }

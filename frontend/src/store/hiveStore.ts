@@ -77,13 +77,7 @@ export type ConnectionState =
   | 'failed'
   | 'circuit_breaker_open'
 
-export type ConnectionQuality =
-  | 'excellent'
-  | 'good'
-  | 'fair'
-  | 'poor'
-  | 'critical'
-  | 'disconnected'
+export type ConnectionQuality = 'excellent' | 'good' | 'fair' | 'poor' | 'critical' | 'disconnected'
 
 export interface ConnectionHistoryEntry {
   timestamp: number
@@ -95,11 +89,11 @@ export interface ConnectionHistoryEntry {
 }
 
 export interface Connection {
-  socket: WebSocket;
-  url: string;
-  priority: number;
-  lastUsed: number;
-  usageCount?: number;
+  socket: WebSocket
+  url: string
+  priority: number
+  lastUsed: number
+  usageCount?: number
 }
 
 interface HiveStore {
@@ -140,7 +134,7 @@ interface HiveStore {
   // Fallback and pooling
   fallbackUrls: string[]
   currentUrlIndex: number
-   connectionPool: Connection[]
+  connectionPool: Connection[]
   maxPoolSize: number
   currentUrl: string | null
   multiplexingEnabled: boolean
@@ -164,7 +158,12 @@ interface HiveStore {
   heartbeatTimeout: number
   connectionTimeoutId: NodeJS.Timeout | null
   messageTimeoutId: NodeJS.Timeout | null
-  pendingMessages: Array<{ id: string; message: Message; timestamp: number; timeoutId: NodeJS.Timeout }>
+  pendingMessages: Array<{
+    id: string
+    message: Message
+    timestamp: number
+    timeoutId: NodeJS.Timeout
+  }>
 
   // Monitoring and alerting
   monitoringEnabled: boolean
@@ -174,7 +173,13 @@ interface HiveStore {
     averageLatency: number
     stability: number
   }
-  activeAlerts: Array<{ id: string; type: string; message: string; timestamp: number; severity: 'low' | 'medium' | 'high' | 'critical' }>
+  activeAlerts: Array<{
+    id: string
+    type: string
+    message: string
+    timestamp: number
+    severity: 'low' | 'medium' | 'high' | 'critical'
+  }>
   performanceMetrics: {
     totalConnections: number
     totalMessages: number
@@ -191,7 +196,11 @@ interface HiveStore {
   // Actions
   classifyWebSocketError: (event: CloseEvent | Event, error?: Event) => ConnectionErrorType
   shouldRetryConnection: (errorType: ConnectionErrorType, attemptCount: number) => boolean
-  calculateSmartReconnectDelay: (errorType: ConnectionErrorType, attemptCount: number, stability: number) => number
+  calculateSmartReconnectDelay: (
+    errorType: ConnectionErrorType,
+    attemptCount: number,
+    stability: number,
+  ) => number
   checkConnectionHealth: () => Promise<boolean>
   transitionConnectionState: (newState: ConnectionState, reason?: string) => void
   getConnectionStateDescription: (state: ConnectionState) => string
@@ -211,7 +220,7 @@ interface HiveStore {
   updateBrowserEnvironment: () => void
   shouldThrottleConnection: () => boolean
   updateDegradationLevel: () => void
-  compressMessage: (message: any) => any
+  compressMessage: (message: Message) => Message
   shouldSendMessage: () => boolean
   startConnectionTimeout: () => void
   clearConnectionTimeout: () => void
@@ -220,11 +229,22 @@ interface HiveStore {
   handleHeartbeatTimeout: (sequenceId: number) => void
   enableMonitoring: () => void
   disableMonitoring: () => void
-  updateAlertThresholds: (thresholds: Partial<{ consecutiveFailures: number; packetLoss: number; averageLatency: number; stability: number }>) => void
+  updateAlertThresholds: (
+    thresholds: Partial<{
+      consecutiveFailures: number
+      packetLoss: number
+      averageLatency: number
+      stability: number
+    }>,
+  ) => void
   checkAlertConditions: () => void
-  createAlert: (type: string, message: string, severity: 'low' | 'medium' | 'high' | 'critical') => void
+  createAlert: (
+    type: string,
+    message: string,
+    severity: 'low' | 'medium' | 'high' | 'critical',
+  ) => void
   clearAlert: (alertId: string) => void
-  getMonitoringReport: () => any
+  getMonitoringReport: () => Record<string, unknown>
   resetPerformanceMetrics: () => void
   disconnect: () => void
   createAgent: (config: unknown) => void
@@ -249,8 +269,14 @@ interface HiveStore {
   startNetworkMonitoring: () => void
   stopNetworkMonitoring: () => void
   isTemporaryOutage: () => boolean
-  getUserFriendlyErrorMessage: (errorType: ConnectionErrorType, context?: Record<string, unknown>) => string
-  getRecoverySuggestions: (errorType: ConnectionErrorType, connectionState: ConnectionState) => string[]
+  getUserFriendlyErrorMessage: (
+    errorType: ConnectionErrorType,
+    context?: Record<string, unknown>,
+  ) => string
+  getRecoverySuggestions: (
+    errorType: ConnectionErrorType,
+    connectionState: ConnectionState,
+  ) => string[]
   getConnectionStatusMessage: () => string
   getActionableAdvice: () => string
   getReliabilityMetrics: () => {
@@ -263,8 +289,11 @@ interface HiveStore {
     networkStability: number
     performanceScore: number
   }
-  getDetailedConnectionReport: () => any
-  getSmartRetryStrategy: (errorType: ConnectionErrorType, attemptCount: number) => {
+  getDetailedConnectionReport: () => Record<string, unknown>
+  getSmartRetryStrategy: (
+    errorType: ConnectionErrorType,
+    attemptCount: number,
+  ) => {
     shouldRetry: boolean
     delay: number
     priority: 'high' | 'medium' | 'low'
@@ -287,8 +316,8 @@ interface HiveStore {
     jitter: number
     heartbeatHealth: number
   }
-  calculateConnectionHealthScore: (connection: any) => number
-  calculateConnectionLoadFactor: (connection: any) => number
+  calculateConnectionHealthScore: (connection: Connection) => number
+  calculateConnectionLoadFactor: (connection: Connection) => number
   calculateAdaptiveHeartbeatTimeout: () => number
   startPredictiveRecovery: () => void
   stopPredictiveRecovery: () => void
@@ -431,7 +460,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     // Handle generic Error events
     if (error instanceof Event) {
       // Try to infer error type from event type or target
-      const target = (error.target as any)
+      const target = error.target as WebSocket | null
       if (target && target.constructor.name === 'WebSocket') {
         // WebSocket-specific error
         return 'connection_reset'
@@ -483,43 +512,54 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }
   },
 
-  calculateSmartReconnectDelay: (errorType: ConnectionErrorType, attemptCount: number, stability: number): number => {
+  calculateSmartReconnectDelay: (
+    errorType: ConnectionErrorType,
+    attemptCount: number,
+    stability: number,
+  ): number => {
     const { reconnectDelay, backoffMultiplier, maxReconnectAttempts, connectionHistory } = get()
     const baseDelay = reconnectDelay
 
     // Analyze connection history for adaptive behavior with enhanced metrics
     const recentHistory = connectionHistory.slice(-15) // Last 15 attempts for better analysis
     const successfulAttempts = recentHistory.filter(h => h.success)
-    const recentSuccessRate = recentHistory.length > 0 ? successfulAttempts.length / recentHistory.length : 0.5
+    const recentSuccessRate =
+      recentHistory.length > 0 ? successfulAttempts.length / recentHistory.length : 0.5
 
     // Calculate historical average delay for successful reconnections
     const successfulDelays = successfulAttempts
       .filter(h => h.reconnectDelay && h.reconnectDelay > 0)
       .map(h => h.reconnectDelay as number)
-    const avgSuccessfulDelay = successfulDelays.length > 0
-      ? successfulDelays.reduce((sum, delay) => sum + delay, 0) / successfulDelays.length
-      : baseDelay
+    const avgSuccessfulDelay =
+      successfulDelays.length > 0
+        ? successfulDelays.reduce((sum, delay) => sum + delay, 0) / successfulDelays.length
+        : baseDelay
 
     // Enhanced jitter implementation with multiple strategies
-    const previousDelay = attemptCount > 0 ? (
-      connectionHistory.slice(-1)[0]?.reconnectDelay ||
-      avgSuccessfulDelay ||
-      baseDelay
-    ) : baseDelay
+    const previousDelay =
+      attemptCount > 0
+        ? connectionHistory.slice(-1)[0]?.reconnectDelay || avgSuccessfulDelay || baseDelay
+        : baseDelay
 
     // Calculate exponential backoff with enhanced formula
     const exponentialDelay = baseDelay * Math.pow(backoffMultiplier, attemptCount)
 
     // Dynamic cap based on connection quality and error patterns
-    const qualityMultiplier = get().connectionQuality === 'excellent' ? 0.5 :
-                             get().connectionQuality === 'good' ? 0.7 :
-                             get().connectionQuality === 'poor' ? 1.5 :
-                             get().connectionQuality === 'critical' ? 2.0 : 1.0
+    const qualityMultiplier =
+      get().connectionQuality === 'excellent'
+        ? 0.5
+        : get().connectionQuality === 'good'
+          ? 0.7
+          : get().connectionQuality === 'poor'
+            ? 1.5
+            : get().connectionQuality === 'critical'
+              ? 2.0
+              : 1.0
 
     const cap = Math.min(
       previousDelay * 2.5,
       exponentialDelay * qualityMultiplier,
-      45000 // Max 45 seconds for better recovery
+      45000, // Max 45 seconds for better recovery
     )
 
     // Advanced jitter strategies based on attempt count and connection state
@@ -545,7 +585,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     // Enhanced error type multipliers with predictive adjustments
     let multiplier = 1.0
-    const errorFrequency = recentHistory.filter(h => h.errorType === errorType).length / recentHistory.length
+    const errorFrequency =
+      recentHistory.filter(h => h.errorType === errorType).length / recentHistory.length
 
     switch (errorType) {
       case 'network_unreachable':
@@ -576,9 +617,11 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }
 
     // Advanced stability adjustment with trend analysis
-    const stabilityTrend = recentHistory.length >= 5 ?
-      (recentHistory.slice(-3).filter(h => h.success).length / 3) -
-      (recentHistory.slice(-5, -3).filter(h => h.success).length / 2) : 0
+    const stabilityTrend =
+      recentHistory.length >= 5
+        ? recentHistory.slice(-3).filter(h => h.success).length / 3 -
+          recentHistory.slice(-5, -3).filter(h => h.success).length / 2
+        : 0
 
     if (stability < 0.15) {
       multiplier *= 2.5 // Very unstable - significantly longer delays
@@ -645,7 +688,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     // Historical learning: adjust minimum based on successful patterns
     if (successfulDelays.length > 3) {
-      const medianSuccessfulDelay = successfulDelays.sort((a, b) => a - b)[Math.floor(successfulDelays.length / 2)]
+      const medianSuccessfulDelay = successfulDelays.sort((a, b) => a - b)[
+        Math.floor(successfulDelays.length / 2)
+      ]
       const historicalMin = medianSuccessfulDelay * 0.6
       minDelay = Math.max(minDelay, Math.min(historicalMin, 2000)) // Cap historical influence
     }
@@ -653,7 +698,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     // Dynamic maximum delay based on connection quality and error persistence
     const maxReconnectDelay = Math.min(
       90000, // Hard cap at 1.5 minutes for better user experience
-      baseDelay * Math.pow(backoffMultiplier, Math.min(maxReconnectAttempts, 8)) * qualityMultiplier
+      baseDelay *
+        Math.pow(backoffMultiplier, Math.min(maxReconnectAttempts, 8)) *
+        qualityMultiplier,
     )
 
     delay = Math.min(delay, maxReconnectDelay)
@@ -662,7 +709,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     // Round to nearest 50ms for cleaner logging and more precise timing
     const roundedDelay = Math.round(delay / 50) * 50
 
-    console.warn(`🔄 Enhanced reconnect delay: ${roundedDelay}ms (attempt: ${attemptCount}, error: ${errorType}, stability: ${(stability * 100).toFixed(1)}%, success: ${(recentSuccessRate * 100).toFixed(1)}%, quality: ${get().connectionQuality})`)
+    console.warn(
+      `🔄 Enhanced reconnect delay: ${roundedDelay}ms (attempt: ${attemptCount}, error: ${errorType}, stability: ${(stability * 100).toFixed(1)}%, success: ${(recentSuccessRate * 100).toFixed(1)}%, quality: ${get().connectionQuality})`,
+    )
 
     return roundedDelay
   },
@@ -679,7 +728,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         cache: 'no-cache',
         headers: {
           'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
+          Pragma: 'no-cache',
         },
       })
 
@@ -696,13 +745,13 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     // Validate state transitions
     const validTransitions: Record<ConnectionState, ConnectionState[]> = {
-      'disconnected': ['connecting', 'circuit_breaker_open'],
-      'connecting': ['connected', 'failed', 'disconnected'],
-      'connected': ['degraded', 'reconnecting', 'disconnected'],
-      'reconnecting': ['connected', 'failed', 'disconnected'],
-      'degraded': ['connected', 'reconnecting', 'failed', 'disconnected'],
-      'failed': ['reconnecting', 'disconnected', 'circuit_breaker_open'],
-      'circuit_breaker_open': ['disconnected'],
+      disconnected: ['connecting', 'circuit_breaker_open'],
+      connecting: ['connected', 'failed', 'disconnected'],
+      connected: ['degraded', 'reconnecting', 'disconnected'],
+      reconnecting: ['connected', 'failed', 'disconnected'],
+      degraded: ['connected', 'reconnecting', 'failed', 'disconnected'],
+      failed: ['reconnecting', 'disconnected', 'circuit_breaker_open'],
+      circuit_breaker_open: ['disconnected'],
     }
 
     if (!validTransitions[currentState]?.includes(newState)) {
@@ -894,7 +943,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
           resolve()
         }
 
-        socket.onerror = (error) => {
+        socket.onerror = error => {
           clearTimeout(timeout)
           console.warn(`❌ Failed to add connection to pool: ${url}`, error)
           reject(error)
@@ -968,7 +1017,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         connectionPool[poolIndex].usageCount = (connectionPool[poolIndex].usageCount || 0) + 1
       }
 
-      console.warn(`🔄 Selected connection from pool: priority ${bestConnection.priority}, health ${bestConnection.healthScore.toFixed(2)}, load ${bestConnection.loadFactor.toFixed(2)}`)
+      console.warn(
+        `🔄 Selected connection from pool: priority ${bestConnection.priority}, health ${bestConnection.healthScore.toFixed(2)}, load ${bestConnection.loadFactor.toFixed(2)}`,
+      )
       return bestConnection.socket
     }
 
@@ -976,8 +1027,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     return get().socket
   },
 
-   calculateConnectionHealthScore: (connection: Connection): number => {
-    const {socket} = connection
+  calculateConnectionHealthScore: (connection: Connection): number => {
+    const { socket } = connection
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       return 0
     }
@@ -986,34 +1037,36 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     // Connection age factor (slightly prefer newer connections for freshness)
     const age = Date.now() - connection.lastUsed
-    if (age > 300000) { // 5 minutes
+    if (age > 300000) {
+      // 5 minutes
       score *= 0.9
-    } else if (age > 60000) { // 1 minute
+    } else if (age > 60000) {
+      // 1 minute
       score *= 0.95
     }
 
     // Priority factor
-    score *= (0.8 + connection.priority * 0.2) // 0.8 to 1.0 based on priority
+    score *= 0.8 + connection.priority * 0.2 // 0.8 to 1.0 based on priority
 
     // Usage balance factor (prefer less used connections)
     const totalUsage = get().connectionPool.reduce((sum, conn) => sum + (conn.usageCount || 0), 0)
     const usageRatio = totalUsage > 0 ? (connection.usageCount || 0) / totalUsage : 0
-    score *= (1.0 - usageRatio * 0.3) // Reduce score by up to 30% for heavily used connections
+    score *= 1.0 - usageRatio * 0.3 // Reduce score by up to 30% for heavily used connections
 
     return Math.max(0, Math.min(1, score))
   },
 
-   calculateConnectionLoadFactor: (connection: Connection): number => {
+  calculateConnectionLoadFactor: (connection: Connection): number => {
     // Calculate load based on recent usage patterns
     const now = Date.now()
     const recentUsage = connection.usageCount || 0
     const timeSinceLastUse = now - connection.lastUsed
 
     // Higher load factor for recently used connections
-    const recencyFactor = Math.max(0, 1 - (timeSinceLastUse / 60000)) // Decay over 1 minute
+    const recencyFactor = Math.max(0, 1 - timeSinceLastUse / 60000) // Decay over 1 minute
     const usageFactor = Math.min(1, recentUsage / 10) // Cap at 10 uses
 
-    return (recencyFactor * 0.6) + (usageFactor * 0.4)
+    return recencyFactor * 0.6 + usageFactor * 0.4
   },
 
   distributeMessage: (message: Message) => {
@@ -1089,7 +1142,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     // Set up memory pressure listener (if supported)
     if ('memory' in performance) {
       const handleMemoryPressure = () => {
-        const {memory} = (performance as any)
+        const { memory } = performance as {
+          memory: { usedJSHeapSize: number; totalJSHeapSize: number }
+        }
         const usedPercent = (memory.usedJSHeapSize / memory.totalJSHeapSize) * 100
 
         let pressure: 'low' | 'medium' | 'high' | 'critical'
@@ -1115,12 +1170,18 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       const memoryCheckInterval = setInterval(handleMemoryPressure, 30000) // Check every 30 seconds
 
       // Store cleanup function
-      ;(get() as any)._memoryCheckInterval = memoryCheckInterval
+      ;(get() as Record<string, unknown>)._memoryCheckInterval = memoryCheckInterval
     }
 
     // Set up network change listener (if supported)
     if ('connection' in navigator) {
-      const {connection} = (navigator as any)
+      const { connection } = navigator as {
+        connection: {
+          type: string
+          effectiveType: string
+          addEventListener: (type: string, listener: () => void) => void
+        }
+      }
 
       const handleNetworkChange = () => {
         set({
@@ -1177,7 +1238,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       get().updateConnectionQuality()
     }
 
-    console.warn(`🌍 Environment updated - Tab visible: ${tabVisible}, Memory: ${memoryPressure}, Network: ${networkType}, Quality adjustment: ${qualityAdjustment}`)
+    console.warn(
+      `🌍 Environment updated - Tab visible: ${tabVisible}, Memory: ${memoryPressure}, Network: ${networkType}, Quality adjustment: ${qualityAdjustment}`,
+    )
   },
 
   shouldThrottleConnection: () => {
@@ -1202,7 +1265,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   },
 
   updateDegradationLevel: () => {
-    const { connectionQuality, memoryPressure, effectiveConnectionType, consecutiveFailures } = get()
+    const { connectionQuality, memoryPressure, effectiveConnectionType, consecutiveFailures } =
+      get()
 
     let newLevel: 'normal' | 'reduced' | 'minimal' | 'critical' = 'normal'
     let messageFrequency = 1.0
@@ -1210,29 +1274,32 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     let heartbeatFrequency = 30000 // 30 seconds
 
     // Determine degradation level based on multiple factors
-    const qualityScore = {
-      'excellent': 1.0,
-      'good': 0.9,
-      'fair': 0.7,
-      'poor': 0.5,
-      'critical': 0.3,
-      'disconnected': 0.0,
-    }[connectionQuality] || 0.5
+    const qualityScore =
+      {
+        excellent: 1.0,
+        good: 0.9,
+        fair: 0.7,
+        poor: 0.5,
+        critical: 0.3,
+        disconnected: 0.0,
+      }[connectionQuality] || 0.5
 
-    const memoryScore = {
-      'low': 1.0,
-      'medium': 0.8,
-      'high': 0.6,
-      'critical': 0.3,
-    }[memoryPressure] || 0.5
+    const memoryScore =
+      {
+        low: 1.0,
+        medium: 0.8,
+        high: 0.6,
+        critical: 0.3,
+      }[memoryPressure] || 0.5
 
-    const networkScore = {
-      '4g': 1.0,
-      '3g': 0.8,
-      '2g': 0.6,
-      'slow-2g': 0.4,
-      'unknown': 0.7,
-    }[effectiveConnectionType] || 0.7
+    const networkScore =
+      {
+        '4g': 1.0,
+        '3g': 0.8,
+        '2g': 0.6,
+        'slow-2g': 0.4,
+        unknown: 0.7,
+      }[effectiveConnectionType] || 0.7
 
     const failurePenalty = Math.max(0, consecutiveFailures * 0.1)
     const overallScore = (qualityScore + memoryScore + networkScore) / 3 - failurePenalty
@@ -1262,7 +1329,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     })
 
     if (newLevel !== 'normal') {
-      console.warn(`📉 Connection degradation: ${newLevel} (score: ${overallScore.toFixed(2)}, frequency: ${messageFrequency}, limit: ${payloadSizeLimit} bytes)`)
+      console.warn(
+        `📉 Connection degradation: ${newLevel} (score: ${overallScore.toFixed(2)}, frequency: ${messageFrequency}, limit: ${payloadSizeLimit} bytes)`,
+      )
     } else {
       console.warn('✅ Connection quality normal')
     }
@@ -1283,7 +1352,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         if (message.action === 'create_agent' || message.action === 'create_task') {
           return {
             action: message.action,
-            payload: { type: (message.payload as any)?.type || 'unknown' }, // Minimal payload
+            payload: {
+              type: (message.payload as { type?: string } | undefined)?.type || 'unknown',
+            }, // Minimal payload
           }
         }
         break
@@ -1301,7 +1372,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       case 'reduced':
         // Moderate compression
         if (message.payload && typeof message.payload === 'object') {
-          const compressed = { ...message.payload }
+          const compressed = { ...(message.payload as Record<string, unknown>) }
           // Remove non-essential fields
           delete compressed.metadata
           delete compressed.debug
@@ -1355,7 +1426,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }
   },
 
-  sendMessageWithTimeout: async (message: any, timeout?: number): Promise<void> => {
+  sendMessageWithTimeout: async (message: Message, timeout?: number): Promise<void> => {
     const { socket, messageTimeout, pendingMessages } = get()
 
     if (!socket || socket.readyState !== WebSocket.OPEN) {
@@ -1417,7 +1488,6 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }
   },
 
-
   enableMonitoring: () => {
     console.warn('📊 Enabling connection monitoring')
     set({ monitoringEnabled: true })
@@ -1428,7 +1498,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }, 30000) // Check every 30 seconds
 
     // Store the interval for cleanup
-    ;(get() as any)._monitoringInterval = monitoringInterval
+    ;(get() as Record<string, unknown>)._monitoringInterval = monitoringInterval
   },
 
   disableMonitoring: () => {
@@ -1436,13 +1506,20 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     set({ monitoringEnabled: false })
 
     // Clear monitoring interval
-    const monitoringInterval = (get() as any)._monitoringInterval
+    const monitoringInterval = (get() as Record<string, unknown>)._monitoringInterval
     if (monitoringInterval) {
       clearInterval(monitoringInterval)
     }
   },
 
-  updateAlertThresholds: (thresholds: Partial<{ consecutiveFailures: number; packetLoss: number; averageLatency: number; stability: number }>) => {
+  updateAlertThresholds: (
+    thresholds: Partial<{
+      consecutiveFailures: number
+      packetLoss: number
+      averageLatency: number
+      stability: number
+    }>,
+  ) => {
     const { alertThresholds } = get()
     set({ alertThresholds: { ...alertThresholds, ...thresholds } })
     console.warn('📊 Updated alert thresholds:', thresholds)
@@ -1459,11 +1536,12 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     // Check consecutive failures
     if (consecutiveFailures >= alertThresholds.consecutiveFailures) {
-      const severity = consecutiveFailures >= alertThresholds.consecutiveFailures * 2 ? 'critical' : 'high'
+      const severity =
+        consecutiveFailures >= alertThresholds.consecutiveFailures * 2 ? 'critical' : 'high'
       get().createAlert(
         'consecutive_failures',
         `High number of consecutive connection failures: ${consecutiveFailures}`,
-        severity
+        severity,
       )
     }
 
@@ -1472,7 +1550,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       get().createAlert(
         'high_packet_loss',
         `High packet loss detected: ${(stats.packetLoss * 100).toFixed(1)}%`,
-        'high'
+        'high',
       )
     }
 
@@ -1481,7 +1559,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       get().createAlert(
         'high_latency',
         `High average latency detected: ${stats.averageLatency.toFixed(0)}ms`,
-        'medium'
+        'medium',
       )
     }
 
@@ -1490,7 +1568,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       get().createAlert(
         'low_stability',
         `Low connection stability detected: ${(stats.stability * 100).toFixed(1)}%`,
-        'medium'
+        'medium',
       )
     }
 
@@ -1499,7 +1577,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       get().createAlert(
         'failure_prediction',
         `High failure prediction: ${(stats.failurePrediction * 100).toFixed(1)}%`,
-        'high'
+        'high',
       )
     }
 
@@ -1530,7 +1608,11 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     })
   },
 
-  createAlert: (type: string, message: string, severity: 'low' | 'medium' | 'high' | 'critical') => {
+  createAlert: (
+    type: string,
+    message: string,
+    severity: 'low' | 'medium' | 'high' | 'critical',
+  ) => {
     const { activeAlerts } = get()
 
     // Check if alert already exists
@@ -1629,7 +1711,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     if (circuitBreakerOpen) {
       const now = Date.now()
       if (now < circuitBreakerTimeout) {
-        console.warn(`🚫 Circuit breaker is open. Skipping connection attempt until ${new Date(circuitBreakerTimeout).toISOString()}`)
+        console.warn(
+          `🚫 Circuit breaker is open. Skipping connection attempt until ${new Date(circuitBreakerTimeout).toISOString()}`,
+        )
         return
       } else {
         // Circuit breaker timeout expired, reset it
@@ -1660,7 +1744,11 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     const currentSocket = get().socket
     const { isReconnecting } = get()
 
-    if (currentSocket !== null && currentSocket.readyState === WebSocket.OPEN && !get().forceReconnectFlag) {
+    if (
+      currentSocket !== null &&
+      currentSocket.readyState === WebSocket.OPEN &&
+      !get().forceReconnectFlag
+    ) {
       console.warn('WebSocket already connected')
       return
     }
@@ -1808,7 +1896,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       // Check if we should retry (for history tracking)
       const shouldRetryForHistory = get().shouldRetryConnection(errorType, attempts)
       const stats = get().getConnectionStats()
-      const retryDelay = shouldRetryForHistory ? get().calculateSmartReconnectDelay(errorType, attempts, stats.stability) : 0
+      const retryDelay = shouldRetryForHistory
+        ? get().calculateSmartReconnectDelay(errorType, attempts, stats.stability)
+        : 0
 
       // Update connection history with detailed error information
       const history = get().connectionHistory
@@ -1885,7 +1975,11 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
               console.warn('❌ Connection health check failed, trying original URL with delay')
               // Fall back to original retry logic with delay
               const stats = get().getConnectionStats()
-              const retryDelay = get().calculateSmartReconnectDelay(errorType, attempts, stats.stability)
+              const retryDelay = get().calculateSmartReconnectDelay(
+                errorType,
+                attempts,
+                stats.stability,
+              )
 
               setTimeout(() => {
                 set({ connectionAttempts: attempts + 1 })
@@ -1896,7 +1990,11 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         } else {
           // No fallback URLs available, use original retry logic
           const stats = get().getConnectionStats()
-          const retryDelay = get().calculateSmartReconnectDelay(errorType, attempts, stats.stability)
+          const retryDelay = get().calculateSmartReconnectDelay(
+            errorType,
+            attempts,
+            stats.stability,
+          )
 
           console.warn(
             `🔄 Retrying WebSocket connection in ${retryDelay}ms... (attempt ${attempts + 1}/${get().maxReconnectAttempts}, type: ${errorType}, stability: ${Math.round(stats.stability * 100)}%)`,
@@ -1961,7 +2059,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       // Check if we should retry (for history tracking)
       const shouldRetryForHistory = get().shouldRetryConnection(errorType, attempts)
       const stats = get().getConnectionStats()
-      const retryDelay = shouldRetryForHistory ? get().calculateSmartReconnectDelay(errorType, attempts, stats.stability) : 0
+      const retryDelay = shouldRetryForHistory
+        ? get().calculateSmartReconnectDelay(errorType, attempts, stats.stability)
+        : 0
 
       // Update connection history with error details
       const history = get().connectionHistory
@@ -2019,7 +2119,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         const stats = get().getConnectionStats()
         const retryDelay = get().calculateSmartReconnectDelay(errorType, attempts, stats.stability)
 
-        console.warn(`Attempting to reconnect WebSocket in ${retryDelay}ms... (stability: ${Math.round(stats.stability * 100)}%)`)
+        console.warn(
+          `Attempting to reconnect WebSocket in ${retryDelay}ms... (stability: ${Math.round(stats.stability * 100)}%)`,
+        )
 
         setTimeout(async () => {
           if (get().socket?.readyState !== WebSocket.OPEN) {
@@ -2260,7 +2362,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     // Adjust based on recent latency patterns
     if (heartbeatLatencies.length > 2) {
-      const avgLatency = heartbeatLatencies.reduce((sum, lat) => sum + lat, 0) / heartbeatLatencies.length
+      const avgLatency =
+        heartbeatLatencies.reduce((sum, lat) => sum + lat, 0) / heartbeatLatencies.length
       const latencyMultiplier = Math.max(0.5, Math.min(2.0, avgLatency / 1000)) // 0.5x to 2x based on latency
       qualityMultiplier *= latencyMultiplier
     }
@@ -2337,7 +2440,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }
 
     // Calculate latency score (lower latency = higher score)
-    const avgLatency = heartbeatLatencies.reduce((sum, lat) => sum + lat, 0) / heartbeatLatencies.length
+    const avgLatency =
+      heartbeatLatencies.reduce((sum, lat) => sum + lat, 0) / heartbeatLatencies.length
     const latencyScore = Math.max(0, Math.min(1, 1 - (avgLatency - 50) / 200)) // Optimal: 50ms, Poor: 250ms+
 
     // Calculate failure score (fewer failures = higher score)
@@ -2347,7 +2451,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     const pendingScore = Math.max(0, Math.min(1, 1 - pendingHeartbeats.length / 3)) // 3+ pending = 0 score
 
     // Combine scores with weights
-    const healthScore = (latencyScore * 0.5) + (failureScore * 0.3) + (pendingScore * 0.2)
+    const healthScore = latencyScore * 0.5 + failureScore * 0.3 + pendingScore * 0.2
 
     set({ heartbeatHealthScore: healthScore })
 
@@ -2357,13 +2461,15 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   getHeartbeatStats: () => {
     const { heartbeatLatencies, heartbeatFailures, heartbeatHealthScore } = get()
 
-    const averageLatency = heartbeatLatencies.length > 0
-      ? heartbeatLatencies.reduce((sum, lat) => sum + lat, 0) / heartbeatLatencies.length
-      : 0
+    const averageLatency =
+      heartbeatLatencies.length > 0
+        ? heartbeatLatencies.reduce((sum, lat) => sum + lat, 0) / heartbeatLatencies.length
+        : 0
 
-    const successRate = heartbeatLatencies.length > 0
-      ? heartbeatLatencies.length / (heartbeatLatencies.length + heartbeatFailures)
-      : 1.0
+    const successRate =
+      heartbeatLatencies.length > 0
+        ? heartbeatLatencies.length / (heartbeatLatencies.length + heartbeatFailures)
+        : 1.0
 
     return {
       averageLatency,
@@ -2378,7 +2484,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     const { lastNetworkCheck } = get()
 
     // Don't check too frequently
-    if (now - lastNetworkCheck < 5000) { // 5 second minimum interval
+    if (now - lastNetworkCheck < 5000) {
+      // 5 second minimum interval
       return get().networkInterruptionDetected
     }
 
@@ -2395,7 +2502,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
           method: 'HEAD',
           cache: 'no-cache',
           signal: AbortSignal.timeout(3000),
-        }).then(res => res.ok).catch(() => false),
+        })
+          .then(res => res.ok)
+          .catch(() => false),
 
         // DNS resolution check (if available)
         typeof window !== 'undefined' && window.location.hostname !== 'localhost'
@@ -2403,13 +2512,13 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
               method: 'HEAD',
               mode: 'no-cors',
               signal: AbortSignal.timeout(3000),
-            }).then(() => true).catch(() => false)
+            })
+              .then(() => true)
+              .catch(() => false)
           : Promise.resolve(true),
       ])
 
-      const results = checks.map(check =>
-        check.status === 'fulfilled' ? check.value : false
-      )
+      const results = checks.map(check => (check.status === 'fulfilled' ? check.value : false))
 
       // Consider network interrupted if most checks fail
       const successCount = results.filter(Boolean).length
@@ -2520,8 +2629,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     window.addEventListener('offline', handleOffline)
 
     // Store cleanup functions
-    ;(get() as any)._networkOnlineHandler = handleOnline
-    ;(get() as any)._networkOfflineHandler = handleOffline
+    ;(get() as Record<string, unknown>)._networkOnlineHandler = handleOnline
+    ;(get() as Record<string, unknown>)._networkOfflineHandler = handleOffline
   },
 
   stopNetworkMonitoring: () => {
@@ -2533,8 +2642,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }
 
     // Remove event listeners
-    const onlineHandler = (get() as any)._networkOnlineHandler
-    const offlineHandler = (get() as any)._networkOfflineHandler
+    const onlineHandler = (get() as Record<string, unknown>)._networkOnlineHandler
+    const offlineHandler = (get() as Record<string, unknown>)._networkOfflineHandler
 
     if (onlineHandler) {
       window.removeEventListener('online', onlineHandler)
@@ -2556,7 +2665,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     const outageDuration = Date.now() - networkOutageStart
 
     // Consider it temporary if outage is less than 5 minutes
-    if (outageDuration > 300000) { // 5 minutes
+    if (outageDuration > 300000) {
+      // 5 minutes
       return false
     }
 
@@ -2565,27 +2675,39 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     const recentFailures = recentHistory.filter(h => !h.success)
 
     // If we have mostly successful recent connections, likely temporary
-    const successRate = recentHistory.length > 0
-      ? (recentHistory.length - recentFailures.length) / recentHistory.length
-      : 0.5
+    const successRate =
+      recentHistory.length > 0
+        ? (recentHistory.length - recentFailures.length) / recentHistory.length
+        : 0.5
 
     return successRate > 0.6 // 60% success rate indicates likely temporary outage
   },
 
-  getUserFriendlyErrorMessage: (errorType: ConnectionErrorType, _context?: Record<string, unknown>): string => {
+  getUserFriendlyErrorMessage: (
+    errorType: ConnectionErrorType,
+    _context?: Record<string, unknown>,
+  ): string => {
     const { networkInterruptionDetected, consecutiveFailures } = get()
 
     // Base messages for different error types
     const baseMessages: Record<ConnectionErrorType, string> = {
-      'network_unreachable': 'Unable to reach the server. This usually indicates a network connectivity issue.',
-      'dns_failure': 'Cannot resolve the server address. The domain name may be incorrect or DNS is not working.',
-      'tls_handshake': 'Secure connection failed. This could be due to certificate issues or network interception.',
-      'server_unavailable': 'The server is currently unavailable. It may be undergoing maintenance or experiencing high load.',
-      'protocol_error': 'Communication protocol error. This is usually a temporary issue with the connection.',
-      'timeout': 'Connection timed out. The server may be slow to respond or the network connection is unstable.',
-      'connection_refused': 'Connection was refused by the server. The server may be down or rejecting connections.',
-      'connection_reset': 'Connection was unexpectedly reset. This often happens due to network instability.',
-      'unknown': 'An unexpected connection error occurred.',
+      network_unreachable:
+        'Unable to reach the server. This usually indicates a network connectivity issue.',
+      dns_failure:
+        'Cannot resolve the server address. The domain name may be incorrect or DNS is not working.',
+      tls_handshake:
+        'Secure connection failed. This could be due to certificate issues or network interception.',
+      server_unavailable:
+        'The server is currently unavailable. It may be undergoing maintenance or experiencing high load.',
+      protocol_error:
+        'Communication protocol error. This is usually a temporary issue with the connection.',
+      timeout:
+        'Connection timed out. The server may be slow to respond or the network connection is unstable.',
+      connection_refused:
+        'Connection was refused by the server. The server may be down or rejecting connections.',
+      connection_reset:
+        'Connection was unexpectedly reset. This often happens due to network instability.',
+      unknown: 'An unexpected connection error occurred.',
     }
 
     let message = baseMessages[errorType] || baseMessages.unknown
@@ -2602,13 +2724,17 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     // Add time-based context
     const hour = new Date().getHours()
     if (hour >= 2 && hour <= 5) {
-      message += ' (Note: Connection issues during early morning hours are common due to maintenance windows.)'
+      message +=
+        ' (Note: Connection issues during early morning hours are common due to maintenance windows.)'
     }
 
     return message
   },
 
-  getRecoverySuggestions: (errorType: ConnectionErrorType, connectionState: ConnectionState): string[] => {
+  getRecoverySuggestions: (
+    errorType: ConnectionErrorType,
+    connectionState: ConnectionState,
+  ): string[] => {
     const suggestions: string[] = []
     const { networkInterruptionDetected, consecutiveFailures, circuitBreakerOpen } = get()
 
@@ -2622,22 +2748,30 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         suggestions.push('Check your internet connection and try refreshing the page.')
         suggestions.push('Try switching between WiFi and mobile data if available.')
         if (networkInterruptionDetected) {
-          suggestions.push('Your device has detected a network interruption - wait for it to recover.')
+          suggestions.push(
+            'Your device has detected a network interruption - wait for it to recover.',
+          )
         }
         break
 
       case 'tls_handshake':
         suggestions.push('Try refreshing the page to establish a new secure connection.')
-        suggestions.push('Check if you\'re using a VPN or proxy that might interfere with secure connections.')
+        suggestions.push(
+          "Check if you're using a VPN or proxy that might interfere with secure connections.",
+        )
         break
 
       case 'server_unavailable':
-        suggestions.push('The server might be temporarily down. Check the service status page if available.')
+        suggestions.push(
+          'The server might be temporarily down. Check the service status page if available.',
+        )
         suggestions.push('Try again in a few minutes.')
         break
 
       case 'timeout':
-        suggestions.push('The connection is taking longer than expected. This might resolve itself.')
+        suggestions.push(
+          'The connection is taking longer than expected. This might resolve itself.',
+        )
         suggestions.push('Check your network speed and stability.')
         break
 
@@ -2657,12 +2791,16 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     // State-specific suggestions
     switch (connectionState) {
       case 'circuit_breaker_open':
-        suggestions.unshift('The system is temporarily preventing reconnection attempts to avoid overloading the server.')
+        suggestions.unshift(
+          'The system is temporarily preventing reconnection attempts to avoid overloading the server.',
+        )
         suggestions.push('Wait 1-2 minutes before the system automatically tries to reconnect.')
         break
 
       case 'degraded':
-        suggestions.push('The connection is working but with reduced performance. Some features may be limited.')
+        suggestions.push(
+          'The connection is working but with reduced performance. Some features may be limited.',
+        )
         break
 
       case 'failed':
@@ -2682,7 +2820,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   },
 
   getConnectionStatusMessage: (): string => {
-    const { connectionState, connectionQuality, networkInterruptionDetected, consecutiveFailures } = get()
+    const { connectionState, connectionQuality, networkInterruptionDetected, consecutiveFailures } =
+      get()
 
     let message = ''
 
@@ -2743,7 +2882,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   },
 
   getActionableAdvice: (): string => {
-    const { connectionState, connectionQuality, networkInterruptionDetected, consecutiveFailures } = get()
+    const { connectionState, connectionQuality, networkInterruptionDetected, consecutiveFailures } =
+      get()
 
     // Most critical issues first
     if (networkInterruptionDetected) {
@@ -2808,19 +2948,19 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     // Calculate availability (percentage of time connected)
     const successfulConnections = connectionHistory.filter(h => h.success).length
-    const availability = connectionHistory.length > 0 ? successfulConnections / connectionHistory.length : 1.0
+    const availability =
+      connectionHistory.length > 0 ? successfulConnections / connectionHistory.length : 1.0
 
     // Calculate MTBF (Mean Time Between Failures)
-    const failureTimes = connectionHistory
-      .filter(h => !h.success)
-      .map(h => h.timestamp)
+    const failureTimes = connectionHistory.filter(h => !h.success).map(h => h.timestamp)
     let meanTimeBetweenFailures = 0
     if (failureTimes.length > 1) {
       const intervals = []
       for (let i = 1; i < failureTimes.length; i++) {
         intervals.push(failureTimes[i] - failureTimes[i - 1])
       }
-      meanTimeBetweenFailures = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length
+      meanTimeBetweenFailures =
+        intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length
     }
 
     // Calculate MTTR (Mean Time To Recovery)
@@ -2834,9 +2974,10 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         lastFailureTime = 0
       }
     }
-    const meanTimeToRecovery = recoveryTimes.length > 0
-      ? recoveryTimes.reduce((sum, time) => sum + time, 0) / recoveryTimes.length
-      : 0
+    const meanTimeToRecovery =
+      recoveryTimes.length > 0
+        ? recoveryTimes.reduce((sum, time) => sum + time, 0) / recoveryTimes.length
+        : 0
 
     // Calculate failure rate (failures per hour)
     const timeWindow = Math.max(now - performanceMetrics.uptime, 3600000) // At least 1 hour
@@ -2847,19 +2988,16 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     // Calculate network stability (based on connection consistency)
     const recentHistory = connectionHistory.slice(-20)
-    const recentSuccessRate = recentHistory.length > 0
-      ? recentHistory.filter(h => h.success).length / recentHistory.length
-      : 1.0
+    const recentSuccessRate =
+      recentHistory.length > 0
+        ? recentHistory.filter(h => h.success).length / recentHistory.length
+        : 1.0
     const consistencyScore = 1 - Math.abs(recentSuccessRate - availability) // Lower variance = higher stability
     const networkStability = Math.min(consistencyScore, heartbeatHealthScore)
 
     // Calculate overall performance score
-    const performanceScore = (
-      uptime * 0.25 +
-      availability * 0.25 +
-      networkStability * 0.25 +
-      heartbeatHealthScore * 0.25
-    )
+    const performanceScore =
+      uptime * 0.25 + availability * 0.25 + networkStability * 0.25 + heartbeatHealthScore * 0.25
 
     return {
       uptime: Math.max(0, Math.min(1, uptime)),
@@ -2894,11 +3032,13 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         actionableAdvice: get().getActionableAdvice(),
         lastError: (() => {
           const errorType = get().lastErrorType
-          return errorType ? {
-            type: errorType,
-            message: get().getUserFriendlyErrorMessage(errorType),
-            suggestions: get().getRecoverySuggestions(errorType, get().connectionState),
-          } : null
+          return errorType
+            ? {
+                type: errorType,
+                message: get().getUserFriendlyErrorMessage(errorType),
+                suggestions: get().getRecoverySuggestions(errorType, get().connectionState),
+              }
+            : null
         })(),
       },
       performance: {
@@ -2963,7 +3103,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         }
       }
 
-      console.warn(`📊 Connection quality: ${currentQuality} -> ${newQuality} (heartbeat: ${timeSinceHeartbeat}ms ago, stability: ${(stats.stability * 100).toFixed(1)}%)`)
+      console.warn(
+        `📊 Connection quality: ${currentQuality} -> ${newQuality} (heartbeat: ${timeSinceHeartbeat}ms ago, stability: ${(stats.stability * 100).toFixed(1)}%)`,
+      )
     }
 
     // Update degradation level based on new quality assessment
@@ -3025,20 +3167,24 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       const failureRisk = failureIndicators.filter(Boolean).length / failureIndicators.length
 
       if (failureRisk > 0.6) {
-        console.warn(`🚨 High failure risk detected (${(failureRisk * 100).toFixed(1)}%) - initiating preventive recovery`)
+        console.warn(
+          `🚨 High failure risk detected (${(failureRisk * 100).toFixed(1)}%) - initiating preventive recovery`,
+        )
         get().executePreventiveRecovery()
       } else if (failureRisk > 0.4) {
-        console.warn(`⚠️ Moderate failure risk detected (${(failureRisk * 100).toFixed(1)}%) - monitoring closely`)
+        console.warn(
+          `⚠️ Moderate failure risk detected (${(failureRisk * 100).toFixed(1)}%) - monitoring closely`,
+        )
         // Could implement early warning system here
       }
     }, 30000) // Check every 30 seconds
 
     // Store cleanup function
-    ;(get() as any)._predictiveRecoveryInterval = predictiveInterval
+    ;(get() as Record<string, unknown>)._predictiveRecoveryInterval = predictiveInterval
   },
 
   stopPredictiveRecovery: () => {
-    const predictiveInterval = (get() as any)._predictiveRecoveryInterval
+    const predictiveInterval = (get() as Record<string, unknown>)._predictiveRecoveryInterval
     if (predictiveInterval) {
       clearInterval(predictiveInterval)
       console.warn('🔮 Stopped predictive recovery monitoring')
@@ -3056,21 +3202,23 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     console.warn('🛡️ Executing preventive connection recovery')
 
     // Check connection health before deciding on recovery strategy
-    get().checkConnectionHealth().then(isHealthy => {
-      if (!isHealthy) {
-        // Network is unhealthy - prepare for potential failure
-        get().transitionConnectionState('degraded', 'Preventive recovery: network unhealthy')
+    get()
+      .checkConnectionHealth()
+      .then(isHealthy => {
+        if (!isHealthy) {
+          // Network is unhealthy - prepare for potential failure
+          get().transitionConnectionState('degraded', 'Preventive recovery: network unhealthy')
 
-        // Pre-emptive connection pooling if enabled
-        if (get().multiplexingEnabled) {
-          get().prepareBackupConnections()
+          // Pre-emptive connection pooling if enabled
+          if (get().multiplexingEnabled) {
+            get().prepareBackupConnections()
+          }
+        } else {
+          // Network is healthy but connection might be at risk
+          // Send a test message to verify connection
+          get().sendConnectionTest()
         }
-      } else {
-        // Network is healthy but connection might be at risk
-        // Send a test message to verify connection
-        get().sendConnectionTest()
-      }
-    })
+      })
   },
 
   prepareBackupConnections: () => {
@@ -3114,8 +3262,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       }, 5000) // 5 second timeout for test
 
       // Store test timeout for cleanup
-      ;(get() as any)._connectionTestTimeout = testTimeout
-
+      ;(get() as Record<string, unknown>)._connectionTestTimeout = testTimeout
     } catch (error) {
       console.warn('Failed to send connection test:', error)
       get().handleConnectionTestFailure()
@@ -3126,7 +3273,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     console.warn('🔄 Connection test failed - initiating recovery protocol')
 
     // Clear test timeout
-    const testTimeout = (get() as any)._connectionTestTimeout
+    const testTimeout = (get() as Record<string, unknown>)._connectionTestTimeout
     if (testTimeout) {
       clearTimeout(testTimeout)
     }
@@ -3157,7 +3304,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   // Enhanced connection quality prediction
   predictConnectionFailure: (): { risk: number; reasons: string[]; recommendedAction: string } => {
     const stats = get().getConnectionStats()
-    const { connectionHistory, consecutiveFailures, connectionQuality, heartbeatHealthScore } = get()
+    const { connectionHistory, consecutiveFailures, connectionQuality, heartbeatHealthScore } =
+      get()
 
     const reasons: string[] = []
     let riskScore = 0
@@ -3236,26 +3384,28 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     // Calculate stability as a combination of success rate and consistency
     const timeWindow = 5 * 60 * 1000 // 5 minutes
-    const recentEvents = recentHistory.filter(
-      h => Date.now() - h.timestamp < timeWindow
-    )
-    const stability = recentEvents.length > 0 ?
-      (successfulConnections.length / recentHistory.length) *
-      Math.min(1.0, recentEvents.length / 5) : // Prefer more data points
-      0.5 // Default moderate stability with no data
+    const recentEvents = recentHistory.filter(h => Date.now() - h.timestamp < timeWindow)
+    const stability =
+      recentEvents.length > 0
+        ? (successfulConnections.length / recentHistory.length) *
+          Math.min(1.0, recentEvents.length / 5) // Prefer more data points
+        : 0.5 // Default moderate stability with no data
 
     // Calculate average latency from successful connections
     const latencies = successfulConnections
       .filter(h => h.latency !== undefined)
       .map(h => h.latency as number)
-    const averageLatency = latencies.length > 0 ?
-      latencies.reduce((sum, l) => sum + l, 0) / latencies.length : 0
+    const averageLatency =
+      latencies.length > 0 ? latencies.reduce((sum, l) => sum + l, 0) / latencies.length : 0
 
     // Calculate jitter (latency variation)
-    const jitter = latencies.length > 1 ?
-      Math.sqrt(
-        latencies.reduce((sum, latency) => sum + Math.pow(latency - averageLatency, 2), 0) / latencies.length
-      ) : 0
+    const jitter =
+      latencies.length > 1
+        ? Math.sqrt(
+            latencies.reduce((sum, latency) => sum + Math.pow(latency - averageLatency, 2), 0) /
+              latencies.length,
+          )
+        : 0
 
     // Estimate packet loss based on connection failures and heartbeat patterns
     const failedConnections = recentHistory.filter(h => !h.success)
@@ -3299,15 +3449,19 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     let failurePrediction = recentFailures / veryRecentHistory.length
 
     // Additional factors for failure prediction
-    const timeSinceLastFailure = successfulConnections.length > 0 ?
-      Date.now() - successfulConnections[successfulConnections.length - 1].timestamp : 0
+    const timeSinceLastFailure =
+      successfulConnections.length > 0
+        ? Date.now() - successfulConnections[successfulConnections.length - 1].timestamp
+        : 0
     const timeSinceHeartbeat = Date.now() - lastHeartbeat
 
     // Increase prediction if no successful connections recently or heartbeat is stale
-    if (timeSinceLastFailure > 300000) { // 5 minutes
+    if (timeSinceLastFailure > 300000) {
+      // 5 minutes
       failurePrediction *= 1.5
     }
-    if (timeSinceHeartbeat > 120000) { // 2 minutes
+    if (timeSinceHeartbeat > 120000) {
+      // 2 minutes
       failurePrediction *= 2.0
     }
 
@@ -3326,7 +3480,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   getSmartRetryStrategy: (errorType: ConnectionErrorType, attemptCount: number) => {
     const maxAttempts = 5
     const baseDelay = 1000
-    
+
     if (attemptCount >= maxAttempts) {
       return {
         shouldRetry: false,
@@ -3338,7 +3492,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     const delay = Math.min(baseDelay * Math.pow(2, attemptCount), 30000)
     const priority = attemptCount < 2 ? 'high' : attemptCount < 4 ? 'medium' : 'low'
-    
+
     return {
       shouldRetry: true,
       delay,
@@ -3350,7 +3504,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   updateCircuitBreakerState: () => {
     const { connectionAttempts, maxReconnectAttempts } = get()
     const failureRate = connectionAttempts / maxReconnectAttempts
-    
+
     if (failureRate > 0.8) {
       set({ connectionQuality: 'poor' })
     } else if (failureRate > 0.5) {
@@ -3363,9 +3517,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   getRetryBudgetStatus: () => {
     const { connectionAttempts, maxReconnectAttempts } = get()
     const remainingRetries = Math.max(0, maxReconnectAttempts - connectionAttempts)
-    const budgetResetTime = Date.now() + (60 * 1000) // Reset in 1 minute
+    const budgetResetTime = Date.now() + 60 * 1000 // Reset in 1 minute
     const isBudgetExceeded = connectionAttempts >= maxReconnectAttempts
-    
+
     return {
       remainingRetries,
       budgetResetTime,

@@ -5,7 +5,13 @@ import { ErrorBoundary } from './ErrorBoundary'
 
 // Mock the ErrorBoundary component
 vi.mock('./ErrorBoundary', () => ({
-  ErrorBoundary: ({ children, onError }: { children: React.ReactNode; onError?: (error: Error, errorInfo: any) => void }) => (
+  ErrorBoundary: ({
+    children,
+    onError,
+  }: {
+    children: React.ReactNode
+    onError?: (error: Error, errorInfo: any) => void
+  }) => (
     <div data-testid="error-boundary">
       {children}
       {onError && <div data-testid="on-error-callback" />}
@@ -27,7 +33,7 @@ describe('ClientErrorBoundary', () => {
     render(
       <ClientErrorBoundary>
         <div>Test Content</div>
-      </ClientErrorBoundary>
+      </ClientErrorBoundary>,
     )
 
     expect(screen.getByText('Test Content')).toBeInTheDocument()
@@ -37,7 +43,7 @@ describe('ClientErrorBoundary', () => {
     render(
       <ClientErrorBoundary>
         <div>Test Content</div>
-      </ClientErrorBoundary>
+      </ClientErrorBoundary>,
     )
 
     await waitFor(() => {
@@ -52,7 +58,7 @@ describe('ClientErrorBoundary', () => {
     render(
       <ClientErrorBoundary>
         <div>Test Content</div>
-      </ClientErrorBoundary>
+      </ClientErrorBoundary>,
     )
 
     await waitFor(() => {
@@ -68,7 +74,7 @@ describe('ClientErrorBoundary', () => {
     const { unmount: unmountDev } = render(
       <ClientErrorBoundary>
         <div>Test</div>
-      </ClientErrorBoundary>
+      </ClientErrorBoundary>,
     )
 
     await waitFor(() => {
@@ -82,7 +88,7 @@ describe('ClientErrorBoundary', () => {
     render(
       <ClientErrorBoundary>
         <div>Test</div>
-      </ClientErrorBoundary>
+      </ClientErrorBoundary>,
     )
 
     await waitFor(() => {
@@ -97,7 +103,7 @@ describe('ClientErrorBoundary', () => {
     render(
       <ClientErrorBoundary>
         <div>Test Content</div>
-      </ClientErrorBoundary>
+      </ClientErrorBoundary>,
     )
 
     await waitFor(() => {
@@ -111,7 +117,7 @@ describe('ClientErrorBoundary', () => {
         <div>First Child</div>
         <div>Second Child</div>
         <span>Third Child</span>
-      </ClientErrorBoundary>
+      </ClientErrorBoundary>,
     )
 
     await waitFor(() => {
@@ -122,11 +128,7 @@ describe('ClientErrorBoundary', () => {
   })
 
   it('renders nothing when children is null', async () => {
-    render(
-      <ClientErrorBoundary>
-        {null}
-      </ClientErrorBoundary>
-    )
+    render(<ClientErrorBoundary>{null}</ClientErrorBoundary>)
 
     await waitFor(() => {
       expect(screen.getByTestId('error-boundary')).toBeInTheDocument()
@@ -134,11 +136,7 @@ describe('ClientErrorBoundary', () => {
   })
 
   it('renders nothing when children is undefined', async () => {
-    render(
-      <ClientErrorBoundary>
-        {undefined}
-      </ClientErrorBoundary>
-    )
+    render(<ClientErrorBoundary>{undefined}</ClientErrorBoundary>)
 
     await waitFor(() => {
       expect(screen.getByTestId('error-boundary')).toBeInTheDocument()

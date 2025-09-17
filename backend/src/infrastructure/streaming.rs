@@ -6,6 +6,7 @@
 use crate::utils::error::{HiveError, HiveResult};
 use futures::stream::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::RwLock;
@@ -64,7 +65,7 @@ pub struct DataChunk {
     /// The actual data payload
     pub data: Vec<u8>,
     /// Metadata associated with the chunk
-    pub metadata: std::collections::HashMap<String, String>,
+    pub metadata: HashMap<String, String>,
     /// Checksum for data integrity
     pub checksum: Option<String>,
 }
@@ -77,7 +78,7 @@ impl DataChunk {
             sequence,
             total_chunks: None,
             data,
-            metadata: std::collections::HashMap::new(),
+            metadata: HashMap::new(),
             checksum: None,
         }
     }
@@ -860,7 +861,7 @@ pub struct TrainingBatch {
     pub sequence: u64,
     pub inputs: Vec<Vec<f32>>,
     pub targets: Vec<Vec<f32>>,
-    pub metadata: std::collections::HashMap<String, String>,
+    pub metadata: HashMap<String, String>,
 }
 
 /// Memory pool for efficient chunk reuse
@@ -1440,7 +1441,7 @@ mod tests {
 
         // Create test data
         let test_data = vec![1u8, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        let data_stream = processor.create_stream_from_data(test_data.clone())?;
+        let data_stream = processor.create_stream_from_data(test_data.clone());
 
         // Process the stream in parallel
         let results = processor
@@ -1549,9 +1550,7 @@ mod tests {
         processor.record_memory_usage(2048).await;
 
         // Check memory statistics
-        let stats = processor
-            .get_memory_statistics()
-            .await?;
+        let stats = processor.get_memory_statistics().await?;
         assert_eq!(stats.current_usage, 2048);
         assert_eq!(stats.peak_usage, 2048);
 
@@ -1656,9 +1655,7 @@ mod tests {
         processor.record_memory_usage(after_usage).await;
 
         // Verify memory reduction
-        let stats = processor
-            .get_memory_statistics()
-            .await?;
+        let stats = processor.get_memory_statistics().await?;
         assert_eq!(stats.current_usage, after_usage);
         assert_eq!(stats.peak_usage, before_usage);
 

@@ -8,12 +8,6 @@
     "plan": {
       "model": "chutes/zai-org/GLM-4.5-FP8"
     },
-    "git": {
-      "model": "nvidia/deepseek-ai/deepseek-v3.1"
-    },
-    "junior-developer": {
-      "model": "nvidia/deepseek-ai/deepseek-v3.1"
-    },
     "learner": {
       "model": "nvidia/deepseek-ai/deepseek-v3.1"
     },
@@ -33,18 +27,15 @@
       ],
       "enabled": true
     },
-    "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp",
-      "enabled": true
-    },
     "gh_grep": {
       "type": "remote",
       "url": "https://mcp.grep.app/",
     },
     "multiagent-hive": {
       "type": "local",
-      "command": ["/workspaces/ai-orchestrator-hub/backend/target/release/mcp_server"],
+      "command": [
+        "/workspaces/ai-orchestrator-hub/backend/target/release/mcp_server"
+      ],
       "enabled": true
     },
   },

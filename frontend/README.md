@@ -835,22 +835,22 @@ describe('AgentCard', () => {
 
 ```typescript
 // e2e/dashboard.spec.ts
-import { test, expect } from '@playwright/test';
+import { test, expect } from '@playwright/test'
 
 test('dashboard loads and displays agents', async ({ page }) => {
-  await page.goto('http://localhost:3000');
+  await page.goto('http://localhost:3000')
 
   // Wait for dashboard to load
-  await page.waitForSelector('[data-testid="hive-dashboard"]');
+  await page.waitForSelector('[data-testid="hive-dashboard"]')
 
   // Check if agents are displayed
-  const agentCards = page.locator('[data-testid="agent-card"]');
-  await expect(agentCards).toHaveCountGreaterThan(0);
+  const agentCards = page.locator('[data-testid="agent-card"]')
+  await expect(agentCards).toHaveCountGreaterThan(0)
 
   // Check real-time updates
-  const metricsPanel = page.locator('[data-testid="metrics-panel"]');
-  await expect(metricsPanel).toBeVisible();
-});
+  const metricsPanel = page.locator('[data-testid="metrics-panel"]')
+  await expect(metricsPanel).toBeVisible()
+})
 ```
 
 ## Deployment

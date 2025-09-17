@@ -410,6 +410,37 @@ impl TestResult {
         }
     }
 
+    /// Creates a `TestResult` indicating a test failure.
+    ///
+    /// This method constructs a test result with `passed` set to `false`, typically used
+    /// when a test operation encounters an error or does not meet the expected criteria.
+    ///
+    /// # Parameters
+    ///
+    /// * `name` - A string slice that holds the name of the test that failed
+    /// * `message` - A string containing details about the failure reason or error message
+    /// * `duration` - The `Duration` representing how long the test took to execute
+    ///
+    /// # Returns
+    ///
+    /// Returns a `TestResult` instance with the failure status and provided details.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    /// use crate::utils::testing_framework::TestResult;
+    ///
+    /// let result = TestResult::failure(
+    ///     "Database Connection Test",
+    ///     "Failed to establish connection: Connection refused".to_string(),
+    ///     Duration::from_millis(2500)
+    /// );
+    ///
+    /// assert_eq!(result.name, "Database Connection Test");
+    /// assert!(!result.passed);
+    /// assert!(result.message.contains("Connection refused"));
+    /// ```
     #[must_use]
     pub fn failure(name: &str, message: String, duration: Duration) -> Self {
         Self {
@@ -433,6 +464,31 @@ pub struct TestResults {
 }
 
 impl TestResults {
+    /// Creates a new `TestResults` instance for collecting test results.
+    ///
+    /// This constructor initializes a test results collection with the specified
+    /// suite name and prepares it to accumulate individual test results.
+    ///
+    /// # Arguments
+    ///
+    /// * `suite_name` - A descriptive name for the test suite (e.g., "Unit Tests", "Integration Tests")
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `TestResults` instance with:
+    /// - The provided suite name
+    /// - An empty vector for storing individual test results
+    /// - Zero total duration (to be accumulated as tests are added)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::utils::testing_framework::TestResults;
+    ///
+    /// let results = TestResults::new("Unit Tests");
+    /// assert_eq!(results.suite_name, "Unit Tests");
+    /// assert!(results.results.is_empty());
+    /// ```
     #[must_use]
     pub fn new(suite_name: &str) -> Self {
         Self {
@@ -442,21 +498,130 @@ impl TestResults {
         }
     }
 
+    /// Adds a test result to the collection and updates the total duration.
+    ///
+    /// This method appends an individual test result to the results vector and
+    /// accumulates the test's execution time into the total duration for the suite.
+    /// This allows tracking both individual test performance and overall suite timing.
+    ///
+    /// # Arguments
+    ///
+    /// * `result` - The `TestResult` to add to the collection. This includes the
+    ///   test name, pass/fail status, descriptive message, and execution duration.
+    ///
+    /// # Effects
+    ///
+    /// - Appends the test result to the internal `results` vector
+    /// - Adds the test's duration to the `total_duration` field
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::utils::testing_framework::{TestResults, TestResult};
+    /// use std::time::Duration;
+    ///
+    /// let mut results = TestResults::new("Example Tests");
+    /// let test_result = TestResult::success(
+    ///     "Sample Test",
+    ///     "Test passed successfully".to_string(),
+    ///     Duration::from_millis(150)
+    /// );
+    ///
+    /// results.add_test(test_result);
+    /// assert_eq!(results.results.len(), 1);
+    /// assert_eq!(results.total_duration, Duration::from_millis(150));
+    /// ```
+    ///
+    /// # Performance
+    ///
+    /// This operation is O(1) for the duration accumulation and amortized O(1)
+    /// for the vector push operation.
     pub fn add_test(&mut self, result: TestResult) {
         self.total_duration += result.duration;
         self.results.push(result);
     }
 
+    /// Returns the count of tests that passed successfully.
+    ///
+    /// This method iterates through all test results and counts those where
+    /// the `passed` field is `true`, indicating successful test execution.
+    ///
+    /// # Returns
+    ///
+    /// The number of passed tests as a `usize`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use crate::utils::testing_framework::{TestResults, TestResult};
+    ///
+    /// let mut results = TestResults::new("Example Suite");
+    /// results.add_test(TestResult::success("Test 1", "Passed".to_string(), Duration::from_millis(100)));
+    /// results.add_test(TestResult::failure("Test 2", "Failed".to_string(), Duration::from_millis(50)));
+    /// assert_eq!(results.passed_count(), 1);
+    /// ```
     #[must_use]
     pub fn passed_count(&self) -> usize {
         self.results.iter().filter(|r| r.passed).count()
     }
 
+    /// Returns the count of tests that failed.
+    ///
+    /// This method iterates through all test results and counts those where
+    /// the `passed` field is `false`, indicating failed test execution.
+    ///
+    /// # Returns
+    ///
+    /// The number of failed tests as a `usize`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use crate::utils::testing_framework::{TestResults, TestResult};
+    ///
+    /// let mut results = TestResults::new("Example Suite");
+    /// results.add_test(TestResult::success("Test 1", "Passed".to_string(), Duration::from_millis(100)));
+    /// results.add_test(TestResult::failure("Test 2", "Failed".to_string(), Duration::from_millis(50)));
+    /// assert_eq!(results.failed_count(), 1);
+    /// ```
     #[must_use]
     pub fn failed_count(&self) -> usize {
         self.results.iter().filter(|r| !r.passed).count()
     }
 
+    /// Calculates the success rate of the test suite as a fraction between 0.0 and 1.0.
+    ///
+    /// The success rate represents the proportion of passed tests relative to the total
+    /// number of tests executed. This value can be multiplied by 100.0 to get a percentage.
+    ///
+    /// # Returns
+    ///
+    /// * `0.0` if no tests were executed (empty results)
+    /// * A value between `0.0` and `1.0` representing the ratio of passed tests to total tests
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use crate::utils::testing_framework::{TestResults, TestResult};
+    ///
+    /// let mut results = TestResults::new("Example Tests");
+    ///
+    /// // Add some test results
+    /// results.add_test(TestResult::success("Test 1", "Passed".to_string(), Duration::from_millis(10)));
+    /// results.add_test(TestResult::success("Test 2", "Passed".to_string(), Duration::from_millis(15)));
+    /// results.add_test(TestResult::failure("Test 3", "Failed".to_string(), Duration::from_millis(20)));
+    ///
+    /// // Success rate is 2/3 ≈ 0.666...
+    /// let rate = results.success_rate();
+    /// assert!((rate - 0.666).abs() < 0.001);
+    ///
+    /// // Convert to percentage
+    /// let percentage = rate * 100.0;
+    /// assert!((percentage - 66.6).abs() < 0.1);
+    /// ```
     #[must_use]
     pub fn success_rate(&self) -> f64 {
         if self.results.is_empty() {
@@ -489,6 +654,30 @@ impl Default for TestReport {
 }
 
 impl TestReport {
+    /// Creates a new test report with empty results.
+    ///
+    /// This constructor initializes a `TestReport` with default empty test result collections
+    /// for unit and integration tests, and optional fields for performance and stress tests
+    /// set to `None`. The report is ready to be populated by test execution methods.
+    ///
+    /// # Returns
+    ///
+    /// A new `TestReport` instance with:
+    /// - Empty unit test results
+    /// - Empty integration test results
+    /// - No performance test results (None)
+    /// - No stress test results (None)
+    /// - Zero total duration
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ai_orchestrator_hub::utils::testing_framework::TestReport;
+    ///
+    /// let report = TestReport::new();
+    /// assert_eq!(report.unit_tests.results.len(), 0);
+    /// assert!(report.performance_tests.is_none());
+    /// ```
     #[must_use]
     pub fn new() -> Self {
         Self {

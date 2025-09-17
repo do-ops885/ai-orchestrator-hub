@@ -339,7 +339,7 @@ mod tests {
         let result = creator.create_task(task_config).await;
         assert!(result.is_err());
 
-        if let Err(HiveError::ValidationError { field, .. }) = result.unwrap_err() {
+        if let Err(HiveError::ValidationError { field, .. }) = result {
             assert_eq!(field, "type");
         } else {
             panic!("Expected ValidationError");
@@ -359,7 +359,7 @@ mod tests {
         let result = creator.create_task(task_config).await;
         assert!(result.is_err());
 
-        if let Err(HiveError::ValidationError { field, .. }) = result.unwrap_err() {
+        if let Err(HiveError::ValidationError { field, .. }) = result {
             assert_eq!(field, "title");
         } else {
             panic!("Expected ValidationError");
@@ -377,7 +377,7 @@ mod tests {
         let result = creator.create_task(task_config).await;
         assert!(result.is_err());
 
-        if let Err(HiveError::ValidationError { field, reason }) = result.as_ref().unwrap_err() {
+        if let Err(HiveError::ValidationError { field, reason }) = &result {
             assert_eq!(field, "config");
             assert!(reason.contains("must be an object"));
         } else {
@@ -482,7 +482,7 @@ mod tests {
         let result = creator.parse_task_priority(&task_config);
         assert!(result.is_err());
 
-        if let Err(HiveError::ValidationError { field, reason }) = result.unwrap_err() {
+        if let Err(HiveError::ValidationError { field, reason }) = result {
             assert_eq!(field, "priority");
             assert!(reason.contains("Unknown priority"));
         } else {
@@ -583,7 +583,7 @@ mod tests {
         let result = creator.validate_task_config(&task_config);
         assert!(result.is_err());
 
-        if let Err(HiveError::ValidationError { field, .. }) = result.unwrap_err() {
+        if let Err(HiveError::ValidationError { field, .. }) = result {
             assert_eq!(field, "type");
         } else {
             panic!("Expected ValidationError");
@@ -603,7 +603,7 @@ mod tests {
         let result = creator.validate_task_config(&task_config);
         assert!(result.is_err());
 
-        if let Err(HiveError::ValidationError { field, .. }) = result.unwrap_err() {
+        if let Err(HiveError::ValidationError { field, .. }) = result {
             assert_eq!(field, "title");
         } else {
             panic!("Expected ValidationError");
@@ -621,7 +621,7 @@ mod tests {
         let result = creator.validate_task_config(&task_config);
         assert!(result.is_err());
 
-        if let Err(HiveError::ValidationError { field, reason }) = result.unwrap_err() {
+        if let Err(HiveError::ValidationError { field, reason }) = result {
             assert_eq!(field, "config");
             assert!(reason.contains("must be an object"));
         } else {

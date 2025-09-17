@@ -392,8 +392,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_learning_from_interaction() -> Result<(), Box<dyn std::error::Error>> {
-        let mut learning_system = AdaptiveLearningSystem::new(AdaptiveLearningConfig::default())
-            .await?;
+        let mut learning_system =
+            AdaptiveLearningSystem::new(AdaptiveLearningConfig::default()).await?;
         let agent = create_test_agent();
 
         learning_system
@@ -405,8 +405,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_pattern_confidence_update() -> Result<(), Box<dyn std::error::Error>> {
-        let mut learning_system = AdaptiveLearningSystem::new(AdaptiveLearningConfig::default())
-            .await?;
+        let mut learning_system =
+            AdaptiveLearningSystem::new(AdaptiveLearningConfig::default()).await?;
         let agent = create_test_agent();
 
         // Learn from multiple interactions
@@ -430,8 +430,7 @@ mod tests {
             pattern_retention_days: 0, // Immediate cleanup
             ..Default::default()
         };
-        let mut learning_system = AdaptiveLearningSystem::new(config)
-            .await?;
+        let mut learning_system = AdaptiveLearningSystem::new(config).await?;
         let agent = create_test_agent();
 
         learning_system

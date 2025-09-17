@@ -3,14 +3,14 @@
 //! Provides comprehensive dashboard functionality for monitoring visualization
 //! with real-time updates, customizable widgets, and interactive features.
 
-use super::types::*;
 use super::production_monitoring::ProductionMonitoringSystem;
+use super::types::*;
 use crate::utils::error::HiveResult;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 pub struct EnhancedDashboard {
@@ -60,7 +60,10 @@ impl EnhancedDashboard {
         }
     }
 
-    pub fn with_production_monitoring(mut self, monitoring: Arc<ProductionMonitoringSystem>) -> Self {
+    pub fn with_production_monitoring(
+        mut self,
+        monitoring: Arc<ProductionMonitoringSystem>,
+    ) -> Self {
         self.production_monitoring = Some(monitoring);
         self
     }
@@ -109,7 +112,12 @@ impl EnhancedDashboard {
                 id: "system_health_overview".to_string(),
                 title: "System Health Overview".to_string(),
                 widget_type: WidgetType::Metric,
-                position: WidgetPosition { x: 0, y: 0, width: 4, height: 2 },
+                position: WidgetPosition {
+                    x: 0,
+                    y: 0,
+                    width: 4,
+                    height: 2,
+                },
                 config: HashMap::from([
                     ("metric_type".to_string(), "system_health".to_string()),
                     ("show_trend".to_string(), "true".to_string()),
@@ -117,13 +125,17 @@ impl EnhancedDashboard {
                 ]),
                 data_source: "production_monitoring".to_string(),
             },
-
             // CPU Usage Chart
             DashboardWidget {
                 id: "cpu_usage_chart".to_string(),
                 title: "CPU Usage".to_string(),
                 widget_type: WidgetType::Chart,
-                position: WidgetPosition { x: 4, y: 0, width: 4, height: 2 },
+                position: WidgetPosition {
+                    x: 4,
+                    y: 0,
+                    width: 4,
+                    height: 2,
+                },
                 config: HashMap::from([
                     ("chart_type".to_string(), "line".to_string()),
                     ("time_range".to_string(), "1h".to_string()),
@@ -133,13 +145,17 @@ impl EnhancedDashboard {
                 ]),
                 data_source: "metrics_collector".to_string(),
             },
-
             // Memory Usage Chart
             DashboardWidget {
                 id: "memory_usage_chart".to_string(),
                 title: "Memory Usage".to_string(),
                 widget_type: WidgetType::Chart,
-                position: WidgetPosition { x: 8, y: 0, width: 4, height: 2 },
+                position: WidgetPosition {
+                    x: 8,
+                    y: 0,
+                    width: 4,
+                    height: 2,
+                },
                 config: HashMap::from([
                     ("chart_type".to_string(), "area".to_string()),
                     ("time_range".to_string(), "1h".to_string()),
@@ -149,13 +165,17 @@ impl EnhancedDashboard {
                 ]),
                 data_source: "metrics_collector".to_string(),
             },
-
             // Agent Health Status
             DashboardWidget {
                 id: "agent_health_status".to_string(),
                 title: "Agent Health Status".to_string(),
                 widget_type: WidgetType::Table,
-                position: WidgetPosition { x: 0, y: 2, width: 6, height: 3 },
+                position: WidgetPosition {
+                    x: 0,
+                    y: 2,
+                    width: 6,
+                    height: 3,
+                },
                 config: HashMap::from([
                     ("show_status".to_string(), "true".to_string()),
                     ("show_response_time".to_string(), "true".to_string()),
@@ -164,27 +184,38 @@ impl EnhancedDashboard {
                 ]),
                 data_source: "health_monitor".to_string(),
             },
-
             // Task Performance Metrics
             DashboardWidget {
                 id: "task_performance".to_string(),
                 title: "Task Performance".to_string(),
                 widget_type: WidgetType::Metric,
-                position: WidgetPosition { x: 6, y: 2, width: 3, height: 2 },
+                position: WidgetPosition {
+                    x: 6,
+                    y: 2,
+                    width: 3,
+                    height: 2,
+                },
                 config: HashMap::from([
-                    ("metrics".to_string(), "completion_rate,throughput,queue_size".to_string()),
+                    (
+                        "metrics".to_string(),
+                        "completion_rate,throughput,queue_size".to_string(),
+                    ),
                     ("show_trend".to_string(), "true".to_string()),
                     ("target_completion_rate".to_string(), "95".to_string()),
                 ]),
                 data_source: "task_metrics".to_string(),
             },
-
             // Active Alerts
             DashboardWidget {
                 id: "active_alerts".to_string(),
                 title: "Active Alerts".to_string(),
                 widget_type: WidgetType::Alert,
-                position: WidgetPosition { x: 9, y: 2, width: 3, height: 2 },
+                position: WidgetPosition {
+                    x: 9,
+                    y: 2,
+                    width: 3,
+                    height: 2,
+                },
                 config: HashMap::from([
                     ("show_critical".to_string(), "true".to_string()),
                     ("show_warning".to_string(), "true".to_string()),
@@ -193,27 +224,38 @@ impl EnhancedDashboard {
                 ]),
                 data_source: "intelligent_alerting".to_string(),
             },
-
             // Business Metrics Overview
             DashboardWidget {
                 id: "business_metrics".to_string(),
                 title: "Business Metrics".to_string(),
                 widget_type: WidgetType::Metric,
-                position: WidgetPosition { x: 0, y: 5, width: 4, height: 2 },
+                position: WidgetPosition {
+                    x: 0,
+                    y: 5,
+                    width: 4,
+                    height: 2,
+                },
                 config: HashMap::from([
-                    ("metrics".to_string(), "task_completion_rate,agent_utilization,system_uptime".to_string()),
+                    (
+                        "metrics".to_string(),
+                        "task_completion_rate,agent_utilization,system_uptime".to_string(),
+                    ),
                     ("show_targets".to_string(), "true".to_string()),
                     ("show_trend".to_string(), "true".to_string()),
                 ]),
                 data_source: "business_metrics".to_string(),
             },
-
             // System Throughput
             DashboardWidget {
                 id: "system_throughput".to_string(),
                 title: "System Throughput".to_string(),
                 widget_type: WidgetType::Chart,
-                position: WidgetPosition { x: 4, y: 5, width: 4, height: 2 },
+                position: WidgetPosition {
+                    x: 4,
+                    y: 5,
+                    width: 4,
+                    height: 2,
+                },
                 config: HashMap::from([
                     ("chart_type".to_string(), "bar".to_string()),
                     ("time_range".to_string(), "1h".to_string()),
@@ -222,13 +264,17 @@ impl EnhancedDashboard {
                 ]),
                 data_source: "performance_monitor".to_string(),
             },
-
             // Error Rate Trends
             DashboardWidget {
                 id: "error_rate_trends".to_string(),
                 title: "Error Rate Trends".to_string(),
                 widget_type: WidgetType::Chart,
-                position: WidgetPosition { x: 8, y: 5, width: 4, height: 2 },
+                position: WidgetPosition {
+                    x: 8,
+                    y: 5,
+                    width: 4,
+                    height: 2,
+                },
                 config: HashMap::from([
                     ("chart_type".to_string(), "line".to_string()),
                     ("time_range".to_string(), "24h".to_string()),
@@ -238,27 +284,38 @@ impl EnhancedDashboard {
                 ]),
                 data_source: "error_metrics".to_string(),
             },
-
             // Recent Telemetry Events
             DashboardWidget {
                 id: "recent_telemetry".to_string(),
                 title: "Recent Events".to_string(),
                 widget_type: WidgetType::Log,
-                position: WidgetPosition { x: 0, y: 7, width: 8, height: 3 },
+                position: WidgetPosition {
+                    x: 0,
+                    y: 7,
+                    width: 8,
+                    height: 3,
+                },
                 config: HashMap::from([
                     ("max_events".to_string(), "50".to_string()),
-                    ("filter_severity".to_string(), "warning,critical,error".to_string()),
+                    (
+                        "filter_severity".to_string(),
+                        "warning,critical,error".to_string(),
+                    ),
                     ("auto_scroll".to_string(), "true".to_string()),
                 ]),
                 data_source: "telemetry_collector".to_string(),
             },
-
             // System Resource Map
             DashboardWidget {
                 id: "system_resource_map".to_string(),
                 title: "Resource Utilization Map".to_string(),
                 widget_type: WidgetType::Map,
-                position: WidgetPosition { x: 8, y: 7, width: 4, height: 3 },
+                position: WidgetPosition {
+                    x: 8,
+                    y: 7,
+                    width: 4,
+                    height: 3,
+                },
                 config: HashMap::from([
                     ("show_cpu".to_string(), "true".to_string()),
                     ("show_memory".to_string(), "true".to_string()),
@@ -272,7 +329,10 @@ impl EnhancedDashboard {
     }
 
     /// Get widget data for a specific widget
-    pub async fn get_widget_data(&self, widget_id: &str) -> HiveResult<Option<DashboardWidgetData>> {
+    pub async fn get_widget_data(
+        &self,
+        widget_id: &str,
+    ) -> HiveResult<Option<DashboardWidgetData>> {
         let widgets = self.widgets.read().await;
         let widget = match widgets.get(widget_id) {
             Some(w) => w,
@@ -317,16 +377,19 @@ impl EnhancedDashboard {
             "health_monitor" => {
                 if let Some(monitoring) = &self.production_monitoring {
                     let health_snapshot = monitoring.get_system_health_snapshot().await?;
-                    let agent_health: Vec<serde_json::Value> = health_snapshot.agent_health
+                    let agent_health: Vec<serde_json::Value> = health_snapshot
+                        .agent_health
                         .iter()
-                        .map(|h| serde_json::json!({
-                            "agent_id": h.agent_id,
-                            "status": h.status,
-                            "response_time": h.response_time,
-                            "error_rate": h.error_rate,
-                            "cpu_usage": h.resource_usage.cpu_usage,
-                            "memory_usage": h.resource_usage.memory_usage
-                        }))
+                        .map(|h| {
+                            serde_json::json!({
+                                "agent_id": h.agent_id,
+                                "status": h.status,
+                                "response_time": h.response_time,
+                                "error_rate": h.error_rate,
+                                "cpu_usage": h.resource_usage.cpu_usage,
+                                "memory_usage": h.resource_usage.memory_usage
+                            })
+                        })
                         .collect();
                     serde_json::json!(agent_health)
                 } else {
@@ -339,7 +402,8 @@ impl EnhancedDashboard {
                     let metrics = metrics_collector.get_current_metrics().await;
                     let completion_rate = if metrics.task_metrics.total_tasks_submitted > 0 {
                         (metrics.task_metrics.total_tasks_completed as f64
-                            / metrics.task_metrics.total_tasks_submitted as f64) * 100.0
+                            / metrics.task_metrics.total_tasks_submitted as f64)
+                            * 100.0
                     } else {
                         0.0
                     };
@@ -362,14 +426,16 @@ impl EnhancedDashboard {
                             let alert_data: Vec<serde_json::Value> = alerts
                                 .iter()
                                 .take(10)
-                                .map(|a| serde_json::json!({
-                                    "title": a.base_alert.title,
-                                    "description": a.base_alert.description,
-                                    "level": a.base_alert.level,
-                                    "timestamp": a.base_alert.timestamp,
-                                    "predicted": a.predicted,
-                                    "confidence": a.confidence
-                                }))
+                                .map(|a| {
+                                    serde_json::json!({
+                                        "title": a.base_alert.title,
+                                        "description": a.base_alert.description,
+                                        "level": a.base_alert.level,
+                                        "timestamp": a.base_alert.timestamp,
+                                        "predicted": a.predicted,
+                                        "confidence": a.confidence
+                                    })
+                                })
                                 .collect();
                             serde_json::json!(alert_data)
                         }
@@ -430,13 +496,15 @@ impl EnhancedDashboard {
                     let recent_events = telemetry_collector.get_recent_events(50).await;
                     let event_data: Vec<serde_json::Value> = recent_events
                         .iter()
-                        .map(|e| serde_json::json!({
-                            "timestamp": e.timestamp,
-                            "event_type": e.event_type,
-                            "source": e.source,
-                            "severity": e.severity,
-                            "data": e.data
-                        }))
+                        .map(|e| {
+                            serde_json::json!({
+                                "timestamp": e.timestamp,
+                                "event_type": e.event_type,
+                                "source": e.source,
+                                "severity": e.severity,
+                                "data": e.data
+                            })
+                        })
                         .collect();
                     serde_json::json!(event_data)
                 } else {
@@ -466,7 +534,10 @@ impl EnhancedDashboard {
             data,
             metadata: HashMap::from([
                 ("data_source".to_string(), widget.data_source.clone()),
-                ("widget_type".to_string(), format!("{:?}", widget.widget_type)),
+                (
+                    "widget_type".to_string(),
+                    format!("{:?}", widget.widget_type),
+                ),
             ]),
         };
 
@@ -502,20 +573,28 @@ impl EnhancedDashboard {
     }
 
     /// Update widget configuration
-    pub async fn update_widget_config(&self, widget_id: &str, config: HashMap<String, String>) -> HiveResult<()> {
+    pub async fn update_widget_config(
+        &self,
+        widget_id: &str,
+        config: HashMap<String, String>,
+    ) -> HiveResult<()> {
         let mut widgets = self.widgets.write().await;
         if let Some(widget) = widgets.get_mut(widget_id) {
             widget.config = config;
             Ok(())
         } else {
             Err(crate::utils::error::HiveError::NotFound {
-                resource: format!("Widget {}", widget_id)
+                resource: format!("Widget {}", widget_id),
             })
         }
     }
 
     /// Create a dashboard layout preset
-    pub async fn create_layout_preset(&self, name: String, description: String) -> HiveResult<DashboardLayout> {
+    pub async fn create_layout_preset(
+        &self,
+        name: String,
+        description: String,
+    ) -> HiveResult<DashboardLayout> {
         let config = self.config.read().await;
         let layout = DashboardLayout {
             id: uuid::Uuid::new_v4().to_string(),

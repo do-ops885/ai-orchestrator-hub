@@ -120,36 +120,36 @@ jobs:
         run: |
           echo "::group::Building release binary for ${{ matrix.target }}"
           cd backend
-          cargo build --release --all-features --target ${{ matrix.target }}
+           cargo build --release --all-features --target ${{ matrix.target }}
           echo "::endgroup::"
 
-       - name: Run tests with coverage
-         run: |
-           echo "::group::Running tests with coverage for ${{ matrix.target }}"
-           cd backend
+      - name: Run tests with coverage
+        run: |
+          echo "::group::Running tests with coverage for ${{ matrix.target }}"
+          cd backend
 
-           # Install cargo-llvm-cov if not already installed
-           if ! command -v cargo-llvm-cov &> /dev/null; then
-             cargo install cargo-llvm-cov
-           fi
+          # Install cargo-llvm-cov if not already installed
+          if ! command -v cargo-llvm-cov &> /dev/null; then
+            cargo install cargo-llvm-cov
+          fi
 
-           # Run tests with coverage
-           cargo llvm-cov --all-features --release --lcov --output-path coverage-${{ matrix.target }}.lcov
-           echo "::endgroup::"
+          # Run tests with coverage
+          cargo llvm-cov --all-features --release --lcov --output-path coverage-${{ matrix.target }}.lcov
+          echo "::endgroup::"
 
-       - name: Upload build artifacts
-         uses: actions/upload-artifact@v4
-         with:
-           name: rust-binary-${{ matrix.target }}
-           path: backend/target/${{ matrix.target }}/release/multiagent-hive${{ contains(matrix.target, 'windows') && '.exe' || '' }}
-           retention-days: 30
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-binary-${{ matrix.target }}
+          path: backend/target/${{ matrix.target }}/release/multiagent-hive${{ contains(matrix.target, 'windows') && '.exe' || '' }}
+            retention-days: 30
 
-       - name: Upload coverage artifacts
-         uses: actions/upload-artifact@v4
-         with:
-           name: rust-coverage-${{ matrix.target }}
-           path: backend/coverage-${{ matrix.target }}.lcov
-           retention-days: 30
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage-${{ matrix.target }}
+          path: backend/coverage-${{ matrix.target }}.lcov
+          retention-days: 30
 
   # Frontend build job
   frontend-build:

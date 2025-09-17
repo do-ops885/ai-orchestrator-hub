@@ -6,9 +6,9 @@ name: "CodeQL Configuration"
 disable-default-queries: false
 
 queries:
-  # Include security and quality queries
-  - uses: security-and-quality
-  - uses: security-experimental
+   # Include security and quality queries
+   - uses: codeql/rust-queries:codeql-suites/rust-code-scanning.qls
+   - uses: codeql/rust-queries:codeql-suites/rust-security-experimental.qls
 
 # Paths to exclude from analysis
 paths-ignore:
@@ -30,5 +30,4 @@ languages:
   - rust
 
 # Custom queries (if any)
-# queries:
 #   - uses: ./path/to/custom/queries

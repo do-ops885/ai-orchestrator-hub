@@ -130,6 +130,10 @@ impl Default for AgentMemory {
 }
 
 impl AgentMemory {
+    /// Creates a new empty AgentMemory instance.
+    ///
+    /// # Returns
+    /// A new `AgentMemory` with empty experiences, learned patterns, and social connections.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -184,6 +188,14 @@ pub struct Agent {
 }
 
 impl Agent {
+    /// Creates a new agent with the specified name and type.
+    ///
+    /// # Arguments
+    /// * `name` - The display name for the agent
+    /// * `agent_type` - The type of agent to create (Worker, Coordinator, Specialist, or Learner)
+    ///
+    /// # Returns
+    /// A new `Agent` instance with default state, empty capabilities, and initialized memory.
     #[must_use]
     pub fn new(name: String, agent_type: AgentType) -> Self {
         Self {

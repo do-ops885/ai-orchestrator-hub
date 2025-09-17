@@ -35,225 +35,254 @@ pub async fn start_background_tasks(app_state: AppState) {
     let alert_interval =
         std::time::Duration::from_millis(app_state.config.performance.alert_check_interval_ms);
 
-    // Enhanced metrics collection task with advanced analytics
-    let metrics_state = app_state.clone();
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(metrics_interval);
-        loop {
-            interval.tick().await;
+    // Start metrics collection task
+    start_metrics_collection_task(app_state.clone(), metrics_interval).await;
 
-            // Collect traditional system metrics
-            if let Err(e) = metrics_state.metrics.collect_system_metrics().await {
-                error!("Failed to collect system metrics: {}", e);
-            }
+    // Start intelligent alert processing task
+    start_alert_processing_task(app_state.clone(), alert_interval).await;
 
-            // Collect advanced metrics with predictive analytics
-            if let Err(e) = metrics_state
-                .advanced_metrics
-                .collect_system_metrics()
-                .await
-            {
-                error!("Failed to collect advanced metrics: {}", e);
-            } else {
-                debug!("Advanced metrics collected successfully");
-            }
+    // Start agent recovery task
+    start_agent_recovery_task(app_state.clone()).await;
 
-            // Snapshot current metrics for historical analysis
-            metrics_state.metrics.snapshot_current_metrics().await;
-
-            // Update hive metrics
-            let hive = metrics_state.hive.read().await.get_status().await;
-
-            // Update agent metrics from hive status
-            let agent_metrics = AgentMetrics {
-                total_agents: hive
-                    .get("total_agents")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0) as usize,
-                active_agents: hive
-                    .get("active_agents")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0) as usize,
-                idle_agents: hive
-                    .get("idle_agents")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0) as usize,
-                failed_agents: hive
-                    .get("failed_agents")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0) as usize,
-                average_agent_performance: hive
-                    .get("average_performance")
-                    .and_then(serde_json::Value::as_f64)
-                    .unwrap_or(0.0),
-                agent_utilization_percent: 0.0,
-                individual_agent_metrics: std::collections::HashMap::new(),
-            };
-
-            // Update task metrics from hive status
-            let task_metrics = TaskMetrics {
-                total_tasks_submitted: hive
-                    .get("total_tasks")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0),
-                total_tasks_completed: hive
-                    .get("completed_tasks")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0),
-                total_tasks_failed: hive
-                    .get("failed_tasks")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0),
-                tasks_in_queue: hive
-                    .get("pending_tasks")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0) as usize,
-                average_task_duration_ms: hive
-                    .get("average_task_completion_time")
-                    .and_then(serde_json::Value::as_f64)
-                    .unwrap_or(0.0),
-                task_success_rate: if hive
-                    .get("total_tasks")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0)
-                    > 0
-                {
-                    (hive
-                        .get("completed_tasks")
-                        .and_then(serde_json::Value::as_u64)
-                        .unwrap_or(0) as f64
-                        / hive
-                            .get("total_tasks")
-                            .and_then(serde_json::Value::as_u64)
-                            .unwrap_or(1) as f64)
-                        * 100.0
-                } else {
-                    0.0
-                },
-            };
-
-            // Update the metrics systems with the collected data
-            metrics_state
-                .metrics
-                .update_agent_metrics(agent_metrics)
-                .await;
-            metrics_state
-                .metrics
-                .update_task_metrics(task_metrics)
-                .await;
-
-            // Snapshot the current metrics for historical analysis
-            metrics_state.metrics.snapshot_current_metrics().await;
-        }
-    });
-
-    // Intelligent alert processing task
-    let alert_state = app_state.clone();
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(alert_interval);
-        loop {
-            interval.tick().await;
-
-            // Process intelligent alerts with predictive capabilities
-            match alert_state
-                .intelligent_alerting
-                .process_intelligent_alerts()
-                .await
-            {
-                Ok(intelligent_alerts) => {
-                    if !intelligent_alerts.is_empty() {
-                        info!(
-                            "🚨 Processed {} intelligent alerts",
-                            intelligent_alerts.len()
-                        );
-                        for alert in &intelligent_alerts {
-                            debug!(
-                                "Alert: {} (confidence: {:.2}, predicted: {})",
-                                alert.base_alert.title, alert.confidence, alert.predicted
-                            );
-                        }
-                    }
-                }
-                Err(e) => {
-                    error!("Failed to process intelligent alerts: {}", e);
-                }
-            }
-
-            // Also check traditional alerts as backup
-            let alerts = alert_state.metrics.check_alerts().await;
-            for alert in alerts {
-                match alert.level {
-                    AlertLevel::Critical => {
-                        error!("🚨 CRITICAL ALERT: {} - {}", alert.title, alert.description);
-                        // In production, you would send notifications here
-                    }
-                    AlertLevel::Warning => {
-                        warn!("⚠️  WARNING: {} - {}", alert.title, alert.description);
-                    }
-                    AlertLevel::Info => {
-                        info!("ℹ️  INFO: {} - {}", alert.title, alert.description);
-                    }
-                }
-            }
-
-            // Analyze trends
-            let trends = alert_state.metrics.analyze_trends().await;
-            debug!(
-                "System trends - CPU: {:?}, Memory: {:?}, Tasks: {:?}",
-                trends.cpu_trend, trends.memory_trend, trends.task_completion_trend
-            );
-        }
-    });
-
-    // Agent recovery and maintenance task
-    let recovery_state = app_state.clone();
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60)); // Check every minute
-        loop {
-            interval.tick().await;
-
-            // Check for failed agents and attempt recovery
-            let hive = recovery_state.hive.read().await.get_agents_info().await;
-            {
-                if let Some(agents) = hive.get("agents").and_then(|v| v.as_array()) {
-                    for agent_value in agents {
-                        if let Some(state) = agent_value.get("state").and_then(|v| v.as_str()) {
-                            if state == "Failed" {
-                                if let Some(agent_id) =
-                                    agent_value.get("id").and_then(|v| v.as_str())
-                                {
-                                    info!("🔧 Attempting recovery for failed agent: {}", agent_id);
-                                    // In a real implementation, you would recover the specific agent
-                                    // For now, we just log the attempt
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    // Adaptive learning cleanup task
-    let learning_state = app_state.clone();
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600)); // Every hour
-        loop {
-            interval.tick().await;
-
-            // Cleanup old learning patterns
-            {
-                let mut learning_system = learning_state.adaptive_learning.write().await;
-                learning_system.cleanup_old_patterns();
-                info!("🧹 Cleaned up old learning patterns");
-            }
-        }
-    });
+    // Start adaptive learning cleanup task
+    start_learning_cleanup_task(app_state.clone()).await;
 
     // Start MCP HTTP service
     mcp_http::start_mcp_background_service(app_state.clone());
 
     info!("🔄 Background monitoring tasks started");
+}
+
+/// Start the metrics collection background task
+async fn start_metrics_collection_task(app_state: AppState, interval: std::time::Duration) {
+    let metrics_state = app_state;
+    tokio::spawn(async move {
+        let mut interval_timer = tokio::time::interval(interval);
+        loop {
+            interval_timer.tick().await;
+            collect_and_update_metrics(&metrics_state).await;
+        }
+    });
+}
+
+/// Collect and update system metrics
+async fn collect_and_update_metrics(app_state: &AppState) {
+    // Collect traditional system metrics
+    if let Err(e) = app_state.metrics.collect_system_metrics().await {
+        error!("Failed to collect system metrics: {}", e);
+    }
+
+    // Collect advanced metrics with predictive analytics
+    if let Err(e) = app_state
+        .advanced_metrics
+        .collect_system_metrics()
+        .await
+    {
+        error!("Failed to collect advanced metrics: {}", e);
+    } else {
+        debug!("Advanced metrics collected successfully");
+    }
+
+    // Snapshot current metrics for historical analysis
+    app_state.metrics.snapshot_current_metrics().await;
+
+    // Update hive metrics
+    let hive = app_state.hive.read().await.get_status().await;
+
+    // Update agent and task metrics from hive status
+    let agent_metrics = extract_agent_metrics_from_hive(&hive);
+    let task_metrics = extract_task_metrics_from_hive(&hive);
+
+    // Update the metrics systems with the collected data
+    app_state
+        .metrics
+        .update_agent_metrics(agent_metrics)
+        .await;
+    app_state
+        .metrics
+        .update_task_metrics(task_metrics)
+        .await;
+
+    // Snapshot the current metrics for historical analysis
+    app_state.metrics.snapshot_current_metrics().await;
+}
+
+/// Extract agent metrics from hive status JSON
+fn extract_agent_metrics_from_hive(hive_status: &serde_json::Value) -> AgentMetrics {
+    AgentMetrics {
+        total_agents: hive_status
+            .get("total_agents")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0) as usize,
+        active_agents: hive_status
+            .get("active_agents")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0) as usize,
+        idle_agents: hive_status
+            .get("idle_agents")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0) as usize,
+        failed_agents: hive_status
+            .get("failed_agents")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0) as usize,
+        average_agent_performance: hive_status
+            .get("average_performance")
+            .and_then(serde_json::Value::as_f64)
+            .unwrap_or(0.0),
+        agent_utilization_percent: 0.0,
+        individual_agent_metrics: std::collections::HashMap::new(),
+    }
+}
+
+/// Extract task metrics from hive status JSON
+fn extract_task_metrics_from_hive(hive_status: &serde_json::Value) -> TaskMetrics {
+    let total_tasks = hive_status
+        .get("total_tasks")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+
+    let completed_tasks = hive_status
+        .get("completed_tasks")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+
+    let task_success_rate = if total_tasks > 0 {
+        (completed_tasks as f64 / total_tasks as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    TaskMetrics {
+        total_tasks_submitted: total_tasks,
+        total_tasks_completed: completed_tasks,
+        total_tasks_failed: hive_status
+            .get("failed_tasks")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0),
+        tasks_in_queue: hive_status
+            .get("pending_tasks")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0) as usize,
+        average_task_duration_ms: hive_status
+            .get("average_task_completion_time")
+            .and_then(serde_json::Value::as_f64)
+            .unwrap_or(0.0),
+        task_success_rate,
+    }
+}
+
+/// Start the intelligent alert processing background task
+async fn start_alert_processing_task(app_state: AppState, interval: std::time::Duration) {
+    let alert_state = app_state;
+    tokio::spawn(async move {
+        let mut interval_timer = tokio::time::interval(interval);
+        loop {
+            interval_timer.tick().await;
+            process_alerts(&alert_state).await;
+        }
+    });
+}
+
+/// Process intelligent alerts and traditional alerts
+async fn process_alerts(app_state: &AppState) {
+    // Process intelligent alerts with predictive capabilities
+    match app_state
+        .intelligent_alerting
+        .process_intelligent_alerts()
+        .await
+    {
+        Ok(intelligent_alerts) => {
+            if !intelligent_alerts.is_empty() {
+                info!(
+                    "🚨 Processed {} intelligent alerts",
+                    intelligent_alerts.len()
+                );
+                for alert in &intelligent_alerts {
+                    debug!(
+                        "Alert: {} (confidence: {:.2}, predicted: {})",
+                        alert.base_alert.title, alert.confidence, alert.predicted
+                    );
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to process intelligent alerts: {}", e);
+        }
+    }
+
+    // Also check traditional alerts as backup
+    let alerts = app_state.metrics.check_alerts().await;
+    for alert in alerts {
+        match alert.level {
+            AlertLevel::Critical => {
+                error!("🚨 CRITICAL ALERT: {} - {}", alert.title, alert.description);
+                // In production, you would send notifications here
+            }
+            AlertLevel::Warning => {
+                warn!("⚠️  WARNING: {} - {}", alert.title, alert.description);
+            }
+            AlertLevel::Info => {
+                info!("ℹ️  INFO: {} - {}", alert.title, alert.description);
+            }
+        }
+    }
+
+    // Analyze trends
+    let trends = app_state.metrics.analyze_trends().await;
+    debug!(
+        "System trends - CPU: {:?}, Memory: {:?}, Tasks: {:?}",
+        trends.cpu_trend, trends.memory_trend, trends.task_completion_trend
+    );
+}
+
+/// Start the agent recovery background task
+async fn start_agent_recovery_task(app_state: AppState) {
+    let recovery_state = app_state;
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60)); // Check every minute
+        loop {
+            interval.tick().await;
+            check_and_recover_failed_agents(&recovery_state).await;
+        }
+    });
+}
+
+/// Check for failed agents and attempt recovery
+async fn check_and_recover_failed_agents(app_state: &AppState) {
+    let hive = app_state.hive.read().await.get_agents_info().await;
+    if let Some(agents) = hive.get("agents").and_then(|v| v.as_array()) {
+        for agent_value in agents {
+            if let Some(state) = agent_value.get("state").and_then(|v| v.as_str()) {
+                if state == "Failed" {
+                    if let Some(agent_id) = agent_value.get("id").and_then(|v| v.as_str()) {
+                        info!("🔧 Attempting recovery for failed agent: {}", agent_id);
+                        // In a real implementation, you would recover the specific agent
+                        // For now, we just log the attempt
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Start the adaptive learning cleanup background task
+async fn start_learning_cleanup_task(app_state: AppState) {
+    let learning_state = app_state;
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600)); // Every hour
+        loop {
+            interval.tick().await;
+            cleanup_learning_patterns(&learning_state).await;
+        }
+    });
+}
+
+/// Cleanup old learning patterns
+async fn cleanup_learning_patterns(app_state: &AppState) {
+    let mut learning_system = app_state.adaptive_learning.write().await;
+    learning_system.cleanup_old_patterns();
+    info!("🧹 Cleaned up old learning patterns");
 }
 
 /// Create the main application router with all routes configured
@@ -589,6 +618,27 @@ async fn health_check(
 
     debug!("🏥 [{}] Health check request received", request_id);
 
+    // Gather health data from all components
+    let health_data = gather_health_data(&state).await;
+    let response_time_ms = start_time.elapsed().as_millis();
+
+    // Determine overall health status
+    let overall_healthy = health_data.hive_healthy
+        && health_data.resources_healthy
+        && health_data.metrics_healthy
+        && health_data.alerting_healthy;
+
+    let health_status = build_health_response(&health_data, response_time_ms, overall_healthy);
+
+    if overall_healthy {
+        Ok(axum::Json(health_status))
+    } else {
+        Err((StatusCode::SERVICE_UNAVAILABLE, axum::Json(health_status)))
+    }
+}
+
+/// Gather health data from all system components
+async fn gather_health_data(state: &AppState) -> HealthData {
     // Perform comprehensive health checks
     let hive_status = state.hive.read().await.get_status().await;
     let metrics_health = state.metrics.get_current_metrics().await;
@@ -601,7 +651,8 @@ async fn health_check(
     };
 
     // Extract metrics from hive status JSON
-    let hive_metrics = hive_status
+    let hive_status_clone = hive_status.clone();
+    let hive_metrics = hive_status_clone
         .get("metrics")
         .unwrap_or(&serde_json::Value::Null);
     let total_agents = hive_metrics
@@ -614,7 +665,8 @@ async fn health_check(
         .unwrap_or(0);
 
     // Extract resource info from JSON
-    let system_resources = resource_info
+    let resource_info_clone = resource_info.clone();
+    let system_resources = resource_info_clone
         .get("system_resources")
         .unwrap_or(&serde_json::Value::Null);
     let memory_usage = system_resources
@@ -632,37 +684,57 @@ async fn health_check(
     let metrics_healthy = metrics_health.performance.average_response_time_ms < 5000.0;
     let alerting_healthy = true; // Simplified for now - alerting system is operational
 
-    let response_time_ms = start_time.elapsed().as_millis();
-    let overall_healthy = hive_healthy && resources_healthy && metrics_healthy && alerting_healthy;
+    HealthData {
+        hive_status,
+        metrics_health,
+        resource_info,
+        hive_metrics: hive_metrics.clone(),
+        system_resources: system_resources.clone(),
+        total_agents,
+        completed_tasks,
+        memory_usage,
+        cpu_usage,
+        hive_healthy,
+        resources_healthy,
+        metrics_healthy,
+        alerting_healthy,
+    }
+}
 
-    let health_status = json!({
+/// Build the health check response JSON
+fn build_health_response(
+    health_data: &HealthData,
+    response_time_ms: u128,
+    overall_healthy: bool,
+) -> serde_json::Value {
+    json!({
         "status": if overall_healthy { "healthy" } else { "unhealthy" },
         "timestamp": Utc::now(),
         "response_time_ms": response_time_ms,
         "version": "2.0.0",
         "components": {
             "hive_coordinator": {
-                "status": if hive_healthy { "healthy" } else { "unhealthy" },
-                "total_agents": total_agents,
-                "active_agents": hive_metrics.get("active_agents").and_then(serde_json::Value::as_u64).unwrap_or(0),
-                "completed_tasks": completed_tasks,
-                "average_performance": hive_metrics.get("average_performance").and_then(serde_json::Value::as_f64).unwrap_or(0.0)
+                "status": if health_data.hive_healthy { "healthy" } else { "unhealthy" },
+                "total_agents": health_data.total_agents,
+                "active_agents": health_data.hive_metrics.get("active_agents").and_then(serde_json::Value::as_u64).unwrap_or(0),
+                "completed_tasks": health_data.completed_tasks,
+                "average_performance": health_data.hive_metrics.get("average_performance").and_then(serde_json::Value::as_f64).unwrap_or(0.0)
             },
             "resource_manager": {
-                "status": if resources_healthy { "healthy" } else { "unhealthy" },
-                "memory_usage_percent": memory_usage,
-                "cpu_usage_percent": cpu_usage,
-                "available_memory_mb": system_resources.get("available_memory").and_then(serde_json::Value::as_f64).unwrap_or(0.0),
-                "cpu_cores": system_resources.get("cpu_cores").and_then(serde_json::Value::as_u64).unwrap_or(0)
+                "status": if health_data.resources_healthy { "healthy" } else { "unhealthy" },
+                "memory_usage_percent": health_data.memory_usage,
+                "cpu_usage_percent": health_data.cpu_usage,
+                "available_memory_mb": health_data.system_resources.get("available_memory").and_then(serde_json::Value::as_f64).unwrap_or(0.0),
+                "cpu_cores": health_data.system_resources.get("cpu_cores").and_then(serde_json::Value::as_u64).unwrap_or(0)
             },
             "metrics_collector": {
-                "status": if metrics_healthy { "healthy" } else { "unhealthy" },
-                "response_time_ms": metrics_health.performance.average_response_time_ms,
-                "requests_per_second": metrics_health.performance.requests_per_second,
-                "error_rate": metrics_health.error_metrics.error_rate_per_minute
+                "status": if health_data.metrics_healthy { "healthy" } else { "unhealthy" },
+                "response_time_ms": health_data.metrics_health.performance.average_response_time_ms,
+                "requests_per_second": health_data.metrics_health.performance.requests_per_second,
+                "error_rate": health_data.metrics_health.error_metrics.error_rate_per_minute
             },
             "intelligent_alerting": {
-                "status": if alerting_healthy { "healthy" } else { "unhealthy" },
+                "status": if health_data.alerting_healthy { "healthy" } else { "unhealthy" },
                 "active_rules": "monitoring",
                 "system_operational": true
             }
@@ -671,16 +743,27 @@ async fn health_check(
             "cpu_native": true,
             "gpu_optional": true,
             "phase_2_active": true,
-            "swarm_cohesion": hive_metrics.get("swarm_cohesion").and_then(serde_json::Value::as_f64).unwrap_or(0.0),
-            "learning_progress": hive_metrics.get("learning_progress").and_then(serde_json::Value::as_f64).unwrap_or(0.0)
+            "swarm_cohesion": health_data.hive_metrics.get("swarm_cohesion").and_then(serde_json::Value::as_f64).unwrap_or(0.0),
+            "learning_progress": health_data.hive_metrics.get("learning_progress").and_then(serde_json::Value::as_f64).unwrap_or(0.0)
         }
-    });
+    })
+}
 
-    if overall_healthy {
-        Ok(axum::Json(health_status))
-    } else {
-        Err((StatusCode::SERVICE_UNAVAILABLE, axum::Json(health_status)))
-    }
+/// Struct to hold health check data
+struct HealthData {
+    hive_status: serde_json::Value,
+    metrics_health: crate::infrastructure::metrics::SystemMetrics,
+    resource_info: serde_json::Value,
+    hive_metrics: serde_json::Value,
+    system_resources: serde_json::Value,
+    total_agents: u64,
+    completed_tasks: u64,
+    memory_usage: f64,
+    cpu_usage: f64,
+    hive_healthy: bool,
+    resources_healthy: bool,
+    metrics_healthy: bool,
+    alerting_healthy: bool,
 }
 
 async fn get_metrics(

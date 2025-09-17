@@ -49,4 +49,5 @@ coverage/
 mcp-*.pid
 -e
 
+__pycache__
 

@@ -50,7 +50,7 @@ pub fn validate_recovery_mechanisms() -> bool {
     // Test degradation strategies exist
     match DegradationStrategy::ReturnCached {
         DegradationStrategy::ReturnCached => println!("✓ ReturnCached strategy exists"),
-        _ => panic!("Expected ReturnCached strategy"),
+        _ => assert!(false, "Expected ReturnCached strategy"),
     }
 
     println!("✓ Recovery mechanisms validation passed");

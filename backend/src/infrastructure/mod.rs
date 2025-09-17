@@ -56,7 +56,10 @@ pub use intelligent_cache::*;
 pub use memory_pool::*;
 pub use metrics::{MetricsCollector, PerformanceMetrics, SystemMetrics};
 pub use middleware::*;
-pub use monitoring::{AgentMonitor, PerformanceMonitor as MonitoringPerformanceMonitor, ProductionMonitoringSystem, ProductionMonitoringConfig};
+pub use monitoring::{
+    AgentMonitor, PerformanceMonitor as MonitoringPerformanceMonitor, ProductionMonitoringConfig,
+    ProductionMonitoringSystem,
+};
 pub use performance_optimizer::PerformanceOptimizer;
 pub use persistence::*;
 pub use resource_manager::*;

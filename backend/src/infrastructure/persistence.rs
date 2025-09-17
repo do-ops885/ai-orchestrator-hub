@@ -9,6 +9,7 @@ use crate::utils::error::{HiveError, HiveResult};
 
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection};
+use std::sync::OnceLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -470,7 +471,7 @@ pub trait StorageProvider {
 
     fn base_path(&self) -> &PathBuf {
         // Default implementation returns empty path - concrete implementations should override
-        static EMPTY_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+        static EMPTY_PATH: OnceLock<PathBuf> = OnceLock::new();
         EMPTY_PATH.get_or_init(PathBuf::new)
     }
 }
@@ -535,7 +536,7 @@ impl SQLiteStorage {
 impl StorageProvider for SQLiteStorage {
     fn base_path(&self) -> &PathBuf {
         // SQLite storage doesn't use filesystem paths
-        static EMPTY_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+        static EMPTY_PATH: OnceLock<PathBuf> = OnceLock::new();
         EMPTY_PATH.get_or_init(PathBuf::new)
     }
     #[allow(clippy::cast_possible_wrap)]
@@ -877,7 +878,7 @@ impl MemoryStorage {
 impl StorageProvider for MemoryStorage {
     fn base_path(&self) -> &PathBuf {
         // Memory storage doesn't use filesystem paths
-        static EMPTY_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+        static EMPTY_PATH: OnceLock<PathBuf> = OnceLock::new();
         EMPTY_PATH.get_or_init(PathBuf::new)
     }
     async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String> {

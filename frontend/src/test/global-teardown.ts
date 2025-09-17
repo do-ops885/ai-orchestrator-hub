@@ -16,7 +16,6 @@ export default async function globalTeardown() {
     delete (globalThis as any).__MOCK_WEBSOCKET_SERVER__
 
     console.log('✅ WebSocket mock server stopped successfully')
-
   } catch (error) {
     console.error('❌ Failed to stop WebSocket mock server:', error)
     throw error

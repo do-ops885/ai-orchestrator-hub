@@ -252,8 +252,6 @@ impl HealthMonitor {
         Ok(())
     }
 
-
-
     /// Calculate overall system health status
     async fn calculate_overall_status(
         &self,

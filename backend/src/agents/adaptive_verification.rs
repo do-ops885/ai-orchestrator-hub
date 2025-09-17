@@ -17,7 +17,7 @@ use tracing::{debug, info};
 use uuid::Uuid;
 
 use crate::agents::simple_verification::{
-    SimpleVerificationResult, SimpleVerificationStatus, SimpleVerificationSystem,
+    SimpleVerificationResult, SimpleVerificationStatus, SimpleVerificationSystem, VerificationTier,
 };
 use crate::agents::{Agent, AgentBehavior, CommunicationComplexity};
 use crate::communication::patterns::CommunicationConfig;
@@ -335,8 +335,6 @@ impl AdaptiveVerificationSystem {
         optimal_thresholds
     }
 
-
-
     /// Synchronous calculation of optimal rule threshold
     fn calculate_optimal_rule_threshold_sync(
         outcomes: &[&VerificationOutcome],
@@ -408,7 +406,8 @@ impl AdaptiveVerificationSystem {
                 e
             );
             crate::utils::error::HiveError::TaskExecutionFailed {
-                reason: "Failed to spawn blocking task for threshold performance evaluation".to_string(),
+                reason: "Failed to spawn blocking task for threshold performance evaluation"
+                    .to_string(),
             }
         })?;
 
@@ -452,8 +451,6 @@ impl AdaptiveVerificationSystem {
         accuracy * config.performance_weight_accuracy
             + avg_efficiency * config.performance_weight_efficiency
     }
-
-
 
     /// Apply threshold recommendation to base verification system
     async fn apply_threshold_recommendation(&mut self, recommendation: &ThresholdRecommendation) {
@@ -934,15 +931,25 @@ impl AdaptiveVerificationCapable for Agent {
 mod tests {
     use super::*;
     use crate::agents::simple_verification::SimpleVerificationSystem;
-    use crate::neural::adaptive_learning::AdaptiveLearningSystem;
+    use crate::neural::adaptive_learning::{AdaptiveLearningConfig, AdaptiveLearningSystem};
     use crate::tasks::{TaskPriority, TaskResult};
     use crate::tests::test_utils::{create_test_agent, create_test_task};
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
-    fn create_test_adaptive_system() -> AdaptiveVerificationSystem {
-        let base_verification = SimpleVerificationSystem::new();
-        let learning_system = Arc::new(RwLock::new(AdaptiveLearningSystem::new()));
+    async fn create_test_adaptive_system() -> AdaptiveVerificationSystem {
+        let nlp_processor = Arc::new(
+            NLPProcessor::new()
+                .await
+                .expect("Failed to create NLP processor"),
+        );
+        let base_verification = SimpleVerificationSystem::new(nlp_processor);
+        let learning_config = AdaptiveLearningConfig::default();
+        let learning_system = Arc::new(RwLock::new(
+            AdaptiveLearningSystem::new(learning_config)
+                .await
+                .expect("Failed to create learning system"),
+        ));
         let config = AdaptationConfig::default();
         AdaptiveVerificationSystem::new(base_verification, learning_system, config)
     }
@@ -963,13 +970,15 @@ mod tests {
             } else {
                 Some("Execution error".to_string())
             },
-            metadata: std::collections::HashMap::new(),
+            completed_at: Utc::now(),
+            quality_score: Some(if success { 0.9 } else { 0.3 }),
+            learned_insights: vec![],
         }
     }
 
     #[tokio::test]
     async fn test_adaptive_verification_system_creation() {
-        let system = create_test_adaptive_system();
+        let system = create_test_adaptive_system().await;
 
         // Check that the system is initialized correctly
         assert_eq!(system.adaptation_config.learning_rate, 0.05);
@@ -1019,7 +1028,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_adaptive_verify_task_result_success() -> Result<(), Box<dyn std::error::Error>> {
-        let mut system = create_test_adaptive_system();
+        let mut system = create_test_adaptive_system().await;
         let agent = create_test_agent("TestAgent", crate::agents::AgentType::Worker);
         let task = create_test_task("Test task", "general", TaskPriority::Medium);
         let result = create_test_task_result(true);
@@ -1034,7 +1043,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_adaptive_verify_task_result_failure() -> Result<(), Box<dyn std::error::Error>> {
-        let mut system = create_test_adaptive_system();
+        let mut system = create_test_adaptive_system().await;
         let agent = create_test_agent("TestAgent", crate::agents::AgentType::Worker);
         let task = create_test_task("Test task", "general", TaskPriority::Medium);
         let result = create_test_task_result(false);
@@ -1049,7 +1058,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_current_threshold_recommendation() -> Result<(), Box<dyn std::error::Error>> {
-        let system = create_test_adaptive_system();
+        let system = create_test_adaptive_system().await;
 
         let rec = system.get_current_threshold_recommendation().await?;
 
@@ -1062,16 +1071,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_record_verification_outcome() {
-        let system = create_test_adaptive_system();
+        let system = create_test_adaptive_system().await;
         let task = create_test_task("Test task", "general", TaskPriority::Medium);
         let verification_result = SimpleVerificationResult {
+            task_id: uuid::Uuid::new_v4(),
             verification_status: SimpleVerificationStatus::Passed,
-            overall_score: 0.85,
             confidence_score: 0.9,
+            goal_alignment_score: 0.85,
+            format_compliance_score: 0.88,
+            overall_score: 0.85,
+            verification_tier: VerificationTier::Standard,
+            issues_found: vec![],
             verification_time_ms: 500,
-            tier_results: vec![],
-            rule_results: vec![],
-            recommendations: vec![],
+            verified_at: Utc::now(),
+            verifier_notes: "Test verification".to_string(),
         };
         let threshold_used = 0.8;
         let rule_thresholds_used = std::collections::HashMap::new();
@@ -1096,18 +1109,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_accuracy_metrics() {
-        let system = create_test_adaptive_system();
+        let system = create_test_adaptive_system().await;
         let mut tracker = PerformanceTracker::new();
 
         // Test true positive
         let verification_result_tp = SimpleVerificationResult {
+            task_id: uuid::Uuid::new_v4(),
             verification_status: SimpleVerificationStatus::Passed,
-            overall_score: 0.85,
             confidence_score: 0.9,
+            goal_alignment_score: 0.85,
+            format_compliance_score: 0.88,
+            overall_score: 0.85,
+            verification_tier: VerificationTier::Standard,
+            issues_found: vec![],
             verification_time_ms: 500,
-            tier_results: vec![],
-            rule_results: vec![],
-            recommendations: vec![],
+            verified_at: Utc::now(),
+            verifier_notes: "Test verification TP".to_string(),
         };
         system
             .update_accuracy_metrics(&mut tracker, &verification_result_tp, true)
@@ -1116,13 +1133,17 @@ mod tests {
 
         // Test false positive
         let verification_result_fp = SimpleVerificationResult {
+            task_id: uuid::Uuid::new_v4(),
             verification_status: SimpleVerificationStatus::Passed,
-            overall_score: 0.85,
             confidence_score: 0.9,
+            goal_alignment_score: 0.85,
+            format_compliance_score: 0.88,
+            overall_score: 0.85,
+            verification_tier: VerificationTier::Standard,
+            issues_found: vec![],
             verification_time_ms: 500,
-            tier_results: vec![],
-            rule_results: vec![],
-            recommendations: vec![],
+            verified_at: Utc::now(),
+            verifier_notes: "Test verification FP".to_string(),
         };
         system
             .update_accuracy_metrics(&mut tracker, &verification_result_fp, false)
@@ -1131,13 +1152,17 @@ mod tests {
 
         // Test true negative
         let verification_result_tn = SimpleVerificationResult {
+            task_id: uuid::Uuid::new_v4(),
             verification_status: SimpleVerificationStatus::Failed,
-            overall_score: 0.3,
             confidence_score: 0.8,
+            goal_alignment_score: 0.3,
+            format_compliance_score: 0.4,
+            overall_score: 0.3,
+            verification_tier: VerificationTier::Standard,
+            issues_found: vec![],
             verification_time_ms: 500,
-            tier_results: vec![],
-            rule_results: vec![],
-            recommendations: vec![],
+            verified_at: Utc::now(),
+            verifier_notes: "Test verification TN".to_string(),
         };
         system
             .update_accuracy_metrics(&mut tracker, &verification_result_tn, false)
@@ -1146,13 +1171,17 @@ mod tests {
 
         // Test false negative
         let verification_result_fn = SimpleVerificationResult {
+            task_id: uuid::Uuid::new_v4(),
             verification_status: SimpleVerificationStatus::Failed,
-            overall_score: 0.3,
             confidence_score: 0.8,
+            goal_alignment_score: 0.3,
+            format_compliance_score: 0.4,
+            overall_score: 0.3,
+            verification_tier: VerificationTier::Standard,
+            issues_found: vec![],
             verification_time_ms: 500,
-            tier_results: vec![],
-            rule_results: vec![],
-            recommendations: vec![],
+            verified_at: Utc::now(),
+            verifier_notes: "Test verification FN".to_string(),
         };
         system
             .update_accuracy_metrics(&mut tracker, &verification_result_fn, true)
@@ -1167,7 +1196,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_should_adapt_thresholds() {
-        let mut system = create_test_adaptive_system();
+        let mut system = create_test_adaptive_system().await;
 
         // Initially should not adapt (just created)
         assert!(!system.should_adapt_thresholds().await);
@@ -1184,30 +1213,38 @@ mod tests {
 
     #[tokio::test]
     async fn test_calculate_outcome_score() {
-        let system = create_test_adaptive_system();
+        let system = create_test_adaptive_system().await;
 
         // Test correct verification
         let correct_result = SimpleVerificationResult {
+            task_id: uuid::Uuid::new_v4(),
             verification_status: SimpleVerificationStatus::Passed,
-            overall_score: 0.85,
             confidence_score: 0.9,
+            goal_alignment_score: 0.85,
+            format_compliance_score: 0.88,
+            overall_score: 0.85,
+            verification_tier: VerificationTier::Standard,
+            issues_found: vec![],
             verification_time_ms: 500,
-            tier_results: vec![],
-            rule_results: vec![],
-            recommendations: vec![],
+            verified_at: Utc::now(),
+            verifier_notes: "Test correct result".to_string(),
         };
         let score_correct = system.calculate_outcome_score(&correct_result, true);
         assert!(score_correct > 0.7); // High score for correct verification
 
         // Test incorrect verification
         let incorrect_result = SimpleVerificationResult {
+            task_id: uuid::Uuid::new_v4(),
             verification_status: SimpleVerificationStatus::Passed,
-            overall_score: 0.85,
             confidence_score: 0.9,
+            goal_alignment_score: 0.85,
+            format_compliance_score: 0.88,
+            overall_score: 0.85,
+            verification_tier: VerificationTier::Standard,
+            issues_found: vec![],
             verification_time_ms: 500,
-            tier_results: vec![],
-            rule_results: vec![],
-            recommendations: vec![],
+            verified_at: Utc::now(),
+            verifier_notes: "Test incorrect result".to_string(),
         };
         let score_incorrect = system.calculate_outcome_score(&incorrect_result, false);
         assert!(score_incorrect < 0.4); // Low score for incorrect verification
@@ -1215,7 +1252,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_adaptation_insights() {
-        let system = create_test_adaptive_system();
+        let system = create_test_adaptive_system().await;
 
         let insights = system.get_adaptation_insights().await;
 
@@ -1237,13 +1274,17 @@ mod tests {
                 timestamp: Utc::now(),
                 task_id: uuid::Uuid::new_v4(),
                 verification_result: SimpleVerificationResult {
+                    task_id: uuid::Uuid::new_v4(),
                     verification_status: SimpleVerificationStatus::Passed,
-                    overall_score: 0.9,
                     confidence_score: 0.85,
+                    goal_alignment_score: 0.9,
+                    format_compliance_score: 0.92,
+                    overall_score: 0.9,
+                    verification_tier: VerificationTier::Standard,
+                    issues_found: vec![],
                     verification_time_ms: 1000,
-                    tier_results: vec![],
-                    rule_results: vec![],
-                    recommendations: vec![],
+                    verified_at: Utc::now(),
+                    verifier_notes: "Test evaluation result".to_string(),
                 },
                 actual_task_success: true,
                 verification_time_ms: 1000,
@@ -1254,13 +1295,17 @@ mod tests {
                 timestamp: Utc::now(),
                 task_id: uuid::Uuid::new_v4(),
                 verification_result: SimpleVerificationResult {
+                    task_id: uuid::Uuid::new_v4(),
                     verification_status: SimpleVerificationStatus::Failed,
-                    overall_score: 0.3,
                     confidence_score: 0.7,
+                    goal_alignment_score: 0.3,
+                    format_compliance_score: 0.4,
+                    overall_score: 0.3,
+                    verification_tier: VerificationTier::Standard,
+                    issues_found: vec![],
                     verification_time_ms: 1500,
-                    tier_results: vec![],
-                    rule_results: vec![],
-                    recommendations: vec![],
+                    verified_at: Utc::now(),
+                    verifier_notes: "Test failed result".to_string(),
                 },
                 actual_task_success: false,
                 verification_time_ms: 1500,
@@ -1278,7 +1323,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_calculate_recommendation_confidence() {
-        let system = create_test_adaptive_system();
+        let system = create_test_adaptive_system().await;
 
         // Test with high sample count and improvement
         let confidence_high = system.calculate_recommendation_confidence(100, 0.1);
@@ -1291,7 +1336,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_recent_sample_count() -> Result<(), Box<dyn std::error::Error>> {
-        let system = create_test_adaptive_system();
+        let system = create_test_adaptive_system().await;
 
         // Initially should be 0
         let count = system.get_recent_sample_count().await;
@@ -1300,13 +1345,17 @@ mod tests {
         // Add some outcomes
         let task = create_test_task("Test task", "general", TaskPriority::Medium);
         let verification_result = SimpleVerificationResult {
+            task_id: uuid::Uuid::new_v4(),
             verification_status: SimpleVerificationStatus::Passed,
-            overall_score: 0.85,
             confidence_score: 0.9,
+            goal_alignment_score: 0.85,
+            format_compliance_score: 0.88,
+            overall_score: 0.85,
+            verification_tier: VerificationTier::Standard,
+            issues_found: vec![],
             verification_time_ms: 500,
-            tier_results: vec![],
-            rule_results: vec![],
-            recommendations: vec![],
+            verified_at: Utc::now(),
+            verifier_notes: "Test record result".to_string(),
         };
 
         system
@@ -1328,7 +1377,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_adaptive_verify_with_empty_goal() {
-        let mut system = create_test_adaptive_system();
+        let mut system = create_test_adaptive_system().await;
         let agent = create_test_agent("TestAgent", crate::agents::AgentType::Worker);
         let task = create_test_task("Test task", "general", TaskPriority::Medium);
         let result = create_test_task_result(true);

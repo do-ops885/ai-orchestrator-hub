@@ -95,10 +95,15 @@ impl Default for HealthCheckManager {
 /// Individual health check definition
 #[derive(Debug, Clone)]
 pub struct HealthCheck {
+    /// The unique identifier for this health check
     pub name: String,
+    /// A human-readable description of what this health check monitors
     pub description: String,
+    /// The maximum time allowed for the health check to complete
     pub timeout: Duration,
+    /// The function that performs the actual health check
     pub check_fn: HealthCheckFunction,
+    /// The result of the most recent execution of this health check
     pub last_result: Option<HealthCheckResult>,
 }
 
@@ -176,8 +181,11 @@ impl std::fmt::Debug for HealthCheckFunction {
 /// Health status enumeration
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HealthStatus {
+    /// The component is functioning normally
     Healthy,
+    /// The component is experiencing issues but still operational
     Degraded,
+    /// The component is not functioning properly
     Unhealthy,
 }
 

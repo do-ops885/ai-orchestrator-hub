@@ -43,11 +43,14 @@ export function getMockServer(): MockWebSocketServer | null {
  * Wait for WebSocket connection to be established
  */
 export async function waitForWebSocketConnection(page: Page, timeout = 5000): Promise<void> {
-  await page.waitForFunction(() => {
-    // Check if the WebSocket connection is established by looking at the store state
-    const store = (window as any).__ZUSTAND_STORE__
-    return store?.isConnected === true
-  }, { timeout })
+  await page.waitForFunction(
+    () => {
+      // Check if the WebSocket connection is established by looking at the store state
+      const store = (window as any).__ZUSTAND_STORE__
+      return store?.isConnected === true
+    },
+    { timeout },
+  )
 }
 
 /**
@@ -56,14 +59,16 @@ export async function waitForWebSocketConnection(page: Page, timeout = 5000): Pr
 export async function waitForWebSocketMessage(
   page: Page,
   messageType: string,
-  timeout = 5000
+  timeout = 5000,
 ): Promise<any> {
   return page.waitForFunction(
-    (type) => {
+    type => {
       // This would need to be implemented based on how messages are stored in the app
       // For now, we'll use a simple approach by checking the store state
       const store = (window as any).__ZUSTAND_STORE__
-      if (!store) {return null}
+      if (!store) {
+        return null
+      }
 
       // Check different message types
       switch (type) {
@@ -80,17 +85,14 @@ export async function waitForWebSocketMessage(
       }
     },
     messageType,
-    { timeout }
+    { timeout },
   )
 }
 
 /**
  * Send a WebSocket message from the mock server
  */
-export async function sendMockWebSocketMessage(
-  messageType: string,
-  data: any
-): Promise<void> {
+export async function sendMockWebSocketMessage(messageType: string, data: any): Promise<void> {
   if (!mockServer) {
     throw new Error('Mock WebSocket server not initialized')
   }
@@ -141,12 +143,14 @@ export function triggerMockUpdate(): void {
 export async function waitForHiveData(
   page: Page,
   condition: (data: any) => boolean,
-  timeout = 5000
+  timeout = 5000,
 ): Promise<any> {
   return page.waitForFunction(
-    (cond) => {
+    cond => {
       const store = (window as any).__ZUSTAND_STORE__
-      if (!store) {return null}
+      if (!store) {
+        return null
+      }
 
       const data = {
         isConnected: store.isConnected,
@@ -158,7 +162,7 @@ export async function waitForHiveData(
       return cond(data) ? data : null
     },
     condition,
-    { timeout }
+    { timeout },
   )
 }
 
@@ -215,13 +219,10 @@ export const WebSocketTestUtils = {
     await waitForWebSocketMessage(page, 'agents_update')
 
     // Verify agent count increased
-    await page.waitForFunction(
-      (expectedCount) => {
-        const store = (window as any).__ZUSTAND_STORE__
-        return store?.agents?.length === expectedCount
-      },
-      initialAgentCount + 1
-    )
+    await page.waitForFunction(expectedCount => {
+      const store = (window as any).__ZUSTAND_STORE__
+      return store?.agents?.length === expectedCount
+    }, initialAgentCount + 1)
 
     // Get the created agent ID
     const agentId = await page.evaluate(() => {
@@ -252,13 +253,10 @@ export const WebSocketTestUtils = {
     await waitForWebSocketMessage(page, 'tasks_update')
 
     // Verify task count increased
-    await page.waitForFunction(
-      (expectedCount) => {
-        const store = (window as any).__ZUSTAND_STORE__
-        return store?.tasks?.length === expectedCount
-      },
-      initialTaskCount + 1
-    )
+    await page.waitForFunction(expectedCount => {
+      const store = (window as any).__ZUSTAND_STORE__
+      return store?.tasks?.length === expectedCount
+    }, initialTaskCount + 1)
 
     // Get the created task ID
     const taskId = await page.evaluate(() => {

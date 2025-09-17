@@ -64,12 +64,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+       - name: Setup Node.js
+         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -127,13 +127,13 @@ jobs:
       security-events: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+       - name: Checkout code
+         uses: actions/checkout@v4
+         with:
+           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+       - name: Setup Node.js
+         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
@@ -233,19 +233,19 @@ jobs:
         with:
           config-path: .gitleaks.toml
 
-      - name: Cleanup logging
-        if: always()
-        uses: ./.github/actions/cleanup-logging
-        with:
-          final-status: ${{ job.status }}
-
-   # Security metrics collection
-   security-metrics:
-     name: Security Metrics Collection
-     runs-on: ubuntu-latest
-     needs: [security-audit, frontend-security, codeql-analysis, dependency-review, container-scan, secrets-scan]
+     - name: Cleanup logging
      if: always()
-     timeout-minutes: 10
+     uses: ./.github/actions/cleanup-logging
+      with:
+        final-status: ${{ job.status }}
+
+  # Security metrics collection
+  security-metrics:
+    name: Security Metrics Collection
+    runs-on: ubuntu-latest
+    needs: [security-audit, frontend-security, codeql-analysis, dependency-review, container-scan, secrets-scan]
+    if: always()
+    timeout-minutes: 10
 
      steps:
        - name: Setup structured logging
@@ -255,120 +255,120 @@ jobs:
 
        - name: Download security reports
          uses: actions/download-artifact@v4
-         with:
-           path: security-reports/
+     with:
+       path: security-reports/
 
        - name: Process security metrics
          run: |
-           source log_helper.sh
-           log_structured "INFO" "Processing security metrics"
+       source log_helper.sh
+       log_structured "INFO" "Processing security metrics"
 
-           # Initialize metrics
-           rust_vulnerabilities=0
-           npm_vulnerabilities=0
-           codeql_alerts=0
-           secrets_found=0
-           container_vulns=0
+       # Initialize metrics
+       rust_vulnerabilities=0
+       npm_vulnerabilities=0
+       codeql_alerts=0
+       secrets_found=0
+       container_vulns=0
 
-           # Parse cargo audit results
-           if [ -f "security-reports/security-reports/backend/audit.json" ]; then
-             rust_vulnerabilities=$(jq '.vulnerabilities.count' security-reports/security-reports/backend/audit.json 2>/dev/null || echo "0")
-           fi
+       # Parse cargo audit results
+       if [ -f "security-reports/security-reports/backend/audit.json" ]; then
+         rust_vulnerabilities=$(jq '.vulnerabilities.count' security-reports/security-reports/backend/audit.json 2>/dev/null || echo "0")
+       fi
 
-           # Parse npm audit results
-           if [ -f "security-reports/frontend-security-reports/frontend/audit-results.json" ]; then
-             npm_vulnerabilities=$(jq '.metadata.vulnerabilities.total' security-reports/frontend-security-reports/frontend/audit-results.json 2>/dev/null || echo "0")
-           fi
+       # Parse npm audit results
+       if [ -f "security-reports/frontend-security-reports/frontend/audit-results.json" ]; then
+         npm_vulnerabilities=$(jq '.metadata.vulnerabilities.total' security-reports/frontend-security-reports/frontend/audit-results.json 2>/dev/null || echo "0")
+       fi
 
-           # Count CodeQL results (would need to parse SARIF files)
-           codeql_alerts="N/A"  # Placeholder - would parse SARIF
+       # Count CodeQL results (would need to parse SARIF files)
+       codeql_alerts="N/A"  # Placeholder - would parse SARIF
 
-           # Count secrets
-           if [ -f "security-reports/security-scan-results/gitleaks-report.json" ]; then
-             secrets_found=$(jq length security-reports/security-scan-results/gitleaks-report.json 2>/dev/null || echo "0")
-           fi
+       # Count secrets
+       if [ -f "security-reports/security-scan-results/gitleaks-report.json" ]; then
+         secrets_found=$(jq length security-reports/security-scan-results/gitleaks-report.json 2>/dev/null || echo "0")
+       fi
 
-           # Count container vulnerabilities
-           if [ -f "trivy-results.sarif" ]; then
-             container_vulns=$(jq '.runs[0].results | length' trivy-results.sarif 2>/dev/null || echo "0")
-           fi
+       # Count container vulnerabilities
+       if [ -f "trivy-results.sarif" ]; then
+         container_vulns=$(jq '.runs[0].results | length' trivy-results.sarif 2>/dev/null || echo "0")
+       fi
 
-           # Generate security metrics report
-           echo "## 🔒 Security Metrics" >> $GITHUB_STEP_SUMMARY
-           echo "" >> $GITHUB_STEP_SUMMARY
-           echo "| Metric | Count | Threshold | Status |" >> $GITHUB_STEP_SUMMARY
-           echo "|--------|-------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+       # Generate security metrics report
+       echo "## 🔒 Security Metrics" >> $GITHUB_STEP_SUMMARY
+       echo "" >> $GITHUB_STEP_SUMMARY
+       echo "| Metric | Count | Threshold | Status |" >> $GITHUB_STEP_SUMMARY
+       echo "|--------|-------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
 
-           # Rust vulnerabilities
-           if [ "$rust_vulnerabilities" -gt 0 ]; then
-             echo "| 🦀 Rust Vulnerabilities | $rust_vulnerabilities | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
-           else
-             echo "| 🦀 Rust Vulnerabilities | $rust_vulnerabilities | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
-           fi
+       # Rust vulnerabilities
+       if [ "$rust_vulnerabilities" -gt 0 ]; then
+         echo "| 🦀 Rust Vulnerabilities | $rust_vulnerabilities | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
+       else
+         echo "| 🦀 Rust Vulnerabilities | $rust_vulnerabilities | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
+       fi
 
-           # NPM vulnerabilities
-           if [ "$npm_vulnerabilities" -gt 0 ]; then
-             echo "| 📦 NPM Vulnerabilities | $npm_vulnerabilities | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
-           else
-             echo "| 📦 NPM Vulnerabilities | $npm_vulnerabilities | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
-           fi
+       # NPM vulnerabilities
+       if [ "$npm_vulnerabilities" -gt 0 ]; then
+         echo "| 📦 NPM Vulnerabilities | $npm_vulnerabilities | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
+       else
+         echo "| 📦 NPM Vulnerabilities | $npm_vulnerabilities | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
+       fi
 
-           # CodeQL alerts
-           echo "| 🔍 CodeQL Alerts | $codeql_alerts | 0 | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+       # CodeQL alerts
+       echo "| 🔍 CodeQL Alerts | $codeql_alerts | 0 | ⚠️ |" >> $GITHUB_STEP_SUMMARY
 
-           # Secrets found
-           if [ "$secrets_found" -gt 0 ]; then
-             echo "| 🔐 Secrets Detected | $secrets_found | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
-           else
-             echo "| 🔐 Secrets Detected | $secrets_found | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
-           fi
+       # Secrets found
+       if [ "$secrets_found" -gt 0 ]; then
+         echo "| 🔐 Secrets Detected | $secrets_found | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
+       else
+         echo "| 🔐 Secrets Detected | $secrets_found | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
+       fi
 
-           # Container vulnerabilities
-           if [ "$container_vulns" -gt 0 ]; then
-             echo "| 🐳 Container Vulns | $container_vulns | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
-           else
-             echo "| 🐳 Container Vulns | $container_vulns | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
-           fi
+       # Container vulnerabilities
+       if [ "$container_vulns" -gt 0 ]; then
+         echo "| 🐳 Container Vulns | $container_vulns | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
+       else
+         echo "| 🐳 Container Vulns | $container_vulns | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
+       fi
 
-           # Store security metrics for trend analysis
-           mkdir -p security-metrics-history
-           timestamp=$(date +%Y%m%d_%H%M%S)
-           cat > security-metrics-history/security_metrics_$timestamp.json << EOF
-           {
-             "timestamp": "$(date -Iseconds)",
-             "run_id": "${{ github.run_id }}",
-             "vulnerabilities": {
-               "rust": $rust_vulnerabilities,
-               "npm": $npm_vulnerabilities,
-               "container": $container_vulns
-             },
-             "alerts": {
-               "codeql": "$codeql_alerts",
-               "secrets": $secrets_found
-             }
-           }
-           EOF
+       # Store security metrics for trend analysis
+       mkdir -p security-metrics-history
+       timestamp=$(date +%Y%m%d_%H%M%S)
+       cat > security-metrics-history/security_metrics_$timestamp.json << EOF
+       {
+         "timestamp": "$(date -Iseconds)",
+         "run_id": "${{ github.run_id }}",
+         "vulnerabilities": {
+           "rust": $rust_vulnerabilities,
+           "npm": $npm_vulnerabilities,
+           "container": $container_vulns
+         },
+         "alerts": {
+           "codeql": "$codeql_alerts",
+           "secrets": $secrets_found
+         }
+       }
+       EOF
 
        - name: Upload security metrics
          uses: actions/upload-artifact@v4
-         with:
-           name: security-metrics-history
-           path: security-metrics-history/
-           retention-days: 90
+     with:
+       name: security-metrics-history
+       path: security-metrics-history/
+       retention-days: 90
 
-       - name: Cleanup logging
-         if: always()
-         uses: ./.github/actions/cleanup-logging
-         with:
-           final-status: ${{ job.status }}
-
-   # Security trend analysis
-   security-trends:
-     name: Security Trend Analysis
-     runs-on: ubuntu-latest
-     needs: [security-metrics]
+     - name: Cleanup logging
      if: always()
-     timeout-minutes: 5
+     uses: ./.github/actions/cleanup-logging
+      with:
+        final-status: ${{ job.status }}
+
+  # Security trend analysis
+  security-trends:
+    name: Security Trend Analysis
+    runs-on: ubuntu-latest
+    needs: [security-metrics]
+    if: always()
+    timeout-minutes: 5
 
      steps:
        - name: Setup structured logging
@@ -378,55 +378,55 @@ jobs:
 
        - name: Download security metrics history
          uses: actions/download-artifact@v4
-         with:
-           pattern: "security-metrics-history*"
-           merge-multiple: true
+     with:
+       pattern: "security-metrics-history*"
+       merge-multiple: true
 
        - name: Analyze security trends
          run: |
-           source log_helper.sh
-           log_structured "INFO" "Analyzing security trends"
+      source log_helper.sh
+      log_structured "INFO" "Analyzing security trends"
 
-           echo "## 📈 Security Trends" >> $GITHUB_STEP_SUMMARY
-           echo "" >> $GITHUB_STEP_SUMMARY
+       echo "## 📈 Security Trends" >> $GITHUB_STEP_SUMMARY
+       echo "" >> $GITHUB_STEP_SUMMARY
 
-           # Count historical metrics files
-           metrics_files=$(find . -name "security_metrics_*.json" | wc -l)
+       # Count historical metrics files
+       metrics_files=$(find . -name "security_metrics_*.json" | wc -l)
 
-           if [ "$metrics_files" -gt 1 ]; then
-             echo "📊 **Historical Analysis**: $metrics_files data points available" >> $GITHUB_STEP_SUMMARY
+       if [ "$metrics_files" -gt 1 ]; then
+         echo "📊 **Historical Analysis**: $metrics_files data points available" >> $GITHUB_STEP_SUMMARY
 
-             # Simple trend analysis (in production, use more sophisticated analysis)
-             latest_file=$(find . -name "security_metrics_*.json" -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
-             previous_file=$(find . -name "security_metrics_*.json" -printf '%T@ %p\n' | sort -n | tail -2 | head -1 | cut -d' ' -f2-)
+         # Simple trend analysis (in production, use more sophisticated analysis)
+         latest_file=$(find . -name "security_metrics_*.json" -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+         previous_file=$(find . -name "security_metrics_*.json" -printf '%T@ %p\n' | sort -n | tail -2 | head -1 | cut -d' ' -f2-)
 
-             if [ -f "$latest_file" ] && [ -f "$previous_file" ]; then
-               latest_rust=$(jq '.vulnerabilities.rust' "$latest_file" 2>/dev/null || echo "0")
-               previous_rust=$(jq '.vulnerabilities.rust' "$previous_file" 2>/dev/null || echo "0")
+         if [ -f "$latest_file" ] && [ -f "$previous_file" ]; then
+           latest_rust=$(jq '.vulnerabilities.rust' "$latest_file" 2>/dev/null || echo "0")
+           previous_rust=$(jq '.vulnerabilities.rust' "$previous_file" 2>/dev/null || echo "0")
 
-               if [ "$latest_rust" -gt "$previous_rust" ]; then
-                 echo "📈 **Rust Vulnerabilities**: Increased from $previous_rust to $latest_rust" >> $GITHUB_STEP_SUMMARY
-               elif [ "$latest_rust" -lt "$previous_rust" ]; then
-                 echo "📉 **Rust Vulnerabilities**: Decreased from $previous_rust to $latest_rust" >> $GITHUB_STEP_SUMMARY
-               else
-                 echo "➡️ **Rust Vulnerabilities**: Stable at $latest_rust" >> $GITHUB_STEP_SUMMARY
-               fi
-             fi
+           if [ "$latest_rust" -gt "$previous_rust" ]; then
+             echo "📈 **Rust Vulnerabilities**: Increased from $previous_rust to $latest_rust" >> $GITHUB_STEP_SUMMARY
+           elif [ "$latest_rust" -lt "$previous_rust" ]; then
+             echo "📉 **Rust Vulnerabilities**: Decreased from $previous_rust to $latest_rust" >> $GITHUB_STEP_SUMMARY
            else
-             echo "📊 **Historical Analysis**: Insufficient data for trend analysis" >> $GITHUB_STEP_SUMMARY
+             echo "➡️ **Rust Vulnerabilities**: Stable at $latest_rust" >> $GITHUB_STEP_SUMMARY
            fi
+         fi
+       else
+         echo "📊 **Historical Analysis**: Insufficient data for trend analysis" >> $GITHUB_STEP_SUMMARY
+       fi
 
-       - name: Cleanup logging
-         if: always()
-         uses: ./.github/actions/cleanup-logging
-         with:
-           final-status: ${{ job.status }}
+     - name: Cleanup logging
+     if: always()
+     uses: ./.github/actions/cleanup-logging
+      with:
+        final-status: ${{ job.status }}
 
-   # Security reports compliance validation
-   security-reports-validation:
-     name: Security Reports Compliance
-     runs-on: ubuntu-latest
-     timeout-minutes: 5
+  # Security reports compliance validation
+  security-reports-validation:
+    name: Security Reports Compliance
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 
      steps:
        - name: Checkout code
@@ -439,28 +439,28 @@ jobs:
 
        - name: Validate security reports compliance
          run: |
-           source log_helper.sh
-           log_structured "INFO" "Running security reports compliance validation"
+      source log_helper.sh
+      log_structured "INFO" "Running security reports compliance validation"
 
-           # Run the comprehensive validation script
-           ./scripts/validate-security-reports-compliance.sh
+      # Run the comprehensive validation script
+      ./scripts/validate-security-reports-compliance.sh
 
        - name: Upload compliance report
          uses: actions/upload-artifact@v4
-         if: always()
-         with:
-           name: security-reports-compliance
-           path: security-reports/compliance-report-*.json
-           retention-days: 30
+     if: always()
+     with:
+       name: security-reports-compliance
+       path: security-reports/compliance-report-*.json
+       retention-days: 30
 
-       - name: Cleanup logging
-         if: always()
-         uses: ./.github/actions/cleanup-logging
-         with:
-           final-status: ${{ job.status }}
+     - name: Cleanup logging
+     if: always()
+     uses: ./.github/actions/cleanup-logging
+      with:
+        final-status: ${{ job.status }}
 
-    # Security summary
-    security-summary:
+  # Security summary
+  security-summary:
       name: Security Summary
       runs-on: ubuntu-latest
       needs: [security-audit, frontend-security, codeql-analysis, dependency-review, container-scan, secrets-scan, security-metrics, security-trends, security-reports-validation]
@@ -475,47 +475,47 @@ jobs:
 
        - name: Generate comprehensive security summary
          run: |
-           source log_helper.sh
-           log_structured "INFO" "Generating comprehensive security summary"
+      source log_helper.sh
+        log_structured "INFO" "Generating comprehensive security summary"
 
-           echo "## 🔒 Comprehensive Security Summary" >> $GITHUB_STEP_SUMMARY
-           echo "" >> $GITHUB_STEP_SUMMARY
-           echo "| Check | Status | Details |" >> $GITHUB_STEP_SUMMARY
-           echo "|-------|--------|---------|" >> $GITHUB_STEP_SUMMARY
-            echo "| 🦀 Rust Audit | ${{ needs.security-audit.result }} | Cargo security vulnerabilities |" >> $GITHUB_STEP_SUMMARY
-            echo "| 📦 Frontend Security | ${{ needs.frontend-security.result }} | NPM audit and dependency checks |" >> $GITHUB_STEP_SUMMARY
-            echo "| 🔍 CodeQL Analysis | ${{ needs.codeql-analysis.result }} | Static analysis for JS/Rust |" >> $GITHUB_STEP_SUMMARY
-            echo "| 🔗 Dependency Review | ${{ needs.dependency-review.result }} | License and vulnerability checks |" >> $GITHUB_STEP_SUMMARY
-            echo "| 🐳 Container Scan | ${{ needs.container-scan.result }} | Docker image security |" >> $GITHUB_STEP_SUMMARY
-            echo "| 🔐 Secrets Scan | ${{ needs.secrets-scan.result }} | Leaked secrets detection |" >> $GITHUB_STEP_SUMMARY
-            echo "| 📊 Security Metrics | ${{ needs.security-metrics.result }} | Vulnerability tracking |" >> $GITHUB_STEP_SUMMARY
-            echo "| 📈 Security Trends | ${{ needs.security-trends.result }} | Historical analysis |" >> $GITHUB_STEP_SUMMARY
-            echo "| 📋 Reports Compliance | ${{ needs.security-reports-validation.result }} | Security reports organization |" >> $GITHUB_STEP_SUMMARY
-           echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 🔒 Comprehensive Security Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Check | Status | Details |" >> $GITHUB_STEP_SUMMARY
+        echo "|-------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+         echo "| 🦀 Rust Audit | ${{ needs.security-audit.result }} | Cargo security vulnerabilities |" >> $GITHUB_STEP_SUMMARY
+         echo "| 📦 Frontend Security | ${{ needs.frontend-security.result }} | NPM audit and dependency checks |" >> $GITHUB_STEP_SUMMARY
+         echo "| 🔍 CodeQL Analysis | ${{ needs.codeql-analysis.result }} | Static analysis for JS/Rust |" >> $GITHUB_STEP_SUMMARY
+         echo "| 🔗 Dependency Review | ${{ needs.dependency-review.result }} | License and vulnerability checks |" >> $GITHUB_STEP_SUMMARY
+         echo "| 🐳 Container Scan | ${{ needs.container-scan.result }} | Docker image security |" >> $GITHUB_STEP_SUMMARY
+         echo "| 🔐 Secrets Scan | ${{ needs.secrets-scan.result }} | Leaked secrets detection |" >> $GITHUB_STEP_SUMMARY
+         echo "| 📊 Security Metrics | ${{ needs.security-metrics.result }} | Vulnerability tracking |" >> $GITHUB_STEP_SUMMARY
+         echo "| 📈 Security Trends | ${{ needs.security-trends.result }} | Historical analysis |" >> $GITHUB_STEP_SUMMARY
+         echo "| 📋 Reports Compliance | ${{ needs.security-reports-validation.result }} | Security reports organization |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
 
-            # Critical security gate validation
-            critical_failures=0
-            if [[ "${{ needs.security-audit.result }}" == "failure" ]]; then
-              critical_failures=$((critical_failures + 1))
-            fi
-            if [[ "${{ needs.frontend-security.result }}" == "failure" ]]; then
-              critical_failures=$((critical_failures + 1))
-            fi
-            if [[ "${{ needs.secrets-scan.result }}" == "failure" ]]; then
-              critical_failures=$((critical_failures + 1))
-            fi
-            if [[ "${{ needs.security-reports-validation.result }}" == "failure" ]]; then
-              critical_failures=$((critical_failures + 1))
-            fi
+         # Critical security gate validation
+         critical_failures=0
+         if [[ "${{ needs.security-audit.result }}" == "failure" ]]; then
+           critical_failures=$((critical_failures + 1))
+         fi
+         if [[ "${{ needs.frontend-security.result }}" == "failure" ]]; then
+           critical_failures=$((critical_failures + 1))
+         fi
+         if [[ "${{ needs.secrets-scan.result }}" == "failure" ]]; then
+           critical_failures=$((critical_failures + 1))
+         fi
+         if [[ "${{ needs.security-reports-validation.result }}" == "failure" ]]; then
+           critical_failures=$((critical_failures + 1))
+         fi
 
-           if [ $critical_failures -gt 0 ]; then
-             log_structured "ERROR" "Critical security issues detected"
-             echo "🚨 **Critical security issues detected!** Immediate attention required." >> $GITHUB_STEP_SUMMARY
-             exit 1
-           else
-             log_structured "INFO" "All critical security checks passed"
-             echo "✅ **All critical security checks passed!**" >> $GITHUB_STEP_SUMMARY
-           fi
+        if [ $critical_failures -gt 0 ]; then
+          log_structured "ERROR" "Critical security issues detected"
+          echo "🚨 **Critical security issues detected!** Immediate attention required." >> $GITHUB_STEP_SUMMARY
+          exit 1
+        else
+          log_structured "INFO" "All critical security checks passed"
+          echo "✅ **All critical security checks passed!**" >> $GITHUB_STEP_SUMMARY
+        fi
 
        - name: Cleanup logging
          if: always()

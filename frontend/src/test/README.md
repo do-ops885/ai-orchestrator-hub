@@ -75,12 +75,14 @@ await server.stop()
 The mock server handles these WebSocket message types:
 
 #### Incoming Messages (Client → Server)
+
 - `create_agent` - Create a new agent
 - `create_task` - Create a new task
 - `get_status` - Request hive status
 - `ping` - Heartbeat/ping message
 
 #### Outgoing Messages (Server → Client)
+
 - `hive_status` - Initial and requested hive status
 - `agents_update` - Agent list updates
 - `tasks_update` - Task list updates
@@ -152,13 +154,13 @@ await WebSocketTestUtils.waitForInitialLoad(page)
 // Test agent creation workflow
 const agentId = await WebSocketTestUtils.testAgentCreation(page, {
   type: 'Worker',
-  name: 'Test Agent'
+  name: 'Test Agent',
 })
 
 // Test task creation workflow
 const taskId = await WebSocketTestUtils.testTaskCreation(page, {
   description: 'Test task',
-  priority: 3
+  priority: 3,
 })
 
 // Test reconnection scenarios
@@ -176,7 +178,7 @@ import {
   waitForWebSocketMessage,
   sendMockWebSocketMessage,
   simulateWebSocketError,
-  getMockData
+  getMockData,
 } from './playwright-websocket-utils'
 
 // Wait for connection
@@ -245,13 +247,10 @@ test.describe('My WebSocket Tests', () => {
     mockWebSocket.triggerUpdate()
 
     // Verify UI updates
-    await page.waitForFunction(
-      (count) => {
-        const store = (window as any).__ZUSTAND_STORE__
-        return store?.agents?.length > count
-      },
-      initialCount
-    )
+    await page.waitForFunction(count => {
+      const store = (window as any).__ZUSTAND_STORE__
+      return store?.agents?.length > count
+    }, initialCount)
   })
 })
 ```

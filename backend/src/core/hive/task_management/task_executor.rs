@@ -227,8 +227,6 @@ impl TaskExecutor {
         }
     }
 
-
-
     /// Internal task execution logic
     async fn execute_task_internal(
         &self,

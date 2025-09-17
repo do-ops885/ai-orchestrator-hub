@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import { useErrorRecovery, useAPIErrorRecovery, useNetworkRecovery, useComponentErrorRecovery } from './useErrorRecovery'
+import {
+  useErrorRecovery,
+  useAPIErrorRecovery,
+  useNetworkRecovery,
+  useComponentErrorRecovery,
+} from './useErrorRecovery'
 
 // Mock the error logger
 vi.mock('@/utils/errorLogger', () => ({
@@ -98,9 +103,7 @@ describe('useErrorRecovery', () => {
   it('should stop retrying after max retries', async () => {
     // Use a non-retryable error to avoid the retry loop
     const mockOperation = vi.fn().mockRejectedValue(new Error('Validation error'))
-    const { result } = renderHook(() =>
-      useErrorRecovery(mockOperation, { maxRetries: 2 })
-    )
+    const { result } = renderHook(() => useErrorRecovery(mockOperation, { maxRetries: 2 }))
 
     expect(result.current).toBeDefined()
     expect(result.current).not.toBeNull()
@@ -138,8 +141,8 @@ describe('useErrorRecovery', () => {
       useErrorRecovery(mockOperation, {
         maxRetries: 1,
         baseDelay: 10, // Reduce delay
-        retryCondition: (error) => error.message.includes('Custom'),
-      })
+        retryCondition: error => error.message.includes('Custom'),
+      }),
     )
 
     expect(result.current).toBeDefined()
@@ -209,9 +212,9 @@ describe('useErrorRecovery', () => {
   })
 
   it('should abort operation', async () => {
-    const mockOperation = vi.fn().mockImplementation(
-      () => new Promise(resolve => setTimeout(() => resolve('success'), 100))
-    )
+    const mockOperation = vi
+      .fn()
+      .mockImplementation(() => new Promise(resolve => setTimeout(() => resolve('success'), 100)))
     const { result } = renderHook(() => useErrorRecovery(mockOperation))
 
     expect(result.current).toBeDefined()
@@ -237,7 +240,8 @@ describe('useAPIErrorRecovery', () => {
   })
 
   it('should retry on server errors', async () => {
-    const mockAPICall = vi.fn()
+    const mockAPICall = vi
+      .fn()
       .mockRejectedValueOnce(new Error('500 Internal Server Error'))
       .mockResolvedValueOnce('success')
 

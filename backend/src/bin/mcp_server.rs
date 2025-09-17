@@ -12,7 +12,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::RwLock;
 use tracing::{error, info, Level};
 
-/// Standalone MCP Server for Multiagent Hive Systemcon
+/// Standalone MCP Server for Multiagent Hive System
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize tracing

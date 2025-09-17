@@ -76,23 +76,22 @@ impl TaskDistributor {
 
         // Move CPU-intensive computation to blocking thread
         let history_clone: Vec<_> = history.iter().cloned().collect();
-        let stats = task::spawn_blocking(move || {
-            Self::calculate_execution_statistics_sync(&history_clone)
-        })
-        .await
-        .unwrap_or_else(|_| {
-            tracing::warn!(
+        let stats =
+            task::spawn_blocking(move || Self::calculate_execution_statistics_sync(&history_clone))
+                .await
+                .unwrap_or_else(|_| {
+                    tracing::warn!(
                 "Failed to calculate execution statistics asynchronously, using basic stats"
             );
-            serde_json::json!({
-                "total_executions": total_executions,
-                "successful_executions": 0,
-                "failed_executions": total_executions,
-                "success_rate": 0.0,
-                "average_execution_time_ms": 0.0,
-                "agent_performance": {}
-            })
-        });
+                    serde_json::json!({
+                        "total_executions": total_executions,
+                        "successful_executions": 0,
+                        "failed_executions": total_executions,
+                        "success_rate": 0.0,
+                        "average_execution_time_ms": 0.0,
+                        "agent_performance": {}
+                    })
+                });
 
         stats
     }

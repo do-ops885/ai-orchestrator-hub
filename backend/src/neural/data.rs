@@ -243,12 +243,13 @@ impl StreamingDataLoader {
 
         // Pre-allocate memory pool for better performance
         {
-            let mut pool = loader
-                .memory_pool
-                .try_write()
-                .map_err(|e| HiveError::ProcessingError {
-                    reason: format!("Failed to acquire write lock on memory pool: {}", e),
-                })?;
+            let mut pool =
+                loader
+                    .memory_pool
+                    .try_write()
+                    .map_err(|e| HiveError::ProcessingError {
+                        reason: format!("Failed to acquire write lock on memory pool: {}", e),
+                    })?;
             for _ in 0..loader.config.memory_pool_size {
                 pool.push(vec![0u8; loader.config.max_chunk_size]);
             }
@@ -348,11 +349,9 @@ impl StreamingDataLoader {
                 reason: format!("Failed to compress chunk data: {}", e),
             })?;
 
-        encoder
-            .finish()
-            .map_err(|e| HiveError::ProcessingError {
-                reason: format!("Failed to finish compression: {}", e),
-            })?;
+        encoder.finish().map_err(|e| HiveError::ProcessingError {
+            reason: format!("Failed to finish compression: {}", e),
+        })?;
 
         Ok(self.compression_buffer.clone())
     }
@@ -766,12 +765,12 @@ impl DataPipeline {
         &self,
         loader_id: &str,
     ) -> HiveResult<Option<StreamingBatch>> {
-        let loader = self
-            .data_loaders
-            .get(loader_id)
-            .ok_or_else(|| HiveError::ProcessingError {
-                reason: format!("Data loader '{}' not found", loader_id),
-            })?;
+        let loader =
+            self.data_loaders
+                .get(loader_id)
+                .ok_or_else(|| HiveError::ProcessingError {
+                    reason: format!("Data loader '{}' not found", loader_id),
+                })?;
 
         let mut loader = loader.write().await;
 
@@ -826,13 +825,11 @@ impl DataPipeline {
         batch_size: usize,
         shuffle: bool,
     ) -> HiveResult<String> {
-        let dataset = Arc::clone(
-            self.datasets
-                .get(dataset_name)
-                .ok_or_else(|| HiveError::ProcessingError {
-                    reason: format!("Dataset '{}' not found", dataset_name),
-                })?,
-        );
+        let dataset = Arc::clone(self.datasets.get(dataset_name).ok_or_else(|| {
+            HiveError::ProcessingError {
+                reason: format!("Dataset '{}' not found", dataset_name),
+            }
+        })?);
 
         let num_samples = dataset.read().await.features.len();
         let indices: Vec<usize> = (0..num_samples).collect();
@@ -859,12 +856,12 @@ impl DataPipeline {
 
     /// Get next batch from data loader
     pub async fn get_next_batch(&self, loader_id: &str) -> HiveResult<Option<DataBatch>> {
-        let loader = self
-            .data_loaders
-            .get(loader_id)
-            .ok_or_else(|| HiveError::ProcessingError {
-                reason: format!("Data loader '{}' not found", loader_id),
-            })?;
+        let loader =
+            self.data_loaders
+                .get(loader_id)
+                .ok_or_else(|| HiveError::ProcessingError {
+                    reason: format!("Data loader '{}' not found", loader_id),
+                })?;
 
         let mut loader = loader.write().await;
 
@@ -936,12 +933,12 @@ impl DataPipeline {
         dataset_name: &str,
         pipeline: &PreprocessingPipeline,
     ) -> HiveResult<()> {
-        let dataset = self
-            .datasets
-            .get(dataset_name)
-            .ok_or_else(|| HiveError::ProcessingError {
-                reason: format!("Dataset '{}' not found", dataset_name),
-            })?;
+        let dataset =
+            self.datasets
+                .get(dataset_name)
+                .ok_or_else(|| HiveError::ProcessingError {
+                    reason: format!("Dataset '{}' not found", dataset_name),
+                })?;
 
         let mut dataset = dataset.write().await;
 

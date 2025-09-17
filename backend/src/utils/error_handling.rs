@@ -463,7 +463,10 @@ mod tests {
         let result = safe_ops.execute_safely(async { Ok("success") }).await;
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap_or_else(|e| panic!("Safe operation should succeed: {e}")), "success");
+        assert_eq!(
+            result.expect("Safe operation should succeed"),
+            "success"
+        );
     }
 
     #[tokio::test]
@@ -507,7 +510,10 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap_or_else(|e| panic!("Retry operation should succeed: {e}")), "success_after_retry");
+        assert_eq!(
+            result.expect("Retry operation should succeed"),
+            "success_after_retry"
+        );
         assert_eq!(attempt_count.load(std::sync::atomic::Ordering::SeqCst), 3);
     }
 
@@ -544,7 +550,8 @@ mod tests {
         // Test expect_or_error
         let some_value: Option<i32> = Some(42);
         assert_eq!(
-            safe_option::expect_or_error(some_value, "error").unwrap_or_else(|e| panic!("expect_or_error should succeed with Some value: {e}")),
+            safe_option::expect_or_error(some_value, "error")
+                .expect("expect_or_error should succeed with Some value"),
             42
         );
 

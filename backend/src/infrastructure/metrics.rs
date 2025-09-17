@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, warn};
-// use uuid::Uuid; // Commented out to avoid unused import warning
 
 /// Comprehensive metrics collection for the hive system
 #[derive(Debug, Clone, Serialize, Deserialize)]

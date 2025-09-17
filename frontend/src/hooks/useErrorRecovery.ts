@@ -443,13 +443,22 @@ export function useWebSocketErrorRecovery() {
 
         // Enhanced retry conditions with error code analysis
         const retryableErrors = [
-          'network', 'timeout', 'connection', 'websocket',
-          '1006', '1001', '1008', '1011', // WebSocket close codes
-          'ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', // Network errors
+          'network',
+          'timeout',
+          'connection',
+          'websocket',
+          '1006',
+          '1001',
+          '1008',
+          '1011', // WebSocket close codes
+          'ENOTFOUND',
+          'ECONNREFUSED',
+          'ETIMEDOUT', // Network errors
         ]
 
-        const isRetryable = retryableErrors.some(keyword => message.includes(keyword)) ||
-                           (errorCode >= 1000 && errorCode <= 1015 && errorCode !== 1000)
+        const isRetryable =
+          retryableErrors.some(keyword => message.includes(keyword)) ||
+          (errorCode >= 1000 && errorCode <= 1015 && errorCode !== 1000)
 
         // Don't retry on authentication errors or explicit rejections
         const nonRetryableErrors = ['1008', 'authentication', 'unauthorized', 'forbidden']
@@ -515,7 +524,13 @@ export function useWebSocketErrorRecovery() {
         }, delay)
       }
     },
-    [connectionState, recovery, circuitBreakerThreshold, circuitBreakerTimeout, maxReconnectAttempts],
+    [
+      connectionState,
+      recovery,
+      circuitBreakerThreshold,
+      circuitBreakerTimeout,
+      maxReconnectAttempts,
+    ],
   )
 
   const handleWebSocketSuccess = useCallback(() => {
@@ -549,7 +564,9 @@ export function useWebSocketErrorRecovery() {
 
     recovery.reset()
 
-    console.warn(`✅ WebSocket recovery successful - stability: ${newStability.toFixed(2)}, quality: ${newQuality}`)
+    console.warn(
+      `✅ WebSocket recovery successful - stability: ${newStability.toFixed(2)}, quality: ${newQuality}`,
+    )
   }, [connectionState, recovery])
 
   const handleWebSocketDisconnect = useCallback(() => {
@@ -563,7 +580,8 @@ export function useWebSocketErrorRecovery() {
 
   const canAttemptReconnection = useCallback(() => {
     const now = Date.now()
-    const { circuitBreakerOpen, circuitBreakerTimeout, reconnectAttempts, failurePrediction } = connectionState
+    const { circuitBreakerOpen, circuitBreakerTimeout, reconnectAttempts, failurePrediction } =
+      connectionState
 
     // Check circuit breaker
     if (circuitBreakerOpen && now < circuitBreakerTimeout) {
@@ -608,7 +626,9 @@ export function useWebSocketErrorRecovery() {
     }
 
     if (reconnectAttempts >= circuitBreakerThreshold - 2) {
-      suggestions.push('Approaching circuit breaker threshold - prepare for potential disconnection')
+      suggestions.push(
+        'Approaching circuit breaker threshold - prepare for potential disconnection',
+      )
     }
 
     if (connectionQuality === 'critical') {

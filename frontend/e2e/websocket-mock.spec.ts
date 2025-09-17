@@ -7,19 +7,28 @@ test.describe('WebSocket Mock E2E Tests', () => {
     await page.goto('/')
 
     // Wait for the main dashboard to load
-    await page.waitForFunction(() => {
-      const mainHeading = document.querySelector('h1:has-text("🐝 Multiagent Hive System")')
-      return mainHeading !== null
-    }, { timeout: 10000 })
+    await page.waitForFunction(
+      () => {
+        const mainHeading = document.querySelector('h1:has-text("🐝 Multiagent Hive System")')
+        return mainHeading !== null
+      },
+      { timeout: 10000 },
+    )
   })
 
-  test('should establish WebSocket connection with mock server', async ({ page, mockWebSocket }) => {
+  test('should establish WebSocket connection with mock server', async ({
+    page,
+    mockWebSocket,
+  }) => {
     // Wait for WebSocket connection to be established
-    await page.waitForFunction(() => {
-      // Check if the WebSocket connection is established
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.isConnected === true
-    }, { timeout: 5000 })
+    await page.waitForFunction(
+      () => {
+        // Check if the WebSocket connection is established
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.isConnected === true
+      },
+      { timeout: 5000 },
+    )
 
     // Verify connection status is displayed
     const connectionStatus = page.locator('[class*="bg-green-100"]')
@@ -32,10 +41,13 @@ test.describe('WebSocket Mock E2E Tests', () => {
 
   test('should receive initial hive status from mock server', async ({ page }) => {
     // Wait for WebSocket connection and initial data
-    await page.waitForFunction(() => {
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.hiveStatus !== null && store?.hiveStatus?.hive_id !== undefined
-    }, { timeout: 5000 })
+    await page.waitForFunction(
+      () => {
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.hiveStatus !== null && store?.hiveStatus?.hive_id !== undefined
+      },
+      { timeout: 5000 },
+    )
 
     // Verify hive status is displayed
     const hiveStatus = await page.evaluate(() => {
@@ -50,10 +62,13 @@ test.describe('WebSocket Mock E2E Tests', () => {
 
   test('should receive periodic updates from mock server', async ({ page }) => {
     // Wait for initial data load
-    await page.waitForFunction(() => {
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.agents?.length > 0
-    }, { timeout: 5000 })
+    await page.waitForFunction(
+      () => {
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.agents?.length > 0
+      },
+      { timeout: 5000 },
+    )
 
     const initialMetrics = await page.evaluate(() => {
       const store = (window as any).__ZUSTAND_STORE__
@@ -88,19 +103,19 @@ test.describe('WebSocket Mock E2E Tests', () => {
         store.createAgent({
           type: 'Worker',
           name: 'Test Agent',
-          capabilities: ['processing']
+          capabilities: ['processing'],
         })
       }
     })
 
     // Wait for agent creation response
     await page.waitForFunction(
-      (initialCount) => {
+      initialCount => {
         const store = (window as any).__ZUSTAND_STORE__
         return store?.agents?.length > initialCount
       },
       initialAgentCount,
-      { timeout: 5000 }
+      { timeout: 5000 },
     )
 
     // Verify agent count increased
@@ -130,19 +145,19 @@ test.describe('WebSocket Mock E2E Tests', () => {
         store.createTask({
           description: 'Test task from WebSocket mock',
           priority: 3,
-          type: 'processing'
+          type: 'processing',
         })
       }
     })
 
     // Wait for task creation response
     await page.waitForFunction(
-      (initialCount) => {
+      initialCount => {
         const store = (window as any).__ZUSTAND_STORE__
         return store?.tasks?.length > initialCount
       },
       initialTaskCount,
-      { timeout: 5000 }
+      { timeout: 5000 },
     )
 
     // Verify task count increased
@@ -160,19 +175,25 @@ test.describe('WebSocket Mock E2E Tests', () => {
 
   test('should handle WebSocket reconnection', async ({ page, mockWebSocket }) => {
     // Wait for initial connection
-    await page.waitForFunction(() => {
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.isConnected === true
-    }, { timeout: 5000 })
+    await page.waitForFunction(
+      () => {
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.isConnected === true
+      },
+      { timeout: 5000 },
+    )
 
     // Simulate disconnection by stopping mock server
     await mockWebSocket.stop()
 
     // Wait for disconnection to be detected
-    await page.waitForFunction(() => {
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.isConnected === false
-    }, { timeout: 10000 })
+    await page.waitForFunction(
+      () => {
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.isConnected === false
+      },
+      { timeout: 10000 },
+    )
 
     // Verify disconnected status is shown
     const connectionStatus = page.locator('[class*="bg-red-100"]')
@@ -183,10 +204,13 @@ test.describe('WebSocket Mock E2E Tests', () => {
     await mockWebSocket.start()
 
     // Wait for reconnection
-    await page.waitForFunction(() => {
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.isConnected === true
-    }, { timeout: 10000 })
+    await page.waitForFunction(
+      () => {
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.isConnected === true
+      },
+      { timeout: 10000 },
+    )
 
     // Verify reconnected status
     const reconnectedStatus = page.locator('[class*="bg-green-100"]')
@@ -196,10 +220,13 @@ test.describe('WebSocket Mock E2E Tests', () => {
 
   test('should handle WebSocket errors gracefully', async ({ page, mockWebSocket }) => {
     // Wait for initial connection
-    await page.waitForFunction(() => {
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.isConnected === true
-    }, { timeout: 5000 })
+    await page.waitForFunction(
+      () => {
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.isConnected === true
+      },
+      { timeout: 5000 },
+    )
 
     // Simulate an error from the mock server
     mockWebSocket.simulateError('Test error from mock server')
@@ -219,10 +246,13 @@ test.describe('WebSocket Mock E2E Tests', () => {
 
   test('should display real-time agent data from mock server', async ({ page }) => {
     // Wait for agents data to load
-    await page.waitForFunction(() => {
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.agents?.length > 0
-    }, { timeout: 5000 })
+    await page.waitForFunction(
+      () => {
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.agents?.length > 0
+      },
+      { timeout: 5000 },
+    )
 
     // Verify agents are displayed in the UI
     const agentsData = await page.evaluate(() => {
@@ -245,10 +275,13 @@ test.describe('WebSocket Mock E2E Tests', () => {
 
   test('should display real-time task data from mock server', async ({ page }) => {
     // Wait for tasks data to load
-    await page.waitForFunction(() => {
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.tasks?.length > 0
-    }, { timeout: 5000 })
+    await page.waitForFunction(
+      () => {
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.tasks?.length > 0
+      },
+      { timeout: 5000 },
+    )
 
     // Verify tasks are displayed in the UI
     const tasksData = await page.evaluate(() => {
@@ -270,10 +303,13 @@ test.describe('WebSocket Mock E2E Tests', () => {
 
   test('should handle rapid WebSocket message bursts', async ({ page, mockWebSocket }) => {
     // Wait for initial connection
-    await page.waitForFunction(() => {
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.isConnected === true
-    }, { timeout: 5000 })
+    await page.waitForFunction(
+      () => {
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.isConnected === true
+      },
+      { timeout: 5000 },
+    )
 
     // Send multiple rapid updates
     for (let i = 0; i < 5; i++) {
@@ -302,10 +338,13 @@ test.describe('WebSocket Mock E2E Tests', () => {
 
   test('should maintain connection quality metrics', async ({ page }) => {
     // Wait for connection to be established and stable
-    await page.waitForFunction(() => {
-      const store = (window as any).__ZUSTAND_STORE__
-      return store?.isConnected === true && store?.connectionQuality !== 'disconnected'
-    }, { timeout: 5000 })
+    await page.waitForFunction(
+      () => {
+        const store = (window as any).__ZUSTAND_STORE__
+        return store?.isConnected === true && store?.connectionQuality !== 'disconnected'
+      },
+      { timeout: 5000 },
+    )
 
     // Wait for some time to let connection quality be calculated
     await page.waitForTimeout(3000)
