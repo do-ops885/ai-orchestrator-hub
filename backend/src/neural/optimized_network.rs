@@ -17,12 +17,13 @@ use crate::utils::error::{HiveError, HiveResult};
 use nalgebra::{DMatrix, DVector};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::ops::AddAssign;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
 /// High-performance neural network optimized for agent tasks
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OptimizedNeuralNetwork {
     /// Network architecture specification
     pub config: NetworkConfig,
@@ -125,7 +126,7 @@ pub struct NetworkMetrics {
 }
 
 /// Memory pool for zero-allocation forward/backward passes
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryPool {
     /// Pre-allocated activation buffers
     activations: Vec<DVector<f32>>,
@@ -163,7 +164,7 @@ impl OptimizedNeuralNetwork {
     /// Create a new optimized neural network
     pub fn new(config: NetworkConfig) -> HiveResult<Self> {
         if config.layers.len() < 2 {
-            return Err(HiveError::InvalidInput {
+            return Err(HiveError::ValidationError {
                 field: "layers".to_string(),
                 reason: "Network must have at least input and output layers".to_string(),
             });
@@ -185,15 +186,14 @@ impl OptimizedNeuralNetwork {
                 rng.gen_range(-weight_scale..weight_scale)
             });
 
-            let bias_vector = DVector::from_fn(output_size, |_, _| {
-                rng.gen_range(-0.1..0.1)
-            });
+            let bias_vector = DVector::from_fn(output_size, |_, _| rng.gen_range(-0.1..0.1));
 
             weights.push(weight_matrix);
             biases.push(bias_vector);
 
             // Choose activation function based on layer position and specialization
-            let activation = Self::choose_activation(&config.specialization, i, config.layers.len() - 1);
+            let activation =
+                Self::choose_activation(&config.specialization, i, config.layers.len() - 1);
             activations.push(activation);
         }
 
@@ -234,16 +234,22 @@ impl OptimizedNeuralNetwork {
         // Output layer activation
         if layer_index == total_layers - 1 {
             match specialization {
-                NetworkSpecialization::SentimentAnalysis { .. } => ActivationFunction::OptimizedTanh,
+                NetworkSpecialization::SentimentAnalysis { .. } => {
+                    ActivationFunction::OptimizedTanh
+                }
                 NetworkSpecialization::PatternRecognition { .. } => ActivationFunction::FastSigmoid,
-                NetworkSpecialization::CoordinationDecision { .. } => ActivationFunction::FastSigmoid,
+                NetworkSpecialization::CoordinationDecision { .. } => {
+                    ActivationFunction::FastSigmoid
+                }
                 _ => ActivationFunction::FastSigmoid,
             }
         }
         // Hidden layer activations
         else {
             match specialization {
-                NetworkSpecialization::TimeSeriesPrediction { .. } => ActivationFunction::LeakyReLU { alpha: 0.01 },
+                NetworkSpecialization::TimeSeriesPrediction { .. } => {
+                    ActivationFunction::LeakyReLU { alpha: 0.01 }
+                }
                 NetworkSpecialization::PatternRecognition { .. } => ActivationFunction::Swish,
                 NetworkSpecialization::CoordinationDecision { .. } => ActivationFunction::GELU,
                 _ => ActivationFunction::LeakyReLU { alpha: 0.01 },
@@ -256,7 +262,7 @@ impl OptimizedNeuralNetwork {
         let start_time = std::time::Instant::now();
 
         if input.len() != self.config.layers[0] {
-            return Err(HiveError::InvalidInput {
+            return Err(HiveError::ValidationError {
                 field: "input".to_string(),
                 reason: format!(
                     "Expected input size {}, got {}",
@@ -278,7 +284,7 @@ impl OptimizedNeuralNetwork {
         }
 
         let inference_time_us = start_time.elapsed().as_micros() as f64;
-        
+
         // Calculate confidence based on output distribution
         let confidence = self.calculate_confidence(&current_activation);
 
@@ -295,7 +301,7 @@ impl OptimizedNeuralNetwork {
     /// Fast batch forward pass for training
     pub fn forward_batch(&mut self, inputs: &DMatrix<f32>) -> HiveResult<DMatrix<f32>> {
         if inputs.nrows() != self.config.layers[0] {
-            return Err(HiveError::InvalidInput {
+            return Err(HiveError::ValidationError {
                 field: "inputs".to_string(),
                 reason: format!(
                     "Expected input size {}, got {}",
@@ -311,7 +317,7 @@ impl OptimizedNeuralNetwork {
         for i in 0..self.weights.len() {
             // Batch matrix multiplication
             let linear_output = &self.weights[i] * &current_batch;
-            
+
             // Add biases to each column (sample)
             let mut biased_output = linear_output;
             for col in 0..biased_output.ncols() {
@@ -365,28 +371,34 @@ impl OptimizedNeuralNetwork {
         match activation {
             ActivationFunction::FastSigmoid => {
                 // Fast sigmoid approximation: x / (1 + |x|)
-                output.apply(|x| *x / (1.0 + x.abs()));
+                output.apply(|x| {
+                    *x = *x / (1.0 + x.abs());
+                });
             }
             ActivationFunction::OptimizedTanh => {
                 // Fast tanh approximation
                 output.apply(|x| {
                     let exp2x = (2.0 * *x).exp();
-                    (exp2x - 1.0) / (exp2x + 1.0)
+                    *x = (exp2x - 1.0) / (exp2x + 1.0);
                 });
             }
             ActivationFunction::LeakyReLU { alpha } => {
-                output.apply(|x| if *x > 0.0 { *x } else { *alpha * *x });
+                output.apply(|x| {
+                    *x = if *x > 0.0 { *x } else { *alpha * *x };
+                });
             }
             ActivationFunction::Swish => {
                 // Swish: x * sigmoid(x)
-                output.apply(|x| *x / (1.0 + (-*x).exp()));
+                output.apply(|x| {
+                    *x = *x / (1.0 + (-*x).exp());
+                });
             }
             ActivationFunction::GELU => {
                 // GELU approximation: 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x³)))
                 output.apply(|x| {
                     let x3 = x.powi(3);
                     let inner = (2.0 / std::f32::consts::PI).sqrt() * (*x + 0.044715 * x3);
-                    0.5 * *x * (1.0 + inner.tanh())
+                    *x = 0.5 * *x * (1.0 + inner.tanh());
                 });
             }
             ActivationFunction::Linear => {
@@ -407,25 +419,27 @@ impl OptimizedNeuralNetwork {
 
         match activation {
             ActivationFunction::FastSigmoid => {
-                output.apply(|x| *x / (1.0 + x.abs()));
+                output.apply(|x| *x = *x / (1.0 + x.abs()));
             }
             ActivationFunction::OptimizedTanh => {
                 output.apply(|x| {
                     let exp2x = (2.0 * *x).exp();
-                    (exp2x - 1.0) / (exp2x + 1.0)
+                    *x = (exp2x - 1.0) / (exp2x + 1.0);
                 });
             }
             ActivationFunction::LeakyReLU { alpha } => {
-                output.apply(|x| if *x > 0.0 { *x } else { *alpha * *x });
+                output.apply(|x| {
+                    *x = if *x > 0.0 { *x } else { *alpha * *x };
+                });
             }
             ActivationFunction::Swish => {
-                output.apply(|x| *x / (1.0 + (-*x).exp()));
+                output.apply(|x| *x = *x / (1.0 + (-*x).exp()));
             }
             ActivationFunction::GELU => {
                 output.apply(|x| {
                     let x3 = x.powi(3);
                     let inner = (2.0 / std::f32::consts::PI).sqrt() * (*x + 0.044715 * x3);
-                    0.5 * *x * (1.0 + inner.tanh())
+                    *x = 0.5 * *x * (1.0 + inner.tanh());
                 });
             }
             ActivationFunction::Linear => {
@@ -437,9 +451,13 @@ impl OptimizedNeuralNetwork {
     }
 
     /// Calculate loss with regularization
-    fn calculate_loss(&self, predictions: &DMatrix<f32>, targets: &DMatrix<f32>) -> HiveResult<f32> {
+    fn calculate_loss(
+        &self,
+        predictions: &DMatrix<f32>,
+        targets: &DMatrix<f32>,
+    ) -> HiveResult<f32> {
         if predictions.shape() != targets.shape() {
-            return Err(HiveError::InvalidInput {
+            return Err(HiveError::ValidationError {
                 field: "predictions/targets".to_string(),
                 reason: "Shape mismatch between predictions and targets".to_string(),
             });
@@ -467,22 +485,22 @@ impl OptimizedNeuralNetwork {
         targets: &DMatrix<f32>,
     ) -> HiveResult<()> {
         let batch_size = inputs.ncols() as f32;
-        
+
         // Calculate output layer gradients
         let output_error = predictions - targets;
-        
+
         // Backpropagate through layers (simplified implementation)
         // In a full implementation, this would compute gradients for all layers
         let last_layer_idx = self.weights.len() - 1;
-        
+
         // Update last layer weights with simple gradient descent
         let weight_gradient = &output_error * inputs.transpose() / batch_size;
         let bias_gradient = output_error.row_sum() / batch_size;
-        
+
         // Apply gradients with momentum and regularization
-        self.weights[last_layer_idx] -= self.config.learning_rate * 
-            (weight_gradient + self.config.regularization * &self.weights[last_layer_idx]);
-        
+        self.weights[last_layer_idx] -= self.config.learning_rate
+            * (weight_gradient + self.config.regularization * &self.weights[last_layer_idx]);
+
         self.biases[last_layer_idx] -= self.config.learning_rate * bias_gradient;
 
         Ok(())
@@ -515,7 +533,7 @@ impl OptimizedNeuralNetwork {
         // Simple adaptive learning rate (can be enhanced with more sophisticated methods)
         if self.metrics.training_steps > 10 {
             let loss_ratio = current_loss / self.metrics.current_loss.max(1e-8);
-            
+
             if loss_ratio > 1.1 {
                 // Loss is increasing, reduce learning rate
                 self.config.learning_rate *= 0.95;
@@ -523,7 +541,7 @@ impl OptimizedNeuralNetwork {
                 // Loss is decreasing well, slightly increase learning rate
                 self.config.learning_rate *= 1.01;
             }
-            
+
             // Clamp learning rate to reasonable bounds
             self.config.learning_rate = self.config.learning_rate.clamp(1e-6, 0.1);
         }
@@ -536,14 +554,16 @@ impl OptimizedNeuralNetwork {
 
     /// Save network to binary format
     pub fn save_to_bytes(&self) -> HiveResult<Vec<u8>> {
-        bincode::serialize(self).map_err(|e| HiveError::SerializationError {
+        bincode::serialize(self).map_err(|e| HiveError::ValidationError {
+            field: "network_serialization".to_string(),
             reason: format!("Failed to serialize network: {}", e),
         })
     }
 
     /// Load network from binary format
     pub fn load_from_bytes(data: &[u8]) -> HiveResult<Self> {
-        bincode::deserialize(data).map_err(|e| HiveError::SerializationError {
+        bincode::deserialize(data).map_err(|e| HiveError::ValidationError {
+            field: "network_deserialization".to_string(),
             reason: format!("Failed to deserialize network: {}", e),
         })
     }
@@ -585,7 +605,10 @@ impl OptimizedNeuralNetwork {
     }
 
     /// Create specialized network for coordination decisions
-    pub fn create_coordination_network(agent_count: usize, action_space: usize) -> HiveResult<Self> {
+    pub fn create_coordination_network(
+        agent_count: usize,
+        action_space: usize,
+    ) -> HiveResult<Self> {
         let config = NetworkConfig {
             layers: vec![agent_count * 4, 96, 48, action_space], // 4 features per agent
             learning_rate: 0.005,
@@ -686,15 +709,18 @@ impl OptimizedNeuralManager {
         specialization: NetworkSpecialization,
     ) -> HiveResult<()> {
         let network = match specialization {
-            NetworkSpecialization::SentimentAnalysis { vocab_size, embedding_dim } => {
-                OptimizedNeuralNetwork::create_sentiment_network(vocab_size, embedding_dim)?
-            }
-            NetworkSpecialization::PatternRecognition { feature_dim, num_classes } => {
-                OptimizedNeuralNetwork::create_pattern_network(feature_dim, num_classes)?
-            }
-            NetworkSpecialization::CoordinationDecision { agent_count, action_space } => {
-                OptimizedNeuralNetwork::create_coordination_network(agent_count, action_space)?
-            }
+            NetworkSpecialization::SentimentAnalysis {
+                vocab_size,
+                embedding_dim,
+            } => OptimizedNeuralNetwork::create_sentiment_network(vocab_size, embedding_dim)?,
+            NetworkSpecialization::PatternRecognition {
+                feature_dim,
+                num_classes,
+            } => OptimizedNeuralNetwork::create_pattern_network(feature_dim, num_classes)?,
+            NetworkSpecialization::CoordinationDecision {
+                agent_count,
+                action_space,
+            } => OptimizedNeuralNetwork::create_coordination_network(agent_count, action_space)?,
             _ => {
                 let config = NetworkConfig {
                     layers: vec![100, 64, 32, 1],
@@ -727,32 +753,30 @@ impl OptimizedNeuralManager {
         input: &DVector<f32>,
     ) -> HiveResult<InferenceResult> {
         let mut networks = self.networks.write().await;
-        let network = networks.get_mut(&agent_id).ok_or_else(|| HiveError::NotFound {
-            resource: "neural_network".to_string(),
-            id: agent_id.to_string(),
-        })?;
+        let network = networks
+            .get_mut(&agent_id)
+            .ok_or_else(|| HiveError::NotFound {
+                resource: agent_id.to_string(),
+            })?;
 
         let result = network.forward(input)?;
 
         // Update global metrics
         let mut metrics = self.global_metrics.write().await;
-        metrics.avg_inference_time_us = 
+        metrics.avg_inference_time_us =
             (metrics.avg_inference_time_us + result.inference_time_us) / 2.0;
 
         Ok(result)
     }
 
     /// Train a network with a batch of data
-    pub async fn train(
-        &self,
-        agent_id: Uuid,
-        batch: &TrainingBatch,
-    ) -> HiveResult<f32> {
+    pub async fn train(&self, agent_id: Uuid, batch: &TrainingBatch) -> HiveResult<f32> {
         let mut networks = self.networks.write().await;
-        let network = networks.get_mut(&agent_id).ok_or_else(|| HiveError::NotFound {
-            resource: "neural_network".to_string(),
-            id: agent_id.to_string(),
-        })?;
+        let network = networks
+            .get_mut(&agent_id)
+            .ok_or_else(|| HiveError::NotFound {
+                resource: agent_id.to_string(),
+            })?;
 
         let loss = network.train_step(batch)?;
 
@@ -798,7 +822,10 @@ mod tests {
             specialization: NetworkSpecialization::GeneralPurpose,
         };
 
-        let network = OptimizedNeuralNetwork::new(config).unwrap();
+        let network = match OptimizedNeuralNetwork::new(config) {
+            Ok(net) => net,
+            Err(e) => panic!("Failed to create network: {:?}", e),
+        };
         assert_eq!(network.weights.len(), 2);
         assert_eq!(network.biases.len(), 2);
     }
@@ -816,10 +843,16 @@ mod tests {
             specialization: NetworkSpecialization::GeneralPurpose,
         };
 
-        let mut network = OptimizedNeuralNetwork::new(config).unwrap();
+        let mut network = match OptimizedNeuralNetwork::new(config) {
+            Ok(net) => net,
+            Err(e) => panic!("Failed to create network: {:?}", e),
+        };
         let input = DVector::from_vec(vec![1.0, 0.5, -0.5]);
-        
-        let result = network.forward(&input).unwrap();
+
+        let result = match network.forward(&input) {
+            Ok(res) => res,
+            Err(e) => panic!("Forward pass failed: {:?}", e),
+        };
         assert_eq!(result.outputs.len(), 1);
         assert!(result.confidence >= 0.0 && result.confidence <= 1.0);
         assert!(result.inference_time_us > 0.0);

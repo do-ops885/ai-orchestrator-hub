@@ -107,13 +107,16 @@ jobs:
           echo "plan=$plan" >> $GITHUB_OUTPUT
           log_structured "INFO" "Maintenance plan created" "{\"plan\": $plan}"
 
-  # Enhanced dependency updates with automated PR creation
-  dependency-updates:
-    name: Dependency Updates
-    runs-on: ubuntu-latest
-    needs: maintenance-setup
-    if: fromJson(needs.maintenance-setup.outputs.maintenance-plan).dependencies
-    timeout-minutes: 45
+   # Enhanced dependency updates with automated PR creation
+   dependency-updates:
+     name: Dependency Updates
+     runs-on: ubuntu-latest
+     needs: maintenance-setup
+     if: fromJson(needs.maintenance-setup.outputs.maintenance-plan).dependencies
+     timeout-minutes: 45
+     permissions:
+       contents: write
+       pull-requests: write
 
     steps:
       - name: Checkout code
@@ -368,13 +371,16 @@ jobs:
             '{"status": "${{ job.status }}", "has_updates": "${{ env.HAS_UPDATES }}"}'
           rm -f log_helper.sh
 
-  # Enhanced cache maintenance with intelligent cleanup
-  cache-maintenance:
-    name: Cache Maintenance
-    runs-on: ubuntu-latest
-    needs: maintenance-setup
-    if: fromJson(needs.maintenance-setup.outputs.maintenance-plan).cache
-    timeout-minutes: 20
+   # Enhanced cache maintenance with intelligent cleanup
+   cache-maintenance:
+     name: Cache Maintenance
+     runs-on: ubuntu-latest
+     needs: maintenance-setup
+     if: fromJson(needs.maintenance-setup.outputs.maintenance-plan).cache
+     timeout-minutes: 20
+     permissions:
+       actions: write
+       contents: read
 
     steps:
       - name: Checkout code

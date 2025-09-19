@@ -3,7 +3,7 @@
 //! Tests to prevent regression of unwrap_or() to unwrap_or_else(||) changes
 //! in the testing utilities.
 
-use crate::utils::testing::{TestHarness, LoadTestResults, ConsistencyReport, IntegrationTests};
+use crate::utils::testing::{ConsistencyReport, IntegrationTests, LoadTestResults, TestHarness};
 use serde_json::json;
 
 /// Test malformed JSON strings in testing utilities
@@ -70,9 +70,9 @@ fn test_malformed_json_strings() {
 fn test_empty_json_payloads() {
     // Test empty JSON objects and arrays
     let empty_payloads = vec![
-        json!({}),           // Empty object
-        json!([]),           // Empty array
-        json!(null),         // Null value
+        json!({}),   // Empty object
+        json!([]),   // Empty array
+        json!(null), // Null value
     ];
 
     for payload in empty_payloads {
@@ -124,15 +124,36 @@ fn test_nested_json_structures_with_errors() {
     // Test accessing deeply nested values that might not exist
     let _ = nested_json.get("level1");
     let _ = nested_json.get("level1").and_then(|v| v.get("level2"));
-    let _ = nested_json.get("level1").and_then(|v| v.get("level2")).and_then(|v| v.get("level3"));
-    let _ = nested_json.get("level1").and_then(|v| v.get("level2")).and_then(|v| v.get("level3")).and_then(|v| v.get("deeply_nested"));
-    let _ = nested_json.get("level1").and_then(|v| v.get("level2")).and_then(|v| v.get("level3")).and_then(|v| v.get("deeply_nested")).and_then(|v| v.get("very_deep"));
-    let _ = nested_json.get("level1").and_then(|v| v.get("level2")).and_then(|v| v.get("level3")).and_then(|v| v.get("deeply_nested")).and_then(|v| v.get("very_deep")).and_then(|v| v.get("data"));
+    let _ = nested_json
+        .get("level1")
+        .and_then(|v| v.get("level2"))
+        .and_then(|v| v.get("level3"));
+    let _ = nested_json
+        .get("level1")
+        .and_then(|v| v.get("level2"))
+        .and_then(|v| v.get("level3"))
+        .and_then(|v| v.get("deeply_nested"));
+    let _ = nested_json
+        .get("level1")
+        .and_then(|v| v.get("level2"))
+        .and_then(|v| v.get("level3"))
+        .and_then(|v| v.get("deeply_nested"))
+        .and_then(|v| v.get("very_deep"));
+    let _ = nested_json
+        .get("level1")
+        .and_then(|v| v.get("level2"))
+        .and_then(|v| v.get("level3"))
+        .and_then(|v| v.get("deeply_nested"))
+        .and_then(|v| v.get("very_deep"))
+        .and_then(|v| v.get("data"));
 
     // Test accessing non-existent paths
     let _ = nested_json.get("nonexistent");
     let _ = nested_json.get("level1").and_then(|v| v.get("nonexistent"));
-    let _ = nested_json.get("level1").and_then(|v| v.get("level2")).and_then(|v| v.get("nonexistent"));
+    let _ = nested_json
+        .get("level1")
+        .and_then(|v| v.get("level2"))
+        .and_then(|v| v.get("nonexistent"));
 
     // Test mixed types in arrays
     if let Some(sibling) = nested_json.get("sibling") {
@@ -172,18 +193,39 @@ fn test_json_with_invalid_data_types() {
     });
 
     // Test type conversions that should fail gracefully
-    let _ = type_mismatch_json.get("string_as_number").and_then(|v| v.as_f64()); // Should be None
-    let _ = type_mismatch_json.get("number_as_string").and_then(|v| v.as_str()); // Should be None
-    let _ = type_mismatch_json.get("boolean_as_string").and_then(|v| v.as_bool()); // Should be None
-    let _ = type_mismatch_json.get("array_as_object").and_then(|v| v.as_object()); // Should be None
-    let _ = type_mismatch_json.get("object_as_array").and_then(|v| v.as_array()); // Should be None
-    let _ = type_mismatch_json.get("null_as_string").and_then(|v| v.as_str()); // Should be None
-    let _ = type_mismatch_json.get("string_as_null").and_then(|v| v.as_null()); // Should be None
-    let _ = type_mismatch_json.get("number_as_boolean").and_then(|v| v.as_bool()); // Should be None
-    let _ = type_mismatch_json.get("boolean_as_number").and_then(|v| v.as_f64()); // Should be None
+    let _ = type_mismatch_json
+        .get("string_as_number")
+        .and_then(|v| v.as_f64()); // Should be None
+    let _ = type_mismatch_json
+        .get("number_as_string")
+        .and_then(|v| v.as_str()); // Should be None
+    let _ = type_mismatch_json
+        .get("boolean_as_string")
+        .and_then(|v| v.as_bool()); // Should be None
+    let _ = type_mismatch_json
+        .get("array_as_object")
+        .and_then(|v| v.as_object()); // Should be None
+    let _ = type_mismatch_json
+        .get("object_as_array")
+        .and_then(|v| v.as_array()); // Should be None
+    let _ = type_mismatch_json
+        .get("null_as_string")
+        .and_then(|v| v.as_str()); // Should be None
+    let _ = type_mismatch_json
+        .get("string_as_null")
+        .and_then(|v| v.as_null()); // Should be None
+    let _ = type_mismatch_json
+        .get("number_as_boolean")
+        .and_then(|v| v.as_bool()); // Should be None
+    let _ = type_mismatch_json
+        .get("boolean_as_number")
+        .and_then(|v| v.as_f64()); // Should be None
 
     // Test mixed type array handling
-    if let Some(mixed_array) = type_mismatch_json.get("array_with_mixed_types").and_then(|v| v.as_array()) {
+    if let Some(mixed_array) = type_mismatch_json
+        .get("array_with_mixed_types")
+        .and_then(|v| v.as_array())
+    {
         for item in mixed_array {
             // Test various type accesses that should return None for wrong types
             let _ = item.as_i64();
@@ -195,7 +237,10 @@ fn test_json_with_invalid_data_types() {
     }
 
     // Test object with numeric keys
-    if let Some(obj) = type_mismatch_json.get("object_with_numeric_keys").and_then(|v| v.as_object()) {
+    if let Some(obj) = type_mismatch_json
+        .get("object_with_numeric_keys")
+        .and_then(|v| v.as_object())
+    {
         for (key, _) in obj {
             // Keys should be accessible regardless of their format
             assert!(!key.is_empty());
@@ -297,7 +342,10 @@ fn test_json_with_null_values_in_required_fields() {
     }
 
     // Test object with null values
-    if let Some(obj) = null_json.get("object_with_nulls").and_then(|v| v.as_object()) {
+    if let Some(obj) = null_json
+        .get("object_with_nulls")
+        .and_then(|v| v.as_object())
+    {
         assert_eq!(obj.len(), 3);
         assert!(obj.get("key1").unwrap().is_null());
         assert!(!obj.get("key2").unwrap().is_null());
@@ -477,7 +525,10 @@ fn test_json_parsing_in_task_creation() {
         let _ = task_json.get("required_capabilities");
 
         // Test nested access
-        if let Some(capabilities) = task_json.get("required_capabilities").and_then(|v| v.as_array()) {
+        if let Some(capabilities) = task_json
+            .get("required_capabilities")
+            .and_then(|v| v.as_array())
+        {
             for capability in capabilities {
                 let _ = capability.get("name");
                 let _ = capability.get("minimum_proficiency");
@@ -534,7 +585,10 @@ fn test_memory_usage_with_large_test_data() {
     for i in 0..10000 {
         let mut inner_map = serde_json::Map::new();
         for j in 0..100 {
-            inner_map.insert(format!("inner_key_{}", j), json!(format!("value_{}_{}", i, j)));
+            inner_map.insert(
+                format!("inner_key_{}", j),
+                json!(format!("value_{}_{}", i, j)),
+            );
         }
         large_map.insert(format!("key_{}", i), json!(inner_map));
     }
@@ -542,7 +596,8 @@ fn test_memory_usage_with_large_test_data() {
     let large_json = json!(large_map);
 
     // Test accessing elements without causing memory issues
-    for i in 0..100 { // Test subset to avoid excessive time
+    for i in 0..100 {
+        // Test subset to avoid excessive time
         let key = format!("key_{}", i);
         let value = large_json.get(&key);
         assert!(value.is_some());

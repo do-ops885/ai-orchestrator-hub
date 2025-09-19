@@ -45,11 +45,16 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
-      - name: Dependency review
-        uses: actions/dependency-review-action@v4
-        if: github.event_name == 'pull_request'
-        with:
-          config-file: './.github/dependency-review-config.yml'
+       - name: Dependency review
+         uses: actions/dependency-review-action@v4
+         if: github.event_name == 'pull_request'
+         with:
+           config-file: './.github/dependency-review-config.yml'
+
+       - name: Install required tools
+         run: |
+           sudo apt-get update
+           sudo apt-get install -y jq
 
        - name: Secrets detection
          run: |
@@ -86,22 +91,24 @@ jobs:
             gitleaks-report.json
           retention-days: 30
 
-  # Rust linting
-  rust-lint:
-    name: Rust Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+   # Rust linting
+   rust-lint:
+     name: Rust Lint
+     runs-on: ubuntu-latest
+     timeout-minutes: 20
+     permissions:
+       contents: read
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+       - name: Checkout code
+         uses: actions/checkout@v4
 
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+       - name: Setup Rust toolchain
+         uses: dtolnay/rust-toolchain@stable
+         with:
+           components: rustfmt, clippy
 
-      - name: Cache Rust dependencies
+       - name: Cache Rust dependencies
         uses: actions/cache@v4
         with:
           path: |
@@ -205,24 +212,26 @@ jobs:
             performance-lint.json
           retention-days: 30
 
-  # Frontend linting
-  frontend-lint:
-    name: Frontend Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+   # Frontend linting
+   frontend-lint:
+     name: Frontend Lint
+     runs-on: ubuntu-latest
+     timeout-minutes: 15
+     permissions:
+       contents: read
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+       - name: Checkout code
+         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+       - name: Setup Node.js
+         uses: actions/setup-node@v4
+         with:
+           node-version: '20'
+           cache: 'npm'
+           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+       - name: Install dependencies
         run: |
           echo "📦 Installing frontend dependencies..."
           cd frontend
@@ -281,25 +290,27 @@ jobs:
             eslint-report.json
           retention-days: 30
 
-  # Documentation linting
-  documentation-lint:
-    name: Documentation Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+   # Documentation linting
+   documentation-lint:
+     name: Documentation Lint
+     runs-on: ubuntu-latest
+     timeout-minutes: 10
+     permissions:
+       contents: read
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+       - name: Checkout code
+         uses: actions/checkout@v4
 
-      - name: Setup documentation tools
-        run: |
-          echo "📚 Setting up documentation tools..."
+       - name: Setup documentation tools
+         run: |
+           echo "📚 Setting up documentation tools..."
 
-          # Install markdown linting tools
-          npm install -g markdownlint-cli
-          npm install -g markdown-link-check
+           # Install markdown linting tools
+           npm install -g markdownlint-cli
+           npm install -g markdown-link-check
 
-      - name: Markdown linting
+       - name: Markdown linting
         run: |
           echo "📝 Running markdown linting..."
 
@@ -368,6 +379,8 @@ jobs:
      name: Code Coverage
      runs-on: ubuntu-latest
      timeout-minutes: 15
+     permissions:
+       contents: read
 
      steps:
        - name: Checkout code
@@ -400,12 +413,12 @@ jobs:
            cd backend
            cargo llvm-cov --all-features --workspace --lcov --output-path ../rust-lcov.info
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+       - name: Setup Node.js
+         uses: actions/setup-node@v4
+         with:
+           node-version: '20'
+           cache: 'npm'
+           cache-dependency-path: frontend/package-lock.json
 
        - name: Install frontend dependencies
          run: |
@@ -439,6 +452,8 @@ jobs:
      name: Complexity Analysis
      runs-on: ubuntu-latest
      timeout-minutes: 10
+     permissions:
+       contents: read
 
      steps:
        - name: Checkout code
@@ -457,10 +472,10 @@ jobs:
            cd backend
            cargo cyclomatic-complexity --all-features > ../rust-complexity.json || true
 
-        - name: Setup Node.js
-          uses: actions/setup-node@v4
-          with:
-            node-version: '20'
+       - name: Setup Node.js
+         uses: actions/setup-node@v4
+         with:
+           node-version: '20'
 
        - name: Analyze TypeScript complexity
          run: |
@@ -500,6 +515,8 @@ jobs:
      name: Performance Benchmarks
      runs-on: ubuntu-latest
      timeout-minutes: 20
+     permissions:
+       contents: read
 
      steps:
        - name: Checkout code
@@ -559,6 +576,8 @@ jobs:
      needs: [code-coverage, complexity-analysis, performance-benchmarks]
      if: always()
      timeout-minutes: 10
+     permissions:
+       contents: read
 
      steps:
        - name: Checkout code
@@ -569,10 +588,10 @@ jobs:
          with:
            path: reports/
 
-        - name: Setup Node.js for metrics processing
-          uses: actions/setup-node@v4
-          with:
-            node-version: '20'
+       - name: Setup Node.js for metrics processing
+         uses: actions/setup-node@v4
+         with:
+           node-version: '20'
 
        - name: Install metrics tools
          run: |
@@ -650,6 +669,8 @@ jobs:
      needs: [code-coverage, complexity-analysis, performance-benchmarks, quality-metrics]
      if: always()
      timeout-minutes: 5
+     permissions:
+       contents: read
 
      steps:
        - name: Download reports
@@ -709,6 +730,8 @@ jobs:
      needs: [security-scan, rust-lint, frontend-lint, documentation-lint, code-coverage, complexity-analysis, performance-benchmarks, quality-gates]
      if: always()
      timeout-minutes: 5
+     permissions:
+       contents: read
 
      steps:
        - name: Generate lint summary

@@ -8,6 +8,8 @@ pub mod memory;
 pub mod optimized_agent;
 /// Agent recovery and error handling
 pub mod recovery;
+/// Self-healing swarm agent for system resilience
+pub mod self_healing_swarm;
 /// Simple verification system for lightweight task validation
 pub mod simple_verification;
 /// Agent skill evolution and learning system
@@ -26,6 +28,7 @@ pub mod verification;
 mod communication_test;
 pub use agent::*;
 pub use recovery::*;
+pub use self_healing_swarm::*;
 pub use simple_verification::*;
 pub use skill_evolution::*;
 // pub use adaptive_verification::*;  // Currently unused

@@ -3,10 +3,13 @@
 //! Tests to prevent regression of unwrap_or() to unwrap_or_else(||) changes
 //! in the configuration parsing system.
 
-use crate::utils::config::{HiveConfig, ServerConfig, AgentConfig, TaskConfig, ResourceConfig, NeuralConfig, LoggingConfig, PerformanceConfig, MonitoringConfig};
+use crate::utils::config::{
+    AgentConfig, HiveConfig, LoggingConfig, MonitoringConfig, NeuralConfig, PerformanceConfig,
+    ResourceConfig, ServerConfig, TaskConfig,
+};
 use crate::utils::error::HiveError;
-use std::env;
 use std::collections::HashMap;
+use std::env;
 
 /// Test invalid environment variable values for numeric parsing
 #[test]
@@ -135,8 +138,14 @@ fn test_missing_required_env_vars() {
     assert_eq!(config.monitoring.monitoring_interval_secs, 5);
     assert_eq!(config.monitoring.metrics_retention_days, 7);
     assert_eq!(config.monitoring.alert_threshold, 0.8);
-    assert_eq!(config.monitoring.metrics_endpoint, "http://localhost:8000/metrics");
-    assert_eq!(config.monitoring.health_endpoint, "http://localhost:8000/health");
+    assert_eq!(
+        config.monitoring.metrics_endpoint,
+        "http://localhost:8000/metrics"
+    );
+    assert_eq!(
+        config.monitoring.health_endpoint,
+        "http://localhost:8000/health"
+    );
 }
 
 /// Test malformed environment variable formats
@@ -203,7 +212,8 @@ fn test_very_long_env_values() {
     assert_eq!(config.monitoring.monitoring_interval_secs, 5); // Should use default for invalid
 
     // Test with a valid long number
-    let long_number = "999999999999999999999999999999999999999999999999999999999999999999999999999999";
+    let long_number =
+        "999999999999999999999999999999999999999999999999999999999999999999999999999999";
     env::set_var("METRICS_RETENTION", long_number);
     let config = HiveConfig::from_env().unwrap();
     assert_eq!(config.monitoring.metrics_retention_days, 7); // Should use default for overflow
@@ -218,44 +228,47 @@ fn test_very_long_env_values() {
 fn test_special_characters_in_env_vars() {
     // Test various special characters
     let special_values = vec![
-        "10\n20",      // Newline
-        "10\t20",      // Tab
-        "10 20",       // Space
-        "10\x00",      // Null byte
-        "10\"",        // Quote
-        "10'",         // Single quote
-        "10\\",        // Backslash
-        "10;",         // Semicolon
-        "10:",         // Colon
-        "10|",         // Pipe
-        "10&",         // Ampersand
-        "10$",         // Dollar
-        "10%",         // Percent
-        "10#",         // Hash
-        "10@",         // At
-        "10!",         // Exclamation
-        "10^",         // Caret
-        "10*",         // Asterisk
-        "10(",         // Parentheses
-        "10)",         // Parentheses
-        "10[",         // Bracket
-        "10]",         // Bracket
-        "10{",         // Brace
-        "10}",         // Brace
-        "10<",         // Less than
-        "10>",         // Greater than
-        "10?",         // Question mark
-        "10/",         // Forward slash
-        "10\\",        // Backslash
-        "10~",         // Tilde
-        "10`",         // Backtick
+        "10\n20", // Newline
+        "10\t20", // Tab
+        "10 20",  // Space
+        "10\x00", // Null byte
+        "10\"",   // Quote
+        "10'",    // Single quote
+        "10\\",   // Backslash
+        "10;",    // Semicolon
+        "10:",    // Colon
+        "10|",    // Pipe
+        "10&",    // Ampersand
+        "10$",    // Dollar
+        "10%",    // Percent
+        "10#",    // Hash
+        "10@",    // At
+        "10!",    // Exclamation
+        "10^",    // Caret
+        "10*",    // Asterisk
+        "10(",    // Parentheses
+        "10)",    // Parentheses
+        "10[",    // Bracket
+        "10]",    // Bracket
+        "10{",    // Brace
+        "10}",    // Brace
+        "10<",    // Less than
+        "10>",    // Greater than
+        "10?",    // Question mark
+        "10/",    // Forward slash
+        "10\\",   // Backslash
+        "10~",    // Tilde
+        "10`",    // Backtick
     ];
 
     for value in special_values {
         env::set_var("MONITORING_INTERVAL", value);
         let config = HiveConfig::from_env().unwrap();
-        assert_eq!(config.monitoring.monitoring_interval_secs, 5,
-            "Failed for special character value: {}", value); // Should use default
+        assert_eq!(
+            config.monitoring.monitoring_interval_secs, 5,
+            "Failed for special character value: {}",
+            value
+        ); // Should use default
     }
 
     // Cleanup
@@ -313,8 +326,10 @@ async fn test_concurrent_env_var_access() {
             *count += 1;
 
             // Verify config has expected value or default
-            assert!(config.monitoring.monitoring_interval_secs == i as u64 ||
-                   config.monitoring.monitoring_interval_secs == 5);
+            assert!(
+                config.monitoring.monitoring_interval_secs == i as u64
+                    || config.monitoring.monitoring_interval_secs == 5
+            );
         });
         handles.push(handle);
     }
@@ -336,19 +351,22 @@ async fn test_concurrent_env_var_access() {
 fn test_unicode_env_values() {
     // Test Unicode numeric representations
     let unicode_values = vec![
-        "１０",     // Full-width digits
-        "十",       // Chinese character for 10
-        "十",       // Japanese character for 10
-        "١٠",       // Arabic-Indic digits
-        "Ⅹ",       // Roman numeral
-        "十",       // Korean character for 10
+        "１０", // Full-width digits
+        "十",   // Chinese character for 10
+        "十",   // Japanese character for 10
+        "١٠",   // Arabic-Indic digits
+        "Ⅹ",    // Roman numeral
+        "十",   // Korean character for 10
     ];
 
     for value in unicode_values {
         env::set_var("MONITORING_INTERVAL", value);
         let config = HiveConfig::from_env().unwrap();
-        assert_eq!(config.monitoring.monitoring_interval_secs, 5,
-            "Failed for Unicode value: {}", value); // Should use default
+        assert_eq!(
+            config.monitoring.monitoring_interval_secs, 5,
+            "Failed for Unicode value: {}",
+            value
+        ); // Should use default
     }
 
     // Cleanup
@@ -363,8 +381,10 @@ fn test_rapid_env_changes() {
         let config = HiveConfig::from_env().unwrap();
 
         // Should either get the current value or default (due to parsing)
-        assert!(config.monitoring.monitoring_interval_secs == i as u64 ||
-               config.monitoring.monitoring_interval_secs == 5);
+        assert!(
+            config.monitoring.monitoring_interval_secs == i as u64
+                || config.monitoring.monitoring_interval_secs == 5
+        );
     }
 
     // Cleanup
@@ -411,8 +431,11 @@ fn test_whitespace_env_values() {
     for value in whitespace_values {
         env::set_var("MONITORING_INTERVAL", value);
         let config = HiveConfig::from_env().unwrap();
-        assert_eq!(config.monitoring.monitoring_interval_secs, 5,
-            "Failed for whitespace value: {:?}", value); // Should use default
+        assert_eq!(
+            config.monitoring.monitoring_interval_secs, 5,
+            "Failed for whitespace value: {:?}",
+            value
+        ); // Should use default
     }
 
     // Cleanup

@@ -4,15 +4,17 @@
 //! in the adaptive verification system.
 
 use crate::agents::adaptive_verification::{
-    AdaptiveVerificationSystem, AdaptationConfig, ThresholdHistory, PerformanceTracker,
-    VerificationOutcome, EfficiencyMetrics, AccuracyMetrics, ThresholdRecommendation,
-    AdaptationInsights,
+    AccuracyMetrics, AdaptationConfig, AdaptationInsights, AdaptiveVerificationSystem,
+    EfficiencyMetrics, PerformanceTracker, ThresholdHistory, ThresholdRecommendation,
+    VerificationOutcome,
 };
-use crate::utils::error::HiveError;
-use crate::agents::simple_verification::{SimpleVerificationResult, SimpleVerificationStatus, VerificationTier};
-use crate::tasks::{Task, TaskResult, TaskPriority};
+use crate::agents::simple_verification::{
+    SimpleVerificationResult, SimpleVerificationStatus, VerificationTier,
+};
 use crate::agents::Agent;
-use chrono::{DateTime, Utc, Duration};
+use crate::tasks::{Task, TaskPriority, TaskResult};
+use crate::utils::error::HiveError;
+use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -27,7 +29,7 @@ fn test_invalid_constructor_parameters() {
         min_samples_for_adaptation: -5,
         adaptation_window_hours: -24,
         confidence_threshold_range: (-0.5, 1.5), // Invalid range
-        rule_threshold_range: (-0.3, 1.2), // Invalid range
+        rule_threshold_range: (-0.3, 1.2),       // Invalid range
         adaptation_frequency_hours: -6,
         performance_weight_success: -0.4,
         performance_weight_efficiency: -0.3,
@@ -50,7 +52,7 @@ fn test_invalid_constructor_parameters() {
         min_samples_for_adaptation: 0,
         adaptation_window_hours: 0,
         confidence_threshold_range: (0.0, 0.0), // Zero range
-        rule_threshold_range: (0.0, 0.0), // Zero range
+        rule_threshold_range: (0.0, 0.0),       // Zero range
         adaptation_frequency_hours: 0,
         performance_weight_success: 0.0,
         performance_weight_efficiency: 0.0,
@@ -246,19 +248,29 @@ fn test_threshold_history_edge_cases() {
 
     // Test history with invalid timestamps
     let mut invalid_history = ThresholdHistory::new();
-    invalid_history.confidence_thresholds.push(crate::agents::adaptive_verification::ThresholdEntry {
-        timestamp: DateTime::<Utc>::MIN_UTC,
-        threshold_value: -1.0, // Invalid threshold
-        performance_score: -100.0, // Invalid score
-        sample_count: 0,
-        adaptation_reason: "".to_string(),
-    });
+    invalid_history.confidence_thresholds.push(
+        crate::agents::adaptive_verification::ThresholdEntry {
+            timestamp: DateTime::<Utc>::MIN_UTC,
+            threshold_value: -1.0,     // Invalid threshold
+            performance_score: -100.0, // Invalid score
+            sample_count: 0,
+            adaptation_reason: "".to_string(),
+        },
+    );
 
     assert_eq!(invalid_history.confidence_thresholds.len(), 1);
-    assert_eq!(invalid_history.confidence_thresholds[0].threshold_value, -1.0);
-    assert_eq!(invalid_history.confidence_thresholds[0].performance_score, -100.0);
+    assert_eq!(
+        invalid_history.confidence_thresholds[0].threshold_value,
+        -1.0
+    );
+    assert_eq!(
+        invalid_history.confidence_thresholds[0].performance_score,
+        -100.0
+    );
     assert_eq!(invalid_history.confidence_thresholds[0].sample_count, 0);
-    assert!(invalid_history.confidence_thresholds[0].adaptation_reason.is_empty());
+    assert!(invalid_history.confidence_thresholds[0]
+        .adaptation_reason
+        .is_empty());
 }
 
 /// Test PerformanceTracker with edge cases
@@ -268,7 +280,12 @@ fn test_performance_tracker_edge_cases() {
     let empty_tracker = PerformanceTracker::new();
     assert!(empty_tracker.verification_outcomes.is_empty());
     assert!(empty_tracker.success_rate_by_threshold.is_empty());
-    assert_eq!(empty_tracker.efficiency_metrics.average_verification_time_ms, 0.0);
+    assert_eq!(
+        empty_tracker
+            .efficiency_metrics
+            .average_verification_time_ms,
+        0.0
+    );
     assert_eq!(empty_tracker.accuracy_metrics.true_positives, 0);
     assert_eq!(empty_tracker.accuracy_metrics.true_negatives, 0);
     assert_eq!(empty_tracker.accuracy_metrics.false_positives, 0);
@@ -279,35 +296,63 @@ fn test_performance_tracker_edge_cases() {
 
     // Test tracker with invalid data
     let mut invalid_tracker = PerformanceTracker::new();
-    invalid_tracker.verification_outcomes.push(VerificationOutcome {
-        timestamp: DateTime::<Utc>::MIN_UTC,
-        task_id: uuid::Uuid::nil(),
-        verification_result: SimpleVerificationResult {
+    invalid_tracker
+        .verification_outcomes
+        .push(VerificationOutcome {
+            timestamp: DateTime::<Utc>::MIN_UTC,
             task_id: uuid::Uuid::nil(),
-            verification_status: SimpleVerificationStatus::Failed,
-            confidence_score: -1.0, // Invalid confidence
-            goal_alignment_score: -2.0, // Invalid score
-            format_compliance_score: 2.0, // Invalid score
-            overall_score: -5.0, // Invalid score
-            verification_tier: VerificationTier::Standard,
-            issues_found: vec![],
+            verification_result: SimpleVerificationResult {
+                task_id: uuid::Uuid::nil(),
+                verification_status: SimpleVerificationStatus::Failed,
+                confidence_score: -1.0,       // Invalid confidence
+                goal_alignment_score: -2.0,   // Invalid score
+                format_compliance_score: 2.0, // Invalid score
+                overall_score: -5.0,          // Invalid score
+                verification_tier: VerificationTier::Standard,
+                issues_found: vec![],
+                verification_time_ms: u64::MAX,
+                verified_at: DateTime::<Utc>::MIN_UTC,
+                verifier_notes: "".to_string(),
+            },
+            actual_task_success: false,
             verification_time_ms: u64::MAX,
-            verified_at: DateTime::<Utc>::MIN_UTC,
-            verifier_notes: "".to_string(),
-        },
-        actual_task_success: false,
-        verification_time_ms: u64::MAX,
-        threshold_used: -1.0, // Invalid threshold
-        rule_thresholds_used: HashMap::new(),
-    });
+            threshold_used: -1.0, // Invalid threshold
+            rule_thresholds_used: HashMap::new(),
+        });
 
     assert_eq!(invalid_tracker.verification_outcomes.len(), 1);
-    assert_eq!(invalid_tracker.verification_outcomes[0].verification_result.confidence_score, -1.0);
-    assert_eq!(invalid_tracker.verification_outcomes[0].verification_result.goal_alignment_score, -2.0);
-    assert_eq!(invalid_tracker.verification_outcomes[0].verification_result.format_compliance_score, 2.0);
-    assert_eq!(invalid_tracker.verification_outcomes[0].verification_result.overall_score, -5.0);
-    assert_eq!(invalid_tracker.verification_outcomes[0].verification_time_ms, u64::MAX);
-    assert_eq!(invalid_tracker.verification_outcomes[0].threshold_used, -1.0);
+    assert_eq!(
+        invalid_tracker.verification_outcomes[0]
+            .verification_result
+            .confidence_score,
+        -1.0
+    );
+    assert_eq!(
+        invalid_tracker.verification_outcomes[0]
+            .verification_result
+            .goal_alignment_score,
+        -2.0
+    );
+    assert_eq!(
+        invalid_tracker.verification_outcomes[0]
+            .verification_result
+            .format_compliance_score,
+        2.0
+    );
+    assert_eq!(
+        invalid_tracker.verification_outcomes[0]
+            .verification_result
+            .overall_score,
+        -5.0
+    );
+    assert_eq!(
+        invalid_tracker.verification_outcomes[0].verification_time_ms,
+        u64::MAX
+    );
+    assert_eq!(
+        invalid_tracker.verification_outcomes[0].threshold_used,
+        -1.0
+    );
 }
 
 /// Test VerificationOutcome with edge cases
@@ -341,16 +386,34 @@ fn test_verification_outcome_edge_cases() {
         },
     };
 
-    assert_eq!(extreme_outcome.verification_result.confidence_score, f64::MAX);
-    assert_eq!(extreme_outcome.verification_result.goal_alignment_score, f64::MAX);
-    assert_eq!(extreme_outcome.verification_result.format_compliance_score, f64::MAX);
+    assert_eq!(
+        extreme_outcome.verification_result.confidence_score,
+        f64::MAX
+    );
+    assert_eq!(
+        extreme_outcome.verification_result.goal_alignment_score,
+        f64::MAX
+    );
+    assert_eq!(
+        extreme_outcome.verification_result.format_compliance_score,
+        f64::MAX
+    );
     assert_eq!(extreme_outcome.verification_result.overall_score, f64::MAX);
     assert_eq!(extreme_outcome.verification_time_ms, u64::MAX);
     assert_eq!(extreme_outcome.threshold_used, f64::MAX);
-    assert_eq!(extreme_outcome.verification_result.verifier_notes.len(), 10000);
+    assert_eq!(
+        extreme_outcome.verification_result.verifier_notes.len(),
+        10000
+    );
     assert_eq!(extreme_outcome.rule_thresholds_used.len(), 2);
-    assert_eq!(extreme_outcome.rule_thresholds_used.get("rule1"), Some(&f64::MAX));
-    assert_eq!(extreme_outcome.rule_thresholds_used.get("rule2"), Some(&f64::MIN));
+    assert_eq!(
+        extreme_outcome.rule_thresholds_used.get("rule1"),
+        Some(&f64::MAX)
+    );
+    assert_eq!(
+        extreme_outcome.rule_thresholds_used.get("rule2"),
+        Some(&f64::MIN)
+    );
 }
 
 /// Test EfficiencyMetrics with edge cases
@@ -371,8 +434,14 @@ fn test_efficiency_metrics_edge_cases() {
     assert_eq!(extreme_metrics.average_verification_time_ms, f64::MAX);
     assert_eq!(extreme_metrics.throughput_verifications_per_hour, f64::MAX);
     assert_eq!(extreme_metrics.verification_time_by_tier.len(), 2);
-    assert_eq!(extreme_metrics.verification_time_by_tier.get("tier1"), Some(&f64::MAX));
-    assert_eq!(extreme_metrics.verification_time_by_tier.get("tier2"), Some(&f64::MIN_POSITIVE));
+    assert_eq!(
+        extreme_metrics.verification_time_by_tier.get("tier1"),
+        Some(&f64::MAX)
+    );
+    assert_eq!(
+        extreme_metrics.verification_time_by_tier.get("tier2"),
+        Some(&f64::MIN_POSITIVE)
+    );
 
     // Test with empty metrics
     let empty_metrics = EfficiencyMetrics {
@@ -446,12 +515,28 @@ fn test_threshold_recommendation_edge_cases() {
     };
 
     assert_eq!(extreme_recommendation.confidence_threshold, f64::MAX);
-    assert_eq!(extreme_recommendation.expected_performance_improvement, f64::MAX);
-    assert_eq!(extreme_recommendation.confidence_in_recommendation, f64::MAX);
+    assert_eq!(
+        extreme_recommendation.expected_performance_improvement,
+        f64::MAX
+    );
+    assert_eq!(
+        extreme_recommendation.confidence_in_recommendation,
+        f64::MAX
+    );
     assert_eq!(extreme_recommendation.reasoning.len(), 10000);
     assert_eq!(extreme_recommendation.rule_threshold_adjustments.len(), 2);
-    assert_eq!(extreme_recommendation.rule_threshold_adjustments.get("rule1"), Some(&f64::MAX));
-    assert_eq!(extreme_recommendation.rule_threshold_adjustments.get("rule2"), Some(&f64::MIN));
+    assert_eq!(
+        extreme_recommendation
+            .rule_threshold_adjustments
+            .get("rule1"),
+        Some(&f64::MAX)
+    );
+    assert_eq!(
+        extreme_recommendation
+            .rule_threshold_adjustments
+            .get("rule2"),
+        Some(&f64::MIN)
+    );
 
     // Test with empty adjustments
     let empty_recommendation = ThresholdRecommendation {
@@ -499,8 +584,18 @@ fn test_adaptation_insights_edge_cases() {
     assert_eq!(extreme_insights.current_performance_score, f64::MAX);
     assert_eq!(extreme_insights.recent_sample_count, usize::MAX);
     assert_eq!(extreme_insights.accuracy_metrics.true_positives, u32::MAX);
-    assert_eq!(extreme_insights.efficiency_metrics.average_verification_time_ms, f64::MAX);
-    assert_eq!(extreme_insights.efficiency_metrics.throughput_verifications_per_hour, f64::MAX);
+    assert_eq!(
+        extreme_insights
+            .efficiency_metrics
+            .average_verification_time_ms,
+        f64::MAX
+    );
+    assert_eq!(
+        extreme_insights
+            .efficiency_metrics
+            .throughput_verifications_per_hour,
+        f64::MAX
+    );
 
     // Test with minimum values
     let min_insights = AdaptationInsights {
@@ -529,8 +624,16 @@ fn test_adaptation_insights_edge_cases() {
     assert_eq!(min_insights.current_performance_score, f64::MIN);
     assert_eq!(min_insights.recent_sample_count, 0);
     assert_eq!(min_insights.accuracy_metrics.true_positives, 0);
-    assert_eq!(min_insights.efficiency_metrics.average_verification_time_ms, 0.0);
-    assert_eq!(min_insights.efficiency_metrics.throughput_verifications_per_hour, 0.0);
+    assert_eq!(
+        min_insights.efficiency_metrics.average_verification_time_ms,
+        0.0
+    );
+    assert_eq!(
+        min_insights
+            .efficiency_metrics
+            .throughput_verifications_per_hour,
+        0.0
+    );
 }
 
 /// Test concurrent access to adaptive verification components
@@ -695,11 +798,7 @@ fn test_error_handling_in_adaptive_calculations() {
     }
 
     // Test NaN handling
-    let nan_scenarios = vec![
-        f64::NAN,
-        f64::INFINITY,
-        f64::NEG_INFINITY,
-    ];
+    let nan_scenarios = vec![f64::NAN, f64::INFINITY, f64::NEG_INFINITY];
 
     for value in nan_scenarios {
         assert!(!value.is_finite() || value.is_nan());
@@ -716,11 +815,11 @@ fn test_error_handling_in_adaptive_calculations() {
 fn test_boundary_conditions_in_performance_calculations() {
     // Test precision/recall/f1 calculations with edge cases
     let calculation_scenarios = vec![
-        (0, 0, 0, 0), // All zeros
-        (1, 0, 0, 0), // True positives only
-        (0, 1, 0, 0), // True negatives only
-        (0, 0, 1, 0), // False positives only
-        (0, 0, 0, 1), // False negatives only
+        (0, 0, 0, 0),                             // All zeros
+        (1, 0, 0, 0),                             // True positives only
+        (0, 1, 0, 0),                             // True negatives only
+        (0, 0, 1, 0),                             // False positives only
+        (0, 0, 0, 1),                             // False negatives only
         (u32::MAX, u32::MAX, u32::MAX, u32::MAX), // All max
     ];
 
@@ -730,10 +829,18 @@ fn test_boundary_conditions_in_performance_calculations() {
         let fn_f = fn_count as f64;
 
         // Calculate precision
-        let precision = if tp_f + fp_f > 0.0 { tp_f / (tp_f + fp_f) } else { 0.0 };
+        let precision = if tp_f + fp_f > 0.0 {
+            tp_f / (tp_f + fp_f)
+        } else {
+            0.0
+        };
 
         // Calculate recall
-        let recall = if tp_f + fn_f > 0.0 { tp_f / (tp_f + fn_f) } else { 0.0 };
+        let recall = if tp_f + fn_f > 0.0 {
+            tp_f / (tp_f + fn_f)
+        } else {
+            0.0
+        };
 
         // Calculate f1
         let f1 = if precision + recall > 0.0 {

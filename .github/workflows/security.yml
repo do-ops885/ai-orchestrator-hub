@@ -58,11 +58,13 @@ jobs:
             backend/audit.json
           retention-days: 7
 
-  # Frontend security scanning
-  frontend-security:
-    name: Frontend Security
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+   # Frontend security scanning
+   frontend-security:
+     name: Frontend Security
+     runs-on: ubuntu-latest
+     timeout-minutes: 10
+     permissions:
+       contents: read
 
      steps:
        - name: Checkout code
@@ -70,12 +72,12 @@ jobs:
 
        - name: Setup Node.js
          uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+         with:
+           node-version: '20'
+           cache: 'npm'
+           cache-dependency-path: frontend/package-lock.json
 
-      - name: Cache Node.js dependencies
+       - name: Cache Node.js dependencies
         uses: actions/cache@v4
         with:
           path: |
@@ -126,7 +128,7 @@ jobs:
       contents: read
       security-events: ${{ github.actor == 'dependabot[bot]' && 'read' || 'write' }}
 
-    steps:
+     steps:
        - name: Checkout code
          uses: actions/checkout@v4
          with:
@@ -134,10 +136,10 @@ jobs:
 
        - name: Setup Node.js
          uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+         with:
+           node-version: '20'
 
-      - name: Setup Rust
+       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Initialize CodeQL
@@ -213,22 +215,29 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-  # Secrets scanning
-  secrets-scan:
-    name: Secrets Detection
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+   # Secrets scanning
+   secrets-scan:
+     name: Secrets Detection
+     runs-on: ubuntu-latest
+     timeout-minutes: 10
+     permissions:
+       contents: read
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
+         with:
+           fetch-depth: 0
 
-      - name: Setup structured logging
-        uses: ./.github/actions/setup-logging
-        with:
-          correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
+       - name: Install required tools
+         run: |
+           sudo apt-get update
+           sudo apt-get install -y jq
+
+       - name: Setup structured logging
+         uses: ./.github/actions/setup-logging
+         with:
+           correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Scan for secrets
         uses: gitleaks/gitleaks-action@v2
@@ -243,13 +252,15 @@ jobs:
       with:
         final-status: ${{ job.status }}
 
-  # Security metrics collection
-  security-metrics:
-    name: Security Metrics Collection
-    runs-on: ubuntu-latest
-    needs: [security-audit, frontend-security, codeql-analysis, dependency-review, container-scan, secrets-scan]
-    if: always()
-    timeout-minutes: 10
+   # Security metrics collection
+   security-metrics:
+     name: Security Metrics Collection
+     runs-on: ubuntu-latest
+     needs: [security-audit, frontend-security, codeql-analysis, dependency-review, container-scan, secrets-scan]
+     if: always()
+     timeout-minutes: 10
+     permissions:
+       contents: read
 
      steps:
        - name: Setup structured logging
@@ -257,82 +268,82 @@ jobs:
          with:
            correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
 
-        - name: Download security reports
-          uses: actions/download-artifact@v4
-          with:
-            path: security-reports/
+       - name: Download security reports
+         uses: actions/download-artifact@v4
+         with:
+           path: security-reports/
 
-        - name: Process security metrics
-          run: |
-            source log_helper.sh
-       log_structured "INFO" "Processing security metrics"
+       - name: Process security metrics
+           run: |
+             source log_helper.sh
+             log_structured "INFO" "Processing security metrics"
 
-       # Initialize metrics
-       rust_vulnerabilities=0
-       npm_vulnerabilities=0
-       codeql_alerts=0
-       secrets_found=0
-       container_vulns=0
+             # Initialize metrics
+             rust_vulnerabilities=0
+             npm_vulnerabilities=0
+             codeql_alerts=0
+             secrets_found=0
+             container_vulns=0
 
-       # Parse cargo audit results
-       if [ -f "security-reports/security-reports/backend/audit.json" ]; then
-         rust_vulnerabilities=$(jq '.vulnerabilities.count' security-reports/security-reports/backend/audit.json 2>/dev/null || echo "0")
-       fi
+             # Parse cargo audit results
+             if [ -f "security-reports/security-reports/backend/audit.json" ]; then
+               rust_vulnerabilities=$(jq '.vulnerabilities.count' security-reports/security-reports/backend/audit.json 2>/dev/null || echo "0")
+             fi
 
-       # Parse npm audit results
-       if [ -f "security-reports/frontend-security-reports/frontend/audit-results.json" ]; then
-         npm_vulnerabilities=$(jq '.metadata.vulnerabilities.total' security-reports/frontend-security-reports/frontend/audit-results.json 2>/dev/null || echo "0")
-       fi
+             # Parse npm audit results
+             if [ -f "security-reports/frontend-security-reports/frontend/audit-results.json" ]; then
+               npm_vulnerabilities=$(jq '.metadata.vulnerabilities.total' security-reports/frontend-security-reports/frontend/audit-results.json 2>/dev/null || echo "0")
+             fi
 
-       # Count CodeQL results (would need to parse SARIF files)
-       codeql_alerts="N/A"  # Placeholder - would parse SARIF
+             # Count CodeQL results (would need to parse SARIF files)
+             codeql_alerts="N/A"  # Placeholder - would parse SARIF
 
-       # Count secrets
-       if [ -f "security-reports/security-scan-results/gitleaks-report.json" ]; then
-         secrets_found=$(jq length security-reports/security-scan-results/gitleaks-report.json 2>/dev/null || echo "0")
-       fi
+             # Count secrets
+             if [ -f "security-reports/security-scan-results/gitleaks-report.json" ]; then
+               secrets_found=$(jq length security-reports/security-scan-results/gitleaks-report.json 2>/dev/null || echo "0")
+             fi
 
-       # Count container vulnerabilities
-       if [ -f "trivy-results.sarif" ]; then
-         container_vulns=$(jq '.runs[0].results | length' trivy-results.sarif 2>/dev/null || echo "0")
-       fi
+             # Count container vulnerabilities
+             if [ -f "trivy-results.sarif" ]; then
+               container_vulns=$(jq '.runs[0].results | length' trivy-results.sarif 2>/dev/null || echo "0")
+             fi
 
-       # Generate security metrics report
-       echo "## 🔒 Security Metrics" >> $GITHUB_STEP_SUMMARY
-       echo "" >> $GITHUB_STEP_SUMMARY
-       echo "| Metric | Count | Threshold | Status |" >> $GITHUB_STEP_SUMMARY
-       echo "|--------|-------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+             # Generate security metrics report
+             echo "## 🔒 Security Metrics" >> $GITHUB_STEP_SUMMARY
+             echo "" >> $GITHUB_STEP_SUMMARY
+             echo "| Metric | Count | Threshold | Status |" >> $GITHUB_STEP_SUMMARY
+             echo "|--------|-------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
 
-       # Rust vulnerabilities
-       if [ "$rust_vulnerabilities" -gt 0 ]; then
-         echo "| 🦀 Rust Vulnerabilities | $rust_vulnerabilities | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
-       else
-         echo "| 🦀 Rust Vulnerabilities | $rust_vulnerabilities | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
-       fi
+             # Rust vulnerabilities
+             if [ "$rust_vulnerabilities" -gt 0 ]; then
+               echo "| 🦀 Rust Vulnerabilities | $rust_vulnerabilities | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
+             else
+               echo "| 🦀 Rust Vulnerabilities | $rust_vulnerabilities | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
+             fi
 
-       # NPM vulnerabilities
-       if [ "$npm_vulnerabilities" -gt 0 ]; then
-         echo "| 📦 NPM Vulnerabilities | $npm_vulnerabilities | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
-       else
-         echo "| 📦 NPM Vulnerabilities | $npm_vulnerabilities | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
-       fi
+             # NPM vulnerabilities
+             if [ "$npm_vulnerabilities" -gt 0 ]; then
+               echo "| 📦 NPM Vulnerabilities | $npm_vulnerabilities | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
+             else
+               echo "| 📦 NPM Vulnerabilities | $npm_vulnerabilities | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
+             fi
 
-       # CodeQL alerts
-       echo "| 🔍 CodeQL Alerts | $codeql_alerts | 0 | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+             # CodeQL alerts
+             echo "| 🔍 CodeQL Alerts | $codeql_alerts | 0 | ⚠️ |" >> $GITHUB_STEP_SUMMARY
 
-       # Secrets found
-       if [ "$secrets_found" -gt 0 ]; then
-         echo "| 🔐 Secrets Detected | $secrets_found | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
-       else
-         echo "| 🔐 Secrets Detected | $secrets_found | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
-       fi
+             # Secrets found
+             if [ "$secrets_found" -gt 0 ]; then
+               echo "| 🔐 Secrets Detected | $secrets_found | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
+             else
+               echo "| 🔐 Secrets Detected | $secrets_found | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
+             fi
 
-       # Container vulnerabilities
-       if [ "$container_vulns" -gt 0 ]; then
-         echo "| 🐳 Container Vulns | $container_vulns | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
-       else
-         echo "| 🐳 Container Vulns | $container_vulns | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
-       fi
+             # Container vulnerabilities
+             if [ "$container_vulns" -gt 0 ]; then
+               echo "| 🐳 Container Vulns | $container_vulns | 0 | ❌ |" >> $GITHUB_STEP_SUMMARY
+             else
+               echo "| 🐳 Container Vulns | $container_vulns | 0 | ✅ |" >> $GITHUB_STEP_SUMMARY
+             fi
 
        # Store security metrics for trend analysis
        mkdir -p security-metrics-history
@@ -353,7 +364,7 @@ jobs:
        }
        EOF
 
-        - name: Upload security metrics
+       - name: Upload security metrics
           uses: actions/upload-artifact@v4
           with:
             name: security-metrics-history
@@ -366,13 +377,15 @@ jobs:
           with:
             final-status: ${{ job.status }}
 
-  # Security trend analysis
-  security-trends:
-    name: Security Trend Analysis
-    runs-on: ubuntu-latest
-    needs: [security-metrics]
-    if: always()
-    timeout-minutes: 5
+   # Security trend analysis
+   security-trends:
+     name: Security Trend Analysis
+     runs-on: ubuntu-latest
+     needs: [security-metrics]
+     if: always()
+     timeout-minutes: 5
+     permissions:
+       contents: read
 
      steps:
        - name: Setup structured logging
@@ -380,13 +393,13 @@ jobs:
          with:
            correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
 
-        - name: Download security metrics history
-          uses: actions/download-artifact@v4
-          with:
-            pattern: "security-metrics-history*"
-            merge-multiple: true
+       - name: Download security metrics history
+         uses: actions/download-artifact@v4
+         with:
+           pattern: "security-metrics-history*"
+           merge-multiple: true
 
-        - name: Analyze security trends
+       - name: Analyze security trends
           run: |
             source log_helper.sh
       log_structured "INFO" "Analyzing security trends"
@@ -426,11 +439,13 @@ jobs:
       with:
         final-status: ${{ job.status }}
 
-  # Security reports compliance validation
-  security-reports-validation:
-    name: Security Reports Compliance
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+   # Security reports compliance validation
+   security-reports-validation:
+     name: Security Reports Compliance
+     runs-on: ubuntu-latest
+     timeout-minutes: 5
+     permissions:
+       contents: read
 
      steps:
        - name: Checkout code
@@ -442,14 +457,14 @@ jobs:
            correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
 
        - name: Validate security reports compliance
-          run: |
-            source log_helper.sh
-            log_structured "INFO" "Running security reports compliance validation"
+         run: |
+           source log_helper.sh
+           log_structured "INFO" "Running security reports compliance validation"
 
-            # Run the comprehensive validation script
-            ./scripts/validate-security-reports-compliance.sh
+           # Run the comprehensive validation script
+           ./scripts/validate-security-reports-compliance.sh
 
-        - name: Upload compliance report
+       - name: Upload compliance report
           uses: actions/upload-artifact@v4
           if: always()
           with:
@@ -463,13 +478,15 @@ jobs:
           with:
             final-status: ${{ job.status }}
 
-  # Security summary
-  security-summary:
-      name: Security Summary
-      runs-on: ubuntu-latest
-      needs: [security-audit, frontend-security, codeql-analysis, dependency-review, container-scan, secrets-scan, security-metrics, security-trends, security-reports-validation]
-      if: always()
-      timeout-minutes: 5
+   # Security summary
+   security-summary:
+     name: Security Summary
+     runs-on: ubuntu-latest
+     needs: [security-audit, frontend-security, codeql-analysis, dependency-review, container-scan, secrets-scan, security-metrics, security-trends, security-reports-validation]
+     if: always()
+     timeout-minutes: 5
+     permissions:
+       contents: read
 
      steps:
        - name: Setup structured logging
@@ -477,7 +494,7 @@ jobs:
          with:
            correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
 
-        - name: Generate comprehensive security summary
+       - name: Generate comprehensive security summary
           run: |
             source log_helper.sh
             log_structured "INFO" "Generating comprehensive security summary"

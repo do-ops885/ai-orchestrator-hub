@@ -171,6 +171,7 @@ pub enum MessageType {
     CoordinationRequest,
     CoordinationResponse,
     SwarmUpdate,
+    HealthCheck,
 
     // Error messages
     Error,

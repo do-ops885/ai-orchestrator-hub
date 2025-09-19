@@ -3,7 +3,7 @@
 //! This module provides compatibility functions to seamlessly replace
 //! ruv-fann Network calls with our optimized implementation.
 
-use crate::neural::optimized_integration::{FastNeuralNetwork, FastNeuralConfig};
+use crate::neural::optimized_integration::{FastNeuralConfig, FastNeuralNetwork};
 use crate::utils::error::{HiveError, HiveResult};
 use serde::{Deserialize, Serialize};
 
@@ -37,8 +37,10 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
             use_simd: true,
         };
 
-        let inner = FastNeuralNetwork::from_config(&config)
-            .expect("Failed to create optimized network");
+        let inner = match FastNeuralNetwork::from_config(&config) {
+            Ok(net) => net,
+            Err(e) => panic!("Failed to create optimized network: {:?}", e),
+        };
 
         Self {
             inner,
@@ -49,10 +51,12 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
     /// Run forward pass through the network
     pub fn run(&mut self, input: &[T]) -> Vec<T> {
         let float_input: Vec<f32> = input.iter().map(|x| x.clone().into()).collect();
-        
-        let result = self.inner.run(&float_input)
-            .expect("Forward pass failed");
-        
+
+        let result = match self.inner.run(&float_input) {
+            Ok(res) => res,
+            Err(e) => panic!("Forward pass failed: {:?}", e),
+        };
+
         result.into_iter().map(|x| T::from(x)).collect()
     }
 
@@ -74,7 +78,9 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
             .map(|output| output.iter().map(|x| x.clone().into()).collect())
             .collect();
 
-        let _result = self.inner.train_batch(&float_inputs, &float_outputs, learning_rate, epochs)
+        let _result = self
+            .inner
+            .train_batch(&float_inputs, &float_outputs, learning_rate, epochs)
             .map_err(|e| format!("Training failed: {}", e))?;
 
         Ok(())
@@ -100,12 +106,12 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
 
     /// Get number of inputs
     pub fn num_inputs(&self) -> usize {
-        self.inner.network.config.layers[0]
+        self.inner.layers()[0]
     }
 
     /// Get number of outputs
     pub fn num_outputs(&self) -> usize {
-        self.inner.network.config.layers.last().copied().unwrap_or(0)
+        self.inner.layers().last().copied().unwrap_or(0)
     }
 
     /// Save network to file (compatibility function)
@@ -178,7 +184,7 @@ pub mod migration_utils {
             "migration_status": "completed",
             "performance_improvements": {
                 "forward_pass": "10x faster",
-                "training_speed": "5x faster", 
+                "training_speed": "5x faster",
                 "memory_usage": "50% reduction",
                 "numerical_stability": "improved",
                 "simd_optimization": "enabled",
@@ -193,7 +199,7 @@ pub mod migration_utils {
                 "Automatic input normalization",
                 "Adaptive learning rates",
                 "Early stopping",
-                "Performance monitoring", 
+                "Performance monitoring",
                 "Memory pooling",
                 "Batch processing optimization"
             ]
@@ -205,11 +211,11 @@ pub mod migration_utils {
         // Test basic network creation and operation
         let config = convert_layer_config(&[10, 5, 1], "general");
         let mut network = FastNeuralNetwork::from_config(&config)?;
-        
+
         // Test forward pass
         let input = vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
         let output = network.run(&input)?;
-        
+
         // Verify output dimensions
         if output.len() != 1 {
             return Err(HiveError::ValidationError {
@@ -224,13 +230,8 @@ pub mod migration_utils {
             vec![0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         ];
         let training_targets = vec![vec![1.0], vec![0.0]];
-        
-        let _training_result = network.train_batch(
-            &training_inputs,
-            &training_targets,
-            0.01,
-            5,
-        )?;
+
+        let _training_result = network.train_batch(&training_inputs, &training_targets, 0.01, 5)?;
 
         Ok(true)
     }
@@ -245,7 +246,7 @@ mod tests {
         let mut network: Network<f32> = Network::new(&[3, 2, 1]);
         let input = vec![1.0, 0.5, -0.5];
         let output = network.run(&input);
-        
+
         assert_eq!(output.len(), 1);
         assert_eq!(network.num_inputs(), 3);
         assert_eq!(network.num_outputs(), 1);

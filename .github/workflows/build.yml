@@ -17,20 +17,22 @@ env:
   RUSTFLAGS: "-D warnings"
 
 jobs:
-  # Fast feedback job - runs first
-  pre-check:
-    name: Pre-flight Checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      rust-changed: ${{ steps.filter.outputs.rust }}
-      frontend-changed: ${{ steps.filter.outputs.frontend }}
+   # Fast feedback job - runs first
+   pre-check:
+     name: Pre-flight Checks
+     runs-on: ubuntu-latest
+     timeout-minutes: 5
+     permissions:
+       contents: read
+     outputs:
+       rust-changed: ${{ steps.filter.outputs.rust }}
+       frontend-changed: ${{ steps.filter.outputs.frontend }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+       - name: Checkout code
+         uses: actions/checkout@v4
+         with:
+           fetch-depth: 0
 
        - name: Check for file changes
          id: filter
@@ -55,13 +57,15 @@ jobs:
           echo "  Rust changes: ${{ steps.filter.outputs.rust }}"
           echo "  Frontend changes: ${{ steps.filter.outputs.frontend }}"
 
-  # Rust build job
-  rust-build:
-    name: Rust Build (${{ matrix.target }})
-    runs-on: ${{ matrix.runner }}
-    needs: pre-check
-    if: needs.pre-check.outputs.rust-changed == 'true'
-    timeout-minutes: 45
+   # Rust build job
+   rust-build:
+     name: Rust Build (${{ matrix.target }})
+     runs-on: ${{ matrix.runner }}
+     needs: pre-check
+     if: needs.pre-check.outputs.rust-changed == 'true'
+     timeout-minutes: 45
+     permissions:
+       contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -76,8 +80,8 @@ jobs:
             runner: macos-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+       - name: Checkout code
+         uses: actions/checkout@v4
 
        - name: Setup Rust
          uses: dtolnay/rust-toolchain@stable
@@ -114,26 +118,28 @@ jobs:
           fi
           echo "::endgroup::"
 
-      - name: Build release binary
-        run: |
-          echo "::group::Building release binary for ${{ matrix.target }}"
-          cd backend
+       - name: Build release binary
+         run: |
+           echo "::group::Building release binary for ${{ matrix.target }}"
+           cd backend
            cargo build --release --all-features --target ${{ matrix.target }}
-          echo "::endgroup::"
+           echo "::endgroup::"
 
-      - name: Run tests with coverage
-        run: |
-          echo "::group::Running tests with coverage for ${{ matrix.target }}"
-          cd backend
+       - name: Install cargo-llvm-cov
+         run: |
+           echo "::group::Installing cargo-llvm-cov"
+           cd backend
+           cargo install cargo-llvm-cov --version 0.6.9
+           echo "::endgroup::"
 
-          # Install cargo-llvm-cov if not already installed
-          if ! command -v cargo-llvm-cov &> /dev/null; then
-            cargo install cargo-llvm-cov
-          fi
+       - name: Run tests with coverage
+         run: |
+           echo "::group::Running tests with coverage for ${{ matrix.target }}"
+           cd backend
 
-          # Run tests with coverage
-          cargo llvm-cov --all-features --release --lcov --output-path coverage-${{ matrix.target }}.lcov
-          echo "::endgroup::"
+           # Run tests with coverage
+           cargo llvm-cov --all-features --release --lcov --output-path coverage-${{ matrix.target }}.lcov
+           echo "::endgroup::"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -149,31 +155,44 @@ jobs:
           path: backend/coverage-${{ matrix.target }}.lcov
           retention-days: 30
 
-  # Frontend build job
-  frontend-build:
-    name: Frontend Build
-    runs-on: ubuntu-latest
-    needs: pre-check
-    if: needs.pre-check.outputs.frontend-changed == 'true'
-    timeout-minutes: 20
+   # Frontend build job
+   frontend-build:
+     name: Frontend Build
+     runs-on: ubuntu-latest
+     needs: pre-check
+     if: needs.pre-check.outputs.frontend-changed == 'true'
+     timeout-minutes: 20
+     permissions:
+       contents: read
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+       - name: Setup Node.js
+         uses: actions/setup-node@v4
+         with:
+           node-version: '20'
+           cache: 'npm'
+           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
-        run: |
-          echo "::group::Installing frontend dependencies"
-          cd frontend
-          npm ci
-          echo "::endgroup::"
+       - name: Cache Next.js build
+         uses: actions/cache@v4
+         with:
+           path: |
+             frontend/.next/cache/
+             frontend/node_modules/.cache/
+           key: ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json', 'frontend/**/*.ts', 'frontend/**/*.tsx') }}
+           restore-keys: |
+             ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}
+             ${{ runner.os }}-nextjs-
+
+       - name: Install dependencies
+         run: |
+           echo "::group::Installing frontend dependencies"
+           cd frontend
+           npm ci
+           echo "::endgroup::"
 
       - name: Run linting
         run: |
@@ -203,13 +222,15 @@ jobs:
           path: frontend/.next/
           retention-days: 30
 
-  # Integration tests
-  integration-test:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: [rust-build, frontend-build]
-    if: always() && (needs.rust-build.result == 'success' || needs.frontend-build.result == 'success')
-    timeout-minutes: 30
+   # Integration tests
+   integration-test:
+     name: Integration Tests
+     runs-on: ubuntu-latest
+     needs: [rust-build, frontend-build]
+     if: always() && (needs.rust-build.result == 'success' || needs.frontend-build.result == 'success')
+     timeout-minutes: 30
+     permissions:
+       contents: read
 
     steps:
       - name: Checkout code
@@ -231,32 +252,60 @@ jobs:
           fi
           echo "::endgroup::"
 
-  # Build summary
-  build-summary:
-    name: Build Summary
-    runs-on: ubuntu-latest
-    needs: [pre-check, rust-build, frontend-build, integration-test]
-    if: always()
+    # Build summary with performance metrics
+    build-summary:
+      name: Build Summary & Performance
+      runs-on: ubuntu-latest
+      needs: [pre-check, rust-build, frontend-build, integration-test]
+      if: always()
+      permissions:
+        contents: read
 
-    steps:
-      - name: Generate build summary
-        run: |
-          echo "::group::Build Summary"
-          echo "Pre-check: ${{ needs.pre-check.result }}"
-          echo "Rust build: ${{ needs.rust-build.result }}"
-          echo "Frontend build: ${{ needs.frontend-build.result }}"
-          echo "Integration tests: ${{ needs.integration-test.result }}"
-          echo "Rust changes detected: ${{ needs.pre-check.outputs.rust-changed }}"
-          echo "Frontend changes detected: ${{ needs.pre-check.outputs.frontend-changed }}"
-          echo "::endgroup::"
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
 
-          # Determine overall status
-          if [[ "${{ needs.rust-build.result }}" == "success" || "${{ needs.rust-build.result }}" == "skipped" ]] && \
-             [[ "${{ needs.frontend-build.result }}" == "success" || "${{ needs.frontend-build.result }}" == "skipped" ]] && \
-             [[ "${{ needs.integration-test.result }}" == "success" || "${{ needs.integration-test.result }}" == "skipped" ]]; then
-            echo "✅ Build workflow completed successfully"
-            exit 0
-          else
-            echo "❌ Build workflow failed"
-            exit 1
-          fi
+       - name: Generate build summary with performance metrics
+         run: |
+           echo "## 📊 Build Performance Summary" >> $GITHUB_STEP_SUMMARY
+           echo "" >> $GITHUB_STEP_SUMMARY
+           echo "| Component | Status | Changes Detected |" >> $GITHUB_STEP_SUMMARY
+           echo "|-----------|--------|------------------|" >> $GITHUB_STEP_SUMMARY
+           echo "| 🔍 Pre-check | ${{ needs.pre-check.result }} | N/A |" >> $GITHUB_STEP_SUMMARY
+           echo "| 🦀 Rust Build | ${{ needs.rust-build.result }} | ${{ needs.pre-check.outputs.rust-changed }} |" >> $GITHUB_STEP_SUMMARY
+           echo "| ⚛️ Frontend Build | ${{ needs.frontend-build.result }} | ${{ needs.pre-check.outputs.frontend-changed }} |" >> $GITHUB_STEP_SUMMARY
+           echo "| 🔗 Integration Tests | ${{ needs.integration-test.result }} | N/A |" >> $GITHUB_STEP_SUMMARY
+           echo "" >> $GITHUB_STEP_SUMMARY
+
+           # Performance insights
+           echo "### 💡 Performance Insights" >> $GITHUB_STEP_SUMMARY
+           echo "" >> $GITHUB_STEP_SUMMARY
+
+           if [[ "${{ needs.pre-check.outputs.rust-changed }}" == "false" ]]; then
+             echo "✅ **Rust build skipped** - No Rust code changes detected" >> $GITHUB_STEP_SUMMARY
+           fi
+
+           if [[ "${{ needs.pre-check.outputs.frontend-changed }}" == "false" ]]; then
+             echo "✅ **Frontend build skipped** - No frontend code changes detected" >> $GITHUB_STEP_SUMMARY
+           fi
+
+           # Cache hit information
+           echo "" >> $GITHUB_STEP_SUMMARY
+           echo "### 📈 Cache Performance" >> $GITHUB_STEP_SUMMARY
+           echo "- **Cargo Registry**: Cached for faster dependency downloads" >> $GITHUB_STEP_SUMMARY
+           echo "- **Rust Target**: Cached for incremental builds" >> $GITHUB_STEP_SUMMARY
+           echo "- **Node.js Modules**: Cached for faster npm installs" >> $GITHUB_STEP_SUMMARY
+           echo "- **Next.js Cache**: Cached for faster frontend builds" >> $GITHUB_STEP_SUMMARY
+
+           # Determine overall status
+           if [[ "${{ needs.rust-build.result }}" == "success" || "${{ needs.rust-build.result }}" == "skipped" ]] && \
+              [[ "${{ needs.frontend-build.result }}" == "success" || "${{ needs.frontend-build.result }}" == "skipped" ]] && \
+              [[ "${{ needs.integration-test.result }}" == "success" || "${{ needs.integration-test.result }}" == "skipped" ]]; then
+             echo "" >> $GITHUB_STEP_SUMMARY
+             echo "✅ **Build workflow completed successfully!**" >> $GITHUB_STEP_SUMMARY
+             exit 0
+           else
+             echo "" >> $GITHUB_STEP_SUMMARY
+             echo "❌ **Build workflow failed!** Check the logs for details." >> $GITHUB_STEP_SUMMARY
+             exit 1
+           fi

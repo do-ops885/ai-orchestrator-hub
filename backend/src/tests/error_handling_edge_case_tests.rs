@@ -3,8 +3,10 @@
 //! Tests to prevent regression of unwrap_or() to unwrap_or_else(||) changes
 //! in the error handling and recovery system.
 
-use crate::utils::error_handling::{SafeOperations, RecoveryConfig, CircuitBreaker, CircuitBreakerState};
 use crate::utils::error::HiveError;
+use crate::utils::error_handling::{
+    CircuitBreaker, CircuitBreakerState, RecoveryConfig, SafeOperations,
+};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -124,7 +126,7 @@ async fn test_resource_exhaustion_during_recovery() {
 
     // Should either succeed, fail with resource exhaustion, or circuit breaker opens
     match result {
-        Ok(_) => {} // Success is acceptable
+        Ok(_) => {}                                    // Success is acceptable
         Err(HiveError::ResourceExhausted { .. }) => {} // Resource exhaustion is expected
         Err(HiveError::CircuitBreakerOpen { .. }) => {
             let state = safe_ops.get_circuit_breaker_status().await;
@@ -369,9 +371,9 @@ async fn test_retry_with_different_error_types() {
         Err(HiveError::ValidationError { .. }) => {} // Should not retry validation errors
         Err(HiveError::AuthenticationError { .. }) => {} // Should not retry auth errors
         Err(HiveError::AuthorizationError { .. }) => {} // Should not retry authz errors
-        Err(HiveError::SecurityError { .. }) => {} // Should not retry security errors
-        Err(HiveError::NetworkError { .. }) => {} // Network errors should be retried
-        Err(_) => {} // Other errors are acceptable
+        Err(HiveError::SecurityError { .. }) => {}   // Should not retry security errors
+        Err(HiveError::NetworkError { .. }) => {}    // Network errors should be retried
+        Err(_) => {}                                 // Other errors are acceptable
     }
 }
 
@@ -444,9 +446,7 @@ async fn test_circuit_breaker_reset() {
     assert_eq!(state, CircuitBreakerState::Closed);
 
     // Should now allow operations
-    let result = safe_ops
-        .execute_safely(async { Ok("reset_success") })
-        .await;
+    let result = safe_ops.execute_safely(async { Ok("reset_success") }).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "reset_success");
 }
@@ -565,12 +565,30 @@ fn test_safe_json_utilities_edge_cases() -> Result<(), Box<dyn std::error::Error
     assert!(empty_object.is_empty());
 
     // Test optional variants
-    assert_eq!(safe_json::get_optional_string(&json_value, "string_field"), Some("test".to_string()));
-    assert_eq!(safe_json::get_optional_string(&json_value, "missing_field"), None);
-    assert_eq!(safe_json::get_optional_number(&json_value, "number_field"), Some(42.0));
-    assert_eq!(safe_json::get_optional_number(&json_value, "missing_field"), None);
-    assert_eq!(safe_json::get_optional_boolean(&json_value, "boolean_field"), Some(true));
-    assert_eq!(safe_json::get_optional_boolean(&json_value, "missing_field"), None);
+    assert_eq!(
+        safe_json::get_optional_string(&json_value, "string_field"),
+        Some("test".to_string())
+    );
+    assert_eq!(
+        safe_json::get_optional_string(&json_value, "missing_field"),
+        None
+    );
+    assert_eq!(
+        safe_json::get_optional_number(&json_value, "number_field"),
+        Some(42.0)
+    );
+    assert_eq!(
+        safe_json::get_optional_number(&json_value, "missing_field"),
+        None
+    );
+    assert_eq!(
+        safe_json::get_optional_boolean(&json_value, "boolean_field"),
+        Some(true)
+    );
+    assert_eq!(
+        safe_json::get_optional_boolean(&json_value, "missing_field"),
+        None
+    );
 
     Ok(())
 }

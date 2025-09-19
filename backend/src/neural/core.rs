@@ -9,8 +9,10 @@ use tracing::info;
 use uuid::Uuid;
 
 // Replaced ruv-fann with optimized implementation
-use crate::neural::optimized_integration::{FastNeuralNetwork, FastNeuralProcessor, FastNeuralConfig};
 use crate::neural::migration_helper::Network;
+use crate::neural::optimized_integration::{
+    FastNeuralConfig, FastNeuralNetwork, FastNeuralProcessor,
+};
 
 use crate::agents::agent::Agent;
 use crate::infrastructure::streaming::{DataChunk, NeuralDataStream, StreamConfig};

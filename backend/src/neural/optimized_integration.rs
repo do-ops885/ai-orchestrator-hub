@@ -8,8 +8,8 @@
 //! - Better numerical stability
 
 use crate::neural::optimized_network::{
-    OptimizedNeuralNetwork, OptimizedNeuralManager, NetworkSpecialization, 
-    NetworkConfig, InferenceResult, TrainingBatch
+    InferenceResult, NetworkConfig, NetworkSpecialization, OptimizedNeuralManager,
+    OptimizedNeuralNetwork, TrainingBatch,
 };
 use crate::utils::error::{HiveError, HiveResult};
 use nalgebra::{DMatrix, DVector};
@@ -84,10 +84,12 @@ impl FastNeuralNetwork {
                 agent_count: config.layers[0] / 4,
                 action_space: config.layers.last().copied().unwrap_or(1),
             },
-            "forecasting" | "prediction" | "temporal" => NetworkSpecialization::TimeSeriesPrediction {
-                sequence_length: 10,
-                forecast_horizon: 1,
-            },
+            "forecasting" | "prediction" | "temporal" => {
+                NetworkSpecialization::TimeSeriesPrediction {
+                    sequence_length: 10,
+                    forecast_horizon: 1,
+                }
+            }
             _ => NetworkSpecialization::GeneralPurpose,
         };
 
@@ -112,6 +114,11 @@ impl FastNeuralNetwork {
         })
     }
 
+    /// Get the network layers configuration
+    pub fn layers(&self) -> &[usize] {
+        &self.network.config.layers
+    }
+
     /// Create network with automatic sizing based on specialization
     pub fn create_specialized(
         specialization: &str,
@@ -123,7 +130,12 @@ impl FastNeuralNetwork {
             "pattern" | "classification" => vec![input_size, 128, 64, output_size],
             "coordination" | "swarm" => vec![input_size, 96, 48, output_size],
             "forecasting" | "prediction" => vec![input_size, 80, 40, output_size],
-            _ => vec![input_size, (input_size * 2).min(128), (input_size).min(64), output_size],
+            _ => vec![
+                input_size,
+                (input_size * 2).min(128),
+                (input_size).min(64),
+                output_size,
+            ],
         };
 
         let config = FastNeuralConfig {
@@ -149,7 +161,7 @@ impl FastNeuralNetwork {
         };
 
         let result = self.network.forward(&input_vec)?;
-        
+
         let output = if let Some(stats) = &self.output_stats {
             // Apply denormalization if configured
             self.denormalize_output(&result.outputs, stats)?
@@ -171,7 +183,7 @@ impl FastNeuralNetwork {
         let start_time = std::time::Instant::now();
 
         if inputs.len() != targets.len() {
-            return Err(HiveError::InvalidInput {
+            return Err(HiveError::ValidationError {
                 field: "inputs/targets".to_string(),
                 reason: "Input and target batch sizes must match".to_string(),
             });
@@ -227,7 +239,7 @@ impl FastNeuralNetwork {
     /// Set up automatic input normalization
     pub fn setup_input_normalization(&mut self, training_inputs: &[Vec<f32>]) -> HiveResult<()> {
         if training_inputs.is_empty() {
-            return Err(HiveError::InvalidInput {
+            return Err(HiveError::ValidationError {
                 field: "training_inputs".to_string(),
                 reason: "Cannot normalize with empty training data".to_string(),
             });
@@ -241,7 +253,7 @@ impl FastNeuralNetwork {
 
         // Calculate statistics
         let n = training_inputs.len() as f32;
-        
+
         // Calculate means, mins, maxs
         for input in training_inputs {
             for (i, &value) in input.iter().enumerate() {
@@ -273,9 +285,13 @@ impl FastNeuralNetwork {
     }
 
     /// Normalize input using stored statistics
-    fn normalize_input(&self, input: &[f32], stats: &NormalizationStats) -> HiveResult<DVector<f32>> {
+    fn normalize_input(
+        &self,
+        input: &[f32],
+        stats: &NormalizationStats,
+    ) -> HiveResult<DVector<f32>> {
         if input.len() != stats.mean.len() {
-            return Err(HiveError::InvalidInput {
+            return Err(HiveError::ValidationError {
                 field: "input".to_string(),
                 reason: "Input size doesn't match normalization parameters".to_string(),
             });
@@ -292,7 +308,11 @@ impl FastNeuralNetwork {
     }
 
     /// Denormalize output using stored statistics
-    fn denormalize_output(&self, output: &DVector<f32>, stats: &NormalizationStats) -> HiveResult<Vec<f32>> {
+    fn denormalize_output(
+        &self,
+        output: &DVector<f32>,
+        stats: &NormalizationStats,
+    ) -> HiveResult<Vec<f32>> {
         let denormalized: Vec<f32> = output
             .iter()
             .zip(&stats.mean)
@@ -306,7 +326,7 @@ impl FastNeuralNetwork {
     /// Convert vector of vectors to matrix
     fn vec_to_matrix(&self, data: &[Vec<f32>]) -> HiveResult<DMatrix<f32>> {
         if data.is_empty() {
-            return Err(HiveError::InvalidInput {
+            return Err(HiveError::ValidationError {
                 field: "data".to_string(),
                 reason: "Cannot create matrix from empty data".to_string(),
             });
@@ -319,7 +339,7 @@ impl FastNeuralNetwork {
         for row_idx in 0..rows {
             for col_idx in 0..cols {
                 if data[col_idx].len() != rows {
-                    return Err(HiveError::InvalidInput {
+                    return Err(HiveError::ValidationError {
                         field: "data".to_string(),
                         reason: "Inconsistent vector sizes in batch".to_string(),
                     });
@@ -418,8 +438,9 @@ impl FastNeuralProcessor {
         input_size: usize,
         output_size: usize,
     ) -> HiveResult<()> {
-        let network = FastNeuralNetwork::create_specialized(specialization, input_size, output_size)?;
-        
+        let network =
+            FastNeuralNetwork::create_specialized(specialization, input_size, output_size)?;
+
         let mut networks = self.agent_networks.write().await;
         networks.insert(agent_id, network);
 
@@ -440,7 +461,9 @@ impl FastNeuralProcessor {
             _ => NetworkSpecialization::GeneralPurpose,
         };
 
-        self.manager.create_agent_network(agent_id, net_spec).await?;
+        self.manager
+            .create_agent_network(agent_id, net_spec)
+            .await?;
 
         Ok(())
     }
@@ -454,10 +477,11 @@ impl FastNeuralProcessor {
         epochs: usize,
     ) -> HiveResult<TrainingResult> {
         let mut networks = self.agent_networks.write().await;
-        let network = networks.get_mut(&agent_id).ok_or_else(|| HiveError::NotFound {
-            resource: "neural_network".to_string(),
-            id: agent_id.to_string(),
-        })?;
+        let network = networks
+            .get_mut(&agent_id)
+            .ok_or_else(|| HiveError::NotFound {
+                resource: agent_id.to_string(),
+            })?;
 
         // Set up normalization if enabled
         if self.global_config.auto_normalize && network.input_stats.is_none() {
@@ -482,10 +506,11 @@ impl FastNeuralProcessor {
         input: &[f32],
     ) -> HiveResult<Vec<f32>> {
         let mut networks = self.agent_networks.write().await;
-        let network = networks.get_mut(&agent_id).ok_or_else(|| HiveError::NotFound {
-            resource: "neural_network".to_string(),
-            id: agent_id.to_string(),
-        })?;
+        let network = networks
+            .get_mut(&agent_id)
+            .ok_or_else(|| HiveError::NotFound {
+                resource: agent_id.to_string(),
+            })?;
 
         network.run(input)
     }
@@ -526,27 +551,31 @@ impl FastNeuralProcessor {
     }
 
     /// Benchmark performance compared to ruv-fann
-    pub async fn benchmark_performance(&self, agent_id: Uuid, iterations: usize) -> HiveResult<serde_json::Value> {
+    pub async fn benchmark_performance(
+        &self,
+        agent_id: Uuid,
+        iterations: usize,
+    ) -> HiveResult<serde_json::Value> {
         let networks = self.agent_networks.read().await;
         let network = networks.get(&agent_id).ok_or_else(|| HiveError::NotFound {
-            resource: "neural_network".to_string(),
-            id: agent_id.to_string(),
+            resource: agent_id.to_string(),
         })?;
 
         let input_size = network.network.config.layers[0];
         let test_input = vec![0.5; input_size];
 
         let start_time = std::time::Instant::now();
-        
+
         // Drop the read lock before the mutable operations
         drop(networks);
 
         for _ in 0..iterations {
             let mut networks = self.agent_networks.write().await;
-            let network = networks.get_mut(&agent_id).ok_or_else(|| HiveError::NotFound {
-                resource: "neural_network".to_string(),
-                id: agent_id.to_string(),
-            })?;
+            let network = networks
+                .get_mut(&agent_id)
+                .ok_or_else(|| HiveError::NotFound {
+                    resource: agent_id.to_string(),
+                })?;
             let _ = network.run(&test_input)?;
         }
 
@@ -573,17 +602,19 @@ mod tests {
         let agent_id = Uuid::new_v4();
 
         // Create network
-        processor
+        if let Err(e) = processor
             .create_agent_network(agent_id, "sentiment", 10, 1)
             .await
-            .unwrap();
+        {
+            panic!("Failed to create agent network: {:?}", e);
+        }
 
         // Test prediction
         let input = vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
-        let result = processor
-            .predict_with_agent_network(agent_id, &input)
-            .await
-            .unwrap();
+        let result = match processor.predict_with_agent_network(agent_id, &input).await {
+            Ok(res) => res,
+            Err(e) => panic!("Failed to predict: {:?}", e),
+        };
 
         assert_eq!(result.len(), 1);
     }
@@ -593,10 +624,12 @@ mod tests {
         let processor = FastNeuralProcessor::new();
         let agent_id = Uuid::new_v4();
 
-        processor
+        if let Err(e) = processor
             .create_agent_network(agent_id, "pattern", 3, 1)
             .await
-            .unwrap();
+        {
+            panic!("Failed to create agent network: {:?}", e);
+        }
 
         // Training data
         let inputs = vec![
@@ -605,17 +638,15 @@ mod tests {
             vec![0.0, 0.0, 1.0],
             vec![1.0, 1.0, 0.0],
         ];
-        let targets = vec![
-            vec![1.0],
-            vec![0.0],
-            vec![0.0],
-            vec![1.0],
-        ];
+        let targets = vec![vec![1.0], vec![0.0], vec![0.0], vec![1.0]];
 
-        let result = processor
+        let result = match processor
             .train_agent_network(agent_id, &inputs, &targets, 10)
             .await
-            .unwrap();
+        {
+            Ok(res) => res,
+            Err(e) => panic!("Failed to train: {:?}", e),
+        };
 
         assert!(result.epochs_completed > 0);
         assert!(result.final_error >= 0.0);
@@ -623,7 +654,10 @@ mod tests {
 
     #[test]
     fn test_fast_neural_network_creation() {
-        let network = FastNeuralNetwork::create_specialized("sentiment", 100, 1).unwrap();
+        let network = match FastNeuralNetwork::create_specialized("sentiment", 100, 1) {
+            Ok(net) => net,
+            Err(e) => panic!("Failed to create specialized network: {:?}", e),
+        };
         assert_eq!(network.network.config.layers[0], 100);
         assert_eq!(network.network.config.layers.last(), Some(&1));
     }
