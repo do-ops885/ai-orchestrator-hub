@@ -12,6 +12,10 @@ pub mod experiments;
 pub mod monitoring;
 /// Natural language processing utilities
 pub mod nlp;
+/// Optimized neural network implementation (replaces ruv-fann)
+pub mod optimized_network;
+/// Integration layer for seamless ruv-fann replacement
+pub mod optimized_integration;
 /// Neural network training and optimization
 pub mod training;
 
@@ -29,6 +33,8 @@ pub use monitoring::{
     FeatureImportance, MetricsSnapshot, ROCCurve,
 };
 pub use nlp::{NLPProcessor, ProcessedText};
+pub use optimized_network::{OptimizedNeuralNetwork, OptimizedNeuralManager, NetworkSpecialization};
+pub use optimized_integration::{FastNeuralNetwork, FastNeuralProcessor, FastNeuralConfig};
 pub use training::{
     ArchitectureConfig, CNNConfig, DataConfig, GNNConfig, MemoryOptimization, ModelType,
     NeuralTrainingSystem, OptimizationConfig, RNNConfig, TrainingConfig, TrainingMetrics,

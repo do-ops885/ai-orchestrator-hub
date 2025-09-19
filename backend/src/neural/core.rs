@@ -8,8 +8,9 @@ use tokio::sync::RwLock;
 use tracing::info;
 use uuid::Uuid;
 
-#[cfg(feature = "advanced-neural")]
-use ruv_fann::{ActivationFunction, Network};
+// Replaced ruv-fann with optimized implementation
+use crate::neural::optimized_integration::{FastNeuralNetwork, FastNeuralProcessor, FastNeuralConfig};
+use crate::neural::migration_helper::Network;
 
 use crate::agents::agent::Agent;
 use crate::infrastructure::streaming::{DataChunk, NeuralDataStream, StreamConfig};
