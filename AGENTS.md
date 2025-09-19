@@ -29,7 +29,6 @@
 - **Imports**: Group std → external crates → local modules
 - **Types**: Explicit types preferred, use Arc/Rc for shared ownership
 - **Async**: async fn + await, tokio runtime, async channels for agent communication
-- File size: ≤ 500 LOC
 
 ### TypeScript/React (Frontend)
 
@@ -39,8 +38,7 @@
 - **Imports**: Path mapping (@/), group React → external → internal
 - **Components**: Functional with hooks, composition over inheritance
 - **State**: Zustand for global, local for components
-- File size: ≤ 600 LOC
 
 **🚫 ZERO TOLERANCE for unwrap() calls in production Rust code**
 
-**Remember**: Think step-by-step, analyze first, validate changes, no regressions, no false positive results
+**Remember**: Think step-by-step, analyze first, validate changes, no regressions, no false positive results, File size: ≤ 600 ine of code
