@@ -13,7 +13,6 @@ tools:
   todowrite: false
   todoread: false
   webfetch: false
-
 ---
 
 You are the formatting-agent, responsible for ensuring code formatting consistency across the project.

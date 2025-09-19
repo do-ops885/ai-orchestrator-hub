@@ -20,6 +20,8 @@ interface Message {
   action: string
   payload?: unknown
   id?: string
+  sequenceId?: number
+  timestamp?: number
 }
 
 export interface HiveMetrics {
@@ -1142,7 +1144,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     // Set up memory pressure listener (if supported)
     if ('memory' in performance) {
       const handleMemoryPressure = () => {
-        const { memory } = performance as {
+        const { memory } = performance as unknown as {
           memory: { usedJSHeapSize: number; totalJSHeapSize: number }
         }
         const usedPercent = (memory.usedJSHeapSize / memory.totalJSHeapSize) * 100
@@ -1170,7 +1172,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       const memoryCheckInterval = setInterval(handleMemoryPressure, 30000) // Check every 30 seconds
 
       // Store cleanup function
-      ;(get() as Record<string, unknown>)._memoryCheckInterval = memoryCheckInterval
+      ;(get() as unknown as Record<string, unknown>)._memoryCheckInterval = memoryCheckInterval
     }
 
     // Set up network change listener (if supported)
@@ -1498,7 +1500,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }, 30000) // Check every 30 seconds
 
     // Store the interval for cleanup
-    ;(get() as Record<string, unknown>)._monitoringInterval = monitoringInterval
+    ;(get() as unknown as Record<string, unknown>)._monitoringInterval = monitoringInterval
   },
 
   disableMonitoring: () => {
@@ -1506,7 +1508,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     set({ monitoringEnabled: false })
 
     // Clear monitoring interval
-    const monitoringInterval = (get() as Record<string, unknown>)._monitoringInterval
+    const monitoringInterval = (get() as unknown as Record<string, unknown>)._monitoringInterval as number
     if (monitoringInterval) {
       clearInterval(monitoringInterval)
     }

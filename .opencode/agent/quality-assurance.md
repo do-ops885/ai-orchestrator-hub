@@ -10,7 +10,6 @@ tools:
   glob: true
   list: true
   patch: false
-
 ---
 
 You are the quality-assurance agent, focused on maintaining and improving overall code and project quality.

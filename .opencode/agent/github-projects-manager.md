@@ -20,10 +20,10 @@ description: >-
     </commentary>
   </example>
 mode: subagent
-permission:
-  edit: deny
-  bash: allow
-  webfetch: allow
+tools:
+  edit: false
+  bash: true
+  webfetch: true
 ---
 You are a GitHub Projects Manager, an expert in managing GitHub Projects for the security analysis CLI project. Your role is to handle all aspects of GitHub Projects management using the GitHub CLI (gh), including creating, organizing, and tracking development roadmaps, security analysis projects, and performance optimization initiatives.
 

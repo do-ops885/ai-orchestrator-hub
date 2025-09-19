@@ -57,5 +57,74 @@
         "text": "The multiagent hive system provides intelligent swarm coordination for complex tasks."
       }
     }
+  },
+  "create_workflow": {
+    "jsonrpc": "2.0",
+    "id": 7,
+    "method": "tools/call",
+    "params": {
+      "name": "create_specialized_workflow",
+      "arguments": {
+        "name": "Security Audit Workflow",
+        "type": "security_audit",
+        "steps": [
+          {"name": "static_analysis", "agent_type": "specialist", "description": "Run static code analysis"},
+          {"name": "vulnerability_scan", "agent_type": "worker", "description": "Scan for known vulnerabilities"},
+          {"name": "report_generation", "agent_type": "coordinator", "description": "Generate security report"}
+        ],
+        "parallel_execution": false
+      }
+    }
+  },
+  "performance_analytics": {
+    "jsonrpc": "2.0",
+    "id": 8,
+    "method": "tools/call",
+    "params": {
+      "name": "agent_performance_analytics",
+      "arguments": {
+        "analysis_type": "comprehensive",
+        "time_range": "24h"
+      }
+    }
+  },
+  "dynamic_scaling": {
+    "jsonrpc": "2.0",
+    "id": 9,
+    "method": "tools/call",
+    "params": {
+      "name": "dynamic_swarm_scaling",
+      "arguments": {
+        "action": "auto_scale"
+      }
+    }
+  },
+  "agent_communication": {
+    "jsonrpc": "2.0",
+    "id": 10,
+    "method": "tools/call",
+    "params": {
+      "name": "cross_agent_communication",
+      "arguments": {
+        "action": "broadcast",
+        "from_agent": "coordinator_01",
+        "message": "System maintenance scheduled in 1 hour",
+        "message_type": "info",
+        "channel": "general"
+      }
+    }
+  },
+  "knowledge_sharing": {
+    "jsonrpc": "2.0",
+    "id": 11,
+    "method": "tools/call",
+    "params": {
+      "name": "knowledge_sharing",
+      "arguments": {
+        "action": "get_insights",
+        "insight_type": "trending",
+        "time_range": "24h"
+      }
+    }
   }
 }
