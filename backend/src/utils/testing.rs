@@ -156,7 +156,7 @@ impl TestHarness {
         let hive = self.hive.read().await;
         let status = hive.get_status().await;
         let agents_info = hive.get_agents_info().await;
-        let tasks_info = hive.get_tasks_info().await.unwrap_or(json!({}));
+        let tasks_info = hive.get_tasks_info().await.unwrap_or_else(|_| json!({}));
 
         let mut report = ConsistencyReport::default();
 
@@ -298,13 +298,13 @@ impl LoadTestResults {
                 .iter()
                 .map(|s| s.active_agents)
                 .max()
-                .unwrap_or(0),
+                .unwrap_or_else(|| 0),
             peak_queue_size: self
                 .performance_samples
                 .iter()
                 .map(|s| s.tasks_in_queue)
                 .max()
-                .unwrap_or(0),
+                .unwrap_or_else(|| 0),
         }
     }
 }

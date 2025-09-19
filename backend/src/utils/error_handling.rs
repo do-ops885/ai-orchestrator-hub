@@ -282,7 +282,7 @@ impl SafeOperations {
             }
         }
 
-        Err(last_error.unwrap_or(HiveError::OperationFailed {
+        Err(last_error.unwrap_or_else(|| HiveError::OperationFailed {
             reason: "Operation failed after all retry attempts".to_string(),
         }))
     }
