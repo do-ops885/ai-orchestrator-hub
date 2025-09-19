@@ -85,7 +85,7 @@
     "neural:visualize:experiments": "node scripts/neural-visualize-experiments.js"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^2.0.13",
+    "@ai-sdk/anthropic": "^2.0.17",
     "@ai-sdk/openai": "^2.0.5",
     "@playwright/test": "^1.40.0",
     "@types/node": "^22.9.0",
