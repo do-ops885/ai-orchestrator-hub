@@ -24,7 +24,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      security-events: write
+      security-events: ${{ github.actor == 'dependabot[bot]' && 'read' || 'write' }}
     timeout-minutes: 15
 
     steps:
@@ -51,33 +51,32 @@ jobs:
         with:
           config-file: './.github/dependency-review-config.yml'
 
-      - name: Secrets detection
-        run: |
-          echo "🔍 Running secrets detection..."
+       - name: Secrets detection
+         run: |
+           echo "🔍 Running secrets detection..."
 
-          # Install gitleaks if not present
-          if ! command -v gitleaks &> /dev/null; then
-            echo "📦 Installing gitleaks..."
-            wget -O gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.18.0_linux_x64.tar.gz
-            tar -xzf gitleaks.tar.gz
-            chmod +x gitleaks
-            sudo mv gitleaks /usr/local/bin/
-          fi
+           # Install gitleaks if not present
+           if ! command -v gitleaks &> /dev/null; then
+             echo "📦 Installing gitleaks..."
+             curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | jq -r '.assets[] | select(.name | contains("linux_x64")) | .browser_download_url' | xargs curl -L -o gitleaks.tar.gz
+             tar -xzf gitleaks.tar.gz
+             chmod +x gitleaks
+             sudo mv gitleaks /usr/local/bin/
+           fi
 
-          # Run gitleaks
-          echo "🔎 Scanning for secrets..."
-          gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose || true
+           # Run gitleaks
+           echo "🔎 Scanning for secrets..."
+           gitleaks detect --source . --report-format json --report-path gitleaks-report.json --verbose || true
 
-        if [ -f gitleaks-report.json ]; then
-          secrets_count=$(jq length gitleaks-report.json)
-          echo "✅ Secrets detection completed. Found: $secrets_count potential secrets"
+           if [ -f gitleaks-report.json ]; then
+             secrets_count=$(jq length gitleaks-report.json)
+             echo "✅ Secrets detection completed. Found: $secrets_count potential secrets"
 
-          if [ $secrets_count -gt 0 ]; then
-            echo "⚠️  Potential secrets detected. Please review gitleaks-report.json"
-            echo "::warning::Potential secrets detected. Please review gitleaks-report.json"
-          fi
-        fi
-        fi
+             if [ $secrets_count -gt 0 ]; then
+               echo "⚠️  Potential secrets detected. Please review gitleaks-report.json"
+               echo "::warning::Potential secrets detected. Please review gitleaks-report.json"
+             fi
+           fi
 
       - name: Upload security scan results
         uses: actions/upload-artifact@v4

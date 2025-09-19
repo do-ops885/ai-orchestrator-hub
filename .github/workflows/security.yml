@@ -23,7 +23,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      security-events: write
+      security-events: ${{ github.actor == 'dependabot[bot]' && 'read' || 'write' }}
 
     steps:
       - name: Checkout code
@@ -124,7 +124,7 @@ jobs:
     permissions:
       actions: read
       contents: read
-      security-events: write
+      security-events: ${{ github.actor == 'dependabot[bot]' && 'read' || 'write' }}
 
     steps:
        - name: Checkout code
@@ -169,6 +169,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      security-events: ${{ github.actor == 'dependabot[bot]' && 'read' || 'write' }}
 
     steps:
       - name: Checkout code
@@ -185,6 +186,9 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && contains(join(github.event.head_commit.modified, ','), 'Dockerfile')
     timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: ${{ github.actor == 'dependabot[bot]' && 'read' || 'write' }}
 
     steps:
       - name: Checkout code
@@ -253,14 +257,14 @@ jobs:
          with:
            correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
 
-       - name: Download security reports
-         uses: actions/download-artifact@v4
-     with:
-       path: security-reports/
+        - name: Download security reports
+          uses: actions/download-artifact@v4
+          with:
+            path: security-reports/
 
-       - name: Process security metrics
-         run: |
-       source log_helper.sh
+        - name: Process security metrics
+          run: |
+            source log_helper.sh
        log_structured "INFO" "Processing security metrics"
 
        # Initialize metrics
@@ -349,18 +353,18 @@ jobs:
        }
        EOF
 
-       - name: Upload security metrics
-         uses: actions/upload-artifact@v4
-     with:
-       name: security-metrics-history
-       path: security-metrics-history/
-       retention-days: 90
+        - name: Upload security metrics
+          uses: actions/upload-artifact@v4
+          with:
+            name: security-metrics-history
+            path: security-metrics-history/
+            retention-days: 90
 
-     - name: Cleanup logging
-     if: always()
-     uses: ./.github/actions/cleanup-logging
-      with:
-        final-status: ${{ job.status }}
+        - name: Cleanup logging
+          if: always()
+          uses: ./.github/actions/cleanup-logging
+          with:
+            final-status: ${{ job.status }}
 
   # Security trend analysis
   security-trends:
@@ -376,15 +380,15 @@ jobs:
          with:
            correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
 
-       - name: Download security metrics history
-         uses: actions/download-artifact@v4
-     with:
-       pattern: "security-metrics-history*"
-       merge-multiple: true
+        - name: Download security metrics history
+          uses: actions/download-artifact@v4
+          with:
+            pattern: "security-metrics-history*"
+            merge-multiple: true
 
-       - name: Analyze security trends
-         run: |
-      source log_helper.sh
+        - name: Analyze security trends
+          run: |
+            source log_helper.sh
       log_structured "INFO" "Analyzing security trends"
 
        echo "## 📈 Security Trends" >> $GITHUB_STEP_SUMMARY
@@ -438,26 +442,26 @@ jobs:
            correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
 
        - name: Validate security reports compliance
-         run: |
-      source log_helper.sh
-      log_structured "INFO" "Running security reports compliance validation"
+          run: |
+            source log_helper.sh
+            log_structured "INFO" "Running security reports compliance validation"
 
-      # Run the comprehensive validation script
-      ./scripts/validate-security-reports-compliance.sh
+            # Run the comprehensive validation script
+            ./scripts/validate-security-reports-compliance.sh
 
-       - name: Upload compliance report
-         uses: actions/upload-artifact@v4
-     if: always()
-     with:
-       name: security-reports-compliance
-       path: security-reports/compliance-report-*.json
-       retention-days: 30
+        - name: Upload compliance report
+          uses: actions/upload-artifact@v4
+          if: always()
+          with:
+            name: security-reports-compliance
+            path: security-reports/compliance-report-*.json
+            retention-days: 30
 
-     - name: Cleanup logging
-     if: always()
-     uses: ./.github/actions/cleanup-logging
-      with:
-        final-status: ${{ job.status }}
+        - name: Cleanup logging
+          if: always()
+          uses: ./.github/actions/cleanup-logging
+          with:
+            final-status: ${{ job.status }}
 
   # Security summary
   security-summary:
@@ -473,28 +477,28 @@ jobs:
          with:
            correlation-id: ${{ github.run_id }}-${{ github.run_attempt }}
 
-       - name: Generate comprehensive security summary
-         run: |
-      source log_helper.sh
-        log_structured "INFO" "Generating comprehensive security summary"
+        - name: Generate comprehensive security summary
+          run: |
+            source log_helper.sh
+            log_structured "INFO" "Generating comprehensive security summary"
 
-        echo "## 🔒 Comprehensive Security Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "| Check | Status | Details |" >> $GITHUB_STEP_SUMMARY
-        echo "|-------|--------|---------|" >> $GITHUB_STEP_SUMMARY
-         echo "| 🦀 Rust Audit | ${{ needs.security-audit.result }} | Cargo security vulnerabilities |" >> $GITHUB_STEP_SUMMARY
-         echo "| 📦 Frontend Security | ${{ needs.frontend-security.result }} | NPM audit and dependency checks |" >> $GITHUB_STEP_SUMMARY
-         echo "| 🔍 CodeQL Analysis | ${{ needs.codeql-analysis.result }} | Static analysis for JS/Rust |" >> $GITHUB_STEP_SUMMARY
-         echo "| 🔗 Dependency Review | ${{ needs.dependency-review.result }} | License and vulnerability checks |" >> $GITHUB_STEP_SUMMARY
-         echo "| 🐳 Container Scan | ${{ needs.container-scan.result }} | Docker image security |" >> $GITHUB_STEP_SUMMARY
-         echo "| 🔐 Secrets Scan | ${{ needs.secrets-scan.result }} | Leaked secrets detection |" >> $GITHUB_STEP_SUMMARY
-         echo "| 📊 Security Metrics | ${{ needs.security-metrics.result }} | Vulnerability tracking |" >> $GITHUB_STEP_SUMMARY
-         echo "| 📈 Security Trends | ${{ needs.security-trends.result }} | Historical analysis |" >> $GITHUB_STEP_SUMMARY
-         echo "| 📋 Reports Compliance | ${{ needs.security-reports-validation.result }} | Security reports organization |" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## 🔒 Comprehensive Security Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Check | Status | Details |" >> $GITHUB_STEP_SUMMARY
+            echo "|-------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+            echo "| 🦀 Rust Audit | ${{ needs.security-audit.result }} | Cargo security vulnerabilities |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📦 Frontend Security | ${{ needs.frontend-security.result }} | NPM audit and dependency checks |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔍 CodeQL Analysis | ${{ needs.codeql-analysis.result }} | Static analysis for JS/Rust |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔗 Dependency Review | ${{ needs.dependency-review.result }} | License and vulnerability checks |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🐳 Container Scan | ${{ needs.container-scan.result }} | Docker image security |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔐 Secrets Scan | ${{ needs.secrets-scan.result }} | Leaked secrets detection |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📊 Security Metrics | ${{ needs.security-metrics.result }} | Vulnerability tracking |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📈 Security Trends | ${{ needs.security-trends.result }} | Historical analysis |" >> $GITHUB_STEP_SUMMARY
+            echo "| 📋 Reports Compliance | ${{ needs.security-reports-validation.result }} | Security reports organization |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
 
-         # Critical security gate validation
-         critical_failures=0
+            # Critical security gate validation
+            critical_failures=0
          if [[ "${{ needs.security-audit.result }}" == "failure" ]]; then
            critical_failures=$((critical_failures + 1))
          fi
