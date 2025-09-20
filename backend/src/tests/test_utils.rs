@@ -156,3 +156,262 @@ pub fn create_task_config(
 
     config
 }
+
+/// Create a test task result
+#[must_use]
+pub fn create_test_task_result(success: bool) -> crate::tasks::TaskResult {
+    crate::tasks::TaskResult {
+        task_id: uuid::Uuid::new_v4(),
+        agent_id: uuid::Uuid::new_v4(),
+        success,
+        output: if success {
+            "Task completed successfully".to_string()
+        } else {
+            "Task failed".to_string()
+        },
+        execution_time: 1000,
+        error_message: if success {
+            None
+        } else {
+            Some("Execution error".to_string())
+        },
+        completed_at: chrono::Utc::now(),
+        quality_score: Some(if success { 0.9 } else { 0.3 }),
+        learned_insights: vec![],
+    }
+}
+
+/// Assert that a result is an error with specific message pattern
+pub fn assert_error_contains<T>(result: Result<T, impl std::fmt::Display>, pattern: &str) {
+    match result {
+        Ok(_) => panic!("Expected error but got success"),
+        Err(e) => {
+            let error_str = format!("{}", e);
+            assert!(
+                error_str.contains(pattern),
+                "Error '{}' does not contain pattern '{}'",
+                error_str,
+                pattern
+            );
+        }
+    }
+}
+
+/// Assert that a result is a success
+pub fn assert_success<T>(result: Result<T, impl std::fmt::Display>) -> T {
+    match result {
+        Ok(value) => value,
+        Err(e) => panic!("Expected success but got error: {}", e),
+    }
+}
+
+/// Create a mock environment variable for testing
+pub struct MockEnvVar {
+    key: String,
+    original_value: Option<String>,
+}
+
+impl MockEnvVar {
+    /// Create a new mock environment variable
+    pub fn new(key: &str, value: &str) -> Self {
+        let original_value = std::env::var(key).ok();
+        std::env::set_var(key, value);
+        Self {
+            key: key.to_string(),
+            original_value,
+        }
+    }
+}
+
+impl Drop for MockEnvVar {
+    /// Restore the original environment variable value
+    fn drop(&mut self) {
+        if let Some(original) = &self.original_value {
+            std::env::set_var(&self.key, original);
+        } else {
+            std::env::remove_var(&self.key);
+        }
+    }
+}
+
+/// Test fixture for setting up and tearing down test state
+#[derive(Default)]
+pub struct TestFixture {
+    setup_actions: Vec<Box<dyn FnOnce()>>,
+    teardown_actions: Vec<Box<dyn FnOnce()>>,
+}
+
+impl TestFixture {
+    /// Create a new test fixture
+    pub fn new() -> Self {
+        Self {
+            setup_actions: Vec::new(),
+            teardown_actions: Vec::new(),
+        }
+    }
+
+    /// Add a setup action
+    pub fn add_setup<F>(mut self, action: F) -> Self
+    where
+        F: FnOnce() + 'static,
+    {
+        self.setup_actions.push(Box::new(action));
+        self
+    }
+
+    /// Add a teardown action
+    pub fn add_teardown<F>(mut self, action: F) -> Self
+    where
+        F: FnOnce() + 'static,
+    {
+        self.teardown_actions.push(Box::new(action));
+        self
+    }
+
+    /// Execute setup actions
+    pub fn setup(&mut self) {
+        for action in self.setup_actions.drain(..) {
+            action();
+        }
+    }
+
+    /// Execute teardown actions
+    pub fn teardown(&mut self) {
+        for action in self.teardown_actions.drain(..) {
+            action();
+        }
+    }
+}
+
+/// Helper for timing test execution
+pub struct TestTimer {
+    start_time: std::time::Instant,
+}
+
+impl TestTimer {
+    /// Start timing
+    pub fn start() -> Self {
+        Self {
+            start_time: std::time::Instant::now(),
+        }
+    }
+
+    /// Get elapsed time in milliseconds
+    pub fn elapsed_ms(&self) -> u128 {
+        self.start_time.elapsed().as_millis()
+    }
+
+    /// Assert that elapsed time is within bounds
+    pub fn assert_within_bounds(&self, min_ms: u128, max_ms: u128) {
+        let elapsed = self.elapsed_ms();
+        assert!(
+            elapsed >= min_ms && elapsed <= max_ms,
+            "Elapsed time {}ms not within bounds [{}, {}]ms",
+            elapsed,
+            min_ms,
+            max_ms
+        );
+    }
+}
+
+/// Helper for generating test data
+pub struct TestDataGenerator {
+    counter: u64,
+}
+
+impl TestDataGenerator {
+    /// Create a new test data generator
+    pub fn new() -> Self {
+        Self { counter: 0 }
+    }
+
+    /// Generate a unique string
+    pub fn unique_string(&mut self, prefix: &str) -> String {
+        self.counter += 1;
+        format!("{}_{}", prefix, self.counter)
+    }
+
+    /// Generate a unique UUID
+    pub fn unique_uuid(&mut self) -> uuid::Uuid {
+        uuid::Uuid::new_v4()
+    }
+
+    /// Generate a sequence of numbers
+    pub fn sequence(&mut self, count: usize) -> Vec<u64> {
+        let start = self.counter;
+        self.counter += count as u64;
+        (start..self.counter).collect()
+    }
+}
+
+impl Default for TestDataGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Helper for concurrent test execution
+pub struct ConcurrentTestRunner {
+    handles: Vec<tokio::task::JoinHandle<()>>,
+}
+
+impl ConcurrentTestRunner {
+    /// Create a new concurrent test runner
+    pub fn new() -> Self {
+        Self {
+            handles: Vec::new(),
+        }
+    }
+
+    /// Spawn a concurrent task
+    pub fn spawn<F>(&mut self, future: F)
+    where
+        F: std::future::Future<Output = ()> + Send + 'static,
+    {
+        let handle = tokio::spawn(future);
+        self.handles.push(handle);
+    }
+
+    /// Wait for all tasks to complete
+    pub async fn wait_all(&mut self) {
+        for handle in self.handles.drain(..) {
+            let _ = handle.await;
+        }
+    }
+}
+
+impl Default for ConcurrentTestRunner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Assert that a collection contains an item
+pub fn assert_contains<T: std::fmt::Debug + PartialEq>(collection: &[T], item: &T) {
+    assert!(
+        collection.contains(item),
+        "Collection {:?} does not contain item {:?}",
+        collection,
+        item
+    );
+}
+
+/// Assert that a collection does not contain an item
+pub fn assert_not_contains<T: std::fmt::Debug + PartialEq>(collection: &[T], item: &T) {
+    assert!(
+        !collection.contains(item),
+        "Collection {:?} unexpectedly contains item {:?}",
+        collection,
+        item
+    );
+}
+
+/// Safe unwrap with detailed error message
+pub fn safe_unwrap<T>(option: Option<T>, context: &str) -> T {
+    option.unwrap_or_else(|| panic!("Expected Some value in {} but got None", context))
+}
+
+/// Safe expect with context
+pub fn safe_expect<T>(result: Result<T, impl std::fmt::Display>, context: &str) -> T {
+    result.unwrap_or_else(|e| panic!("Expected Ok value in {} but got error: {}", context, e))
+}

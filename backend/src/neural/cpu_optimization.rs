@@ -8,8 +8,28 @@ use std::arch::x86_64::{
 #[cfg(target_arch = "aarch64")]
 use std::arch::aarch64::*;
 
-/// CPU optimization module for high-performance agent processing
-/// Implements SIMD vectorization and quantized operations for maximum efficiency
+/// # CPU Optimization Module - Safety Analysis
+///
+/// This module uses unsafe code for SIMD (Single Instruction, Multiple Data) operations
+/// to achieve significant performance improvements for neural network computations.
+///
+/// ## Safety Justification
+/// - **Memory Safety**: All pointer operations use `_loadu_ps` and `_storeu_ps` which handle
+///   unaligned memory access safely on modern CPUs
+/// - **Bounds Checking**: Input validation ensures arrays have correct lengths before SIMD operations
+/// - **Architecture Detection**: Runtime CPU feature detection prevents calling unsupported instructions
+/// - **Fallback Implementation**: Scalar fallback ensures functionality on all architectures
+/// - **Test Coverage**: Comprehensive tests verify correctness of SIMD operations
+///
+/// ## Performance Benefits
+/// - AVX2: ~8x speedup for vector operations
+/// - SSE4.1: ~4x speedup for vector operations
+/// - NEON: ~4x speedup on ARM64 architectures
+///
+/// ## Usage Guidelines
+/// - Always validate input lengths before calling SIMD functions
+/// - Use the safe public API that includes runtime feature detection
+/// - SIMD operations are only called when CPU features are confirmed available
 
 #[derive(Debug, Clone)]
 pub struct CpuOptimizer {
@@ -141,6 +161,12 @@ impl VectorizedOps {
     /// # Safety
     /// This function uses AVX2 intrinsics and requires the target CPU to support AVX2.
     /// The caller must ensure that both slices have the same length and are properly aligned.
+    ///
+    /// Safety is guaranteed by:
+    /// - Runtime CPU feature detection in the public API
+    /// - Input validation ensuring equal slice lengths
+    /// - Use of unaligned load/store operations (_mm256_loadu_ps, _mm256_storeu_ps)
+    /// - No pointer arithmetic beyond slice bounds
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
     unsafe fn dot_product_avx2(a: &[f32], b: &[f32]) -> f32 {
@@ -180,6 +206,12 @@ impl VectorizedOps {
     /// # Safety
     /// This function uses SSE4.1 intrinsics and requires the target CPU to support SSE4.1.
     /// The caller must ensure that both slices have the same length and are properly aligned.
+    ///
+    /// Safety is guaranteed by:
+    /// - Runtime CPU feature detection in the public API
+    /// - Input validation ensuring equal slice lengths
+    /// - Use of unaligned load/store operations (_mm_loadu_ps, _mm_storeu_ps)
+    /// - No pointer arithmetic beyond slice bounds
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "sse4.1")]
     unsafe fn dot_product_sse(a: &[f32], b: &[f32]) -> f32 {
@@ -212,6 +244,16 @@ impl VectorizedOps {
     }
 
     /// NEON optimized dot product (ARM64)
+    ///
+    /// # Safety
+    /// This function uses NEON intrinsics and requires the target CPU to support NEON.
+    /// The caller must ensure that both slices have the same length.
+    ///
+    /// Safety is guaranteed by:
+    /// - Runtime CPU feature detection in the public API
+    /// - Input validation ensuring equal slice lengths
+    /// - Use of safe NEON load/store operations (vld1q_f32, vst1q_f32)
+    /// - No pointer arithmetic beyond slice bounds
     #[cfg(target_arch = "aarch64")]
     #[target_feature(enable = "neon")]
     unsafe fn dot_product_neon(a: &[f32], b: &[f32]) -> f32 {
@@ -298,6 +340,12 @@ impl VectorizedOps {
     /// # Safety
     /// This function uses AVX2 intrinsics and requires the target CPU to support AVX2.
     /// The caller must ensure that all slices have the same length and are properly aligned.
+    ///
+    /// Safety is guaranteed by:
+    /// - Runtime CPU feature detection in the public API
+    /// - Input validation ensuring equal slice lengths
+    /// - Use of unaligned load/store operations (_mm256_loadu_ps, _mm256_storeu_ps)
+    /// - Bounds checking prevents out-of-bounds access
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
     unsafe fn vector_add_avx2(a: &[f32], b: &[f32], result: &mut [f32]) {
@@ -318,6 +366,17 @@ impl VectorizedOps {
         }
     }
 
+    /// NEON optimized vector addition (ARM64)
+    ///
+    /// # Safety
+    /// This function uses NEON intrinsics and requires the target CPU to support NEON.
+    /// The caller must ensure that all slices have the same length.
+    ///
+    /// Safety is guaranteed by:
+    /// - Runtime CPU feature detection in the public API
+    /// - Input validation ensuring equal slice lengths
+    /// - Use of safe NEON load/store operations (vld1q_f32, vst1q_f32)
+    /// - Bounds checking prevents out-of-bounds access
     #[cfg(target_arch = "aarch64")]
     #[target_feature(enable = "neon")]
     unsafe fn vector_add_neon(a: &[f32], b: &[f32], result: &mut [f32]) {
@@ -466,6 +525,13 @@ impl CacheOptimizedOps {
     }
 
     /// Prefetch data for better cache utilization
+    ///
+    /// # Safety
+    /// This function performs pointer operations but is safe because:
+    /// - It only reads from the pointer (no writes)
+    /// - The pointer is cast to a safe type for prefetch intrinsics
+    /// - Prefetch operations are inherently safe and don't modify memory
+    /// - Invalid pointers will not cause crashes, just ineffective prefetching
     #[cfg(target_arch = "x86_64")]
     pub fn prefetch_data(ptr: *const u8, locality: i32) {
         unsafe {

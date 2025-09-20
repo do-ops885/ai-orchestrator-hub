@@ -36,7 +36,6 @@
 
 use crate::utils::error::{HiveError, HiveResult};
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -282,7 +281,7 @@ impl SafeOperations {
             }
         }
 
-        Err(last_error.unwrap_or(HiveError::OperationFailed {
+        Err(last_error.unwrap_or_else(|| HiveError::OperationFailed {
             reason: "Operation failed after all retry attempts".to_string(),
         }))
     }
@@ -462,11 +461,10 @@ mod tests {
 
         let result = safe_ops.execute_safely(async { Ok("success") }).await;
 
-        assert!(result.is_ok());
-        assert_eq!(
-            result.expect("Safe operation should succeed"),
-            "success"
-        );
+        match result {
+            Ok(value) => assert_eq!(value, "success"),
+            Err(e) => panic!("Safe operation should succeed: {:?}", e),
+        }
     }
 
     #[tokio::test]
@@ -509,11 +507,10 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_ok());
-        assert_eq!(
-            result.expect("Retry operation should succeed"),
-            "success_after_retry"
-        );
+        match result {
+            Ok(value) => assert_eq!(value, "success_after_retry"),
+            Err(e) => panic!("Retry operation should succeed: {:?}", e),
+        }
         assert_eq!(attempt_count.load(std::sync::atomic::Ordering::SeqCst), 3);
     }
 
@@ -549,11 +546,10 @@ mod tests {
     fn test_safe_option_utilities() {
         // Test expect_or_error
         let some_value: Option<i32> = Some(42);
-        assert_eq!(
-            safe_option::expect_or_error(some_value, "error")
-                .expect("expect_or_error should succeed with Some value"),
-            42
-        );
+        match safe_option::expect_or_error(some_value, "error") {
+            Ok(value) => assert_eq!(value, 42),
+            Err(e) => panic!("expect_or_error should succeed with Some value: {:?}", e),
+        }
 
         let none_value: Option<i32> = None;
         assert!(safe_option::expect_or_error(none_value, "error").is_err());

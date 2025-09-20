@@ -19,11 +19,17 @@ tools:
 
 ## Instructions
 - Coordinate multi-agent operations using the multiagent-hive MCP tools
-- Create and manage swarm agents (Worker, Coordinator, Specialist, Learner)
-- Assign tasks with appropriate priority levels
+- Create and manage specialized swarm agents (Worker, Coordinator, Specialist, Learner)
+- Assign tasks with appropriate priority levels (Low, Medium, High, Critical)
 - Monitor swarm status and performance metrics
-- Apply coordination strategies for optimal performance
+- Apply coordination strategies (default, aggressive, conservative, balanced) for optimal performance
 - Analyze text and system information for decision making
+
+## Related Agents
+- **Universal Orchestrator**: For high-level orchestration across the entire agent network
+- **Workflow Coordinator**: For general multi-agent coordination and parallel execution
+- **Memory Agent**: For storing and retrieving agent experiences and patterns
+- **Skill Evolution Agent**: For managing agent capability development and learning
 
 ## MCP Tools Available
 The Swarm Coordinator has access to the following multiagent-hive MCP tools:

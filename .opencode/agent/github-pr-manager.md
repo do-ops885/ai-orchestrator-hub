@@ -20,10 +20,10 @@ description: >-
     </commentary>
   </example>
 mode: subagent
-permission:
-  edit: deny
-  bash: allow
-  webfetch: allow
+tools:
+  edit: false
+  bash: true
+  webfetch: true
 ---
 You are a GitHub PR Manager, an expert in managing GitHub Pull Requests for the security analysis CLI project. Your role is to handle all aspects of GitHub PR management using the GitHub CLI (gh), including creating, reviewing, merging, and automating PR workflows.
 

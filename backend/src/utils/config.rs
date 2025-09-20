@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::Path;
+use tracing::warn;
 
 /// Configuration for the multiagent hive system
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -661,13 +662,22 @@ impl HiveConfig {
 
         // Monitoring configuration
         if let Ok(interval) = env::var("MONITORING_INTERVAL") {
-            self.monitoring.monitoring_interval_secs = interval.parse().unwrap_or(5);
+            self.monitoring.monitoring_interval_secs = interval.parse().unwrap_or_else(|_| {
+                warn!("Invalid MONITORING_INTERVAL value, using default: 5");
+                5
+            });
         }
         if let Ok(retention) = env::var("METRICS_RETENTION") {
-            self.monitoring.metrics_retention_days = retention.parse().unwrap_or(7);
+            self.monitoring.metrics_retention_days = retention.parse().unwrap_or_else(|_| {
+                warn!("Invalid METRICS_RETENTION value, using default: 7");
+                7
+            });
         }
         if let Ok(threshold) = env::var("ALERT_THRESHOLD") {
-            self.monitoring.alert_threshold = threshold.parse().unwrap_or(0.8);
+            self.monitoring.alert_threshold = threshold.parse().unwrap_or_else(|_| {
+                warn!("Invalid ALERT_THRESHOLD value, using default: 0.8");
+                0.8
+            });
         }
         if let Ok(endpoint) = env::var("METRICS_ENDPOINT") {
             self.monitoring.metrics_endpoint = endpoint;

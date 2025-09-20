@@ -20,6 +20,10 @@ interface Message {
   action: string
   payload?: unknown
   id?: string
+  sequenceId?: number
+  timestamp?: number
+  metrics?: unknown
+  testId?: string
 }
 
 export interface HiveMetrics {
@@ -1142,7 +1146,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     // Set up memory pressure listener (if supported)
     if ('memory' in performance) {
       const handleMemoryPressure = () => {
-        const { memory } = performance as {
+        const { memory } = performance as unknown as {
           memory: { usedJSHeapSize: number; totalJSHeapSize: number }
         }
         const usedPercent = (memory.usedJSHeapSize / memory.totalJSHeapSize) * 100
@@ -1170,7 +1174,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       const memoryCheckInterval = setInterval(handleMemoryPressure, 30000) // Check every 30 seconds
 
       // Store cleanup function
-      ;(get() as Record<string, unknown>)._memoryCheckInterval = memoryCheckInterval
+      ;(get() as unknown as Record<string, unknown>)._memoryCheckInterval = memoryCheckInterval
     }
 
     // Set up network change listener (if supported)
@@ -1498,7 +1502,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }, 30000) // Check every 30 seconds
 
     // Store the interval for cleanup
-    ;(get() as Record<string, unknown>)._monitoringInterval = monitoringInterval
+    ;(get() as unknown as Record<string, unknown>)._monitoringInterval = monitoringInterval
   },
 
   disableMonitoring: () => {
@@ -1506,7 +1510,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     set({ monitoringEnabled: false })
 
     // Clear monitoring interval
-    const monitoringInterval = (get() as Record<string, unknown>)._monitoringInterval
+    const monitoringInterval = (get() as unknown as Record<string, unknown>)._monitoringInterval as number
     if (monitoringInterval) {
       clearInterval(monitoringInterval)
     }
@@ -2629,8 +2633,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     window.addEventListener('offline', handleOffline)
 
     // Store cleanup functions
-    ;(get() as Record<string, unknown>)._networkOnlineHandler = handleOnline
-    ;(get() as Record<string, unknown>)._networkOfflineHandler = handleOffline
+    ;(get() as unknown as Record<string, unknown>)._networkOnlineHandler = handleOnline
+    ;(get() as unknown as Record<string, unknown>)._networkOfflineHandler = handleOffline
   },
 
   stopNetworkMonitoring: () => {
@@ -2642,8 +2646,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }
 
     // Remove event listeners
-    const onlineHandler = (get() as Record<string, unknown>)._networkOnlineHandler
-    const offlineHandler = (get() as Record<string, unknown>)._networkOfflineHandler
+    const onlineHandler = (get() as unknown as Record<string, unknown>)._networkOnlineHandler as EventListener
+    const offlineHandler = (get() as unknown as Record<string, unknown>)._networkOfflineHandler as EventListener
 
     if (onlineHandler) {
       window.removeEventListener('online', onlineHandler)
@@ -3180,13 +3184,13 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }, 30000) // Check every 30 seconds
 
     // Store cleanup function
-    ;(get() as Record<string, unknown>)._predictiveRecoveryInterval = predictiveInterval
+    ;(get() as unknown as Record<string, unknown>)._predictiveRecoveryInterval = predictiveInterval
   },
 
   stopPredictiveRecovery: () => {
-    const predictiveInterval = (get() as Record<string, unknown>)._predictiveRecoveryInterval
+    const predictiveInterval = (get() as unknown as Record<string, unknown>)._predictiveRecoveryInterval
     if (predictiveInterval) {
-      clearInterval(predictiveInterval)
+      clearInterval(predictiveInterval as number)
       console.warn('🔮 Stopped predictive recovery monitoring')
     }
   },
@@ -3262,7 +3266,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       }, 5000) // 5 second timeout for test
 
       // Store test timeout for cleanup
-      ;(get() as Record<string, unknown>)._connectionTestTimeout = testTimeout
+      ;(get() as unknown as Record<string, unknown>)._connectionTestTimeout = testTimeout
     } catch (error) {
       console.warn('Failed to send connection test:', error)
       get().handleConnectionTestFailure()
@@ -3273,9 +3277,9 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     console.warn('🔄 Connection test failed - initiating recovery protocol')
 
     // Clear test timeout
-    const testTimeout = (get() as Record<string, unknown>)._connectionTestTimeout
+    const testTimeout = (get() as unknown as Record<string, unknown>)._connectionTestTimeout
     if (testTimeout) {
-      clearTimeout(testTimeout)
+      clearTimeout(testTimeout as number)
     }
 
     // Transition to degraded state and prepare for reconnection

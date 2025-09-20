@@ -5,6 +5,16 @@ All notable changes to the AI Orchestrator Hub will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.5] - 2025-09-19
+
+### Added
+- **Workflow Fixes**: Enhanced CI/CD pipeline reliability and automation
+- **Neural Optimizations**: Improved neural processing performance and efficiency
+- **Testing Improvements**: Enhanced test coverage and automated testing infrastructure
+
+### Changed
+- **Version Update**: Updated to v0.1.0-alpha.5 across backend and frontend components
+
 ## [0.1.0-alpha.4] - 2025-09-16
 
 ### Added

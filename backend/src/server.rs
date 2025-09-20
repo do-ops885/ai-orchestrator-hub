@@ -73,11 +73,7 @@ async fn collect_and_update_metrics(app_state: &AppState) {
     }
 
     // Collect advanced metrics with predictive analytics
-    if let Err(e) = app_state
-        .advanced_metrics
-        .collect_system_metrics()
-        .await
-    {
+    if let Err(e) = app_state.advanced_metrics.collect_system_metrics().await {
         error!("Failed to collect advanced metrics: {}", e);
     } else {
         debug!("Advanced metrics collected successfully");
@@ -94,14 +90,8 @@ async fn collect_and_update_metrics(app_state: &AppState) {
     let task_metrics = extract_task_metrics_from_hive(&hive);
 
     // Update the metrics systems with the collected data
-    app_state
-        .metrics
-        .update_agent_metrics(agent_metrics)
-        .await;
-    app_state
-        .metrics
-        .update_task_metrics(task_metrics)
-        .await;
+    app_state.metrics.update_agent_metrics(agent_metrics).await;
+    app_state.metrics.update_task_metrics(task_metrics).await;
 
     // Snapshot the current metrics for historical analysis
     app_state.metrics.snapshot_current_metrics().await;

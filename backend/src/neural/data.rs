@@ -4,7 +4,7 @@ use crate::infrastructure::streaming::{
 use crate::neural::{CpuOptimizer, VectorizedOps};
 // use anyhow::Result; // Replaced with HiveResult
 use crate::utils::error::{HiveError, HiveResult};
-use futures::stream::{Stream, StreamExt};
+use futures::stream::Stream;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;

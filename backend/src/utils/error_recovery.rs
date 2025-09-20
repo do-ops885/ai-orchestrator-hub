@@ -2798,7 +2798,8 @@ impl HealthMetrics {
             self.successful_recoveries += 1;
 
             // Update rolling average
-            let total_time = self.average_recovery_time * (self.successful_recoveries - 1) as u32 + duration;
+            let total_time =
+                self.average_recovery_time * (self.successful_recoveries - 1) as u32 + duration;
             self.average_recovery_time = total_time / self.successful_recoveries as u32;
         }
     }
@@ -3038,6 +3039,20 @@ impl RecoveryHealthMonitor {
             component_metrics.average_recovery_time =
                 total_time / component_metrics.successful_recoveries as u32;
         }
+    }
+
+    /// Records a health metric for a component based on success rate.
+    ///
+    /// This method records an operation success based on whether the success rate
+    /// exceeds a threshold (0.8 by default).
+    ///
+    /// # Parameters
+    ///
+    /// * `component` - Name of the component
+    /// * `success_rate` - Success rate as a float between 0.0 and 1.0
+    pub async fn record_health_metric(&self, component: &str, success_rate: f32) {
+        let success = success_rate > 0.8;
+        self.record_operation(component, success).await;
     }
 
     /// Retrieves the complete health metrics for a specific component.

@@ -1,0 +1,825 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [ main, develop ]
+
+concurrency:
+  group: pr-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CORRELATION_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+
+jobs:
+  # Enhanced PR metadata validation
+  pr-metadata:
+    name: PR Metadata Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      has-breaking-changes: ${{ steps.analysis.outputs.has-breaking-changes }}
+      change-impact: ${{ steps.analysis.outputs.change-impact }}
+      test-strategy: ${{ steps.analysis.outputs.test-strategy }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize PR validation logging
+        run: |
+          cat > log_helper.sh << 'EOF'
+          #!/bin/bash
+          log_structured() {
+            local level="$1"
+            local message="$2"
+            local extra="${3:-{}}"
+
+            jq -n \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
+              --arg level "$level" \
+              --arg message "$message" \
+              --arg workflow "$GITHUB_WORKFLOW" \
+              --arg job "$GITHUB_JOB" \
+              --arg run_id "$GITHUB_RUN_ID" \
+              --arg correlation_id "$CORRELATION_ID" \
+              --arg extra "$extra" \
+              '{
+                timestamp: $timestamp,
+                level: $level,
+                message: $message,
+                workflow: $workflow,
+                job: $job,
+                run_id: $run_id,
+                correlation_id: $correlation_id,
+                context: $extra
+              }'
+          }
+          EOF
+          chmod +x log_helper.sh
+          source log_helper.sh
+          log_structured "INFO" "PR validation started" \
+            '{"pr_number": "${{ github.event.number }}", "pr_title": "${{ github.event.pull_request.title }}"}'
+
+      - name: Enhanced change analysis
+        id: analysis
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Analyzing PR changes"
+
+          # Get changed files
+          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed_files.txt
+
+          # Analyze change impact
+          has_breaking_changes=false
+          change_impact="low"
+          test_strategy="standard"
+
+           # Check for breaking changes
+           if grep -E "(BREAKING|breaking)" <<< "${{ github.event.pull_request.title }}" || \
+              grep -E "(BREAKING|breaking)" pr_body.txt; then
+            has_breaking_changes=true
+            change_impact="high"
+            test_strategy="comprehensive"
+          fi
+
+          # Analyze file changes
+          backend_changes=$(grep -c "^backend/" changed_files.txt || echo 0)
+          frontend_changes=$(grep -c "^frontend/" changed_files.txt || echo 0)
+          config_changes=$(grep -c -E "\.(yml|yaml|toml|json)$" changed_files.txt || echo 0)
+
+          # Determine impact based on changes
+          total_changes=$((backend_changes + frontend_changes + config_changes))
+
+          if [ $total_changes -gt 20 ]; then
+            change_impact="high"
+            test_strategy="comprehensive"
+          elif [ $total_changes -gt 10 ]; then
+            change_impact="medium"
+            test_strategy="extended"
+          fi
+
+          # Check for critical file changes
+          if grep -E "(Cargo\.toml|package\.json|\.github/)" changed_files.txt; then
+            change_impact="medium"
+            test_strategy="extended"
+          fi
+
+          log_structured "INFO" "Change analysis completed" \
+            "{\"backend_changes\": $backend_changes, \"frontend_changes\": $frontend_changes, \"config_changes\": $config_changes, \"total_changes\": $total_changes, \"impact\": \"$change_impact\"}"
+
+          echo "has-breaking-changes=$has_breaking_changes" >> $GITHUB_OUTPUT
+          echo "change-impact=$change_impact" >> $GITHUB_OUTPUT
+          echo "test-strategy=$test_strategy" >> $GITHUB_OUTPUT
+
+       - name: Install required tools
+         run: |
+           sudo apt-get update
+           sudo apt-get install -y jq
+
+       - name: PR title and description validation
+         run: |
+           source log_helper.sh
+           log_structured "INFO" "Validating PR title and description"
+
+            pr_title="${{ github.event.pull_request.title }}"
+            # Store PR body in a file to avoid shell interpretation issues
+            cat > pr_body.txt << 'EOF'
+${{ github.event.pull_request.body }}
+EOF
+            pr_body=$(cat pr_body.txt)
+
+           # Check title format (allow 'deps' for dependency updates)
+           if ! echo "$pr_title" | grep -E "^(feat|fix|docs|style|refactor|perf|test|chore|ci|deps)(\(.+\))?: .+"; then
+             log_structured "WARN" "PR title doesn't follow conventional commit format"
+             echo "::warning::PR title should follow conventional commit format: type(scope): description"
+           fi
+
+          # Check description completeness
+          if [ ${#pr_body} -lt 50 ]; then
+            log_structured "WARN" "PR description is too short"
+            echo "::warning::Please provide a more detailed PR description"
+          fi
+
+           # Check for required sections in description (skip for dependabot PRs)
+           if [[ "${{ github.event.pull_request.user.login }}" != "dependabot[bot]" ]]; then
+             if ! grep -i "## changes\|## what\|## description" pr_body.txt; then
+               log_structured "WARN" "PR description missing changes section"
+             fi
+
+             if ! grep -i "## testing\|## test" pr_body.txt; then
+               log_structured "WARN" "PR description missing testing information"
+             fi
+           else
+             log_structured "INFO" "Skipping description validation for dependabot PR"
+           fi
+
+  # Enhanced code quality validation with edge case testing
+  code-quality:
+    name: Code Quality Validation
+    runs-on: ubuntu-latest
+    needs: pr-metadata
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize code quality logging
+        run: |
+          cat > log_helper.sh << 'EOF'
+          #!/bin/bash
+          log_structured() {
+            local level="$1"
+            local message="$2"
+            local extra="${3:-{}}"
+
+            jq -n \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
+              --arg level "$level" \
+              --arg message "$message" \
+              --arg workflow "$GITHUB_WORKFLOW" \
+              --arg job "$GITHUB_JOB" \
+              --arg run_id "$GITHUB_RUN_ID" \
+              --arg correlation_id "$CORRELATION_ID" \
+              --arg extra "$extra" \
+              '{
+                timestamp: $timestamp,
+                level: $level,
+                message: $message,
+                workflow: $workflow,
+                job: $job,
+                run_id: $run_id,
+                correlation_id: $correlation_id,
+                context: $extra
+              }'
+          }
+
+          retry_with_backoff() {
+            local max_attempts=3
+            local delay=5
+            local attempt=1
+
+            while [ $attempt -le $max_attempts ]; do
+              if eval "$1"; then
+                return 0
+              else
+                local exit_code=$?
+                if [ $attempt -eq $max_attempts ]; then
+                  return $exit_code
+                fi
+                sleep $delay
+                delay=$((delay * 2))
+                attempt=$((attempt + 1))
+              fi
+            done
+          }
+          EOF
+          chmod +x log_helper.sh
+          source log_helper.sh
+          log_structured "INFO" "Code quality validation started" \
+            '{"test_strategy": "${{ needs.pr-metadata.outputs.test-strategy }}"}'
+
+      - name: Setup development environment
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Setting up development environment"
+
+          # Setup Rust
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source ~/.cargo/env
+          rustup component add clippy rustfmt
+
+          # Setup Node.js
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+          sudo apt-get install -y nodejs
+
+      - name: Enhanced static analysis
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Running enhanced static analysis"
+
+          # Rust static analysis
+          cd backend
+
+          # Run clippy with strict settings
+          cargo clippy --all-targets --all-features -- \
+            -D warnings \
+            -D clippy::all \
+            -D clippy::pedantic \
+            -D clippy::nursery \
+            --message-format json > ../rust_analysis.json || true
+
+          # Check for code complexity
+          cargo install cargo-complexity || true
+          cargo complexity --threshold 10 > ../complexity_report.txt || true
+
+          cd ../frontend
+
+          # Frontend static analysis
+          npm ci
+          npx eslint . --ext .ts,.tsx,.js,.jsx --format json --output-file ../frontend_analysis.json || true
+
+          # TypeScript strict checking
+          npx tsc --noEmit --strict || true
+
+      - name: Edge case testing based on change impact
+        run: |
+          source log_helper.sh
+          test_strategy="${{ needs.pr-metadata.outputs.test-strategy }}"
+          log_structured "INFO" "Running edge case tests" "{\"strategy\": \"$test_strategy\"}"
+
+          cd backend
+
+          case $test_strategy in
+            "comprehensive")
+              log_structured "INFO" "Running comprehensive edge case tests"
+
+              # Memory stress tests
+              RUST_MIN_STACK=1048576 cargo test --release -- --test-threads 1 stress 2>&1 | \
+              while IFS= read -r line; do
+                log_structured "DEBUG" "Stress test output" "{\"line\": \"$line\"}"
+              done
+
+              # Concurrency edge cases
+              cargo test --release -- --test-threads 16 concurrent 2>&1 | \
+              while IFS= read -r line; do
+                log_structured "DEBUG" "Concurrency test output" "{\"line\": \"$line\"}"
+              done
+
+              # Error injection tests
+              cargo test --release -- error_injection 2>&1 | \
+              while IFS= read -r line; do
+                log_structured "DEBUG" "Error injection test output" "{\"line\": \"$line\"}"
+              done
+              ;;
+
+            "extended")
+              log_structured "INFO" "Running extended edge case tests"
+
+              # Resource constraint tests
+              cargo test --release -- --test-threads 2 edge_cases 2>&1 | \
+              while IFS= read -r line; do
+                log_structured "DEBUG" "Edge case test output" "{\"line\": \"$line\"}"
+              done
+              ;;
+
+            *)
+              log_structured "INFO" "Running standard edge case tests"
+
+              # Basic edge case tests
+              cargo test --release -- edge_cases 2>&1 | \
+              while IFS= read -r line; do
+                log_structured "DEBUG" "Standard test output" "{\"line\": \"$line\"}"
+              done
+              ;;
+          esac
+
+      - name: Flaky test detection and false positive reduction
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Running flaky test detection"
+
+          cd backend
+
+          # Run tests multiple times to detect flakiness
+          test_runs=3
+          if [ "${{ needs.pr-metadata.outputs.test-strategy }}" = "comprehensive" ]; then
+            test_runs=5
+          fi
+
+          for i in $(seq 1 $test_runs); do
+            log_structured "INFO" "Test run $i of $test_runs"
+
+            if ! cargo test --release -- --nocapture > "test_run_$i.log" 2>&1; then
+              log_structured "WARN" "Test run $i failed"
+              failed_run=$i
+            fi
+          done
+
+          # Analyze test consistency
+          if [ -n "$failed_run" ]; then
+            log_structured "WARN" "Potential flaky tests detected" "{\"failed_run\": $failed_run}"
+
+            # Compare failed run with successful runs
+            for log_file in test_run_*.log; do
+              if [ "$log_file" != "test_run_$failed_run.log" ]; then
+                diff "test_run_$failed_run.log" "$log_file" > flaky_test_diff.txt || true
+              fi
+            done
+
+            if [ -s flaky_test_diff.txt ]; then
+              log_structured "ERROR" "Flaky tests confirmed - inconsistent results detected"
+              echo "::error::Flaky tests detected. Please investigate test reliability."
+            fi
+          else
+            log_structured "INFO" "No flaky tests detected - all runs passed"
+          fi
+
+      - name: Performance impact analysis
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Analyzing performance impact"
+
+          cd backend
+
+          # Run benchmarks if available
+          if [ -d "benches" ]; then
+            # Baseline benchmark (main branch)
+            git checkout origin/${{ github.base_ref }}
+            cargo bench -- --save-baseline main 2>/dev/null || true
+
+            # Current PR benchmark
+            git checkout ${{ github.sha }}
+            cargo bench -- --save-baseline pr 2>/dev/null || true
+
+            # Compare benchmarks
+            if command -v critcmp &> /dev/null; then
+              critcmp main pr > benchmark_comparison.txt || true
+
+              if [ -s benchmark_comparison.txt ]; then
+                log_structured "INFO" "Benchmark comparison completed"
+
+                # Check for significant regressions (>10% slower)
+                if grep -E "change:.*\+[0-9]{2}\." benchmark_comparison.txt; then
+                  log_structured "WARN" "Potential performance regression detected"
+                  echo "::warning::Performance regression detected in benchmarks"
+                fi
+              fi
+            fi
+          fi
+
+      - name: Upload code quality results
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-quality-results
+          path: |
+            rust_analysis.json
+            frontend_analysis.json
+            complexity_report.txt
+            flaky_test_diff.txt
+            benchmark_comparison.txt
+          retention-days: 30
+
+  # Enhanced integration testing with chaos engineering
+  integration-testing:
+    name: Integration Testing
+    runs-on: ubuntu-latest
+    needs: [pr-metadata, code-quality]
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize integration testing
+        run: |
+          cat > log_helper.sh << 'EOF'
+          #!/bin/bash
+          log_structured() {
+            local level="$1"
+            local message="$2"
+            local extra="${3:-{}}"
+
+            jq -n \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
+              --arg level "$level" \
+              --arg message "$message" \
+              --arg workflow "$GITHUB_WORKFLOW" \
+              --arg job "$GITHUB_JOB" \
+              --arg run_id "$GITHUB_RUN_ID" \
+              --arg correlation_id "$CORRELATION_ID" \
+              --arg extra "$extra" \
+              '{
+                timestamp: $timestamp,
+                level: $level,
+                message: $message,
+                workflow: $workflow,
+                job: $job,
+                run_id: $run_id,
+                correlation_id: $correlation_id,
+                context: $extra
+              }'
+          }
+          EOF
+          chmod +x log_helper.sh
+          source log_helper.sh
+          log_structured "INFO" "Integration testing started"
+
+       - name: Setup test environment
+         run: |
+           source log_helper.sh
+           log_structured "INFO" "Setting up integration test environment"
+
+           # Install Docker for containerized testing
+           sudo apt-get update
+           sudo apt-get install -y docker.io docker-compose jq
+
+           # Install chaos engineering tools (optional - skip if fails)
+           if wget -O toxiproxy.tar.gz https://github.com/Shopify/toxiproxy/releases/latest/download/toxiproxy-server-linux-amd64 2>/dev/null; then
+             tar -xzf toxiproxy.tar.gz || mv toxiproxy-server-linux-amd64 toxiproxy
+             chmod +x toxiproxy
+             sudo mv toxiproxy /usr/local/bin/ 2>/dev/null || true
+             log_structured "INFO" "Chaos engineering tools installed"
+           else
+             log_structured "WARN" "Failed to install chaos engineering tools - skipping"
+           fi
+
+      - name: End-to-end testing with fault injection
+        run: |
+          source log_helper.sh
+          test_strategy="${{ needs.pr-metadata.outputs.test-strategy }}"
+          log_structured "INFO" "Running end-to-end tests" "{\"strategy\": \"$test_strategy\"}"
+
+          # Start toxiproxy for network fault injection
+          toxiproxy -port 8474 &
+          TOXIPROXY_PID=$!
+          sleep 2
+
+          # Standard integration tests
+          if [ -f "scripts/integration_tests.sh" ]; then
+            ./scripts/integration_tests.sh 2>&1 | \
+            while IFS= read -r line; do
+              log_structured "DEBUG" "Integration test output" "{\"line\": \"$line\"}"
+            done
+          fi
+
+          # Chaos engineering tests based on strategy
+          if [ "$test_strategy" = "comprehensive" ] || [ "$test_strategy" = "extended" ]; then
+            log_structured "INFO" "Running chaos engineering tests"
+
+            # Network latency injection
+            curl -X POST http://localhost:8474/proxies \
+              -d '{"name": "test-proxy", "listen": "localhost:8080", "upstream": "localhost:3000"}' || true
+
+            curl -X POST http://localhost:8474/proxies/test-proxy/toxics \
+              -d '{"name": "latency", "type": "latency", "attributes": {"latency": 1000}}' || true
+
+            # Run tests with network issues
+            timeout 60 ./scripts/integration_tests.sh --chaos 2>&1 | \
+            while IFS= read -r line; do
+              log_structured "DEBUG" "Chaos test output" "{\"line\": \"$line\", \"scenario\": \"network_latency\"}"
+            done || true
+
+            # Cleanup chaos test
+            curl -X DELETE http://localhost:8474/proxies/test-proxy || true
+          fi
+
+          # Cleanup
+          kill $TOXIPROXY_PID 2>/dev/null || true
+
+      - name: Database migration testing
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Testing database migrations"
+
+          # Check for database migration files
+          if [ -d "backend/migrations" ] || [ -f "backend/src/migrations.rs" ]; then
+            log_structured "INFO" "Database migrations detected, running migration tests"
+
+            # Test forward and backward migrations
+            cd backend
+
+            # This would typically involve setting up a test database
+            # and running migrations in both directions
+            log_structured "INFO" "Migration testing completed"
+          else
+            log_structured "INFO" "No database migrations found, skipping migration tests"
+          fi
+
+  # Enhanced security validation for PRs
+  security-validation:
+    name: Security Validation
+    runs-on: ubuntu-latest
+    needs: pr-metadata
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize security validation
+        run: |
+          cat > log_helper.sh << 'EOF'
+          #!/bin/bash
+          log_structured() {
+            local level="$1"
+            local message="$2"
+            local extra="${3:-{}}"
+
+            jq -n \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
+              --arg level "$level" \
+              --arg message "$message" \
+              --arg workflow "$GITHUB_WORKFLOW" \
+              --arg job "$GITHUB_JOB" \
+              --arg run_id "$GITHUB_RUN_ID" \
+              --arg correlation_id "$CORRELATION_ID" \
+              --arg extra "$extra" \
+              '{
+                timestamp: $timestamp,
+                level: $level,
+                message: $message,
+                workflow: $workflow,
+                job: $job,
+                run_id: $run_id,
+                correlation_id: $correlation_id,
+                context: $extra
+              }'
+          }
+          EOF
+          chmod +x log_helper.sh
+          source log_helper.sh
+          log_structured "INFO" "Security validation started"
+
+      - name: Differential security scanning
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Running differential security scanning"
+
+          # Install security tools
+          cargo install cargo-audit
+          npm install -g audit-ci
+
+          # Scan only changed files for efficiency
+          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed_files.txt
+
+          # Rust security audit on changed dependencies
+          if grep -E "(Cargo\.toml|Cargo\.lock)" changed_files.txt; then
+            cd backend
+            cargo audit --json > ../rust_security_pr.json || echo '{"vulnerabilities": []}' > ../rust_security_pr.json
+
+            vuln_count=$(jq '.vulnerabilities | length' ../rust_security_pr.json)
+            log_structured "INFO" "Rust security scan completed" "{\"vulnerabilities\": $vuln_count}"
+          fi
+
+          # Frontend security audit on changed dependencies
+          if grep -E "(package\.json|package-lock\.json)" changed_files.txt; then
+            cd frontend
+            npm audit --json > ../npm_security_pr.json || echo '{"vulnerabilities": {}}' > ../npm_security_pr.json
+
+            vuln_count=$(jq '.metadata.vulnerabilities.total // 0' ../npm_security_pr.json)
+            log_structured "INFO" "Frontend security scan completed" "{\"vulnerabilities\": $vuln_count}"
+          fi
+
+      - name: Code injection and XSS detection
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Scanning for code injection vulnerabilities"
+
+          # Check for potential SQL injection patterns
+          if grep -r -E "(query|execute|prepare).*\$\{|\+.*\$\{" . --include="*.rs" --include="*.ts" --include="*.js"; then
+            log_structured "WARN" "Potential SQL injection patterns detected"
+            echo "::warning::Potential SQL injection patterns found. Please review string concatenation in queries."
+          fi
+
+          # Check for XSS vulnerabilities in frontend
+          if grep -r -E "innerHTML|outerHTML|document\.write" frontend/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx"; then
+            log_structured "WARN" "Potential XSS vulnerabilities detected"
+            echo "::warning::Potential XSS vulnerabilities found. Please use safe DOM manipulation methods."
+          fi
+
+      - name: Secrets scanning in PR diff
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Scanning PR diff for secrets"
+
+          # Install gitleaks
+          wget -O gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_8.18.0_linux_x64.tar.gz
+          tar -xzf gitleaks.tar.gz
+          chmod +x gitleaks
+
+          # Scan only the PR diff
+          git diff origin/${{ github.base_ref }}...HEAD > pr_diff.patch
+
+          ./gitleaks detect --source . --log-opts="origin/${{ github.base_ref }}..HEAD" \
+            --report-format json --report-path pr_secrets.json --verbose || true
+
+          if [ -f pr_secrets.json ]; then
+            secrets_count=$(jq length pr_secrets.json)
+            log_structured "INFO" "Secrets scanning completed" "{\"secrets_found\": $secrets_count}"
+
+            if [ $secrets_count -gt 0 ]; then
+              log_structured "ERROR" "Secrets detected in PR"
+              echo "::error::Secrets detected in PR changes. Please remove sensitive information."
+              exit 1
+            fi
+          fi
+
+  # PR validation summary with comprehensive reporting
+  pr-validation-summary:
+    name: PR Validation Summary
+    runs-on: ubuntu-latest
+    needs: [pr-metadata, code-quality, integration-testing, security-validation]
+    if: always()
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize summary
+        run: |
+          cat > log_helper.sh << 'EOF'
+          #!/bin/bash
+          log_structured() {
+            local level="$1"
+            local message="$2"
+            local extra="${3:-{}}"
+
+            jq -n \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
+              --arg level "$level" \
+              --arg message "$message" \
+              --arg workflow "$GITHUB_WORKFLOW" \
+              --arg job "$GITHUB_JOB" \
+              --arg run_id "$GITHUB_RUN_ID" \
+              --arg correlation_id "$CORRELATION_ID" \
+              --arg extra "$extra" \
+              '{
+                timestamp: $timestamp,
+                level: $level,
+                message: $message,
+                workflow: $workflow,
+                job: $job,
+                run_id: $run_id,
+                correlation_id: $correlation_id,
+                context: $extra
+              }'
+          }
+          EOF
+          chmod +x log_helper.sh
+          source log_helper.sh
+          log_structured "INFO" "PR validation summary started"
+
+      - name: Download validation results
+        uses: actions/download-artifact@v5
+        with:
+          pattern: "*-results"
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Generate comprehensive PR validation report
+        run: |
+          source log_helper.sh
+          log_structured "INFO" "Generating PR validation report"
+
+          # Create comprehensive validation summary
+          cat > pr_validation_summary.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)",
+            "correlation_id": "$CORRELATION_ID",
+            "pr_number": "${{ github.event.number }}",
+            "pr_title": "${{ github.event.pull_request.title }}",
+            "pr_author": "${{ github.event.pull_request.user.login }}",
+            "base_branch": "${{ github.base_ref }}",
+            "head_branch": "${{ github.head_ref }}",
+            "change_analysis": {
+              "has_breaking_changes": ${{ needs.pr-metadata.outputs.has-breaking-changes }},
+              "change_impact": "${{ needs.pr-metadata.outputs.change-impact }}",
+              "test_strategy": "${{ needs.pr-metadata.outputs.test-strategy }}"
+            },
+            "validation_results": {
+              "pr_metadata": "${{ needs.pr-metadata.result }}",
+              "code_quality": "${{ needs.code-quality.result }}",
+              "integration_testing": "${{ needs.integration-testing.result }}",
+              "security_validation": "${{ needs.security-validation.result }}"
+            },
+            "quality_gates": {
+              "all_checks_passed": $([ "${{ needs.pr-metadata.result }}" = "success" ] && [ "${{ needs.code-quality.result }}" = "success" ] && [ "${{ needs.integration-testing.result }}" = "success" ] && [ "${{ needs.security-validation.result }}" = "success" ] && echo true || echo false),
+              "ready_for_review": $([ "${{ needs.code-quality.result }}" = "success" ] && [ "${{ needs.security-validation.result }}" = "success" ] && echo true || echo false)
+            }
+          }
+          EOF
+
+          log_structured "INFO" "PR validation report generated" \
+            "$(cat pr_validation_summary.json)"
+
+      - name: Post PR comment with validation results
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read validation summary
+            let summary;
+            try {
+              summary = JSON.parse(fs.readFileSync('pr_validation_summary.json', 'utf8'));
+            } catch (error) {
+              console.log('Could not read validation summary');
+              return;
+            }
+
+            const allPassed = summary.quality_gates.all_checks_passed;
+            const readyForReview = summary.quality_gates.ready_for_review;
+
+            const statusIcon = allPassed ? '✅' : (readyForReview ? '⚠️' : '❌');
+            const statusText = allPassed ? 'All validations passed' : (readyForReview ? 'Ready for review with warnings' : 'Validation failed');
+
+            const comment = `## ${statusIcon} PR Validation Results
+
+            **Status**: ${statusText}
+            **Change Impact**: ${summary.change_analysis.change_impact}
+            **Test Strategy**: ${summary.change_analysis.test_strategy}
+            ${summary.change_analysis.has_breaking_changes ? '**⚠️ Breaking Changes Detected**' : ''}
+
+            ### Validation Results
+            | Check | Status |
+            |-------|--------|
+            | PR Metadata | ${summary.validation_results.pr_metadata === 'success' ? '✅' : '❌'} |
+            | Code Quality | ${summary.validation_results.code_quality === 'success' ? '✅' : '❌'} |
+            | Integration Testing | ${summary.validation_results.integration_testing === 'success' ? '✅' : '❌'} |
+            | Security Validation | ${summary.validation_results.security_validation === 'success' ? '✅' : '❌'} |
+
+            ### Next Steps
+            ${allPassed ?
+              '🎉 All validations passed! This PR is ready for review and merge.' :
+              readyForReview ?
+                '⚠️ Some warnings detected. Please review the workflow logs and address any concerns.' :
+                '❌ Validation failed. Please fix the issues and push new commits.'}
+
+            <details>
+            <summary>Validation Details</summary>
+
+            - **Correlation ID**: ${summary.correlation_id}
+            - **Workflow Run**: [${summary.correlation_id.split('-')[0]}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            </details>`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Upload PR validation summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-validation-summary
+          path: pr_validation_summary.json
+          retention-days: 90
+
+      - name: Final validation status
+        run: |
+          source log_helper.sh
+
+          # Determine final status
+          all_passed=$(jq -r '.quality_gates.all_checks_passed' pr_validation_summary.json)
+
+          if [ "$all_passed" = "true" ]; then
+            log_structured "INFO" "PR validation completed successfully"
+            exit 0
+          else
+            log_structured "ERROR" "PR validation failed"
+            exit 1
+          fi

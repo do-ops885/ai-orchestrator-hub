@@ -5,7 +5,7 @@
 
 use crate::infrastructure::cache::{Cache, CacheStats};
 use crate::utils::error::HiveResult;
-use crate::{cached_query, deduplicated_query};
+use crate::infrastructure::cached_query;
 use chrono::Timelike;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};

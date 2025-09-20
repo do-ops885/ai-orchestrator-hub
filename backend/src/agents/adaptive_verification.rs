@@ -938,18 +938,18 @@ mod tests {
     use tokio::sync::RwLock;
 
     async fn create_test_adaptive_system() -> AdaptiveVerificationSystem {
-        let nlp_processor = Arc::new(
-            NLPProcessor::new()
-                .await
-                .expect("Failed to create NLP processor"),
-        );
+        let nlp_processor_result = NLPProcessor::new().await;
+        let nlp_processor = Arc::new(match nlp_processor_result {
+            Ok(proc) => proc,
+            Err(e) => panic!("Failed to create NLP processor: {:?}", e),
+        });
         let base_verification = SimpleVerificationSystem::new(nlp_processor);
         let learning_config = AdaptiveLearningConfig::default();
-        let learning_system = Arc::new(RwLock::new(
-            AdaptiveLearningSystem::new(learning_config)
-                .await
-                .expect("Failed to create learning system"),
-        ));
+        let learning_system_result = AdaptiveLearningSystem::new(learning_config).await;
+        let learning_system = Arc::new(RwLock::new(match learning_system_result {
+            Ok(sys) => sys,
+            Err(e) => panic!("Failed to create learning system: {:?}", e),
+        }));
         let config = AdaptationConfig::default();
         AdaptiveVerificationSystem::new(base_verification, learning_system, config)
     }

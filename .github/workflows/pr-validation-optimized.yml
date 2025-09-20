@@ -1,0 +1,7 @@
+  # Optimized code quality validation
+  code-quality:
+    name: Code Quality Validation
+    runs-on: ubuntu-latest
+    needs: [pr-metadata, security-validation, security-report-validation, unwrap-prevention]
+    timeout-minutes: 15
+    if: needs.pr-metadata.outputs.rust-changed == 'true' || needs.pr-metadata.outputs.frontend-changed == 'true'
