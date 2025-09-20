@@ -2275,7 +2275,7 @@ impl AgentRecoveryManager {
         &self,
         strategies: &[AgentRecoveryStrategy],
         state: &AgentRecoveryState,
-        context: &RecoveryContext,
+        _context: &RecoveryContext,
     ) -> AgentRecoveryStrategy {
         // Simple strategy selection based on failure count
         let strategy_index =
@@ -2330,8 +2330,8 @@ impl AgentRecoveryManager {
     ) -> HiveResult<()> {
         match strategy {
             AgentRecoveryStrategy::RestartWithBackoff {
-                base_delay,
-                max_delay,
+                base_delay: _,
+                max_delay: _,
             } => {
                 // Implementation would trigger agent restart with backoff
                 info!("Triggering agent restart for {} with backoff", agent_id);
@@ -2621,9 +2621,9 @@ impl ContextAwareRecovery {
         &self,
         operation: F,
         agent: &mut crate::agents::agent::Agent,
-        operation_name: &str,
-        component_name: &str,
-        agent_id: &str,
+        _operation_name: &str,
+        _component_name: &str,
+        _agent_id: &str,
     ) -> HiveResult<T>
     where
         F: Fn(
@@ -3220,7 +3220,7 @@ impl CentralizedErrorHandler {
         operation: F,
         operation_name: &str,
         component_name: &str,
-        agent_id: Option<&str>,
+        _agent_id: Option<&str>,
     ) -> HiveResult<T>
     where
         F: Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send>>
@@ -3263,7 +3263,7 @@ impl CentralizedErrorHandler {
         error: HiveError,
         operation_name: &str,
         component_name: &str,
-        agent_id: Option<&str>,
+        _agent_id: Option<&str>,
     ) -> HiveResult<()> {
         error!(
             "Centralized error handling for {} in {}: {}",
@@ -3339,7 +3339,7 @@ impl CentralizedErrorHandler {
     }
 
     /// Record operation result for health monitoring
-    async fn record_operation_result(&self, component: &str, success: bool, duration: Duration) {
+    async fn record_operation_result(&self, component: &str, success: bool, _duration: Duration) {
         if self.config.enable_health_monitoring {
             self.health_monitor
                 .record_operation(component, success)

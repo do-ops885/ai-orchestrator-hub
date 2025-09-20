@@ -2,14 +2,8 @@
 //!
 //! This module handles historical metrics data tracking and trend analysis.
 
-use crate::utils::error::HiveResult;
-
 use super::collector::MetricsCollector;
 use super::types::HiveMetrics;
-
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 impl MetricsCollector {
     /// Get enhanced metrics with trends

@@ -3,7 +3,7 @@
 //! This module provides the main AgentManager struct that coordinates
 //! all agent management operations through its submodules.
 
-use crate::agents::agent::{Agent, AgentType};
+use crate::agents::agent::Agent;
 use crate::infrastructure::cache_invalidation::AgentCacheInvalidationManager;
 use crate::infrastructure::cached_query::CachedQueryManager;
 use crate::infrastructure::resource_manager::ResourceManager;
@@ -13,7 +13,7 @@ use crate::utils::error::{HiveError, HiveResult};
 use super::lifecycle::AgentLifecycle;
 use super::metrics::AgentMetricsManager;
 use super::registry::AgentRegistry;
-use super::types::{AgentMetrics, AgentRegistrationResult};
+
 use crate::core::hive::coordinator::CoordinationMessage;
 
 use std::sync::Arc;
@@ -94,7 +94,7 @@ impl AgentManager {
             enable_adaptive_ttl: true,
             enable_cache_warming: true,
             invalidation_strategy:
-                crate::infrastructure::cached_query::InvalidationStrategy::TimeBased(
+                crate::infrastructure::cached_query::CacheInvalidationStrategy::TimeBased(
                     std::time::Duration::from_secs(300),
                 ),
         };

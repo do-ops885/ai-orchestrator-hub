@@ -17,7 +17,7 @@ use tracing::{debug, info};
 use uuid::Uuid;
 
 use crate::agents::simple_verification::{
-    SimpleVerificationResult, SimpleVerificationStatus, SimpleVerificationSystem, VerificationTier,
+    SimpleVerificationResult, SimpleVerificationStatus, SimpleVerificationSystem,
 };
 use crate::agents::{Agent, AgentBehavior, CommunicationComplexity};
 use crate::communication::patterns::CommunicationConfig;
@@ -766,7 +766,7 @@ pub trait AdaptiveVerificationCapable {
 
 #[async_trait]
 impl AgentBehavior for AdaptiveVerificationSystem {
-    async fn execute_task(&mut self, task: Task) -> HiveResult<TaskResult> {
+    async fn execute_task(&mut self, _task: Task) -> HiveResult<TaskResult> {
         // Adaptive verification agents don't execute tasks directly
         // They enhance verification of task results
         Err(crate::utils::error::HiveError::AgentExecutionFailed {
@@ -927,10 +927,10 @@ impl AdaptiveVerificationCapable for Agent {
     }
 }
 
-#[cfg(test)]
+    #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agents::simple_verification::SimpleVerificationSystem;
+    use crate::agents::simple_verification::{SimpleVerificationSystem, VerificationTier};
     use crate::neural::adaptive_learning::{AdaptiveLearningConfig, AdaptiveLearningSystem};
     use crate::tasks::{TaskPriority, TaskResult};
     use crate::tests::test_utils::{create_test_agent, create_test_task};

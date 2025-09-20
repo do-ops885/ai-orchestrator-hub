@@ -41,4 +41,24 @@
 
 **🚫 ZERO TOLERANCE for unwrap() calls in production Rust code**
 
+## Design Principles
+
+### SOLID Principles (Object-Oriented Design)
+
+Apply these principles to maintain clean, maintainable, and extensible code:
+
+- **Single Responsibility Principle (SRP)**: Each module, function, or class should have one reason to change. Keep components focused on a single purpose.
+- **Open-Closed Principle (OCP)**: Software entities should be open for extension but closed for modification. Use interfaces and abstractions to allow extension without changing existing code.
+- **Liskov Substitution Principle (LSP)**: Subtypes must be substitutable for their base types. Ensure derived classes can replace base classes without breaking functionality.
+- **Interface Segregation Principle (ISP)**: Clients should not be forced to depend on interfaces they don't use. Create specific interfaces rather than general-purpose ones.
+- **Dependency Inversion Principle (DIP)**: High-level modules should not depend on low-level modules. Both should depend on abstractions. Use dependency injection and inversion of control.
+
+### KISS Principle (Keep It Simple, Stupid)
+
+- Strive for simplicity in design and implementation
+- Avoid unnecessary complexity and over-engineering
+- Write code that is easy to understand, maintain, and debug
+- Prefer straightforward solutions over clever or convoluted ones
+- Regularly refactor to remove complexity as requirements evolve
+
 **Remember**: Think step-by-step, analyze first, validate changes, no regressions, no false positive results, File size: ≤ 600 ine of code

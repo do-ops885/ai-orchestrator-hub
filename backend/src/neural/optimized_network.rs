@@ -498,8 +498,9 @@ impl OptimizedNeuralNetwork {
         let bias_gradient = output_error.row_sum() / batch_size;
 
         // Apply gradients with momentum and regularization
+        let current_weights = self.weights[last_layer_idx].clone();
         self.weights[last_layer_idx] -= self.config.learning_rate
-            * (weight_gradient + self.config.regularization * &self.weights[last_layer_idx]);
+            * (weight_gradient + self.config.regularization * &current_weights);
 
         self.biases[last_layer_idx] -= self.config.learning_rate * bias_gradient;
 
@@ -822,10 +823,8 @@ mod tests {
             specialization: NetworkSpecialization::GeneralPurpose,
         };
 
-        let network = match OptimizedNeuralNetwork::new(config) {
-            Ok(net) => net,
-            Err(e) => panic!("Failed to create network: {:?}", e),
-        };
+        let network = OptimizedNeuralNetwork::new(config)
+            .expect("Failed to create network");
         assert_eq!(network.weights.len(), 2);
         assert_eq!(network.biases.len(), 2);
     }
@@ -843,16 +842,12 @@ mod tests {
             specialization: NetworkSpecialization::GeneralPurpose,
         };
 
-        let mut network = match OptimizedNeuralNetwork::new(config) {
-            Ok(net) => net,
-            Err(e) => panic!("Failed to create network: {:?}", e),
-        };
+        let mut network = OptimizedNeuralNetwork::new(config)
+            .expect("Failed to create network");
         let input = DVector::from_vec(vec![1.0, 0.5, -0.5]);
 
-        let result = match network.forward(&input) {
-            Ok(res) => res,
-            Err(e) => panic!("Forward pass failed: {:?}", e),
-        };
+        let result = network.forward(&input)
+            .expect("Forward pass failed");
         assert_eq!(result.outputs.len(), 1);
         assert!(result.confidence >= 0.0 && result.confidence <= 1.0);
         assert!(result.inference_time_us > 0.0);

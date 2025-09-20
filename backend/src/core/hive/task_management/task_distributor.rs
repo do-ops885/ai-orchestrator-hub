@@ -16,9 +16,8 @@ use crate::agents::agent::Agent;
 use crate::infrastructure::cache_invalidation::{
     CacheInvalidationManager, InvalidationStrategy, TaskCacheInvalidationManager,
 };
-use crate::infrastructure::cached_query::{CacheKey, CachedQueryConfig, CachedQueryManager};
+use crate::infrastructure::cached_query::{CachedQueryConfig, CachedQueryManager};
 use crate::infrastructure::resource_manager::ResourceManager;
-use crate::tasks::task::Task;
 use crate::utils::error::HiveResult;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -156,7 +155,7 @@ impl TaskDistributor {
             enable_adaptive_ttl: true,
             enable_cache_warming: true,
             invalidation_strategy:
-                crate::infrastructure::cached_query::InvalidationStrategy::TimeBased(
+                crate::infrastructure::cached_query::CacheInvalidationStrategy::TimeBased(
                     std::time::Duration::from_secs(180),
                 ),
         };

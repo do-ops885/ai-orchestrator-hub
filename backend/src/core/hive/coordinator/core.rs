@@ -14,7 +14,6 @@ use crate::infrastructure::resource_manager::ResourceManager;
 use crate::neural::core::HybridNeuralProcessor;
 use crate::neural::nlp::NLPProcessor;
 use crate::utils::error::{HiveError, HiveResult};
-use crate::utils::error_handling::safe_option;
 
 use super::messages::CoordinationMessage;
 

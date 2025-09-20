@@ -253,7 +253,7 @@ where
         }
 
         // Evict the selected entries
-        for (key, size) in entries_to_evict {
+        for (key, _size) in entries_to_evict {
             if let Some(entry) = data.remove(&key) {
                 self.update_size_tracker(&entry, false).await;
             }

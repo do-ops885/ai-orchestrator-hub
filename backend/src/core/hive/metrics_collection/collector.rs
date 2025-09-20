@@ -3,14 +3,14 @@
 //! This module implements the main MetricsCollector struct that handles
 //! real-time metrics collection, aggregation, and storage.
 
-use crate::utils::error::{HiveError, HiveResult};
-use crate::utils::error_handling::{safe_json, safe_option};
+use crate::utils::error::HiveResult;
 
-use super::types::{HiveMetrics, SwarmMetrics};
+
+use super::types::HiveMetrics;
 use crate::core::hive::coordinator::CoordinationMessage;
 
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};

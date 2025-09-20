@@ -4,7 +4,6 @@ backend/target/
 **/*.rs.bk
 
 # Rust package manager
-Cargo.lock
 
 # Node dependencies
 node_modules/
@@ -47,7 +46,18 @@ coverage/
 # Ignore MCP PID/runtime files
 *.pid
 mcp-*.pid
--e
 
 __pycache__
+
+# Generated content
+analysis/
+benchmarks/
+security-reports/
+frontend/training/hpo_grid_results.json
+backend/simple_benchmark
+backend/simple_perf_benchmark
+backend/test_agent_types
+*.db
+*.db-journal
+*.sqlite-journal
 

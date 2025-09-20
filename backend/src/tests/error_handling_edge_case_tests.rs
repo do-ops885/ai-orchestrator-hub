@@ -3,12 +3,8 @@
 //! Tests to prevent regression of unwrap_or() to unwrap_or_else(||) changes
 //! in the error handling and recovery system.
 
-use crate::utils::error::HiveError;
-use crate::utils::error_handling::{
-    CircuitBreaker, CircuitBreakerState, RecoveryConfig, SafeOperations,
-};
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use crate::utils::error_handling::{CircuitBreaker, CircuitBreakerState, RecoveryConfig, SafeOperations};
+use crate::HiveError;
 
 /// Test cascade failure scenarios
 #[tokio::test]

@@ -29,7 +29,6 @@ use crate::communication::protocols::{MessageEnvelope, MessagePayload, MessageTy
 use crate::core::swarm_intelligence::SwarmIntelligenceEngine;
 use crate::infrastructure::monitoring::HealthMonitor;
 use crate::neural::NLPProcessor;
-use crate::tasks::TaskRequiredCapability;
 use crate::tasks::{Task, TaskResult};
 use crate::utils::error::HiveResult;
 use crate::utils::error_recovery::RecoveryHealthMonitor;
@@ -571,7 +570,7 @@ impl SelfHealingSwarmAgent {
     }
 
     /// Checks if agent degradation is worsening over time
-    async fn is_degradation_worsening(&self, agent_id: Uuid) -> bool {
+    async fn is_degradation_worsening(&self, _agent_id: Uuid) -> bool {
         // In a real implementation, this would analyze historical trends
         // For now, return a simple probability
         rand::random::<f64>() < 0.3
@@ -580,9 +579,9 @@ impl SelfHealingSwarmAgent {
     /// Cleans up completed recovery operations
     fn cleanup_completed_recoveries(&mut self) {
         // Remove recoveries that have been running too long without completion
-        let cutoff_time = Utc::now() - chrono::Duration::minutes(30);
+        let _cutoff_time = Utc::now() - chrono::Duration::minutes(30);
         self.active_recoveries
-            .retain(|agent_id, (strategy, attempts)| {
+            .retain(|agent_id, (_strategy, attempts)| {
                 if *attempts > self.config.max_recovery_attempts * 2 {
                     warn!(
                         "Abandoning recovery for agent {} after excessive attempts",
@@ -765,7 +764,7 @@ impl AgentBehavior for SelfHealingSwarmAgent {
     async fn update_position(
         &mut self,
         swarm_center: (f64, f64),
-        neighbors: &[Agent],
+        _neighbors: &[Agent],
     ) -> HiveResult<()> {
         // Self-healing agents maintain central positions for optimal monitoring
         let center_x = swarm_center.0;

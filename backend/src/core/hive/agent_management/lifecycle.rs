@@ -3,12 +3,11 @@
 //! This module handles agent lifecycle operations including status monitoring,
 //! analytics, learning cycles, and system health checks.
 
-use crate::agents::agent::{Agent, AgentType};
+use crate::agents::agent::AgentType;
 use crate::neural::nlp::NLPProcessor;
 use crate::utils::error::HiveResult;
 
 use super::registry::AgentRegistry;
-use super::types::AgentMetrics;
 use crate::agents::agent::AgentBehavior;
 
 use std::collections::HashMap;

@@ -3,12 +3,7 @@
 //! Tests to prevent regression of unwrap_or() to unwrap_or_else(||) changes
 //! in the configuration parsing system.
 
-use crate::utils::config::{
-    AgentConfig, HiveConfig, LoggingConfig, MonitoringConfig, NeuralConfig, PerformanceConfig,
-    ResourceConfig, ServerConfig, TaskConfig,
-};
-use crate::utils::error::HiveError;
-use std::collections::HashMap;
+use crate::HiveConfig;
 use std::env;
 
 /// Test invalid environment variable values for numeric parsing

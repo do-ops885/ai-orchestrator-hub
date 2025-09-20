@@ -1281,7 +1281,7 @@ impl NeuralTrainingSystem {
                 > + Unpin,
         >,
     ) -> Result<Vec<f32>> {
-        let neural_stream = self
+        let _neural_stream = self
             .neural_stream
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Streaming not enabled for this training system"))?;

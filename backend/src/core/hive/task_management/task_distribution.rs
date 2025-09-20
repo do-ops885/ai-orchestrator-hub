@@ -111,7 +111,7 @@ impl TaskDistributor {
         }
 
         // Execute tasks in parallel using join_all for better async performance
-        let execution_futures = tasks_to_execute.into_iter().map(|(task, agent_id, agent)| {
+        let execution_futures = tasks_to_execute.into_iter().map(|(task, _agent_id, agent)| {
             let executor = self.executor.clone();
             let metrics_collector = self.metrics_collector.clone();
             let queue_manager = self.queue_manager.clone();

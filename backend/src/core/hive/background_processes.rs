@@ -56,7 +56,7 @@
 
 use crate::infrastructure::resource_manager::ResourceManager;
 use crate::utils::error::HiveResult;
-use crate::utils::error_handling::{safe_json, safe_option};
+use crate::utils::error_handling::safe_json;
 
 use super::agent_management::AgentManager;
 use super::coordinator::CoordinationMessage;

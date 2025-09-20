@@ -53,7 +53,7 @@
 use multiagent_hive::infrastructure::benchmarks::{
     create_default_benchmark_suite, PerformanceConfig, PerformanceMonitor,
 };
-use std::time::Duration;
+
 use tokio;
 
 #[tokio::main]

@@ -3,9 +3,9 @@
 //! Provides comprehensive monitoring and analytics for the intelligent caching system.
 //! Tracks performance metrics, cache efficiency, and optimization opportunities.
 
-use crate::infrastructure::cache_invalidation::{CacheInvalidationManager, InvalidationStats};
-use crate::infrastructure::cached_query::{CachedQueryManager, CachedQueryStats};
-use crate::utils::error::{HiveError, HiveResult};
+use crate::infrastructure::cache_invalidation::CacheInvalidationManager;
+use crate::infrastructure::cached_query::CachedQueryManager;
+use crate::utils::error::HiveResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -35,7 +35,7 @@ pub struct CachePerformanceMetrics {
     /// Intelligent caching metrics
     pub intelligent_metrics: IntelligentCacheMetrics,
     /// Database load reduction metrics
-    pub db_load_reduction: DatabaseLoadReductionMetrics,
+    pub db_load_reduction: MonitoringDatabaseLoadReductionMetrics,
     /// TTL adaptation metrics
     pub ttl_adaptation: TtlAdaptationMetrics,
 }
@@ -55,9 +55,9 @@ pub struct IntelligentCacheMetrics {
     pub burst_detection_rate: f64,
 }
 
-/// Database load reduction metrics
+/// Database load reduction metrics for monitoring
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DatabaseLoadReductionMetrics {
+pub struct MonitoringDatabaseLoadReductionMetrics {
     /// Deduplication savings
     pub deduplication_savings: f64,
     /// Batch processing savings
@@ -173,7 +173,7 @@ impl CachePerformanceMonitor {
                 pattern_prediction_accuracy: 0.0,
                 burst_detection_rate: 0.0,
             },
-            db_load_reduction: DatabaseLoadReductionMetrics {
+            db_load_reduction: MonitoringDatabaseLoadReductionMetrics {
                 deduplication_savings: 0.0,
                 batch_processing_savings: 0.0,
                 total_load_reduction: 0.0,
@@ -468,7 +468,7 @@ impl CachePerformanceMonitor {
     }
 
     /// Collect database load reduction metrics
-    async fn collect_db_load_reduction_metrics(&self) -> DatabaseLoadReductionMetrics {
+    async fn collect_db_load_reduction_metrics(&self) -> MonitoringDatabaseLoadReductionMetrics {
         let mut total_deduplication_savings = 0.0;
         let mut total_batch_savings = 0.0;
         let mut total_load_reduction = 0.0;
@@ -485,7 +485,7 @@ impl CachePerformanceMonitor {
             }
         }
 
-        DatabaseLoadReductionMetrics {
+        MonitoringDatabaseLoadReductionMetrics {
             deduplication_savings: total_deduplication_savings,
             batch_processing_savings: total_batch_savings,
             total_load_reduction,
@@ -511,7 +511,7 @@ impl CachePerformanceMonitor {
     }
 
     /// Get database load reduction metrics
-    pub async fn get_db_load_reduction_metrics(&self) -> DatabaseLoadReductionMetrics {
+    pub async fn get_db_load_reduction_metrics(&self) -> MonitoringDatabaseLoadReductionMetrics {
         self.metrics.read().await.db_load_reduction.clone()
     }
 
@@ -580,7 +580,7 @@ impl CachePerformanceMonitor {
                     pattern_prediction_accuracy: 0.0,
                     burst_detection_rate: 0.0,
                 },
-                db_load_reduction: DatabaseLoadReductionMetrics {
+            db_load_reduction: MonitoringDatabaseLoadReductionMetrics {
                     deduplication_savings: 0.0,
                     batch_processing_savings: 0.0,
                     total_load_reduction: 0.0,

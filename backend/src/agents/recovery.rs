@@ -20,7 +20,7 @@ pub struct AgentRecoveryManager {
 impl AgentBehavior for AgentRecoveryManager {
     async fn execute_task(
         &mut self,
-        task: crate::tasks::Task,
+        _task: crate::tasks::Task,
     ) -> HiveResult<crate::tasks::TaskResult> {
         // Recovery managers don't execute tasks directly
         Err(crate::utils::error::HiveError::AgentExecutionFailed {

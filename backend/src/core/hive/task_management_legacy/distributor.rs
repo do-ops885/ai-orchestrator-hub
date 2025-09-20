@@ -3,12 +3,10 @@
 //! This module implements the main TaskDistributor struct that handles
 //! task creation, queuing, distribution, and execution monitoring.
 
-use crate::agents::agent::Agent;
 use crate::infrastructure::resource_manager::ResourceManager;
 use crate::tasks::task::{Task, TaskPriority, TaskRequiredCapability};
 use crate::tasks::work_stealing_queue::WorkStealingQueue;
 use crate::utils::error::{HiveError, HiveResult};
-use crate::utils::error_handling::{safe_json, safe_option};
 
 use super::types::{TaskExecutionResult, TaskMetrics, TaskStatus};
 use crate::core::hive::coordinator::CoordinationMessage;

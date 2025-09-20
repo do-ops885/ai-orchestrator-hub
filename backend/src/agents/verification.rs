@@ -585,7 +585,7 @@ impl VerifiableTask {
 
 #[async_trait]
 impl AgentBehavior for PairCoordinator {
-    async fn execute_task(&mut self, task: Task) -> HiveResult<TaskResult> {
+    async fn execute_task(&mut self, _task: Task) -> HiveResult<TaskResult> {
         // Pair coordinator doesn't execute tasks directly - it coordinates pairs
         Err(crate::utils::error::HiveError::AgentExecutionFailed {
             reason: "PairCoordinator does not execute tasks directly".to_string(),

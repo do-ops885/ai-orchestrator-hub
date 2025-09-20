@@ -5,14 +5,13 @@
 
 use crate::infrastructure::cached_query::{CacheKey, CachedQueryManager};
 use crate::utils::error::{HiveError, HiveResult};
-use rand::Rng;
-use regex::Regex;
+
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 use uuid::Uuid;
 
 /// Invalidation rule for cache entries
@@ -472,8 +471,8 @@ impl CacheInvalidationManager {
     /// Check if an access pattern condition is met
     async fn check_access_pattern_condition(
         &self,
-        key: &CacheKey,
-        condition: &AccessPatternCondition,
+        _key: &CacheKey,
+        _condition: &AccessPatternCondition,
     ) -> bool {
         // This would need to be implemented with actual access pattern tracking
         // For now, return false as placeholder

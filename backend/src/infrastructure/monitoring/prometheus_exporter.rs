@@ -4,7 +4,7 @@
 //! and integration with Grafana dashboards.
 
 use super::production_monitoring::ProductionMonitoringSystem;
-use crate::infrastructure::metrics::{AlertLevel, MetricsCollector, SystemMetrics};
+use crate::infrastructure::metrics::{MetricsCollector, SystemMetrics};
 use crate::utils::error::HiveResult;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;

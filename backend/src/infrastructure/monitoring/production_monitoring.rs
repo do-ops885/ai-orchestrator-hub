@@ -13,11 +13,10 @@ use super::types::*;
 use crate::infrastructure::intelligent_alerting::{
     IntelligentAlertConfig, IntelligentAlertingSystem,
 };
-use crate::infrastructure::metrics::{MetricThresholds, MetricsCollector};
+use crate::infrastructure::metrics::MetricsCollector;
 use crate::infrastructure::telemetry::{
     ConsoleTelemetrySubscriber, TelemetryCollector, WebhookTelemetrySubscriber,
 };
-use crate::utils::config::MonitoringConfig;
 use crate::utils::error::HiveResult;
 use std::collections::HashMap;
 use std::sync::Arc;

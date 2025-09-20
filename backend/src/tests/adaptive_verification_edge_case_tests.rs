@@ -4,21 +4,13 @@
 //! in the adaptive verification system.
 
 use crate::agents::adaptive_verification::{
-    AccuracyMetrics, AdaptationConfig, AdaptationInsights, AdaptiveVerificationSystem,
-    EfficiencyMetrics, PerformanceTracker, ThresholdHistory, ThresholdRecommendation,
-    VerificationOutcome,
+    AccuracyMetrics, AdaptationConfig, AdaptationInsights, EfficiencyMetrics, PerformanceTracker,
+    ThresholdHistory, ThresholdRecommendation, VerificationOutcome,
 };
-use crate::agents::simple_verification::{
-    SimpleVerificationResult, SimpleVerificationStatus, VerificationTier,
-};
-use crate::agents::Agent;
-use crate::tasks::{Task, TaskPriority, TaskResult};
-use crate::utils::error::HiveError;
-use chrono::{DateTime, Duration, Utc};
-use serde_json::json;
+use crate::agents::{SimpleVerificationResult, SimpleVerificationStatus, VerificationTier};
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 /// Test invalid constructor parameters
 #[test]

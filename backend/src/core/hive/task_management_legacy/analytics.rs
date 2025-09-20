@@ -3,15 +3,11 @@
 //! This module provides analytics and reporting functionality
 //! for task execution patterns, performance trends, and system insights.
 
-use crate::utils::error::HiveResult;
 
 use super::distributor::TaskDistributor;
-use super::types::{TaskExecutionResult, TaskStatus};
+use super::types::TaskExecutionResult;
 
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use uuid::Uuid;
 
 impl TaskDistributor {
     /// Get detailed analytics

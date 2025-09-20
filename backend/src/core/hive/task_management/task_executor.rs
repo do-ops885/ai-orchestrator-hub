@@ -7,13 +7,11 @@ use super::task_types::*;
 use crate::agents::agent::{Agent, AgentState};
 use crate::tasks::task::Task;
 use crate::utils::error::{HiveError, HiveResult};
-use crate::utils::error_recovery::ContextAwareRecovery;
-use crate::{agent_recover, recover_with_context};
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{RwLock, Semaphore};
-use tokio::task;
 use uuid::Uuid;
 
 /// Task execution engine with verification and monitoring

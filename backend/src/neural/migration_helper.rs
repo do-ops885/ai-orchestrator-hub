@@ -26,7 +26,7 @@ pub enum ActivationFunction {
 
 impl<T: Clone + Into<f32> + From<f32>> Network<T> {
     /// Create a new network with specified layer configuration
-    pub fn new(layers: &[usize]) -> Self {
+    pub fn new(layers: &[usize]) -> HiveResult<Self> {
         let config = FastNeuralConfig {
             layers: layers.to_vec(),
             activation: "leaky_relu".to_string(),
@@ -37,25 +37,20 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
             use_simd: true,
         };
 
-        let inner = match FastNeuralNetwork::from_config(&config) {
-            Ok(net) => net,
-            Err(e) => panic!("Failed to create optimized network: {:?}", e),
-        };
+        let inner = FastNeuralNetwork::from_config(&config)?;
 
-        Self {
+        Ok(Self {
             inner,
             _phantom: std::marker::PhantomData,
-        }
+        })
     }
 
     /// Run forward pass through the network
     pub fn run(&mut self, input: &[T]) -> Vec<T> {
         let float_input: Vec<f32> = input.iter().map(|x| x.clone().into()).collect();
 
-        let result = match self.inner.run(&float_input) {
-            Ok(res) => res,
-            Err(e) => panic!("Forward pass failed: {:?}", e),
-        };
+        let result = self.inner.run(&float_input)
+            .expect("Forward pass failed");
 
         result.into_iter().map(|x| T::from(x)).collect()
     }
@@ -111,7 +106,13 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
 
     /// Get number of outputs
     pub fn num_outputs(&self) -> usize {
-        self.inner.layers().last().copied().unwrap_or(0)
+        match self.inner.layers().last() {
+            Some(&output_size) => output_size,
+            None => {
+                tracing::warn!("Network layers is empty, returning 0 for num_outputs");
+                0
+            }
+        }
     }
 
     /// Save network to file (compatibility function)
@@ -124,7 +125,7 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
     /// Load network from file (compatibility function)
     pub fn load(_filename: &str) -> Result<Self, String> {
         // Return a default network for compatibility
-        Ok(Self::new(&[10, 5, 1]))
+        Self::new(&[10, 5, 1]).map_err(|e| format!("Failed to create default network: {}", e))
     }
 }
 
@@ -243,7 +244,7 @@ mod tests {
 
     #[test]
     fn test_compatibility_network() {
-        let mut network: Network<f32> = Network::new(&[3, 2, 1]);
+        let mut network: Network<f32> = Network::new(&[3, 2, 1]).expect("Failed to create network");
         let input = vec![1.0, 0.5, -0.5];
         let output = network.run(&input);
 

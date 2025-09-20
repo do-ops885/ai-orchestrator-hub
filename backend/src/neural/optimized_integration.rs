@@ -78,11 +78,17 @@ impl FastNeuralNetwork {
             },
             "pattern" | "classification" => NetworkSpecialization::PatternRecognition {
                 feature_dim: config.layers[0],
-                num_classes: config.layers.last().copied().unwrap_or(1),
+                num_classes: config.layers.last().copied().ok_or_else(|| HiveError::ValidationError {
+                    field: "layers".to_string(),
+                    reason: "Network layers cannot be empty for pattern recognition".to_string(),
+                })?,
             },
             "coordination" | "swarm" => NetworkSpecialization::CoordinationDecision {
                 agent_count: config.layers[0] / 4,
-                action_space: config.layers.last().copied().unwrap_or(1),
+                action_space: config.layers.last().copied().ok_or_else(|| HiveError::ValidationError {
+                    field: "layers".to_string(),
+                    reason: "Network layers cannot be empty for coordination decision".to_string(),
+                })?,
             },
             "forecasting" | "prediction" | "temporal" => {
                 NetworkSpecialization::TimeSeriesPrediction {
@@ -602,19 +608,15 @@ mod tests {
         let agent_id = Uuid::new_v4();
 
         // Create network
-        if let Err(e) = processor
+        processor
             .create_agent_network(agent_id, "sentiment", 10, 1)
             .await
-        {
-            panic!("Failed to create agent network: {:?}", e);
-        }
+            .expect("Failed to create agent network");
 
         // Test prediction
         let input = vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
-        let result = match processor.predict_with_agent_network(agent_id, &input).await {
-            Ok(res) => res,
-            Err(e) => panic!("Failed to predict: {:?}", e),
-        };
+        let result = processor.predict_with_agent_network(agent_id, &input).await
+            .expect("Failed to predict");
 
         assert_eq!(result.len(), 1);
     }
@@ -624,12 +626,10 @@ mod tests {
         let processor = FastNeuralProcessor::new();
         let agent_id = Uuid::new_v4();
 
-        if let Err(e) = processor
+        processor
             .create_agent_network(agent_id, "pattern", 3, 1)
             .await
-        {
-            panic!("Failed to create agent network: {:?}", e);
-        }
+            .expect("Failed to create agent network");
 
         // Training data
         let inputs = vec![
@@ -640,13 +640,10 @@ mod tests {
         ];
         let targets = vec![vec![1.0], vec![0.0], vec![0.0], vec![1.0]];
 
-        let result = match processor
+        let result = processor
             .train_agent_network(agent_id, &inputs, &targets, 10)
             .await
-        {
-            Ok(res) => res,
-            Err(e) => panic!("Failed to train: {:?}", e),
-        };
+            .expect("Failed to train");
 
         assert!(result.epochs_completed > 0);
         assert!(result.final_error >= 0.0);
@@ -654,10 +651,8 @@ mod tests {
 
     #[test]
     fn test_fast_neural_network_creation() {
-        let network = match FastNeuralNetwork::create_specialized("sentiment", 100, 1) {
-            Ok(net) => net,
-            Err(e) => panic!("Failed to create specialized network: {:?}", e),
-        };
+        let network = FastNeuralNetwork::create_specialized("sentiment", 100, 1)
+            .expect("Failed to create specialized network");
         assert_eq!(network.network.config.layers[0], 100);
         assert_eq!(network.network.config.layers.last(), Some(&1));
     }

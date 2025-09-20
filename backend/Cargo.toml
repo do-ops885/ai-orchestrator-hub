@@ -81,9 +81,9 @@ style = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 
 # Specific denials for critical issues
-unwrap_used = "warn"
-expect_used = "warn"
-panic = "warn"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
 todo = "warn"
 unimplemented = "warn"
 unreachable = "warn"
