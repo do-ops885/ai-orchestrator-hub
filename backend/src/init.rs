@@ -20,9 +20,9 @@ use crate::{
     CircuitBreaker, IntelligentAlertingSystem, MetricsCollector, PerformanceOptimizer,
     PersistenceManager, RateLimiter, SecurityAuditor, SwarmIntelligenceEngine,
 };
+use crate::utils::auth::AuthManager;
 
 use chrono::Utc;
-use std::time::Duration;
 
 /// Initialize the entire system with all components
 pub async fn initialize_system() -> HiveResult<AppState> {
@@ -72,6 +72,7 @@ pub async fn initialize_system() -> HiveResult<AppState> {
     let rate_limiter = initialize_rate_limiter();
     let performance_optimizer = initialize_performance_optimizer().await?;
     let security_auditor = initialize_security_auditor();
+    let auth_manager = initialize_auth_manager().await?;
     let cache_manager = initialize_cache_manager().await?;
 
     // Initialize the hive coordinator with enhanced capabilities
@@ -114,6 +115,7 @@ pub async fn initialize_system() -> HiveResult<AppState> {
         rate_limiter,
         performance_optimizer,
         security_auditor,
+        auth_manager,
         update_tx: None,
     };
 
@@ -186,8 +188,8 @@ async fn initialize_alerting(
 /// Initialize circuit breaker for resilience
 fn initialize_circuit_breaker() -> Arc<CircuitBreaker> {
     let circuit_breaker = Arc::new(CircuitBreaker::new(
-        5,                       // failure threshold
-        Duration::from_secs(30), // recovery timeout
+        5,                             // failure threshold
+        std::time::Duration::from_secs(30), // recovery timeout
     ));
     info!("✅ Circuit breaker initialized (threshold: 5, timeout: 30s)");
     circuit_breaker
@@ -302,7 +304,7 @@ async fn initialize_adaptive_learning() -> HiveResult<Arc<RwLock<AdaptiveLearnin
 fn initialize_rate_limiter() -> Arc<RateLimiter> {
     let rate_limiter = Arc::new(RateLimiter::new(
         1000, // requests per minute
-        Duration::from_secs(60),
+        std::time::Duration::from_secs(60),
     ));
     info!("🛡️ Rate limiter initialized for API protection");
     rate_limiter
@@ -326,6 +328,19 @@ fn initialize_security_auditor() -> Arc<SecurityAuditor> {
     let security_auditor = Arc::new(SecurityAuditor::new(security_config.audit_logging_enabled));
     info!("🔒 Security auditor initialized with audit logging");
     security_auditor
+}
+
+/// Initialize authentication manager
+async fn initialize_auth_manager() -> HiveResult<Arc<AuthManager>> {
+    let security_auditor = initialize_security_auditor();
+    let auth_manager = Arc::new(AuthManager::new(
+        "your-secret-key-here-change-in-production", // JWT secret - should be from config
+        "hive-system".to_string(), // issuer
+        "hive-api".to_string(),     // audience
+        security_auditor,
+    ));
+    info!("🔐 Authentication manager initialized with JWT support");
+    Ok(auth_manager)
 }
 
 /// Initialize intelligent cache manager

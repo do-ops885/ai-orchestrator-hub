@@ -494,6 +494,11 @@ impl MCPToolHandler for AssignSwarmTaskTool {
             ));
         }
 
+        let task_type = params
+            .get("task_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("general");
+
         let _ = match priority_str {
             "Low" => TaskPriority::Low,
             "High" => TaskPriority::High,
@@ -503,6 +508,8 @@ impl MCPToolHandler for AssignSwarmTaskTool {
 
         let hive = self.hive.write().await;
         let config = json!({
+            "title": description,  // Map description to title as expected by task creation
+            "type": task_type,     // Use provided task type or default
             "description": description,
             "priority": priority_str
         });
@@ -527,6 +534,11 @@ impl MCPToolHandler for AssignSwarmTaskTool {
                     "type": "string",
                     "enum": ["Low", "Medium", "High", "Critical"],
                     "description": "Priority level of the task"
+                },
+                "task_type": {
+                    "type": "string",
+                    "description": "Type of task (optional, defaults to 'general')",
+                    "default": "general"
                 }
             },
             "required": ["description", "priority"]

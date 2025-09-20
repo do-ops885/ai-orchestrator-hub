@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::agents::agent::Agent;
 use crate::infrastructure::streaming::{DataChunk, NeuralDataStream, StreamConfig};
-use crate::neural::{NLPProcessor, ProcessedText};
+use crate::neural::{ActivationFunction, Network, NLPProcessor, ProcessedText};
 use crate::tasks::task::Task;
 use crate::utils::error::HiveResult;
 use futures::stream::{Stream, StreamExt};
@@ -532,7 +532,7 @@ impl HybridNeuralProcessor {
 
     #[cfg(feature = "advanced-neural")]
     fn create_fann_network(&self, config: &FANNConfig) -> Network<f32> {
-        let mut network = Network::new(&config.layers);
+        let mut network = Network::new(&config.layers).expect("Failed to create FANN network");
 
         // Set activation function
         let activation = match config.activation.as_str() {
@@ -558,7 +558,7 @@ impl HybridNeuralProcessor {
 
     #[cfg(feature = "advanced-neural")]
     #[allow(dead_code)]
-    async fn process_with_fann(&mut self, text: &str, agent_id: Uuid) -> Result<ProcessedText> {
+    async fn process_with_fann(&mut self, text: &str, agent_id: Uuid) -> HiveResult<ProcessedText> {
         // First get basic processing
         let mut processed = self.nlp_processor.process_text(text).await?;
 
@@ -587,7 +587,7 @@ impl HybridNeuralProcessor {
     }
 
     #[cfg(feature = "advanced-neural")]
-    async fn process_with_lstm(&self, text: &str, agent_id: Uuid) -> Result<ProcessedText> {
+    async fn process_with_lstm(&self, text: &str, agent_id: Uuid) -> HiveResult<ProcessedText> {
         // Get basic processing first
         let processed = self.nlp_processor.process_text(text).await?;
 
@@ -695,7 +695,7 @@ impl HybridNeuralProcessor {
     }
 
     #[cfg(feature = "advanced-neural")]
-    async fn predict_with_fann(&mut self, agent_id: Uuid, task_description: &str) -> Result<f64> {
+    async fn predict_with_fann(&mut self, agent_id: Uuid, task_description: &str) -> HiveResult<f64> {
         if let Some(network) = self.neural_networks.get_mut(&agent_id) {
             let processed = self.nlp_processor.process_text(task_description).await?;
 
@@ -745,7 +745,7 @@ impl HybridNeuralProcessor {
     }
 
     #[cfg(feature = "advanced-neural")]
-    async fn predict_with_lstm(&self, agent_id: Uuid, task_description: &str) -> Result<f64> {
+    async fn predict_with_lstm(&self, agent_id: Uuid, task_description: &str) -> HiveResult<f64> {
         // LSTM prediction using sequence history
         if let Some(agent) = self.neural_agents.get(&agent_id) {
             if let NetworkType::LSTM(ref config) = agent.network_type {
@@ -764,7 +764,7 @@ impl HybridNeuralProcessor {
         agent_id: Uuid,
         text: &str,
         config: &LSTMConfig,
-    ) -> Result<ProcessedText> {
+    ) -> HiveResult<ProcessedText> {
         // Get basic processing
         let mut processed = self.nlp_processor.process_text(text).await?;
 
@@ -834,7 +834,7 @@ impl HybridNeuralProcessor {
         agent_id: Uuid,
         task_description: &str,
         config: &LSTMConfig,
-    ) -> Result<f64> {
+    ) -> HiveResult<f64> {
         if let Some(agent) = self.neural_agents.get(&agent_id) {
             // Get sequence context from performance history
             let sequence_context =

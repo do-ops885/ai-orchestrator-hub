@@ -8,7 +8,6 @@ use crate::infrastructure::intelligent_cache::{IntelligentCacheConfig, MultiTier
 use crate::infrastructure::streaming::{StreamConfig, StreamProcessor};
 use crate::utils::error::HiveResult;
 use crate::utils::error_recovery::{CircuitBreakerConfig, ErrorRecoveryCoordinator, RetryConfig};
-use crate::HiveError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;

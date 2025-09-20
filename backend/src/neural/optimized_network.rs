@@ -397,7 +397,7 @@ impl OptimizedNeuralNetwork {
                 // GELU approximation: 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x³)))
                 output.apply(|x| {
                     let x3 = x.powi(3);
-                    let inner = (2.0 / std::f32::consts::PI).sqrt() * (*x + 0.044715 * x3);
+                    let inner = (2.0 / std::f32::consts::PI).sqrt() * (*x + 0.044_715 * x3);
                     *x = 0.5 * *x * (1.0 + inner.tanh());
                 });
             }
@@ -438,7 +438,7 @@ impl OptimizedNeuralNetwork {
             ActivationFunction::GELU => {
                 output.apply(|x| {
                     let x3 = x.powi(3);
-                    let inner = (2.0 / std::f32::consts::PI).sqrt() * (*x + 0.044715 * x3);
+                    let inner = (2.0 / std::f32::consts::PI).sqrt() * (*x + 0.044_715 * x3);
                     *x = 0.5 * *x * (1.0 + inner.tanh());
                 });
             }

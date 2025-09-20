@@ -67,6 +67,8 @@ pub mod communication;
 pub mod core;
 /// Infrastructure components (metrics, caching, telemetry)
 pub mod infrastructure;
+/// Comprehensive monitoring and metrics system
+pub mod monitoring;
 /// Neural processing and NLP capabilities
 pub mod neural;
 /// Task management and distribution
@@ -98,6 +100,10 @@ pub use infrastructure::{
     CircuitBreaker, IntelligentAlertingSystem, MetricsCollector, PerformanceOptimizer,
     PersistenceManager, ResourceManager, TelemetryCollector,
 };
+pub use monitoring::{
+    Alert, AlertManager, AlertSeverity, MonitoringConfig, MonitoringSystem,
+    SystemMetrics, SlackChannel, EmailChannel,
+};
 pub use neural::{AdaptiveLearningSystem, HybridNeuralProcessor, NLPProcessor};
 pub use tasks::{Task, TaskPriority, TaskQueue, TaskResult, TaskStatus, WorkStealingQueue};
 pub use utils::{rate_limiter::RateLimiter, SecurityAuditor};
@@ -106,6 +112,7 @@ pub use utils::{HiveConfig, HiveError, HiveResult, InputValidator};
 // Server functions
 pub use crate::init::initialize_system;
 pub use crate::server::{create_router, start_background_tasks};
+pub use utils::auth::AuthManager;
 
 /// Application state shared across the system
 ///
@@ -143,6 +150,8 @@ pub struct AppState {
     pub performance_optimizer: std::sync::Arc<PerformanceOptimizer>,
     /// Security auditor for security logging
     pub security_auditor: std::sync::Arc<SecurityAuditor>,
+    /// Authentication and authorization manager
+    pub auth_manager: std::sync::Arc<AuthManager>,
     /// Broadcast channel for real-time event-driven updates
     pub update_tx: Option<tokio::sync::broadcast::Sender<WebSocketMessage>>,
 }

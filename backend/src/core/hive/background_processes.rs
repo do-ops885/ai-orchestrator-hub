@@ -56,7 +56,6 @@
 
 use crate::infrastructure::resource_manager::ResourceManager;
 use crate::utils::error::HiveResult;
-use crate::utils::error_handling::safe_json;
 
 use super::agent_management::AgentManager;
 use super::coordinator::CoordinationMessage;
@@ -1058,16 +1057,16 @@ mod tests {
             Arc::new(crate::infrastructure::resource_manager::ResourceManager::new().await?);
         let (tx, _rx) = mpsc::unbounded_channel();
 
-        let agent_manager = crate::core::hive::agent_management::AgentManager::new(
+        let agent_manager = Arc::new(crate::core::hive::agent_management::AgentManager::new(
             Arc::clone(&resource_manager),
             tx.clone(),
         )
-        .await?;
-        let task_distributor = crate::core::hive::task_management::TaskDistributor::new(
+        .await?);
+        let task_distributor = Arc::new(crate::core::hive::task_management::TaskDistributor::new(
             Arc::clone(&resource_manager),
             tx,
         )
-        .await?;
+        .await?);
 
         let handle = process_manager
             .start_work_stealing_process(&agent_manager, &task_distributor)

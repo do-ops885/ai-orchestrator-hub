@@ -62,6 +62,16 @@ warp = "0.3"
 [dev-dependencies]
 tempfile = "3.8"
 criterion = { version = "0.5", features = ["html_reports"] }
+tokio-test = "0.4"
+mockall = "0.12"
+proptest = "1.4"
+rstest = "0.21"
+fake = "2.9"
+wiremock = "0.6"
+testcontainers = "0.16"
+assert_matches = "1.5"
+pretty_assertions = "1.4"
+insta = "1.39"
 
 [features]
 default = ["basic-nlp"]

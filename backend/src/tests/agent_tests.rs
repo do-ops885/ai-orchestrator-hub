@@ -3,10 +3,14 @@
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
+    use std::collections::HashMap;
     use uuid::Uuid;
 
     use crate::agents::agent::AgentBehavior;
     use crate::agents::{Agent, AgentState, AgentType, Experience};
+    use crate::communication::protocols::{
+        DeliveryGuarantee, MessageEnvelope, MessagePayload, MessagePriority, MessageType,
+    };
     use crate::neural::NLPProcessor;
     use crate::tasks::TaskPriority;
     use crate::tests::test_utils::{
@@ -292,17 +296,48 @@ mod tests {
         let target_agent_id = Uuid::new_v4();
 
         // Test targeted communication
-        let response = agent.communicate("Hello", Some(target_agent_id)).await;
+        let envelope = MessageEnvelope {
+            id: Uuid::new_v4(),
+            message_type: MessageType::Request,
+            sender_id: agent.id,
+            recipients: vec![target_agent_id],
+            payload: MessagePayload::Text("Hello".to_string()),
+            priority: MessagePriority::Normal,
+            delivery_guarantee: DeliveryGuarantee::AtLeastOnce,
+            timestamp: Utc::now(),
+            correlation_id: Some(Uuid::new_v4()),
+            ttl: None,
+            metadata: HashMap::new(),
+        };
+        let response = agent.communicate(envelope).await;
         assert!(response.is_ok());
-        let response_text = response.unwrap();
-        assert!(response_text.contains("TestAgent"));
-        assert!(response_text.contains(&target_agent_id.to_string()));
-        assert!(response_text.contains("Hello"));
+        let response_envelope = response.unwrap();
+        assert!(response_envelope.is_some());
+        if let Some(ref env) = response_envelope {
+            if let MessagePayload::Text(ref text) = env.payload {
+                assert!(text.contains("TestAgent"));
+                assert!(text.contains(&target_agent_id.to_string()));
+                assert!(text.contains("Hello"));
+            }
+        }
 
         // Test broadcast communication
-        let broadcast_response = agent.communicate("Broadcast message", None).await;
+        let broadcast_envelope = MessageEnvelope {
+            id: Uuid::new_v4(),
+            message_type: MessageType::Broadcast,
+            sender_id: agent.id,
+            recipients: vec![],
+            payload: MessagePayload::Text("Broadcast message".to_string()),
+            priority: MessagePriority::Normal,
+            delivery_guarantee: DeliveryGuarantee::AtLeastOnce,
+            timestamp: Utc::now(),
+            correlation_id: Some(Uuid::new_v4()),
+            ttl: None,
+            metadata: HashMap::new(),
+        };
+        let broadcast_response = agent.communicate(broadcast_envelope).await;
         assert!(broadcast_response.is_ok());
-        let broadcast_text = broadcast_response.unwrap();
+        let broadcast_envelope_response = broadcast_response.unwrap();
         assert!(broadcast_text.contains("TestAgent"));
         assert!(broadcast_text.contains("broadcasting"));
     }

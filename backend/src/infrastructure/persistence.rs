@@ -7,9 +7,13 @@ use crate::agents::Agent;
 use crate::tasks::Task;
 use crate::utils::error::{HiveError, HiveResult};
 
+use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::aead::{Aead, KeyInit};
 use chrono::{DateTime, Utc};
+use pbkdf2::pbkdf2_hmac;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -182,6 +186,78 @@ impl PersistenceManager {
         })
     }
 
+    /// Encrypt data using AES-GCM with the configured encryption key
+    pub fn encrypt_data(&self, data: &[u8]) -> HiveResult<Vec<u8>> {
+        if let Some(key_bytes) = &self.encryption_key {
+            // Generate a random salt for key derivation
+            let salt: [u8; 16] = rand::random();
+
+            let mut derived_key = [0u8; 32];
+            pbkdf2_hmac::<Sha256>(key_bytes, &salt, 10000, &mut derived_key);
+
+            let key = Key::<Aes256Gcm>::from_slice(&derived_key);
+            let cipher = Aes256Gcm::new(key);
+
+            // Generate a random nonce
+            let nonce_bytes: [u8; 12] = rand::random();
+            let nonce = Nonce::from_slice(&nonce_bytes);
+
+            // Encrypt the data
+            let ciphertext = cipher
+                .encrypt(nonce, data)
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Encryption failed: {e}"),
+                })?;
+
+            // Prepend salt and nonce to ciphertext for decryption
+            let mut result = salt.to_vec();
+            result.extend_from_slice(&nonce_bytes);
+            result.extend_from_slice(&ciphertext);
+
+            Ok(result)
+        } else {
+            // If no encryption key is configured, return data as-is
+            Ok(data.to_vec())
+        }
+    }
+
+    /// Decrypt data using AES-GCM with the configured encryption key
+    pub fn decrypt_data(&self, encrypted_data: &[u8]) -> HiveResult<Vec<u8>> {
+        if let Some(key_bytes) = &self.encryption_key {
+            if encrypted_data.len() < 28 { // salt (16) + nonce (12) + minimum ciphertext
+                return Err(HiveError::ValidationError {
+                    field: "encrypted_data".to_string(),
+                    reason: "Encrypted data too short".to_string(),
+                });
+            }
+
+            // Extract salt, nonce and ciphertext
+            let salt = &encrypted_data[..16];
+            let nonce_bytes = &encrypted_data[16..28];
+            let ciphertext = &encrypted_data[28..];
+
+            // Derive decryption key using PBKDF2 with the stored salt
+            let mut derived_key = [0u8; 32];
+            pbkdf2_hmac::<Sha256>(key_bytes, salt, 10000, &mut derived_key);
+
+            let key = Key::<Aes256Gcm>::from_slice(&derived_key);
+            let cipher = Aes256Gcm::new(key);
+            let nonce = Nonce::from_slice(nonce_bytes);
+
+            // Decrypt the data
+            let plaintext = cipher
+                .decrypt(nonce, ciphertext)
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Decryption failed: {e}"),
+                })?;
+
+            Ok(plaintext)
+        } else {
+            // If no encryption key is configured, return data as-is
+            Ok(encrypted_data.to_vec())
+        }
+    }
+
     /// Create a checkpoint of the current hive state
     pub async fn create_checkpoint(
         &self,
@@ -265,7 +341,7 @@ impl PersistenceManager {
         };
 
         // Save the snapshot
-        let id = self.storage.save_snapshot(&snapshot).await?;
+        let id = self.storage.save_snapshot(&snapshot, self.encryption_key.as_ref()).await?;
 
         // Update checkpoint history
         let mut history = self.checkpoint_history.write().await;
@@ -292,7 +368,7 @@ impl PersistenceManager {
         _hive: &mut crate::core::hive::HiveCoordinator,
     ) -> HiveResult<()> {
         // Load the snapshot
-        let _snapshot = self.storage.load_snapshot(checkpoint_id).await?;
+        let _snapshot = self.storage.load_snapshot(checkpoint_id, self.encryption_key.as_ref()).await?;
 
         // Clear existing agents and restore them
         // Note: In the new architecture, we can't directly manipulate agents
@@ -380,8 +456,8 @@ pub struct ProcessedSnapshot {
 /// Storage provider trait for different backends
 #[async_trait::async_trait]
 pub trait StorageProvider {
-    async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String>;
-    async fn load_snapshot(&self, snapshot_id: &str) -> HiveResult<SystemSnapshot>;
+    async fn save_snapshot(&self, snapshot: &SystemSnapshot, encryption_key: Option<&[u8; 32]>) -> HiveResult<String>;
+    async fn load_snapshot(&self, snapshot_id: &str, encryption_key: Option<&[u8; 32]>) -> HiveResult<SystemSnapshot>;
     async fn list_snapshots(&self) -> HiveResult<Vec<CheckpointMetadata>>;
     async fn delete_snapshot(&self, snapshot_id: &str) -> HiveResult<()>;
     async fn save_processed_snapshot(
@@ -546,17 +622,50 @@ impl StorageProvider for SQLiteStorage {
         EMPTY_PATH.get_or_init(PathBuf::new)
     }
     #[allow(clippy::cast_possible_wrap)]
-    async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String> {
+    async fn save_snapshot(&self, snapshot: &SystemSnapshot, encryption_key: Option<&[u8; 32]>) -> HiveResult<String> {
         // Move serialization and database operations to blocking thread
         let snapshot_id = snapshot.snapshot_id;
         let snapshot_clone = snapshot.clone();
         let conn = Arc::clone(&self.connection);
+        let encryption_key_clone = encryption_key.map(|k| *k);
 
         task::spawn_blocking(move || {
             let json_data = serde_json::to_string(&snapshot_clone)
                 .map_err(|e| HiveError::OperationFailed {
                     reason: format!("Failed to serialize snapshot: {e}"),
                 })?;
+
+            // Apply encryption if key is provided
+            let processed_data = if let Some(key) = encryption_key_clone {
+                // Generate a random salt for key derivation
+                let salt: [u8; 16] = rand::random();
+
+                let mut derived_key = [0u8; 32];
+                pbkdf2_hmac::<Sha256>(&key, &salt, 10000, &mut derived_key);
+
+                let key_obj = Key::<Aes256Gcm>::from_slice(&derived_key);
+                let cipher = Aes256Gcm::new(key_obj);
+
+                // Generate a random nonce
+                let nonce_bytes: [u8; 12] = rand::random();
+                let nonce = Nonce::from_slice(&nonce_bytes);
+
+                // Encrypt the data
+                let ciphertext = cipher
+                    .encrypt(nonce, json_data.as_bytes())
+                    .map_err(|e| HiveError::OperationFailed {
+                        reason: format!("Encryption failed: {e}"),
+                    })?;
+
+                // Prepend salt and nonce to ciphertext
+                let mut encrypted_data = salt.to_vec();
+                encrypted_data.extend_from_slice(&nonce_bytes);
+                encrypted_data.extend_from_slice(&ciphertext);
+
+                encrypted_data
+            } else {
+                json_data.into_bytes()
+            };
 
             let conn_guard = conn.blocking_lock();
             conn_guard.execute(
@@ -566,11 +675,11 @@ impl StorageProvider for SQLiteStorage {
                     snapshot_clone.snapshot_id.to_string(),
                     snapshot_clone.timestamp.to_rfc3339(),
                     snapshot_clone.version,
-                    json_data.len() as i64,
+                    processed_data.len() as i64,
                     snapshot_clone.agents.len() as i64,
                     snapshot_clone.tasks.len() as i64,
                     "Automated checkpoint",
-                    json_data
+                    processed_data
                 ],
             ).map_err(|e| HiveError::OperationFailed {
                 reason: format!("Failed to save snapshot to database: {e}"),
@@ -584,10 +693,11 @@ impl StorageProvider for SQLiteStorage {
         })?
     }
 
-    async fn load_snapshot(&self, snapshot_id: &str) -> HiveResult<SystemSnapshot> {
+    async fn load_snapshot(&self, snapshot_id: &str, encryption_key: Option<&[u8; 32]>) -> HiveResult<SystemSnapshot> {
         // Move database query and deserialization to blocking thread
         let snapshot_id = snapshot_id.to_string();
         let conn = Arc::clone(&self.connection);
+        let encryption_key_clone = encryption_key.map(|k| *k);
 
         task::spawn_blocking(move || {
             let conn_guard = conn.blocking_lock();
@@ -597,11 +707,49 @@ impl StorageProvider for SQLiteStorage {
                     reason: format!("Failed to prepare load query: {e}"),
                 })?;
 
-            let json_data: String = stmt
+            let data: Vec<u8> = stmt
                 .query_row(params![snapshot_id], |row| row.get(0))
                 .map_err(|e| HiveError::OperationFailed {
                     reason: format!("Failed to load snapshot: {e}"),
                 })?;
+
+            // Apply decryption if key is provided
+            let json_data = if let Some(key) = encryption_key_clone {
+                if data.len() < 28 { // salt (16) + nonce (12) + minimum ciphertext
+                    return Err(HiveError::ValidationError {
+                        field: "encrypted_data".to_string(),
+                        reason: "Encrypted data too short".to_string(),
+                    });
+                }
+
+                // Extract salt, nonce and ciphertext
+                let salt = &data[..16];
+                let nonce_bytes = &data[16..28];
+                let ciphertext = &data[28..];
+
+                // Derive decryption key using PBKDF2 with the stored salt
+                let mut derived_key = [0u8; 32];
+                pbkdf2_hmac::<Sha256>(&key, salt, 10000, &mut derived_key);
+
+                let key_obj = Key::<Aes256Gcm>::from_slice(&derived_key);
+                let cipher = Aes256Gcm::new(key_obj);
+                let nonce = Nonce::from_slice(nonce_bytes);
+
+                // Decrypt the data
+                let plaintext = cipher
+                    .decrypt(nonce, ciphertext)
+                    .map_err(|e| HiveError::OperationFailed {
+                        reason: format!("Decryption failed: {e}"),
+                    })?;
+
+                String::from_utf8(plaintext).map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to convert decrypted data to string: {e}"),
+                })?
+            } else {
+                String::from_utf8(data).map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Failed to convert data to string: {e}"),
+                })?
+            };
 
             let snapshot: SystemSnapshot =
                 serde_json::from_str(&json_data).map_err(|e| HiveError::OperationFailed {
@@ -767,16 +915,48 @@ impl FileSystemStorage {
 
 #[async_trait::async_trait]
 impl StorageProvider for FileSystemStorage {
-    async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String> {
+    async fn save_snapshot(&self, snapshot: &SystemSnapshot, encryption_key: Option<&[u8; 32]>) -> HiveResult<String> {
         let json_data =
             serde_json::to_string(snapshot).map_err(|e| HiveError::OperationFailed {
                 reason: format!("Failed to serialize snapshot: {e}"),
             })?;
 
+        // Apply encryption if key is provided
+        let data_to_write = if let Some(key) = encryption_key {
+            // Generate a random salt for key derivation
+            let salt: [u8; 16] = rand::random();
+
+            let mut derived_key = [0u8; 32];
+            pbkdf2_hmac::<Sha256>(key, &salt, 10000, &mut derived_key);
+
+            let key_obj = Key::<Aes256Gcm>::from_slice(&derived_key);
+            let cipher = Aes256Gcm::new(key_obj);
+
+            // Generate a random nonce
+            let nonce_bytes: [u8; 12] = rand::random();
+            let nonce = Nonce::from_slice(&nonce_bytes);
+
+            // Encrypt the data
+            let ciphertext = cipher
+                .encrypt(nonce, json_data.as_bytes())
+                .map_err(|e| HiveError::OperationFailed {
+                    reason: format!("Encryption failed: {e}"),
+                })?;
+
+            // Prepend salt and nonce to ciphertext
+            let mut encrypted_data = salt.to_vec();
+            encrypted_data.extend_from_slice(&nonce_bytes);
+            encrypted_data.extend_from_slice(&ciphertext);
+
+            encrypted_data
+        } else {
+            json_data.into_bytes()
+        };
+
         let filename = format!("snapshot_{}.json", snapshot.snapshot_id);
         let file_path = self.base_path.join(&filename);
 
-        fs::write(&file_path, &json_data)
+        fs::write(&file_path, &data_to_write)
             .await
             .map_err(|e| HiveError::OperationFailed {
                 reason: format!("Failed to write snapshot file: {e}"),
@@ -785,16 +965,53 @@ impl StorageProvider for FileSystemStorage {
         Ok(snapshot.snapshot_id.to_string())
     }
 
-    async fn load_snapshot(&self, snapshot_id: &str) -> HiveResult<SystemSnapshot> {
+    async fn load_snapshot(&self, snapshot_id: &str, encryption_key: Option<&[u8; 32]>) -> HiveResult<SystemSnapshot> {
         let filename = format!("snapshot_{snapshot_id}.json");
         let file_path = self.base_path.join(&filename);
 
-        let json_data =
-            fs::read_to_string(&file_path)
-                .await
+        let data = fs::read(&file_path)
+            .await
+            .map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to read snapshot file: {e}"),
+            })?;
+
+        // Apply decryption if key is provided
+        let json_data = if let Some(key) = encryption_key {
+            if data.len() < 28 { // salt (16) + nonce (12) + minimum ciphertext
+                return Err(HiveError::ValidationError {
+                    field: "encrypted_data".to_string(),
+                    reason: "Encrypted data too short".to_string(),
+                });
+            }
+
+            // Extract salt, nonce and ciphertext
+            let salt = &data[..16];
+            let nonce_bytes = &data[16..28];
+            let ciphertext = &data[28..];
+
+            // Derive decryption key using PBKDF2 with the stored salt
+            let mut derived_key = [0u8; 32];
+            pbkdf2_hmac::<Sha256>(key, salt, 10000, &mut derived_key);
+
+            let key_obj = Key::<Aes256Gcm>::from_slice(&derived_key);
+            let cipher = Aes256Gcm::new(key_obj);
+            let nonce = Nonce::from_slice(nonce_bytes);
+
+            // Decrypt the data
+            let plaintext = cipher
+                .decrypt(nonce, ciphertext)
                 .map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to read snapshot file: {e}"),
+                    reason: format!("Decryption failed: {e}"),
                 })?;
+
+            String::from_utf8(plaintext).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to convert decrypted data to string: {e}"),
+            })?
+        } else {
+            String::from_utf8(data).map_err(|e| HiveError::OperationFailed {
+                reason: format!("Failed to convert data to string: {e}"),
+            })?
+        };
 
         serde_json::from_str(&json_data).map_err(|e| HiveError::OperationFailed {
             reason: format!("Failed to deserialize snapshot: {e}"),
@@ -827,7 +1044,7 @@ impl StorageProvider for FileSystemStorage {
                                 if let Some(uuid_str) = filename_str.strip_prefix("snapshot_") {
                                     if let Ok(uuid) = Uuid::parse_str(uuid_str) {
                                         // Load the snapshot to get metadata
-                                        if let Ok(snapshot) = self.load_snapshot(uuid_str).await {
+                                        if let Ok(snapshot) = self.load_snapshot(uuid_str, None).await {
                                             snapshots.push(CheckpointMetadata {
                                                 checkpoint_id: uuid,
                                                 timestamp: snapshot.timestamp,
@@ -892,7 +1109,7 @@ impl StorageProvider for MemoryStorage {
         static EMPTY_PATH: OnceLock<PathBuf> = OnceLock::new();
         EMPTY_PATH.get_or_init(PathBuf::new)
     }
-    async fn save_snapshot(&self, snapshot: &SystemSnapshot) -> HiveResult<String> {
+    async fn save_snapshot(&self, snapshot: &SystemSnapshot, _encryption_key: Option<&[u8; 32]>) -> HiveResult<String> {
         let mut snapshots = self.snapshots.write().await;
         let id = snapshot.snapshot_id.to_string();
         snapshots.insert(id.clone(), snapshot.clone());
@@ -931,7 +1148,7 @@ impl StorageProvider for MemoryStorage {
         Ok(id)
     }
 
-    async fn load_snapshot(&self, snapshot_id: &str) -> HiveResult<SystemSnapshot> {
+    async fn load_snapshot(&self, snapshot_id: &str, _encryption_key: Option<&[u8; 32]>) -> HiveResult<SystemSnapshot> {
         let snapshots = self.snapshots.read().await;
         snapshots
             .get(snapshot_id)

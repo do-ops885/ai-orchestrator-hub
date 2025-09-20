@@ -2263,7 +2263,7 @@ mod tests {
             let query_key_clone = query_key.clone();
 
             let handle = tokio::spawn(async move {
-                async { mock_db_query("user", &format!("user{}", i)).await }
+                mock_db_query("user", &format!("user{}", i)).await
             });
             handles.push(handle);
         }

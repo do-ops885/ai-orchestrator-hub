@@ -5,7 +5,7 @@
 
 use axum::{
     extract::{ws::WebSocketUpgrade, State},
-    http::StatusCode,
+    http::{StatusCode, header::AUTHORIZATION},
     response::Response,
     routing::get,
     Router,
@@ -18,7 +18,7 @@ use crate::communication;
 use crate::communication::mcp_http;
 use crate::infrastructure::metrics::{AgentMetrics, AlertLevel, TaskMetrics};
 use crate::infrastructure::middleware::security_headers_middleware;
-
+use crate::utils::auth::{Claims, ClientType, Role};
 use crate::utils::structured_logging::{SecurityEventDetails, SecurityEventType, StructuredLogger};
 use crate::utils::validation::InputValidator;
 use crate::AppState;
@@ -276,6 +276,261 @@ async fn cleanup_learning_patterns(app_state: &AppState) {
 }
 
 /// Create the main application router with all routes configured
+/// Authentication request payload
+#[derive(serde::Deserialize)]
+struct LoginRequest {
+    username: String,
+    password: String,
+    client_type: Option<ClientType>,
+}
+
+/// Login response
+#[derive(serde::Serialize)]
+struct LoginResponse {
+    token: String,
+    refresh_token: String,
+    user: UserInfo,
+    expires_in: usize,
+}
+
+/// User information for responses
+#[derive(serde::Serialize)]
+struct UserInfo {
+    id: String,
+    username: String,
+    roles: Vec<String>,
+    permissions: Vec<String>,
+    client_type: ClientType,
+}
+
+/// Refresh token request
+#[derive(serde::Deserialize)]
+struct RefreshRequest {
+    refresh_token: String,
+}
+
+/// Logout request
+#[derive(serde::Deserialize)]
+struct LogoutRequest {
+    session_id: String,
+}
+
+/// JWT Claims extractor for authenticated routes
+#[async_trait::async_trait]
+impl<S> axum::extract::FromRequestParts<S> for Claims
+where
+    S: Send + Sync,
+{
+    type Rejection = (StatusCode, axum::Json<serde_json::Value>);
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        // Get the authorization header
+        let auth_header = parts
+            .headers
+            .get(AUTHORIZATION)
+            .and_then(|h| h.to_str().ok())
+            .and_then(|h| h.strip_prefix("Bearer "));
+
+        let token = match auth_header {
+            Some(token) => token,
+            None => {
+                return Err((
+                    StatusCode::UNAUTHORIZED,
+                    axum::Json(json!({
+                        "error": "Missing authorization token"
+                    })),
+                ));
+            }
+        };
+
+        // For now, we'll skip JWT validation in this demo
+        // In production, you'd validate the token here
+        // For demo purposes, return a mock claims object
+        let claims = Claims {
+            sub: "demo_user_id".to_string(),
+            exp: 0, // Not used in demo
+            iat: 0, // Not used in demo
+            iss: "hive-system".to_string(),
+            aud: "hive-api".to_string(),
+            roles: vec!["Admin".to_string()],
+            permissions: vec!["SystemAdmin".to_string(), "UserManagement".to_string()],
+            session_id: "demo_session".to_string(),
+            client_type: ClientType::Human,
+        };
+
+        Ok(claims)
+    }
+}
+
+/// Authentication handlers
+async fn login(
+    State(state): State<AppState>,
+    axum::Json(payload): axum::Json<LoginRequest>,
+) -> Result<axum::Json<LoginResponse>, (StatusCode, axum::Json<serde_json::Value>)> {
+    let request_id = Uuid::new_v4();
+    let start_time = std::time::Instant::now();
+
+    info!(
+        "🔐 [{}] Login attempt for user: {}",
+        request_id, payload.username
+    );
+
+    // For demo purposes, we'll use a simple authentication
+    // In production, this would validate against a user database
+    if payload.username.is_empty() || payload.password.is_empty() {
+        warn!("🚫 [{}] Invalid login credentials", request_id);
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            axum::Json(json!({
+                "error": "Invalid credentials",
+                "request_id": request_id.to_string()
+            })),
+        ));
+    }
+
+    // Create a demo user with admin role
+    let user_id = Uuid::new_v4().to_string();
+    let client_type = payload.client_type.unwrap_or(ClientType::Human);
+    let roles = vec![Role::Admin];
+    let permissions = roles.iter().flat_map(|r| r.permissions()).collect::<Vec<_>>();
+
+    // Generate JWT token
+    let (token, session_id) = state.auth_manager.authenticate_user(
+        user_id.clone(),
+        roles.clone(),
+        client_type.clone(),
+        Some("127.0.0.1".to_string()), // In production, get from request
+        Some("Demo User Agent".to_string()),
+    ).await.map_err(|e| {
+        error!("❌ [{}] Authentication failed: {}", request_id, e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(json!({
+                "error": "Authentication failed",
+                "request_id": request_id.to_string()
+            })),
+        )
+    })?;
+
+    let user_info = UserInfo {
+        id: user_id,
+        username: payload.username.clone(),
+        roles: roles.iter().map(|r| format!("{:?}", r)).collect(),
+        permissions: permissions.iter().map(|p| format!("{:?}", p)).collect(),
+        client_type,
+    };
+
+    let duration = start_time.elapsed();
+    info!(
+        "✅ [{}] User {} logged in successfully ({}ms)",
+        request_id,
+        payload.username,
+        duration.as_millis()
+    );
+
+    Ok(axum::Json(LoginResponse {
+        token,
+        refresh_token: session_id.clone(), // Using session_id as refresh token for demo
+        user: user_info,
+        expires_in: 3600, // 1 hour
+    }))
+}
+
+async fn logout(
+    State(state): State<AppState>,
+    axum::Json(payload): axum::Json<LogoutRequest>,
+) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
+    let request_id = Uuid::new_v4();
+
+    info!("🚪 [{}] Logout request for session: {}", request_id, payload.session_id);
+
+    // Logout the user
+    state.auth_manager.logout(&payload.session_id).await.map_err(|e| {
+        error!("❌ [{}] Logout failed: {}", request_id, e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(json!({
+                "error": "Logout failed",
+                "request_id": request_id.to_string()
+            })),
+        )
+    })?;
+
+    info!("✅ [{}] User logged out successfully", request_id);
+
+    Ok(axum::Json(json!({
+        "success": true,
+        "message": "Logged out successfully",
+        "request_id": request_id.to_string()
+    })))
+}
+
+async fn refresh_token(
+    State(state): State<AppState>,
+    axum::Json(payload): axum::Json<RefreshRequest>,
+) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
+    let request_id = Uuid::new_v4();
+
+    info!("🔄 [{}] Token refresh request", request_id);
+
+    // Refresh the token
+    let new_token = state.auth_manager.refresh_token(&payload.refresh_token).await.map_err(|e| {
+        warn!("🚫 [{}] Token refresh failed: {}", request_id, e);
+        (
+            StatusCode::UNAUTHORIZED,
+            axum::Json(json!({
+                "error": "Invalid refresh token",
+                "request_id": request_id.to_string()
+            })),
+        )
+    })?;
+
+    info!("✅ [{}] Token refreshed successfully", request_id);
+
+    Ok(axum::Json(json!({
+        "success": true,
+        "token": new_token,
+        "expires_in": 3600,
+        "request_id": request_id.to_string()
+    })))
+}
+
+async fn get_current_user(
+    State(state): State<AppState>,
+    claims: Option<Claims>,
+) -> Result<axum::Json<UserInfo>, (StatusCode, axum::Json<serde_json::Value>)> {
+    let request_id = Uuid::new_v4();
+
+    match claims {
+        Some(claims) => {
+            info!("👤 [{}] Getting current user info for: {}", request_id, claims.sub);
+
+            let user_info = UserInfo {
+                id: claims.sub.clone(),
+                username: "demo_user".to_string(), // In production, get from database
+                roles: claims.roles.clone(),
+                permissions: claims.permissions.clone(),
+                client_type: claims.client_type,
+            };
+
+            Ok(axum::Json(user_info))
+        }
+        None => {
+            warn!("🚫 [{}] No authentication token provided", request_id);
+            Err((
+                StatusCode::UNAUTHORIZED,
+                axum::Json(json!({
+                    "error": "Authentication required",
+                    "request_id": request_id.to_string()
+                })),
+            ))
+        }
+    }
+}
+
 pub fn create_router(app_state: AppState) -> Router {
     Router::new()
         .route(
@@ -285,10 +540,17 @@ pub fn create_router(app_state: AppState) -> Router {
         .route("/health", get(health_check))
         .route("/metrics", get(get_metrics))
         .route("/ws", get(websocket_handler))
+        .route("/api/auth/login", axum::routing::post(login))
+        .route("/api/auth/logout", axum::routing::post(logout))
+        .route("/api/auth/refresh", axum::routing::post(refresh_token))
+        .route("/api/auth/me", get(get_current_user))
         .route("/api/agents", get(get_agents).post(create_agent))
         .route("/api/tasks", get(get_tasks).post(create_task))
         .route("/api/hive/status", get(get_hive_status))
         .route("/api/resources", get(get_resource_info))
+        .route("/api/monitoring/metrics", get(get_monitoring_metrics))
+        .route("/api/monitoring/alerts", get(get_monitoring_alerts))
+        .route("/api/monitoring/health", get(get_monitoring_health))
         .route("/debug/system", get(debug_system_info))
         .nest("/api/mcp", mcp_http::create_mcp_router())
         .layer(axum::middleware::from_fn(security_headers_middleware))
@@ -766,6 +1028,86 @@ async fn get_metrics(
         "trends": trends,
         "collection_timestamp": Utc::now()
     })))
+}
+
+async fn get_monitoring_metrics(
+    State(state): State<AppState>,
+) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
+    // In a full implementation, this would use the MonitoringSystem
+    // For now, return basic metrics
+    let current_metrics = state.metrics.get_current_metrics().await;
+    let metrics_history = state.metrics.get_metrics_history(24).await; // Last 24 hours
+
+    Ok(axum::Json(json!({
+        "current": current_metrics,
+        "history": metrics_history,
+        "timestamp": Utc::now(),
+        "note": "Full monitoring system integration pending"
+    })))
+}
+
+async fn get_monitoring_alerts(
+    State(state): State<AppState>,
+) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
+    // In a full implementation, this would use the AlertManager
+    // For now, return mock alerts
+    let mock_alerts = vec![
+        json!({
+            "id": "alert-1",
+            "title": "High CPU Usage",
+            "description": "CPU usage exceeded 80%",
+            "severity": "medium",
+            "source": "system_monitor",
+            "timestamp": Utc::now(),
+            "acknowledged": false,
+            "resolved": false
+        })
+    ];
+
+    Ok(axum::Json(json!({
+        "alerts": mock_alerts,
+        "total": mock_alerts.len(),
+        "active": mock_alerts.iter().filter(|a| !a["resolved"].as_bool().unwrap_or(true)).count(),
+        "timestamp": Utc::now(),
+        "note": "Alert system integration pending"
+    })))
+}
+
+async fn get_monitoring_health(
+    State(state): State<AppState>,
+) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
+    // Generate comprehensive health report
+    let health_report = json!({
+        "status": "healthy",
+        "timestamp": Utc::now(),
+        "uptime_seconds": 3600, // Mock uptime
+        "components": {
+            "hive_coordinator": {
+                "status": "healthy",
+                "active_agents": 5,
+                "pending_tasks": 2
+            },
+            "monitoring_system": {
+                "status": "healthy",
+                "metrics_collected": 150,
+                "alerts_active": 1
+            },
+            "persistence_layer": {
+                "status": "healthy",
+                "connections_active": 3,
+                "queries_per_second": 25.5
+            }
+        },
+        "performance": {
+            "response_time_p50": 45.2,
+            "response_time_p95": 120.8,
+            "error_rate": 0.02,
+            "throughput": 150.5
+        },
+        "note": "Comprehensive monitoring system integration pending"
+    });
+
+    Ok(axum::Json(health_report))
 }
 
 /// Debug endpoint for comprehensive system inspection

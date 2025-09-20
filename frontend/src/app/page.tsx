@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { HiveDashboard } from '@/components/HiveDashboard'
 import { AgentManager } from '@/components/AgentManager'
 import { TaskManager } from '@/components/TaskManager'
+import { Header } from '@/components/Header'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useHiveStore } from '@/store/hiveStore'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { NetworkErrorFallback, LoadingFallback } from '@/components/FallbackUI'
@@ -116,97 +118,100 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">🐝 Multiagent Hive System</h1>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-100">
+        <Header />
 
-              {/* Connection status with network indicator */}
-              <div className="flex items-center space-x-2">
-                <div
-                  className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    isConnected === true
-                      ? 'bg-green-100 text-green-800'
+        {/* Connection status bar */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center space-x-4">
+                {/* Connection status with network indicator */}
+                <div className="flex items-center space-x-2">
+                  <div
+                    className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      isConnected === true
+                        ? 'bg-green-100 text-green-800'
+                        : connectionState.isRetrying
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {isConnected === true ? (
+                      <Wifi className="h-3 w-3 mr-1" />
+                    ) : (
+                      <WifiOff className="h-3 w-3 mr-1" />
+                    )}
+                    {isConnected === true
+                      ? 'Connected'
                       : connectionState.isRetrying
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                  }`}
-                >
-                  {isConnected === true ? (
-                    <Wifi className="h-3 w-3 mr-1" />
-                  ) : (
-                    <WifiOff className="h-3 w-3 mr-1" />
-                  )}
-                  {isConnected === true
-                    ? 'Connected'
-                    : connectionState.isRetrying
-                      ? `Reconnecting... (${connectionState.retryCount}/5)`
-                      : 'Disconnected'}
-                </div>
-
-                {/* Network status */}
-                {!isOnline && (
-                  <div className="flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    Offline
+                        ? `Reconnecting... (${connectionState.retryCount}/5)`
+                        : 'Disconnected'}
                   </div>
-                )}
-              </div>
-            </div>
 
-            <nav className="flex space-x-4">
-              {['dashboard', 'agents', 'tasks'].map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    activeTab === tab
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
-            </nav>
+                  {/* Network status */}
+                  {!isOnline && (
+                    <div className="flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Offline
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <nav className="flex space-x-4">
+                {['dashboard', 'agents', 'tasks'].map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-3 py-2 rounded-md text-sm font-medium ${
+                      activeTab === tab
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
+              </nav>
+            </div>
           </div>
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <ErrorBoundary
-          fallback={
-            <div className="bg-red-50 border border-red-200 rounded-md p-4">
-              <div className="flex">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">Component Error</h3>
-                  <div className="mt-2 text-sm text-red-700">
-                    <p>
-                      The {activeTab} component encountered an error. Please try refreshing the
-                      page.
-                    </p>
-                  </div>
-                  <div className="mt-4">
-                    <button
-                      onClick={() => window.location.reload()}
-                      className="bg-red-100 text-red-800 px-3 py-1 rounded-md text-sm hover:bg-red-200"
-                    >
-                      Refresh Page
-                    </button>
+        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <ErrorBoundary
+            fallback={
+              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <div className="flex">
+                  <AlertTriangle className="h-5 w-5 text-red-400" />
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">Component Error</h3>
+                    <div className="mt-2 text-sm text-red-700">
+                      <p>
+                        The {activeTab} component encountered an error. Please try refreshing the
+                        page.
+                      </p>
+                    </div>
+                    <div className="mt-4">
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="bg-red-100 text-red-800 px-3 py-1 rounded-md text-sm hover:bg-red-200"
+                      >
+                        Refresh Page
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          }
-        >
-          {activeTab === 'dashboard' && <HiveDashboard />}
-          {activeTab === 'agents' && <AgentManager />}
-          {activeTab === 'tasks' && <TaskManager />}
-        </ErrorBoundary>
-      </main>
-    </div>
+            }
+          >
+            {activeTab === 'dashboard' && <HiveDashboard />}
+            {activeTab === 'agents' && <AgentManager />}
+            {activeTab === 'tasks' && <TaskManager />}
+          </ErrorBoundary>
+        </main>
+      </div>
+    </ProtectedRoute>
   )
 }

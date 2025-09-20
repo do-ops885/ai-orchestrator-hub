@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '../contexts/AuthContext'
 
 interface SystemResources {
   cpu_cores: number
@@ -23,13 +24,25 @@ export function ResourceMonitor() {
   const [systemResources, setSystemResources] = useState<SystemResources | null>(null)
   const [resourceProfile, setResourceProfile] = useState<ResourceProfile | null>(null)
   const [hardwareClass, setHardwareClass] = useState<string>('Unknown')
+  const { token } = useAuth()
 
   useEffect(() => {
     // Fetch resource information from backend
     const fetchResourceInfo = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-        const response = await fetch(`${apiUrl}/api/resources`)
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
+
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
+        }
+
+        const response = await fetch(`${apiUrl}/api/resources`, {
+          headers,
+        })
+
         if (response.ok) {
           const data = await response.json()
           setSystemResources(data.system_resources)
