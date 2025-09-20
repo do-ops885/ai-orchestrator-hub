@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # AI Orchestrator Hub MCP Service Runner
-# This script runs the MCP server as a persistent background service
+# This script runs the standalone MCP server in HTTP mode as a persistent background service
 
 set -e
 
@@ -9,7 +9,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BACKEND_DIR="$REPO_ROOT/backend"
-SERVICE_NAME="ai-orchestrator-hub"
+SERVICE_NAME="mcp-server"
 LOG_DIR="$REPO_ROOT/logs"
 PID_FILE="$REPO_ROOT/${SERVICE_NAME}.pid"
 
@@ -58,9 +58,9 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check if port 3000 is available (default)
-    if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        log "WARN" "Port 3000 is already in use. The service may fail to start."
+    # Check if port 3002 is available (MCP server default)
+    if lsof -Pi :3002 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        log "WARN" "Port 3002 is already in use. The MCP service may fail to start."
     fi
 
     log "SUCCESS" "Prerequisites check passed"
@@ -109,9 +109,9 @@ start_service() {
     local log_file="$LOG_DIR/${SERVICE_NAME}.log"
 
     if [[ "$build_mode" == "release" ]]; then
-        nohup ./target/release/multiagent-hive > "$log_file" 2>&1 &
+        nohup ./target/release/mcp_server --http > "$log_file" 2>&1 &
     else
-        nohup ./target/debug/multiagent-hive > "$log_file" 2>&1 &
+        nohup ./target/debug/mcp_server --http > "$log_file" 2>&1 &
     fi
 
     local pid=$!
@@ -122,10 +122,10 @@ start_service() {
 
     # Check if the service is still running
     if kill -0 $pid 2>/dev/null; then
-        log "SUCCESS" "Service started successfully (PID: $pid)"
+        log "SUCCESS" "MCP service started successfully (PID: $pid)"
         log "INFO" "Logs available at: $log_file"
-        log "INFO" "MCP HTTP endpoint: http://localhost:3000/api/mcp"
-        log "INFO" "Health check: http://localhost:3000/api/mcp/health"
+        log "INFO" "MCP HTTP endpoint: http://localhost:3002/"
+        log "INFO" "MCP Health check: http://localhost:3002/health"
     else
         log "ERROR" "Service failed to start. Check logs at: $log_file"
         rm -f "$PID_FILE"
@@ -172,8 +172,8 @@ check_status() {
     if [[ -f "$PID_FILE" ]]; then
         local pid=$(cat "$PID_FILE")
         if kill -0 $pid 2>/dev/null; then
-            log "SUCCESS" "Service is running (PID: $pid)"
-            log "INFO" "MCP HTTP endpoint: http://localhost:3000/api/mcp"
+            log "SUCCESS" "MCP service is running (PID: $pid)"
+            log "INFO" "MCP HTTP endpoint: http://localhost:3002/"
             return 0
         else
             log "ERROR" "Service is not running (stale PID file)"
@@ -211,7 +211,7 @@ restart_service() {
 
 # Function to show usage
 show_usage() {
-    echo "AI Orchestrator Hub MCP Service Manager"
+    echo "AI Orchestrator Hub Standalone MCP Service Manager"
     echo
     echo "Usage: $0 <command> [options]"
     echo
@@ -234,8 +234,9 @@ show_usage() {
     echo "Service Details:"
     echo "  - PID file: $PID_FILE"
     echo "  - Log file: $LOG_DIR/${SERVICE_NAME}.log"
-    echo "  - Default port: 3000"
-    echo "  - MCP endpoint: http://localhost:3000/api/mcp"
+    echo "  - Default port: 3002"
+    echo "  - MCP endpoint: http://localhost:3002/"
+    echo "  - Mode: HTTP (supports MCP protocol over HTTP)"
 }
 
 # Main function

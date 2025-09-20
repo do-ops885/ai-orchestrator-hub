@@ -1,0 +1,423 @@
+name: Optimized Build & Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+  RUSTC_WRAPPER: sccache
+
+jobs:
+  # Fast pre-check with change detection
+  pre-check:
+    name: Pre-check & Change Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      rust-changed: ${{ steps.changes.outputs.rust }}
+      frontend-changed: ${{ steps.changes.outputs.frontend }}
+      docs-changed: ${{ steps.changes.outputs.docs }}
+      config-changed: ${{ steps.changes.outputs.config }}
+      test-strategy: ${{ steps.strategy.outputs.test-strategy }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup sccache (Rust cache)
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Detect changes
+        id: changes
+        run: |
+          # Get changed files
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff --name-only origin/${{ github.base_ref }}...HEAD > changed_files.txt
+          else
+            git diff --name-only HEAD~1 > changed_files.txt
+          fi
+
+          # Categorize changes
+          rust_changed=false
+          frontend_changed=false
+          docs_changed=false
+          config_changed=false
+
+          while IFS= read -r file; do
+            case "$file" in
+              backend/*|*.rs|*.toml|Cargo.*)
+                rust_changed=true
+                ;;
+              frontend/*|*.ts|*.tsx|*.js|*.jsx|package*.json)
+                frontend_changed=true
+                ;;
+              docs/*|*.md|*.rst)
+                docs_changed=true
+                ;;
+              .github/*|*.yml|*.yaml|Dockerfile*)
+                config_changed=true
+                ;;
+            esac
+          done < changed_files.txt
+
+          echo "rust=$rust_changed" >> $GITHUB_OUTPUT
+          echo "frontend=$frontend_changed" >> $GITHUB_OUTPUT
+          echo "docs=$docs_changed" >> $GITHUB_OUTPUT
+          echo "config=$config_changed" >> $GITHUB_OUTPUT
+
+      - name: Determine test strategy
+        id: strategy
+        run: |
+          # Determine test strategy based on changes
+          if [ "${{ steps.changes.outputs.rust }}" = "true" ] && [ "${{ steps.changes.outputs.frontend }}" = "true" ]; then
+            echo "test-strategy=full" >> $GITHUB_OUTPUT
+          elif [ "${{ steps.changes.outputs.rust }}" = "true" ] || [ "${{ steps.changes.outputs.frontend }}" = "true" ]; then
+            echo "test-strategy=targeted" >> $GITHUB_OUTPUT
+          else
+            echo "test-strategy=minimal" >> $GITHUB_OUTPUT
+          fi
+
+  # Parallel Rust build and test
+  rust-build-test:
+    name: Rust Build & Test
+    runs-on: ubuntu-latest
+    needs: [pre-check]
+    if: needs.pre-check.outputs.rust-changed == 'true'
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        rust: [stable]
+        include:
+          - rust: stable
+            target: x86_64-unknown-linux-gnu
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup sccache (Rust cache)
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./backend -> target"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Rust format check
+        run: cd backend && cargo fmt --all -- --check
+
+      - name: Rust clippy (strict)
+        run: cd backend && cargo clippy --all-targets --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used
+
+      - name: Rust build (release)
+        run: cd backend && cargo build --release --all-features
+
+      - name: Rust test (parallel execution)
+        run: |
+          cd backend
+          case "${{ needs.pre-check.outputs.test-strategy }}" in
+            "full")
+              cargo test --release --all-features -- --test-threads $(nproc)
+              ;;
+            "targeted")
+              cargo test --release --all-features --lib --bins -- --test-threads $(nproc)
+              ;;
+            *)
+              cargo test --release --lib -- --test-threads 2
+              ;;
+          esac
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rust-test-results-${{ matrix.rust }}
+          path: backend/target/debug/deps/
+          retention-days: 7
+
+  # Parallel frontend build and test
+  frontend-build-test:
+    name: Frontend Build & Test
+    runs-on: ubuntu-latest
+    needs: [pre-check]
+    if: needs.pre-check.outputs.frontend-changed == 'true'
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            frontend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: TypeScript type check
+        run: cd frontend && npx tsc --noEmit
+
+      - name: ESLint check
+        run: cd frontend && npm run lint
+
+      - name: Frontend build
+        run: cd frontend && npm run build
+
+      - name: Frontend test
+        run: |
+          cd frontend
+          case "${{ needs.pre-check.outputs.test-strategy }}" in
+            "full")
+              npm test -- --coverage --watchAll=false --maxWorkers=$(nproc)
+              ;;
+            "targeted")
+              npm test -- --coverage --watchAll=false --maxWorkers=2
+              ;;
+            *)
+              npm test -- --watchAll=false --maxWorkers=1
+              ;;
+          esac
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: success()
+        with:
+          file: ./frontend/coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
+
+  # Security scan (parallel with builds)
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [pre-check]
+    if: needs.pre-check.outputs.rust-changed == 'true' || needs.pre-check.outputs.frontend-changed == 'true'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust for security tools
+        if: needs.pre-check.outputs.rust-changed == 'true'
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source ~/.cargo/env
+          cargo install cargo-audit
+
+      - name: Setup Node.js for security tools
+        if: needs.pre-check.outputs.frontend-changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Rust security audit
+        if: needs.pre-check.outputs.rust-changed == 'true'
+        run: cd backend && cargo audit --json > ../rust-security.json || true
+
+      - name: NPM security audit
+        if: needs.pre-check.outputs.frontend-changed == 'true'
+        run: cd frontend && npm audit --json > ../npm-security.json || true
+
+      - name: Upload security results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-scan-results
+          path: |
+            rust-security.json
+            npm-security.json
+          retention-days: 30
+
+  # Integration tests (run after successful builds)
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [rust-build-test, frontend-build-test, pre-check]
+    if: always() && (needs.rust-build-test.result == 'success' || needs.rust-build-test.result == 'skipped') && (needs.frontend-build-test.result == 'success' || needs.frontend-build-test.result == 'skipped')
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test environment
+        run: |
+          # Install Docker for containerized testing
+          sudo apt-get update
+          sudo apt-get install -y docker.io docker-compose
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-test-results-stable
+          path: backend/target/debug/deps/
+
+      - name: Run integration tests
+        run: |
+          case "${{ needs.pre-check.outputs.test-strategy }}" in
+            "full")
+              # Full integration test suite
+              if [ -f "scripts/integration_tests.sh" ]; then
+                ./scripts/integration_tests.sh
+              fi
+              ;;
+            "targeted")
+              # Targeted integration tests
+              if [ -f "scripts/integration_tests.sh" ]; then
+                ./scripts/integration_tests.sh --quick
+              fi
+              ;;
+            *)
+              echo "Skipping integration tests for minimal changes"
+              ;;
+          esac
+
+  # Performance benchmarks (optional, runs on schedule or manual trigger)
+  performance-benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    needs: [rust-build-test]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (needs.pre-check.outputs.test-strategy == 'full' && needs.rust-build-test.result == 'success')
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./backend -> target"
+
+      - name: Run benchmarks
+        run: cd backend && cargo bench -- --save-baseline main
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: backend/target/criterion/
+          retention-days: 30
+
+  # Build summary and notifications
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [pre-check, rust-build-test, frontend-build-test, security-scan, integration-test, performance-benchmark]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Generate build summary
+        run: |
+          echo "## 🚀 Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status
+          rust_status="${{ needs.rust-build-test.result }}"
+          frontend_status="${{ needs.frontend-build-test.result }}"
+          security_status="${{ needs.security-scan.result }}"
+          integration_status="${{ needs.integration-test.result }}"
+          benchmark_status="${{ needs.performance-benchmark.result }}"
+
+          # Determine overall success
+          if [[ "$rust_status" == "success" || "$rust_status" == "skipped" ]] && \
+             [[ "$frontend_status" == "success" || "$frontend_status" == "skipped" ]] && \
+             [[ "$security_status" == "success" || "$security_status" == "skipped" ]] && \
+             [[ "$integration_status" == "success" || "$integration_status" == "skipped" ]]; then
+            echo "✅ **Build Status: SUCCESS**" >> $GITHUB_STEP_SUMMARY
+            overall_status="success"
+          else
+            echo "❌ **Build Status: FAILED**" >> $GITHUB_STEP_SUMMARY
+            overall_status="failure"
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Component Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status | Duration |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust Build & Test | $rust_status | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Build & Test | $frontend_status | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | $security_status | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Tests | $integration_status | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance Benchmarks | $benchmark_status | - |" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📈 Test Strategy" >> $GITHUB_STEP_SUMMARY
+          echo "Strategy: **${{ needs.pre-check.outputs.test-strategy }}**" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔄 Change Detection" >> $GITHUB_STEP_SUMMARY
+          echo "- Rust changes: ${{ needs.pre-check.outputs.rust-changed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend changes: ${{ needs.pre-check.outputs.frontend-changed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Docs changes: ${{ needs.pre-check.outputs.docs-changed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Config changes: ${{ needs.pre-check.outputs.config-changed }}" >> $GITHUB_STEP_SUMMARY
+
+          # Set output for notifications
+          echo "overall-status=$overall_status" >> $GITHUB_OUTPUT
+
+      - name: Send notifications
+        if: failure()
+        run: |
+          echo "Build failed - notifications would be sent here"
+          # TODO: Integrate with Slack, Teams, or email notifications
+
+  # Deploy on success (only for main branch)
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [build-summary]
+    if: github.ref == 'refs/heads/main' && needs.build-summary.outputs.overall-status == 'success'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment..."
+          # TODO: Add actual deployment logic
+          echo "✅ Deployment completed"

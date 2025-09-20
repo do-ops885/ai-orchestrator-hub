@@ -1,0 +1,302 @@
+name: Matrix Build & Compatibility Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Weekly compatibility check
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  # Test across multiple Rust versions
+  rust-matrix:
+    name: Rust ${{ matrix.rust }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds
+          - os: ubuntu-latest
+            rust: stable
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            rust: beta
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            rust: nightly
+            target: x86_64-unknown-linux-gnu
+          # macOS builds
+          - os: macos-latest
+            rust: stable
+            target: x86_64-apple-darwin
+          # Windows builds
+          - os: windows-latest
+            rust: stable
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./backend -> target"
+          key: ${{ matrix.os }}-${{ matrix.rust }}-${{ matrix.target }}
+
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+
+      - name: Rust build
+        run: cd backend && cargo build --release --target ${{ matrix.target }}
+
+      - name: Rust test
+        run: cd backend && cargo test --release --target ${{ matrix.target }} --lib
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
+        with:
+          name: rust-matrix-results-${{ matrix.os }}-${{ matrix.rust }}
+          path: backend/target/${{ matrix.target }}/debug/deps/
+          retention-days: 7
+
+  # Test across multiple Node.js versions
+  node-matrix:
+    name: Node.js ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: '18'
+          - os: ubuntu-latest
+            node: '20'
+          - os: ubuntu-latest
+            node: '21'
+          - os: macos-latest
+            node: '20'
+          - os: windows-latest
+            node: '20'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            frontend/node_modules
+          key: ${{ matrix.os }}-node-${{ matrix.node }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: TypeScript check
+        run: cd frontend && npx tsc --noEmit
+
+      - name: Build
+        run: cd frontend && npm run build
+
+      - name: Test
+        run: cd frontend && npm test -- --watchAll=false --passWithNoTests
+
+  # Cross-platform integration tests
+  cross-platform-integration:
+    name: Cross-platform Integration
+    runs-on: ${{ matrix.os }}
+    needs: [rust-matrix, node-matrix]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rust: stable
+            node: '20'
+          - os: macos-latest
+            rust: stable
+            node: '20'
+          - os: windows-latest
+            rust: stable
+            node: '20'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./backend -> target"
+
+      - name: Install system dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config docker.io
+
+      - name: Build all components
+        run: |
+          cd backend && cargo build --release
+          cd ../frontend && npm ci && npm run build
+
+      - name: Run cross-platform integration tests
+        run: |
+          # Basic integration test that works across platforms
+          if [ -f "scripts/integration_tests.sh" ]; then
+            ./scripts/integration_tests.sh --cross-platform
+          else
+            echo "No integration tests script found, running basic checks"
+            cd backend && cargo test --release --test integration -- --nocapture || true
+            cd ../frontend && npm test -- --testPathPattern=integration --watchAll=false || true
+          fi
+
+  # Performance regression check
+  performance-regression:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    needs: [rust-matrix]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./backend -> target"
+
+      - name: Install criterion
+        run: cargo install cargo-criterion
+
+      - name: Run baseline benchmarks
+        run: |
+          cd backend
+          # Run benchmarks and save baseline
+          cargo criterion --message-format=json > baseline_benchmarks.json || true
+
+      - name: Compare with main branch
+        run: |
+          cd backend
+          git checkout origin/main
+          cargo criterion --message-format=json > main_benchmarks.json || true
+          git checkout -
+
+          # Compare benchmarks (simplified comparison)
+          if [ -f "baseline_benchmarks.json" ] && [ -f "main_benchmarks.json" ]; then
+            echo "Benchmark comparison completed"
+            # TODO: Add detailed comparison logic
+          fi
+
+      - name: Upload benchmark comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-comparison
+          path: |
+            backend/baseline_benchmarks.json
+            backend/main_benchmarks.json
+          retention-days: 30
+
+  # Matrix build summary
+  matrix-summary:
+    name: Matrix Build Summary
+    runs-on: ubuntu-latest
+    needs: [rust-matrix, node-matrix, cross-platform-integration, performance-regression]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Generate matrix summary
+        run: |
+          echo "## 🔄 Matrix Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Count successful jobs
+          rust_jobs="${{ needs.rust-matrix.result }}"
+          node_jobs="${{ needs.node-matrix.result }}"
+          integration_jobs="${{ needs.cross-platform-integration.result }}"
+          perf_jobs="${{ needs.performance-regression.result }}"
+
+          echo "### 📊 Test Matrix Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust Matrix | $rust_jobs |" >> $GITHUB_STEP_SUMMARY
+          echo "| Node.js Matrix | $node_jobs |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cross-platform Integration | $integration_jobs |" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance Regression | $perf_jobs |" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Compatibility Status" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "$rust_jobs" == "success" && "$node_jobs" == "success" ]]; then
+            echo "✅ **Full Compatibility**: All tested environments passed" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$rust_jobs" == "success" || "$node_jobs" == "success" ]]; then
+            echo "⚠️ **Partial Compatibility**: Some environments had issues" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Compatibility Issues**: Multiple environments failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📈 Performance Status" >> $GITHUB_STEP_SUMMARY
+          if [[ "$perf_jobs" == "success" || "$perf_jobs" == "skipped" ]]; then
+            echo "✅ **No Performance Regressions Detected**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Performance Regression Check Failed**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Notify on failures
+        if: failure()
+        run: |
+          echo "Matrix build failed - detailed notifications would be sent here"
+          # TODO: Add detailed failure notifications

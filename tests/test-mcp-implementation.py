@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 # Test configuration
-MCP_HTTP_URL = "http://localhost:3001/api/mcp"
-MCP_HEALTH_URL = "http://localhost:3001/api/mcp/health"
+MCP_HTTP_URL = "http://localhost:3002/"
+MCP_HEALTH_URL = "http://localhost:3002/health"
 TIMEOUT = 10
 
 @dataclass

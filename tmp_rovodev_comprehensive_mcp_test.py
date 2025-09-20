@@ -11,27 +11,34 @@ import time
 from typing import Dict, Any, List, Optional
 
 class MCPTester:
-    def __init__(self, binary_path: str = "/workspaces/ai-orchestrator-hub/backend/target/release/mcp_server"):
+    def __init__(self, binary_path: str = "/workspaces/ai-orchestrator-hub/backend/target/debug/mcp_server"):
         self.binary_path = binary_path
         self.test_results = []
-        
+
     def run_mcp_command(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Run a single MCP command and return the response"""
         try:
             request_json = json.dumps(request)
+            # Use the same approach as the working bash script
             result = subprocess.run(
-                [self.binary_path],
-                input=request_json,
+                f"echo '{request_json}' | {self.binary_path}",
+                shell=True,
                 text=True,
                 capture_output=True,
                 timeout=30
             )
-            
-            if result.stdout:
-                return json.loads(result.stdout.strip())
+
+            if result.stdout.strip():
+                # The output might have multiple lines, get the last JSON line
+                lines = result.stdout.strip().split('\n')
+                for line in reversed(lines):
+                    line = line.strip()
+                    if line.startswith('{') and 'jsonrpc' in line:
+                        return json.loads(line)
+                return {"error": f"No valid JSON response found in output: {result.stdout}"}
             else:
                 return {"error": f"No output. stderr: {result.stderr}"}
-                
+
         except subprocess.TimeoutExpired:
             return {"error": "Command timed out"}
         except json.JSONDecodeError as e:
@@ -244,7 +251,7 @@ class MCPTester:
                 "name": "create_specialized_workflow",
                 "args": {
                     "name": "MCP Test Workflow",
-                    "type": "test_workflow",
+                    "type": "testing",  # Use valid workflow type
                     "steps": [
                         {"name": "setup", "agent_type": "coordinator", "description": "Setup test environment"},
                         {"name": "execute", "agent_type": "worker", "description": "Execute test cases"},
