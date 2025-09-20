@@ -45,11 +45,34 @@ pub use benchmarks::{
     PerformanceMonitor as BenchmarkPerformanceMonitor,
 };
 pub use cache::*;
-pub use cache_invalidation::*;
-pub use cache_monitoring::*;
+// Explicit re-exports from cache_invalidation to avoid conflicts
+pub use cache_invalidation::{
+    CacheInvalidationManager, InvalidationRule, AdvancedInvalidationRule,
+    AccessPatternCondition, SizeThresholds, FrequencyThresholds,
+    DependencyGraph, InvalidationStrategy, InvalidationStats,
+    DependencyInfo, InvalidationRecommendation, InvalidationPriority,
+    AgentCacheInvalidationManager, TaskCacheInvalidationManager,
+};
+
+// Explicit re-exports from cache_monitoring
+pub use cache_monitoring::{
+    CachePerformanceMetrics, IntelligentCacheMetrics, MonitoringDatabaseLoadReductionMetrics,
+    TtlAdaptationMetrics, CacheHealthStatus, CacheMonitoringConfig,
+    AlertThresholds, CachePerformanceMonitor,
+};
+
+// Explicit re-exports from cache_optimization
 pub use cache_optimization::*;
+
+// Explicit re-exports from cache_warming
 pub use cache_warming::*;
-pub use cached_query::*;
+
+// Explicit re-exports from cached_query to avoid conflicts
+pub use cached_query::{
+    CacheKey, CacheEntry, CachedQueryConfig, CachedQueryManager,
+    CachedQueryStats, CacheInvalidationStrategy, DatabaseLoadReductionMetrics,
+    QueryOptimizationAction,
+};
 pub use circuit_breaker::*;
 pub use intelligent_alerting::*;
 pub use intelligent_cache::*;

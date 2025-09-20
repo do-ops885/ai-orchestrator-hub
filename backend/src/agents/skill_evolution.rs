@@ -219,7 +219,7 @@ pub struct SkillEvolutionConfig {
 impl AgentBehavior for SkillEvolutionSystem {
     async fn execute_task(
         &mut self,
-        task: crate::tasks::Task,
+        _task: crate::tasks::Task,
     ) -> HiveResult<crate::tasks::TaskResult> {
         // Skill evolution systems don't execute tasks directly
         Err(crate::utils::error::HiveError::AgentExecutionFailed {

@@ -505,7 +505,7 @@ impl MemoryEfficientDataset {
     }
 
     /// Load dataset sample with memory optimization
-    pub async fn load_sample(&mut self, index: usize) -> HiveResult<(Vec<f32>, Vec<f32>)> {
+    pub async fn load_sample(&mut self, _index: usize) -> HiveResult<(Vec<f32>, Vec<f32>)> {
         let start_time = std::time::Instant::now();
 
         // Check memory limit
@@ -729,7 +729,7 @@ impl DataPipeline {
 
         // Create streaming data loader
         let loader_id = format!("{}_streaming", name);
-        let streaming_loader =
+        let _streaming_loader =
             StreamingDataLoader::new(path.to_path_buf(), stream_processor.config.clone());
 
         // Store the streaming loader

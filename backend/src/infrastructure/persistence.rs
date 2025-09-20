@@ -168,7 +168,7 @@ impl PersistenceManager {
         );
 
         // Connection pool semaphore for limiting concurrent database connections
-        let connection_pool = Arc::new(tokio::sync::Semaphore::new(5));
+        let connection_pool = Arc::new(tokio::sync::Semaphore::new(10));
 
         Ok(Self {
             config,
@@ -454,13 +454,19 @@ pub trait StorageProvider {
                 reason: format!("Failed to parse metadata: {e}"),
             })?;
 
+        let is_compressed = metadata["is_compressed"].as_bool().unwrap_or(false);
+        let is_encrypted = metadata["is_encrypted"].as_bool().unwrap_or(false);
+        let original_size = metadata["original_size"].as_u64().unwrap_or(0) as usize;
+        let processed_size = metadata["processed_size"].as_u64().unwrap_or(0) as usize;
+        let compression_ratio = metadata["compression_ratio"].as_f64().unwrap_or(1.0);
+
         Ok(ProcessedSnapshot {
             data,
-            is_compressed: metadata["is_compressed"].as_bool().unwrap_or(false),
-            is_encrypted: metadata["is_encrypted"].as_bool().unwrap_or(false),
-            original_size: metadata["original_size"].as_u64().unwrap_or(0) as usize,
-            processed_size: metadata["processed_size"].as_u64().unwrap_or(0) as usize,
-            compression_ratio: metadata["compression_ratio"].as_f64().unwrap_or(1.0),
+            is_compressed,
+            is_encrypted,
+            original_size,
+            processed_size,
+            compression_ratio,
         })
     }
 
@@ -647,8 +653,13 @@ impl StorageProvider for SQLiteStorage {
                     reason: format!("Failed to get description: {e}"),
                 })?;
 
+                let checkpoint_id = uuid::Uuid::parse_str(&id).map_err(|e| HiveError::ValidationError {
+                    field: "checkpoint_id".to_string(),
+                    reason: format!("Invalid UUID format: {e}"),
+                })?;
+
                 let checkpoint = CheckpointMetadata {
-                    checkpoint_id: uuid::Uuid::parse_str(&id).unwrap_or_else(|_| uuid::Uuid::new_v4()),
+                    checkpoint_id,
                     timestamp: DateTime::parse_from_rfc3339(&timestamp)
                         .map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc)),
                     size_bytes: size_bytes as u64,

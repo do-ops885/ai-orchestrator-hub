@@ -833,7 +833,7 @@ impl SimpleVerificationSystem {
 
 #[async_trait]
 impl AgentBehavior for SimpleVerificationSystem {
-    async fn execute_task(&mut self, task: Task) -> HiveResult<TaskResult> {
+    async fn execute_task(&mut self, _task: Task) -> HiveResult<TaskResult> {
         // Verification systems don't execute tasks directly
         Err(crate::utils::error::HiveError::AgentExecutionFailed {
             reason: "SimpleVerificationSystem does not execute tasks directly".to_string(),

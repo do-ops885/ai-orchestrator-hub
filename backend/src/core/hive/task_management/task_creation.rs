@@ -6,7 +6,6 @@ use super::task_types::*;
 use crate::core::hive::coordinator::CoordinationMessage;
 use crate::tasks::task::{Task, TaskPriority, TaskRequiredCapability};
 use crate::utils::error::{HiveError, HiveResult};
-use crate::utils::error_handling::safe_json;
 use std::error::Error;
 use tokio::sync::mpsc;
 use uuid::Uuid;

@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+import { getLogger } from '../utils/logger'
+
 export interface Agent {
   id: string
   name: string
@@ -713,8 +715,16 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     // Round to nearest 50ms for cleaner logging and more precise timing
     const roundedDelay = Math.round(delay / 50) * 50
 
-    console.warn(
-      `🔄 Enhanced reconnect delay: ${roundedDelay}ms (attempt: ${attemptCount}, error: ${errorType}, stability: ${(stability * 100).toFixed(1)}%, success: ${(recentSuccessRate * 100).toFixed(1)}%, quality: ${get().connectionQuality})`,
+    getLogger().info(
+      `Enhanced reconnect delay: ${roundedDelay}ms`,
+      {
+        attempt: attemptCount,
+        error: errorType,
+        stability: `${(stability * 100).toFixed(1)}%`,
+        success: `${(recentSuccessRate * 100).toFixed(1)}%`,
+        quality: get().connectionQuality,
+      },
+      'ConnectionManager'
     )
 
     return roundedDelay
@@ -759,7 +769,11 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }
 
     if (!validTransitions[currentState]?.includes(newState)) {
-      console.warn(`⚠️ Invalid state transition: ${currentState} -> ${newState}`)
+      getLogger().warn(
+        `Invalid state transition: ${currentState} -> ${newState}`,
+        { from: currentState, to: newState },
+        'ConnectionManager'
+      )
       return
     }
 
@@ -772,7 +786,11 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
 
     // Log state transition
     const reasonText = reason ? ` (${reason})` : ''
-    console.warn(`🔄 Connection state: ${currentState} -> ${newState}${reasonText}`)
+    getLogger().info(
+      `Connection state: ${currentState} -> ${newState}${reasonText}`,
+      { from: currentState, to: newState, reason },
+      'ConnectionManager'
+    )
 
     // Trigger side effects based on new state
     switch (newState) {

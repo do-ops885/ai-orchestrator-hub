@@ -57,6 +57,64 @@ Monitor and analyze agent performance and health.
 - **Use case**: Agent system monitoring
 - **Features**: Real-time metrics, health checks, performance optimization
 
+### 🚀 **New High-Impact Commands**
+
+#### `/deploy`
+
+Deploy the application to various environments with automated checks.
+
+- **Use case**: Production deployment with safety and monitoring
+- **Features**: Blue-green deployment, canary releases, automated rollback, health monitoring
+- **Agent**: `github-workflow-manager`
+
+#### `/security-audit`
+
+Comprehensive security audit for the entire codebase.
+
+- **Use case**: Security vulnerability assessment and compliance
+- **Features**: Dependency scanning, code analysis, configuration review, compliance validation
+- **Agent**: `security-auditor`
+
+#### `/quality-check`
+
+Comprehensive quality assurance checks across the entire codebase.
+
+- **Use case**: Automated quality validation and improvement
+- **Features**: Code quality metrics, testing coverage, performance analysis, documentation review
+- **Agent**: `quality-assurance`
+
+#### `/ci-status`
+
+Check and monitor CI/CD pipeline status with actionable insights.
+
+- **Use case**: CI/CD pipeline monitoring and optimization
+- **Features**: Pipeline health analysis, performance metrics, failure diagnostics, cost analysis
+- **Agent**: `github-workflow-manager`
+
+#### `/workflow-optimize`
+
+Analyze and optimize GitHub Actions workflows for performance and cost efficiency.
+
+- **Use case**: Workflow performance optimization
+- **Features**: Parallelization analysis, caching optimization, cost reduction, reliability enhancement
+- **Agent**: `github-workflow-optimizer`
+
+#### `/code-review`
+
+Comprehensive code review using multiple specialized agents.
+
+- **Use case**: Automated multi-agent code review
+- **Features**: AI analysis, security review, performance analysis, quality assessment, documentation review
+- **Agent**: `ai-code-analysis-swarm`
+
+#### `/debug-session`
+
+Start comprehensive debugging session with multiple specialized agents.
+
+- **Use case**: Multi-agent collaborative debugging
+- **Features**: Rust debugging, React debugging, system analysis, root cause identification, solution development
+- **Agent**: `coordinator`
+
 ### 📊 Performance & Analysis
 
 #### `/benchmark`
@@ -72,6 +130,40 @@ Analyze and optimize project dependencies for Rust and Node.js.
 
 - **Use case**: Dependency management
 - **Features**: Unused dependency detection, security scanning, license checking
+
+### 🧹 **Quality Assurance Commands**
+
+#### `/lint-all`
+
+Comprehensive linting across Rust, TypeScript, and configuration files.
+
+- **Use case**: Code quality and consistency validation
+- **Features**: Multi-language linting, auto-fixing, security checks, documentation validation
+- **Agent**: `formatting-agent`
+
+#### `/test-coverage`
+
+Comprehensive test coverage analysis across Rust backend and React frontend.
+
+- **Use case**: Test effectiveness and coverage validation
+- **Features**: Multi-level coverage analysis, gap identification, automated test generation
+- **Agent**: `test-runner`
+
+#### `/validate-config`
+
+Validate all configuration files across the project for correctness and security.
+
+- **Use case**: Configuration validation and security
+- **Features**: Syntax validation, schema checking, security analysis, environment consistency
+- **Agent**: `false-positive-validator`
+
+#### `/performance-profile`
+
+Comprehensive performance profiling for Rust backend and React frontend.
+
+- **Use case**: Performance analysis and optimization
+- **Features**: CPU/memory profiling, bottleneck identification, optimization recommendations
+- **Agent**: `performance-optimizer`
 
 ### 📚 Documentation & Publishing
 
@@ -120,14 +212,36 @@ Publish packages to respective registries.
 - **Agent Assignment**: Each command uses the most appropriate AI agent
 - **Model Selection**: Optimized models for different task types
 
+## Enhanced Agent Utilization
+
+The OpenCode CLI now features improved agent utilization with:
+
+### Multi-Agent Commands
+- **`/code-review`**: Uses `ai-code-analysis-swarm` + multiple specialized agents
+- **`/debug-session`**: Uses `coordinator` + Rust, React, and system agents
+- **`/deploy`**: Uses `github-workflow-manager` with monitoring integration
+- **`/security-audit`**: Uses `security-auditor` + `false-positive-validator`
+
+### Specialized Agent Integration
+- **Performance Agents**: `performance-optimizer`, `github-workflow-optimizer`
+- **Quality Agents**: `quality-assurance`, `technical-reviewer`
+- **Security Agents**: `security-auditor`, `false-positive-validator`
+- **Development Agents**: `rust-developer`, `react-developer`, `formatting-agent`
+
 ## Command Structure
 
-Each command is a markdown file with frontmatter:
+Each command is a markdown file with enhanced frontmatter:
 
 ```markdown
----description: Brief description of the commandagent: rust-developer---
-Command content with instructions and shell commands.
+---description: Brief description of the commandagent: primary-agent---
+Command content with instructions, shell commands, and multi-agent coordination.
 ```
+
+### Advanced Features
+- **Multi-Agent Coordination**: Commands can leverage multiple agents simultaneously
+- **Interactive Workflows**: Step-by-step guided processes with agent collaboration
+- **Automated Reporting**: Comprehensive reports with actionable insights
+- **Integration Hooks**: Seamless integration with existing CI/CD and development workflows
 
 ## Customization
 
@@ -148,13 +262,51 @@ Edit the corresponding `.md` file in `.opencode/command/` to:
 - Add new shell commands or file references
 - Update the command description
 
+## Enhanced Workflow Integration
+
+### CI/CD Integration
+- **Automated Quality Gates**: `/quality-check` integrates with CI pipelines
+- **Security Scanning**: `/security-audit` runs automatically on code changes
+- **Performance Monitoring**: `/ci-status` provides real-time pipeline insights
+- **Deployment Automation**: `/deploy` supports blue-green and canary deployments
+
+### Development Workflow
+- **Pre-commit Hooks**: Quality and security checks before commits
+- **Code Review Automation**: `/code-review` provides comprehensive analysis
+- **Debugging Support**: `/debug-session` offers multi-agent debugging
+- **Workflow Optimization**: `/workflow-optimize` improves CI/CD efficiency
+
+### Monitoring & Analytics
+- **Real-time Dashboards**: Live monitoring for deployments and CI/CD
+- **Performance Analytics**: Cost and performance optimization insights
+- **Quality Metrics**: Comprehensive quality and security reporting
+- **Trend Analysis**: Historical analysis and predictive insights
+
 ## Best Practices
 
-1. **Use Specific Agents**: Each command uses the most appropriate agent for the task
-2. **Include Context**: Commands gather relevant information before making changes
-3. **Handle Errors**: Commands analyze errors and provide solutions
-4. **Optimize Performance**: Commands focus on performance and efficiency
-5. **Maintain Documentation**: Commands help maintain up-to-date documentation
+### Multi-Agent Collaboration
+1. **Agent Selection**: Choose the most appropriate primary agent for each task
+2. **Coordination**: Leverage coordinator agents for complex multi-agent workflows
+3. **Specialization**: Utilize specialized agents for domain-specific expertise
+4. **Integration**: Combine multiple agents for comprehensive analysis
+
+### Quality & Security
+1. **Automated Checks**: Run quality and security checks early and often
+2. **Comprehensive Coverage**: Use multi-agent analysis for thorough assessment
+3. **Continuous Monitoring**: Monitor systems continuously with automated alerts
+4. **Compliance Focus**: Ensure compliance with security and quality standards
+
+### Performance & Efficiency
+1. **Optimization First**: Use optimization commands to improve performance
+2. **Cost Awareness**: Monitor and optimize CI/CD costs
+3. **Scalability**: Design workflows that scale with project growth
+4. **Automation**: Automate repetitive tasks and manual processes
+
+### Development Workflow
+1. **Early Integration**: Integrate quality checks into development workflow
+2. **Collaborative Debugging**: Use multi-agent debugging for complex issues
+3. **Documentation**: Maintain comprehensive documentation of processes
+4. **Continuous Learning**: Learn from debugging sessions and code reviews
 
 ## Integration with Development Workflow
 

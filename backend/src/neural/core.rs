@@ -9,10 +9,6 @@ use tracing::info;
 use uuid::Uuid;
 
 // Replaced ruv-fann with optimized implementation
-use crate::neural::migration_helper::Network;
-use crate::neural::optimized_integration::{
-    FastNeuralConfig, FastNeuralNetwork, FastNeuralProcessor,
-};
 
 use crate::agents::agent::Agent;
 use crate::infrastructure::streaming::{DataChunk, NeuralDataStream, StreamConfig};
@@ -1098,7 +1094,7 @@ impl HybridNeuralProcessor {
         &self,
         text_stream: impl Stream<Item = HiveResult<String>> + Unpin,
     ) -> HiveResult<Vec<ProcessedText>> {
-        let streaming_processor = self.streaming_processor.as_ref().ok_or_else(|| {
+        let _streaming_processor = self.streaming_processor.as_ref().ok_or_else(|| {
             crate::utils::error::HiveError::ProcessingError {
                 reason: "Streaming not enabled for neural processor".to_string(),
             }
@@ -1155,7 +1151,7 @@ impl HybridNeuralProcessor {
         &self,
         dataset_stream: impl Stream<Item = HiveResult<DataChunk>> + Unpin,
     ) -> HiveResult<NeuralProcessingMetrics> {
-        let streaming_processor = self.streaming_processor.as_ref().ok_or_else(|| {
+        let _streaming_processor = self.streaming_processor.as_ref().ok_or_else(|| {
             crate::utils::error::HiveError::ProcessingError {
                 reason: "Streaming not enabled for neural processor".to_string(),
             }

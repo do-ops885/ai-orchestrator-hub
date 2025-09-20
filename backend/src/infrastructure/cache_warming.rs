@@ -4,11 +4,11 @@
 //! cache hit rates and reduce database query latency.
 
 use crate::infrastructure::cached_query::{CacheKey, CachedQueryManager};
-use crate::utils::error::{HiveError, HiveResult};
+use crate::utils::error::HiveResult;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 

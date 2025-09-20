@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { ResourceMonitor } from './ResourceMonitor'
 import { vi } from 'vitest'
 
@@ -40,19 +40,13 @@ describe('ResourceMonitor', () => {
   })
 
   it('renders loading state initially', () => {
-    act(() => {
-      render(<ResourceMonitor />)
-    })
+    render(<ResourceMonitor />)
 
     expect(screen.getByText('Loading resource information...')).toBeInTheDocument()
   })
 
   it('fetches and displays resource data after loading', async () => {
-    act(() => {
-      act(() => {
-        render(<ResourceMonitor />)
-      })
-    })
+    render(<ResourceMonitor />)
 
     // Wait for the fetch to complete and data to load
     await waitFor(() => {
@@ -65,11 +59,7 @@ describe('ResourceMonitor', () => {
   })
 
   it('displays CPU and memory usage correctly', async () => {
-    act(() => {
-      act(() => {
-        render(<ResourceMonitor />)
-      })
-    })
+    render(<ResourceMonitor />)
 
     await waitFor(() => {
       expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
@@ -84,11 +74,7 @@ describe('ResourceMonitor', () => {
   })
 
   it('displays resource profile information', async () => {
-    act(() => {
-      act(() => {
-        render(<ResourceMonitor />)
-      })
-    })
+    render(<ResourceMonitor />)
 
     await waitFor(() => {
       expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
@@ -106,11 +92,7 @@ describe('ResourceMonitor', () => {
   })
 
   it('displays SIMD capabilities', async () => {
-    act(() => {
-      act(() => {
-        render(<ResourceMonitor />)
-      })
-    })
+    render(<ResourceMonitor />)
 
     await waitFor(() => {
       expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
@@ -123,11 +105,7 @@ describe('ResourceMonitor', () => {
   })
 
   it('displays CPU-Native badge', async () => {
-    act(() => {
-      act(() => {
-        render(<ResourceMonitor />)
-      })
-    })
+    render(<ResourceMonitor />)
 
     await waitFor(() => {
       expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
@@ -137,11 +115,7 @@ describe('ResourceMonitor', () => {
   })
 
   it('displays Phase 2 status', async () => {
-    act(() => {
-      act(() => {
-        render(<ResourceMonitor />)
-      })
-    })
+    render(<ResourceMonitor />)
 
     await waitFor(() => {
       expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
@@ -155,11 +129,7 @@ describe('ResourceMonitor', () => {
   })
 
   it('applies correct color classes based on usage levels', async () => {
-    act(() => {
-      act(() => {
-        render(<ResourceMonitor />)
-      })
-    })
+    render(<ResourceMonitor />)
 
     await waitFor(() => {
       expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
@@ -182,9 +152,7 @@ describe('ResourceMonitor', () => {
       json: () => Promise.resolve(desktopData),
     } as Response)
 
-    act(() => {
-      render(<ResourceMonitor />)
-    })
+    render(<ResourceMonitor />)
 
     await waitFor(() => {
       expect(screen.queryByText('Loading resource information...')).not.toBeInTheDocument()
@@ -200,11 +168,7 @@ describe('ResourceMonitor', () => {
     // Mock console.warn to avoid console output during test
     const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    act(() => {
-      act(() => {
-        render(<ResourceMonitor />)
-      })
-    })
+    render(<ResourceMonitor />)
 
     // Should remain in loading state or handle error
     await waitFor(() => {
@@ -223,11 +187,7 @@ describe('ResourceMonitor', () => {
       status: 500,
     } as Response)
 
-    act(() => {
-      act(() => {
-        render(<ResourceMonitor />)
-      })
-    })
+    render(<ResourceMonitor />)
 
     // Should remain in loading state for non-ok response
     await waitFor(() => {
@@ -236,9 +196,7 @@ describe('ResourceMonitor', () => {
   })
 
   it('updates data periodically', async () => {
-    act(() => {
-      render(<ResourceMonitor />)
-    })
+    render(<ResourceMonitor />)
 
     await waitFor(
       () => {
@@ -255,11 +213,7 @@ describe('ResourceMonitor', () => {
   })
 
   it('clears interval on unmount', async () => {
-    let unmount
-    act(() => {
-      const { unmount: unmountFn } = render(<ResourceMonitor />)
-      unmount = unmountFn
-    })
+    const { unmount } = render(<ResourceMonitor />)
 
     await waitFor(
       () => {
@@ -268,9 +222,7 @@ describe('ResourceMonitor', () => {
       { timeout: 5000 },
     )
 
-    act(() => {
-      unmount()
-    })
+    unmount()
 
     // Should still only have 1 call (the initial one)
     expect(mockFetch).toHaveBeenCalledTimes(1)
@@ -293,9 +245,7 @@ describe('ResourceMonitor', () => {
       } as Response),
     )
 
-    act(() => {
-      render(<ResourceMonitor />)
-    })
+    render(<ResourceMonitor />)
 
     await waitFor(
       () => {

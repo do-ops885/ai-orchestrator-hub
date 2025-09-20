@@ -5,7 +5,7 @@
 
 use crate::infrastructure::cache::{Cache, CacheStats};
 use crate::utils::error::HiveResult;
-use crate::infrastructure::cached_query;
+
 use chrono::Timelike;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -359,7 +359,7 @@ impl AccessPattern {
     }
 
     /// Calculate TTL score based on access patterns and freshness requirements
-    fn calculate_ttl_score(&self, freshness_reqs: &DataFreshnessRequirements) -> f64 {
+    fn calculate_ttl_score(&self, _freshness_reqs: &DataFreshnessRequirements) -> f64 {
         let base_score = match self.freshness_class {
             DataFreshnessClass::Critical => 1.0,
             DataFreshnessClass::Important => 0.7,
@@ -1297,7 +1297,7 @@ impl CacheWarmer {
                     let start_time = Instant::now();
 
                     match loader().await {
-                        Ok(data) => {
+                        Ok(_data) => {
                             let warm_time = start_time.elapsed().as_secs_f64();
 
                             let mut metrics = metrics_clone.write().await;

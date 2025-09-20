@@ -4,7 +4,7 @@
 //! and improve performance while maintaining data consistency.
 
 use crate::infrastructure::intelligent_cache::{
-    BatchQueryOptimizer, BatchQueryRequest, IntelligentCache, IntelligentCacheConfig,
+    BatchQueryOptimizer, BatchQueryRequest, IntelligentCacheConfig,
     MultiTierCacheManager, OptimizationType, QueryExecution, QueryOptimizationSuggestion,
     QueryPerformanceAnalyzer,
 };
@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 use uuid::Uuid;
 
 /// Cache key types for different data entities
@@ -76,7 +76,7 @@ impl<T> CacheEntry<T> {
 
 /// Cache invalidation strategy
 #[derive(Debug, Clone)]
-pub enum InvalidationStrategy {
+pub enum CacheInvalidationStrategy {
     /// Time-based expiration
     TimeBased(Duration),
     /// Version-based invalidation
@@ -103,7 +103,7 @@ pub struct CachedQueryConfig {
     /// Cache warming enabled
     pub enable_cache_warming: bool,
     /// Invalidation strategy
-    pub invalidation_strategy: InvalidationStrategy,
+    pub invalidation_strategy: CacheInvalidationStrategy,
 }
 
 impl Default for CachedQueryConfig {
@@ -115,7 +115,7 @@ impl Default for CachedQueryConfig {
             prefetch_threshold: 3,
             enable_adaptive_ttl: true,
             enable_cache_warming: true,
-            invalidation_strategy: InvalidationStrategy::TimeBased(Duration::from_secs(300)),
+            invalidation_strategy: CacheInvalidationStrategy::TimeBased(Duration::from_secs(300)),
         }
     }
 }
@@ -159,7 +159,7 @@ pub struct CachedQueryStats {
 impl CachedQueryManager {
     /// Create a new cached query manager
     pub fn new(config: CachedQueryConfig) -> Self {
-        let cache_config = IntelligentCacheConfig {
+        let _cache_config = IntelligentCacheConfig {
             base_ttl: config.default_ttl,
             max_size: config.max_cache_size,
             enable_prefetching: config.enable_prefetching,
@@ -319,8 +319,8 @@ impl CachedQueryManager {
         info!("Starting cache warming for {} keys", keys.len());
 
         for key in keys {
-            let fetcher_clone = fetcher.clone();
-            let key_clone = key.clone();
+            let _fetcher_clone = fetcher.clone();
+            let _key_clone = key.clone();
 
             // Prefetch data (simplified - would need proper type handling)
             debug!("Would prefetch data for key: {}", key);
@@ -354,11 +354,11 @@ impl CachedQueryManager {
     /// Check if a cache entry is still valid
     async fn is_entry_valid<T>(&self, entry: &CacheEntry<T>, key: &CacheKey) -> bool {
         match self.config.invalidation_strategy {
-            InvalidationStrategy::TimeBased(ttl) => {
+            CacheInvalidationStrategy::TimeBased(ttl) => {
                 let elapsed = chrono::Utc::now().signed_duration_since(entry.cached_at);
                 elapsed < chrono::Duration::from_std(ttl).unwrap_or(chrono::Duration::seconds(300))
             }
-            InvalidationStrategy::VersionBased => {
+            CacheInvalidationStrategy::VersionBased => {
                 let tracker = self.invalidation_tracker.read().await;
                 if let Some(current_version) = tracker.get(key) {
                     entry.version >= *current_version
@@ -366,7 +366,7 @@ impl CachedQueryManager {
                     false
                 }
             }
-            InvalidationStrategy::DependencyBased => {
+            CacheInvalidationStrategy::DependencyBased => {
                 // Check if any dependencies have been invalidated
                 let tracker = self.invalidation_tracker.read().await;
                 for dep in &entry.dependencies {
@@ -376,7 +376,7 @@ impl CachedQueryManager {
                 }
                 true
             }
-            InvalidationStrategy::Manual => true, // Only manual invalidation
+            CacheInvalidationStrategy::Manual => true, // Only manual invalidation
         }
     }
 
@@ -715,7 +715,7 @@ mod tests {
     #[tokio::test]
     async fn test_cache_invalidation() -> Result<(), Box<dyn std::error::Error>> {
         let cache_manager = CachedQueryManager::new(CachedQueryConfig {
-            invalidation_strategy: InvalidationStrategy::Manual,
+            invalidation_strategy: CacheInvalidationStrategy::Manual,
             ..Default::default()
         });
 

@@ -3,14 +3,11 @@
 //! This module handles task execution logic, result processing,
 //! and execution history management.
 
-use crate::utils::error::HiveResult;
 
 use super::distributor::TaskDistributor;
 use super::types::{TaskExecutionResult, TaskStatus};
 
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 use tokio::task;
 use uuid::Uuid;
 

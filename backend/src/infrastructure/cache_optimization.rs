@@ -5,7 +5,7 @@
 
 use crate::infrastructure::cache_monitoring::{CachePerformanceMetrics, CachePerformanceMonitor};
 use crate::infrastructure::cached_query::{CacheKey, CachedQueryConfig, CachedQueryManager};
-use crate::utils::error::{HiveError, HiveResult};
+use crate::utils::error::HiveResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;

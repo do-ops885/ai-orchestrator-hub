@@ -593,14 +593,10 @@ mod tests {
         let agent2_id = Uuid::new_v4();
 
         // Register agents
-        match queue_system.register_agent(agent1_id).await {
-            Ok(()) => {}
-            Err(e) => panic!("Failed to register agent1: {e}"),
-        }
-        match queue_system.register_agent(agent2_id).await {
-            Ok(()) => {}
-            Err(e) => panic!("Failed to register agent2: {e}"),
-        }
+        queue_system.register_agent(agent1_id).await
+            .expect("Failed to register agent1");
+        queue_system.register_agent(agent2_id).await
+            .expect("Failed to register agent2");
 
         // Create test task
         let task = Task::new(
@@ -612,10 +608,8 @@ mod tests {
         );
 
         // Submit task
-        match queue_system.submit_task(task).await {
-            Ok(()) => {}
-            Err(e) => panic!("Failed to submit task: {e}"),
-        }
+        queue_system.submit_task(task).await
+            .expect("Failed to submit task");
 
         // Wait a bit for task distribution
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;

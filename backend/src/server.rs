@@ -18,7 +18,7 @@ use crate::communication;
 use crate::communication::mcp_http;
 use crate::infrastructure::metrics::{AgentMetrics, AlertLevel, TaskMetrics};
 use crate::infrastructure::middleware::security_headers_middleware;
-use crate::utils::error::{HiveError, HiveResult};
+
 use crate::utils::structured_logging::{SecurityEventDetails, SecurityEventType, StructuredLogger};
 use crate::utils::validation::InputValidator;
 use crate::AppState;

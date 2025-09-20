@@ -1,0 +1,87 @@
+[
+  {
+    "test": "initialize",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  {
+    "test": "list_tools",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  {
+    "test": "system_info",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  {
+    "test": "create_agent",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    },
+    "agent_id": null
+  },
+  {
+    "test": "assign_task",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  {
+    "test": "nlp_analysis",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  {
+    "test": "swarm_status",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  {
+    "test": "create_specialized_workflow",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  {
+    "test": "agent_performance_analytics",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  {
+    "test": "dynamic_swarm_scaling",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  {
+    "test": "cross_agent_communication",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  {
+    "test": "knowledge_sharing",
+    "success": false,
+    "response": {
+      "error": "JSON decode error: Expecting value: line 1 column 1 (char 0)"
+    }
+  }
+]

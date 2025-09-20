@@ -556,7 +556,7 @@ impl AgentBehavior for Agent {
         self.state = AgentState::Learning;
         self.last_active = Utc::now();
 
-        let start_time = std::time::Instant::now();
+        let _start_time = std::time::Instant::now();
 
         // Analyze recent experiences for patterns
         let recent_experiences: Vec<_> = self.memory.experiences.iter().rev().take(10).collect();

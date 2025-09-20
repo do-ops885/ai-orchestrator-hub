@@ -140,7 +140,7 @@ impl AgentMetricsManager {
     ///
     /// Aggregates performance metrics across all agents.
     pub fn get_system_performance_summary(&self) -> serde_json::Value {
-        let mut total_tasks;
+        let total_tasks;
         let mut total_completed = 0u64;
         let mut total_failed = 0u64;
         let mut total_execution_time = 0u64;

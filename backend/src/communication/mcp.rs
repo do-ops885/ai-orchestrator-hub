@@ -1177,7 +1177,7 @@ impl MCPToolHandler for CreateSpecializedWorkflowTool {
         let hive = self.hive.write().await;
 
         // Create workflow with dependencies
-        let workflow_config = json!({
+        let _workflow_config = json!({
             "name": workflow_name,
             "type": workflow_type,
             "steps": steps,

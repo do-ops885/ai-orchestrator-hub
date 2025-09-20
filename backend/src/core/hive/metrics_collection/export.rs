@@ -8,9 +8,7 @@ use crate::utils::error::{HiveError, HiveResult};
 use super::collector::MetricsCollector;
 use super::types::HiveMetrics;
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+
 
 impl MetricsCollector {
     /// Export metrics in specified format
