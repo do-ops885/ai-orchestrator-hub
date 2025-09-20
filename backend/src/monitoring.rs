@@ -330,15 +330,15 @@ impl MonitoringSystem {
 
     /// Collect swarm performance metrics
     async fn collect_swarm_metrics(
-        swarm_coordinator: &SwarmCoordinator,
+        swarm_coordinator: &HiveCoordinator,
     ) -> Result<SwarmMetrics, Box<dyn std::error::Error + Send + Sync>> {
         let tasks = swarm_coordinator.list_tasks().await;
         let agents = swarm_coordinator.list_agents().await;
 
         let total_tasks = tasks.len() as u64;
-        let completed_tasks = tasks.iter().filter(|t| t.status == crate::swarm::TaskStatus::Completed).count() as u64;
-        let failed_tasks = tasks.iter().filter(|t| t.status == crate::swarm::TaskStatus::Failed).count() as u64;
-        let pending_tasks = tasks.iter().filter(|t| t.status == crate::swarm::TaskStatus::Pending).count();
+        let completed_tasks = tasks.iter().filter(|t| t.status == TaskStatus::Completed).count() as u64;
+        let failed_tasks = tasks.iter().filter(|t| t.status == TaskStatus::Failed).count() as u64;
+        let pending_tasks = tasks.iter().filter(|t| t.status == TaskStatus::Pending).count();
 
         // Calculate average task duration
         let completed_task_durations: Vec<f64> = tasks
