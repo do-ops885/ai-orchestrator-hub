@@ -511,7 +511,7 @@ impl MCPToolHandler for AssignSwarmTaskTool {
             "title": description,  // Map description to title as expected by task creation
             "type": task_type,     // Use provided task type or default
             "description": description,
-            "priority": priority_str
+            "priority": priority_str.to_lowercase()  // Convert to lowercase as expected by task creation
         });
         let task_id = hive.create_task(config).await?;
 

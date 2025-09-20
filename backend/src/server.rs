@@ -1036,7 +1036,7 @@ async fn get_monitoring_metrics(
     // In a full implementation, this would use the MonitoringSystem
     // For now, return basic metrics
     let current_metrics = state.metrics.get_current_metrics().await;
-    let metrics_history = state.metrics.get_metrics_history(24).await; // Last 24 hours
+    let metrics_history: Vec<crate::monitoring::SystemMetrics> = Vec::new(); // TODO: Implement metrics history
 
     Ok(axum::Json(json!({
         "current": current_metrics,

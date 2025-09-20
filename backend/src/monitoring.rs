@@ -7,14 +7,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tokio::time::{interval, timeout};
+use tokio::time::interval;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 
 use crate::agents::{Agent, AgentState};
 use crate::communication::CommunicationManager;
 use crate::core::hive::coordinator::core::HiveCoordinator;
-use crate::tasks::task::TaskStatus;
 
 /// Core metrics types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,7 +37,7 @@ pub struct NetworkMetrics {
     pub latency_ms: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AgentMetrics {
     pub total_agents: usize,
     pub active_agents: usize,
@@ -48,7 +47,7 @@ pub struct AgentMetrics {
     pub agent_health_scores: HashMap<String, f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SwarmMetrics {
     pub total_tasks: u64,
     pub completed_tasks: u64,
@@ -118,7 +117,7 @@ pub struct MonitoringSystem {
     config: MonitoringConfig,
     metrics_history: Arc<RwLock<Vec<SystemMetrics>>>,
     alerts: Arc<RwLock<Vec<Alert>>>,
-    swarm_coordinator: Arc<SwarmCoordinator>,
+    swarm_coordinator: Arc<HiveCoordinator>,
     communication_manager: Arc<CommunicationManager>,
     start_time: Instant,
 }
@@ -126,7 +125,7 @@ pub struct MonitoringSystem {
 impl MonitoringSystem {
     pub fn new(
         config: MonitoringConfig,
-        swarm_coordinator: Arc<SwarmCoordinator>,
+        swarm_coordinator: Arc<HiveCoordinator>,
         communication_manager: Arc<CommunicationManager>,
     ) -> Self {
         Self {
@@ -161,7 +160,7 @@ impl MonitoringSystem {
                     history.push(metrics);
 
                     // Keep only recent metrics
-                    let max_entries = (config.retention_days * 24 * 60 * 60 / config.collection_interval_seconds) as usize;
+                    let max_entries = ((config.retention_days as u64) * 24 * 60 * 60 / config.collection_interval_seconds) as usize;
                     if history.len() > max_entries {
                         history.remove(0);
                     }
@@ -184,7 +183,7 @@ impl MonitoringSystem {
 
     /// Collect comprehensive system metrics
     async fn collect_metrics(
-        swarm_coordinator: &SwarmCoordinator,
+        swarm_coordinator: &HiveCoordinator,
         communication_manager: &CommunicationManager,
     ) -> Result<SystemMetrics, Box<dyn std::error::Error + Send + Sync>> {
         let timestamp = Utc::now();
@@ -235,8 +234,9 @@ impl MonitoringSystem {
         communication_manager: &CommunicationManager,
     ) -> Result<NetworkMetrics, Box<dyn std::error::Error + Send + Sync>> {
         // Get connection statistics from communication manager
-        let connections_active = communication_manager.active_connections().await;
-        let connections_total = communication_manager.total_connections().await;
+        let metrics = communication_manager.get_metrics().await;
+        let connections_active = metrics.active_connections;
+        let connections_total = metrics.messages_sent + metrics.messages_received;
 
         // Calculate network throughput (simplified)
         let bytes_sent = 1024 * 1024; // 1MB placeholder
@@ -246,7 +246,7 @@ impl MonitoringSystem {
         Ok(NetworkMetrics {
             bytes_sent,
             bytes_received,
-            connections_active,
+            connections_active: connections_active as u32,
             connections_total,
             latency_ms,
         })
@@ -254,9 +254,9 @@ impl MonitoringSystem {
 
     /// Collect agent health and performance metrics
     async fn collect_agent_metrics(
-        swarm_coordinator: &SwarmCoordinator,
+        swarm_coordinator: &HiveCoordinator,
     ) -> Result<AgentMetrics, Box<dyn std::error::Error + Send + Sync>> {
-        let agents = swarm_coordinator.list_agents().await;
+        let agents = swarm_coordinator.get_all_agents().await;
 
         let total_agents = agents.len();
         let mut active_agents = 0;
@@ -265,24 +265,20 @@ impl MonitoringSystem {
         let mut response_times = Vec::new();
         let mut health_scores = HashMap::new();
 
-        for agent in agents {
-            let agent_read = agent.read().await;
-
-            match agent_read.status {
-                AgentStatus::Active => active_agents += 1,
-                AgentStatus::Idle => idle_agents += 1,
-                AgentStatus::Failed => failed_agents += 1,
+        for (_uuid, agent) in agents {
+            match agent.state {
+                AgentState::Working => active_agents += 1,
+                AgentState::Idle => idle_agents += 1,
+                AgentState::Failed => failed_agents += 1,
                 _ => {}
             }
 
             // Calculate health score based on various factors
-            let health_score = Self::calculate_agent_health_score(&agent_read).await;
-            health_scores.insert(agent_read.id.to_string(), health_score);
+            let health_score = Self::calculate_agent_health_score(&agent);
+            health_scores.insert(agent.id.to_string(), health_score);
 
-            // Collect response time if available
-            if let Some(last_response_time) = agent_read.last_response_time {
-                response_times.push(last_response_time as f64);
-            }
+            // Collect response time if available - using last_active as proxy
+            response_times.push(agent.last_active.timestamp_millis() as f64);
         }
 
         let average_response_time = if response_times.is_empty() {
@@ -302,84 +298,55 @@ impl MonitoringSystem {
     }
 
     /// Calculate agent health score (0.0 to 1.0)
-    async fn calculate_agent_health_score(agent: &crate::agents::Agent) -> f64 {
-        let mut score = 1.0;
+    fn calculate_agent_health_score(agent: &Agent) -> f64 {
+        let mut score: f64 = 1.0;
 
-        // Reduce score based on failures
-        if agent.consecutive_failures > 0 {
-            score -= (agent.consecutive_failures as f64) * 0.1;
+        // Reduce score if agent is in failed state
+        if agent.state == AgentState::Failed {
+            score -= 0.5;
         }
 
-        // Reduce score if agent hasn't responded recently
-        if let Some(last_seen) = agent.last_seen {
-            let minutes_since_last_seen = (Utc::now() - last_seen).num_minutes();
-            if minutes_since_last_seen > 5 {
-                score -= 0.2;
-            }
+        // Reduce score if agent hasn't been active recently
+        let minutes_since_active = (Utc::now() - agent.last_active).num_minutes();
+        if minutes_since_active > 5 {
+            score -= 0.2;
         }
 
-        // Reduce score based on error rate
-        let total_operations = agent.successful_operations + agent.failed_operations;
-        if total_operations > 0 {
-            let error_rate = agent.failed_operations as f64 / total_operations as f64;
-            score -= error_rate * 0.5;
+        // Reduce score if energy is low
+        if agent.energy < 0.5 {
+            score -= 0.3;
         }
 
-        score.max(0.0).min(1.0)
+        score.max(0.0_f64).min(1.0_f64)
     }
 
     /// Collect swarm performance metrics
     async fn collect_swarm_metrics(
         swarm_coordinator: &HiveCoordinator,
     ) -> Result<SwarmMetrics, Box<dyn std::error::Error + Send + Sync>> {
-        let tasks = swarm_coordinator.list_tasks().await;
-        let agents = swarm_coordinator.list_agents().await;
+        let hive_metrics = swarm_coordinator.get_metrics().await;
+        let agents = swarm_coordinator.get_all_agents().await;
 
-        let total_tasks = tasks.len() as u64;
-        let completed_tasks = tasks.iter().filter(|t| t.status == TaskStatus::Completed).count() as u64;
-        let failed_tasks = tasks.iter().filter(|t| t.status == TaskStatus::Failed).count() as u64;
-        let pending_tasks = tasks.iter().filter(|t| t.status == TaskStatus::Pending).count();
+        let total_tasks = hive_metrics.task_metrics.total_tasks;
+        let completed_tasks = hive_metrics.task_metrics.completed_tasks;
+        let failed_tasks = hive_metrics.task_metrics.failed_tasks;
+        let pending_tasks = hive_metrics.task_metrics.pending_tasks;
 
-        // Calculate average task duration
-        let completed_task_durations: Vec<f64> = tasks
-            .iter()
-            .filter(|t| t.status == crate::swarm::TaskStatus::Completed)
-            .filter_map(|t| {
-                if let (Some(started), Some(completed)) = (t.started_at, t.completed_at) {
-                    Some((completed - started).num_milliseconds() as f64)
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let average_task_duration = hive_metrics.task_metrics.average_execution_time_ms;
+        let task_success_rate = hive_metrics.task_metrics.success_rate;
 
-        let average_task_duration = if completed_task_durations.is_empty() {
-            0.0
-        } else {
-            completed_task_durations.iter().sum::<f64>() / completed_task_durations.len() as f64
-        };
-
-        let task_success_rate = if total_tasks > 0 {
-            completed_tasks as f64 / total_tasks as f64
-        } else {
-            1.0
-        };
-
-        // Calculate load distribution
+        // Calculate load distribution (placeholder - using agent count as proxy)
         let mut load_distribution = HashMap::new();
-        for agent in &agents {
-            let agent_read = agent.read().await;
-            load_distribution.insert(
-                agent_read.id.to_string(),
-                agent_read.active_tasks.len(),
-            );
+        for (_uuid, agent) in &agents {
+            // Placeholder: using 1 as load for each agent since we don't have active_tasks
+            load_distribution.insert(agent.id.to_string(), 1);
         }
 
         Ok(SwarmMetrics {
             total_tasks,
             completed_tasks,
             failed_tasks,
-            pending_tasks,
+            pending_tasks: pending_tasks as usize,
             average_task_duration,
             task_success_rate,
             load_distribution,
@@ -423,7 +390,7 @@ impl MonitoringSystem {
     async fn check_alerts(
         alert_rules: &[AlertRule],
         alerts: &Arc<RwLock<Vec<Alert>>>,
-        swarm_coordinator: &SwarmCoordinator,
+        swarm_coordinator: &HiveCoordinator,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         for rule in alert_rules {
             if !rule.enabled {
@@ -463,7 +430,7 @@ impl MonitoringSystem {
     /// Evaluate alert condition (simplified implementation)
     async fn evaluate_alert_condition(
         condition: &str,
-        swarm_coordinator: &SwarmCoordinator,
+        swarm_coordinator: &HiveCoordinator,
     ) -> bool {
         match condition {
             "high_error_rate" => {
