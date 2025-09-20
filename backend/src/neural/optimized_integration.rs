@@ -8,7 +8,7 @@
 //! - Better numerical stability
 
 use crate::neural::optimized_network::{
-    InferenceResult, NetworkConfig, NetworkSpecialization, OptimizedNeuralManager,
+    NetworkConfig, NetworkSpecialization, OptimizedNeuralManager,
     OptimizedNeuralNetwork, TrainingBatch,
 };
 use crate::utils::error::{HiveError, HiveResult};
