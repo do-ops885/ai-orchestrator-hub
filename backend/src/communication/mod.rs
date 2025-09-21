@@ -10,6 +10,7 @@
 
 pub mod mcp;
 pub mod mcp_http;
+pub mod optimized_messaging;
 pub mod patterns;
 pub mod protocols;
 

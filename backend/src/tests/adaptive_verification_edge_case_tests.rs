@@ -7,7 +7,7 @@ use crate::agents::adaptive_verification::{
     AccuracyMetrics, AdaptationConfig, AdaptationInsights, EfficiencyMetrics, PerformanceTracker,
     ThresholdHistory, ThresholdRecommendation, VerificationOutcome,
 };
-use crate::agents::{SimpleVerificationResult, SimpleVerificationStatus, VerificationTier};
+use crate::agents::simple_verification::{SimpleVerificationResult, SimpleVerificationStatus, VerificationTier};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};

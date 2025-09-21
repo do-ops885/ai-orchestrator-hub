@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::agents::agent::Agent;
 use crate::infrastructure::streaming::{DataChunk, NeuralDataStream, StreamConfig};
-use crate::neural::{ActivationFunction, Network, NLPProcessor, ProcessedText};
+use crate::neural::{NLPProcessor, ProcessedText};
 use crate::tasks::task::Task;
 use crate::utils::error::HiveResult;
 use futures::stream::{Stream, StreamExt};

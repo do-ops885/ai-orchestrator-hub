@@ -5,6 +5,8 @@ pub mod benchmarks;
 pub mod cache;
 /// Cache invalidation manager with dependency tracking
 pub mod cache_invalidation;
+/// CPU load balancer for optimal task distribution
+pub mod cpu_load_balancer;
 /// Cache performance monitoring and metrics
 pub mod cache_monitoring;
 /// Cache optimization strategies and benchmarks
@@ -29,6 +31,12 @@ pub mod monitoring;
 pub mod performance_integration;
 /// Performance optimization and auto-tuning
 pub mod performance_optimizer;
+/// Real-time performance dashboard and monitoring
+pub mod performance_dashboard;
+/// WebSocket server for real-time dashboard updates
+pub mod websocket_dashboard;
+/// Load testing infrastructure for scalability validation
+pub mod load_testing;
 /// Data persistence and state management
 pub mod persistence;
 /// Resource allocation and management

@@ -150,6 +150,14 @@ path = "bench_runner.rs"
 name = "mcp_server"
 path = "src/bin/mcp_server.rs"
 
+[[bin]]
+name = "dashboard_server"
+path = "src/bin/dashboard_server.rs"
+
+[[bin]]
+name = "load_test_runner"
+path = "src/bin/load_test_runner.rs"
+
 [lints.rust]
 # Rust compiler lints
 unsafe_code = "warn"
