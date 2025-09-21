@@ -16,6 +16,7 @@ env:
   RUST_BACKTRACE: 1
   CARGO_INCREMENTAL: 0
   RUSTC_WRAPPER: sccache
+  CORRELATION_ID: ${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
   # Fast pre-check with change detection
@@ -31,23 +32,103 @@ jobs:
       test-strategy: ${{ steps.strategy.outputs.test-strategy }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
+       - name: Checkout code
+         uses: actions/checkout@v4
+         with:
+           fetch-depth: 0  # Full history needed for proper diff comparison
+           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Setup sccache (Rust cache)
-        uses: mozilla-actions/sccache-action@v0.0.4
+       - name: Install required tools
+         run: |
+           sudo apt-get update
+           sudo apt-get install -y jq
+
+       - name: Fetch base branch for PR comparison
+         if: github.event_name == 'pull_request'
+         run: git fetch origin ${{ github.base_ref }} --depth=1
+
+       - name: Setup sccache (Rust cache)
+         uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Initialize change detection logging
+        run: |
+          cat > log_helper.sh << 'EOF'
+          #!/bin/bash
+          log_structured() {
+            local level="$1"
+            local message="$2"
+            local extra="${3:-{}}"
+
+            jq -n \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
+              --arg level "$level" \
+              --arg message "$message" \
+              --arg workflow "$GITHUB_WORKFLOW" \
+              --arg job "$GITHUB_JOB" \
+              --arg run_id "$GITHUB_RUN_ID" \
+              --arg correlation_id "$CORRELATION_ID" \
+              --arg extra "$extra" \
+              '{
+                timestamp: $timestamp,
+                level: $level,
+                message: $message,
+                workflow: $workflow,
+                job: $job,
+                run_id: $run_id,
+                correlation_id: $correlation_id,
+                context: $extra
+              }'
+          }
+          EOF
+          chmod +x log_helper.sh
 
       - name: Detect changes
         id: changes
         run: |
-          # Get changed files
+          source log_helper.sh
+          log_structured "INFO" "Starting change detection" \
+            '{"event_name": "${{ github.event_name }}", "ref": "${{ github.ref }}", "base_ref": "${{ github.base_ref }}"}'
+
+          # Get changed files with proper error handling
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git diff --name-only origin/${{ github.base_ref }}...HEAD > changed_files.txt
+            # For PR events, compare against base ref
+            base_ref="${{ github.base_ref }}"
+            if [ -z "$base_ref" ]; then
+              log_structured "ERROR" "Base ref not available for PR event"
+              echo "::error::Base ref not available for PR event"
+              exit 1
+            fi
+
+            # Ensure base ref exists in remote
+            if ! git ls-remote --exit-code origin "refs/heads/$base_ref" >/dev/null 2>&1; then
+              log_structured "WARN" "Base ref $base_ref not found in remote, using fallback"
+              # Fallback to comparing with current HEAD (minimal changes)
+              touch changed_files.txt
+            else
+              # Fetch base ref if needed
+              git fetch origin "$base_ref" 2>/dev/null || true
+              git diff --name-only "origin/$base_ref...HEAD" > changed_files.txt 2>/dev/null || touch changed_files.txt
+            fi
           else
-            git diff --name-only HEAD~1 > changed_files.txt
+            # For push events, compare with previous commit
+            if git rev-parse HEAD~1 >/dev/null 2>&1; then
+              git diff --name-only HEAD~1 > changed_files.txt 2>/dev/null || touch changed_files.txt
+            else
+              # First commit case
+              log_structured "INFO" "First commit detected, treating as full change set"
+              git ls-files > changed_files.txt 2>/dev/null || touch changed_files.txt
+            fi
           fi
+
+          # Verify changed_files.txt was created
+          if [ ! -f changed_files.txt ]; then
+            log_structured "ERROR" "Failed to create changed_files.txt"
+            touch changed_files.txt
+          fi
+
+          # Log change detection results
+          change_count=$(wc -l < changed_files.txt)
+          log_structured "INFO" "Change detection completed" "{\"change_count\": $change_count}"
 
           # Categorize changes
           rust_changed=false
@@ -72,6 +153,9 @@ jobs:
             esac
           done < changed_files.txt
 
+          log_structured "INFO" "Change categorization completed" \
+            "{\"rust_changed\": $rust_changed, \"frontend_changed\": $frontend_changed, \"docs_changed\": $docs_changed, \"config_changed\": $config_changed}"
+
           echo "rust=$rust_changed" >> $GITHUB_OUTPUT
           echo "frontend=$frontend_changed" >> $GITHUB_OUTPUT
           echo "docs=$docs_changed" >> $GITHUB_OUTPUT
@@ -80,14 +164,26 @@ jobs:
       - name: Determine test strategy
         id: strategy
         run: |
+          source log_helper.sh
+
           # Determine test strategy based on changes
-          if [ "${{ steps.changes.outputs.rust }}" = "true" ] && [ "${{ steps.changes.outputs.frontend }}" = "true" ]; then
-            echo "test-strategy=full" >> $GITHUB_OUTPUT
-          elif [ "${{ steps.changes.outputs.rust }}" = "true" ] || [ "${{ steps.changes.outputs.frontend }}" = "true" ]; then
-            echo "test-strategy=targeted" >> $GITHUB_OUTPUT
+          rust_changed="${{ steps.changes.outputs.rust }}"
+          frontend_changed="${{ steps.changes.outputs.frontend }}"
+          docs_changed="${{ steps.changes.outputs.docs }}"
+          config_changed="${{ steps.changes.outputs.config }}"
+
+          if [ "$rust_changed" = "true" ] && [ "$frontend_changed" = "true" ]; then
+            test_strategy="full"
+          elif [ "$rust_changed" = "true" ] || [ "$frontend_changed" = "true" ]; then
+            test_strategy="targeted"
           else
-            echo "test-strategy=minimal" >> $GITHUB_OUTPUT
+            test_strategy="minimal"
           fi
+
+          log_structured "INFO" "Test strategy determined" \
+            "{\"strategy\": \"$test_strategy\", \"rust_changed\": $rust_changed, \"frontend_changed\": $frontend_changed, \"docs_changed\": $docs_changed, \"config_changed\": $config_changed}"
+
+          echo "test-strategy=$test_strategy" >> $GITHUB_OUTPUT
 
   # Parallel Rust build and test
   rust-build-test:
@@ -276,11 +372,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup test environment
-        run: |
-          # Install Docker for containerized testing
-          sudo apt-get update
-          sudo apt-get install -y docker.io docker-compose
+        - name: Setup test environment
+          run: |
+            # Docker is pre-installed on GitHub Actions runners
+            echo "Docker version: $(docker --version)"
+            echo "Docker Compose version: $(docker compose version 2>/dev/null || docker-compose --version)"
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
