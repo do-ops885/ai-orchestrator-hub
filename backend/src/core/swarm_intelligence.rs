@@ -1,4 +1,7 @@
 use crate::agents::agent::{Agent, AgentType};
+use crate::communication::optimized_messaging::{OptimizedSwarmCommunicator, OptimizedMessagingConfig};
+use crate::infrastructure::memory_pool::{SwarmMemoryPools, SwarmPoolStats};
+use crate::infrastructure::cpu_load_balancer::{CpuLoadBalancer, LoadBalancerConfig};
 use crate::tasks::task::{Task, TaskPriority};
 use crate::utils::error::HiveResult;
 use serde::{Deserialize, Serialize};

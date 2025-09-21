@@ -1290,11 +1290,11 @@ mod tests {
 
         // Test save and load
         let id = storage
-            .save_snapshot(&snapshot)
+            .save_snapshot(&snapshot, None)
             .await
             .map_err(|e| format!("Failed to save snapshot: {}", e))?;
         let loaded = storage
-            .load_snapshot(&id)
+            .load_snapshot(&id, None)
             .await
             .map_err(|e| format!("Failed to load snapshot: {}", e))?;
 
@@ -1341,11 +1341,11 @@ mod tests {
 
         // Test save and load
         let _id = storage
-            .save_snapshot(&snapshot)
+            .save_snapshot(&snapshot, None)
             .await
             .map_err(|e| format!("Failed to save snapshot: {}", e))?;
         let loaded = storage
-            .load_snapshot(&snapshot.snapshot_id.to_string())
+            .load_snapshot(&snapshot.snapshot_id.to_string(), None)
             .await
             .map_err(|e| format!("Failed to load snapshot: {}", e))?;
 

@@ -804,6 +804,7 @@ impl Clone for ProcessManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::error_handling::safe_json;
     use std::sync::Arc;
     use tokio::sync::mpsc;
 

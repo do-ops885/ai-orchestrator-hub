@@ -523,7 +523,7 @@ console.log('Access token:', data.access_token);`
     }));
   };
 
-  const renderSchema = (schema: ApiSchema, level = 0): JSX.Element => {
+  const renderSchema = (schema: ApiSchema, level = 0): React.ReactElement => {
     const indent = '  '.repeat(level);
 
     switch (schema.type) {

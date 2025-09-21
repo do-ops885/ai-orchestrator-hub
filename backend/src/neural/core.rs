@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::agents::agent::Agent;
 use crate::infrastructure::streaming::{DataChunk, NeuralDataStream, StreamConfig};
-use crate::neural::{ActivationFunction, Network, NLPProcessor, ProcessedText};
+use crate::neural::{NLPProcessor, ProcessedText};
 use crate::tasks::task::Task;
 use crate::utils::error::HiveResult;
 use futures::stream::{Stream, StreamExt};
@@ -394,7 +394,7 @@ impl HybridNeuralProcessor {
 
         #[cfg(feature = "advanced-neural")]
         if let NetworkType::FANN(config) = &network_type {
-            let network = self.create_fann_network(config);
+            let network = self.create_fann_network(config)?;
             self.neural_networks.insert(agent_id, network);
         }
 
@@ -531,8 +531,9 @@ impl HybridNeuralProcessor {
     }
 
     #[cfg(feature = "advanced-neural")]
-    fn create_fann_network(&self, config: &FANNConfig) -> Network<f32> {
-        let mut network = Network::new(&config.layers).expect("Failed to create FANN network");
+    fn create_fann_network(&self, config: &FANNConfig) -> HiveResult<Network<f32>> {
+        let mut network = Network::new(&config.layers)
+            .map_err(|e| HiveError::NeuralNetwork(format!("Failed to create FANN network: {}", e)))?;
 
         // Set activation function
         let activation = match config.activation.as_str() {

@@ -8,6 +8,7 @@ mod tests {
     use tokio::time::Duration;
 
     use crate::agents::{agent::AgentBehavior, AgentState};
+    use crate::communication::protocols::{MessageEnvelope, MessagePayload, MessageType};
     use crate::core::HiveCoordinator;
     use crate::tasks::TaskPriority;
     use crate::tests::test_utils::{
@@ -542,14 +543,28 @@ mod tests {
         // Test communication between agents
         {
             let mut agent1 = hive.get_agent(agent1_id).await.unwrap();
+            let envelope = MessageEnvelope::new(
+                MessageType::Request,
+                agent1_id,
+                vec![agent2_id],
+                MessagePayload::Text("Hello from agent 1".to_string()),
+            );
             let response = agent1
-                .communicate("Hello from agent 1", Some(agent2_id))
+                .communicate(envelope)
                 .await;
             assert!(response.is_ok());
 
-            let response_text = response.unwrap();
-            assert!(response_text.contains("Communicator1"));
-            assert!(response_text.contains(&agent2_id.to_string()));
+            let response_envelope = response.unwrap();
+            if let Some(env) = response_envelope {
+                if let MessagePayload::Text(text) = &env.payload {
+                    assert!(text.contains("Communicator1"));
+                    assert!(text.contains(&agent2_id.to_string()));
+                } else {
+                    panic!("Expected text payload");
+                }
+            } else {
+                panic!("Expected response envelope");
+            }
 
             // Update agent state
             hive.update_agent(agent1_id, agent1);
@@ -558,12 +573,26 @@ mod tests {
         // Test broadcast communication
         {
             let mut agent2 = hive.get_agent(agent2_id).await.unwrap();
-            let broadcast_response = agent2.communicate("Broadcasting message", None).await;
+            let broadcast_envelope = MessageEnvelope::new(
+                MessageType::Broadcast,
+                agent2_id,
+                vec![], // Empty recipients for broadcast
+                MessagePayload::Text("Broadcasting message".to_string()),
+            );
+            let broadcast_response = agent2.communicate(broadcast_envelope).await;
             assert!(broadcast_response.is_ok());
 
-            let broadcast_text = broadcast_response.unwrap();
-            assert!(broadcast_text.contains("Communicator2"));
-            assert!(broadcast_text.contains("broadcasting"));
+            let broadcast_response_envelope = broadcast_response.unwrap();
+            if let Some(env) = broadcast_response_envelope {
+                if let MessagePayload::Text(text) = &env.payload {
+                    assert!(text.contains("Communicator2"));
+                    assert!(text.contains("broadcasting"));
+                } else {
+                    panic!("Expected text payload");
+                }
+            } else {
+                panic!("Expected response envelope");
+            }
 
             // Update agent state
             hive.update_agent(agent2_id, agent2);

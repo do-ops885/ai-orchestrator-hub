@@ -8,8 +8,9 @@ mod tests {
 
     use crate::agents::agent::AgentBehavior;
     use crate::agents::{Agent, AgentState, AgentType, Experience};
+    use crate::communication::patterns::{DeliveryGuarantee, MessagePriority};
     use crate::communication::protocols::{
-        DeliveryGuarantee, MessageEnvelope, MessagePayload, MessagePriority, MessageType,
+        MessageEnvelope, MessagePayload, MessageType,
     };
     use crate::neural::NLPProcessor;
     use crate::tasks::TaskPriority;
@@ -306,7 +307,8 @@ mod tests {
             delivery_guarantee: DeliveryGuarantee::AtLeastOnce,
             timestamp: Utc::now(),
             correlation_id: Some(Uuid::new_v4()),
-            ttl: None,
+            ttl_seconds: None,
+            protocol_version: "1.0".to_string(),
             metadata: HashMap::new(),
         };
         let response = agent.communicate(envelope).await;
@@ -332,14 +334,23 @@ mod tests {
             delivery_guarantee: DeliveryGuarantee::AtLeastOnce,
             timestamp: Utc::now(),
             correlation_id: Some(Uuid::new_v4()),
-            ttl: None,
+            ttl_seconds: None,
+            protocol_version: "1.0".to_string(),
             metadata: HashMap::new(),
         };
         let broadcast_response = agent.communicate(broadcast_envelope).await;
         assert!(broadcast_response.is_ok());
         let broadcast_envelope_response = broadcast_response.unwrap();
-        assert!(broadcast_text.contains("TestAgent"));
-        assert!(broadcast_text.contains("broadcasting"));
+        if let Some(env) = broadcast_envelope_response {
+            if let MessagePayload::Text(text) = &env.payload {
+                assert!(text.contains("TestAgent"));
+                assert!(text.contains("broadcasting"));
+            } else {
+                panic!("Expected text payload");
+            }
+        } else {
+            panic!("Expected response envelope");
+        }
     }
 
     #[tokio::test]

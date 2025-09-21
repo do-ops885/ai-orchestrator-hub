@@ -36,7 +36,7 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 }))
 
 // Mock WebSocket
-global.WebSocket = vi.fn().mockImplementation(() => ({
+const MockWebSocket = vi.fn().mockImplementation(() => ({
   addEventListener: vi.fn(),
   removeEventListener: vi.fn(),
   dispatchEvent: vi.fn(),
@@ -48,6 +48,15 @@ global.WebSocket = vi.fn().mockImplementation(() => ({
   CLOSING: 2,
   CLOSED: 3,
 }))
+
+Object.assign(MockWebSocket, {
+  CONNECTING: 0,
+  OPEN: 1,
+  CLOSING: 2,
+  CLOSED: 3,
+})
+
+global.WebSocket = MockWebSocket as any
 
 // Mock localStorage
 const localStorageMock = {

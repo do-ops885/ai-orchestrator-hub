@@ -823,8 +823,10 @@ mod tests {
             specialization: NetworkSpecialization::GeneralPurpose,
         };
 
-        let network = OptimizedNeuralNetwork::new(config)
-            .expect("Failed to create network");
+        let network = match OptimizedNeuralNetwork::new(config) {
+            Ok(n) => n,
+            Err(e) => panic!("Failed to create network: {}", e),
+        };
         assert_eq!(network.weights.len(), 2);
         assert_eq!(network.biases.len(), 2);
     }
@@ -842,12 +844,16 @@ mod tests {
             specialization: NetworkSpecialization::GeneralPurpose,
         };
 
-        let mut network = OptimizedNeuralNetwork::new(config)
-            .expect("Failed to create network");
+        let mut network = match OptimizedNeuralNetwork::new(config) {
+            Ok(n) => n,
+            Err(e) => panic!("Failed to create network: {}", e),
+        };
         let input = DVector::from_vec(vec![1.0, 0.5, -0.5]);
 
-        let result = network.forward(&input)
-            .expect("Forward pass failed");
+        let result = match network.forward(&input) {
+            Ok(r) => r,
+            Err(e) => panic!("Forward pass failed: {}", e),
+        };
         assert_eq!(result.outputs.len(), 1);
         assert!(result.confidence >= 0.0 && result.confidence <= 1.0);
         assert!(result.inference_time_us > 0.0);

@@ -5,7 +5,7 @@ use thiserror::Error;
 ///
 /// This enum provides comprehensive error handling for all system components
 /// with structured error information and proper error chaining.
-#[derive(Error, Debug, Clone, Serialize, Deserialize)]
+#[derive(Error, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HiveError {
     /// Agent-related errors
     #[error("Agent not found: {id}")]

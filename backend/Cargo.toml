@@ -1,6 +1,6 @@
 [package]
 name = "multiagent-hive"
-version = "0.1.0-alpha.5"
+version = "0.2.0-alpha.1"
 edition = "2021"
 
 [dependencies]
@@ -149,6 +149,14 @@ path = "bench_runner.rs"
 [[bin]]
 name = "mcp_server"
 path = "src/bin/mcp_server.rs"
+
+[[bin]]
+name = "dashboard_server"
+path = "src/bin/dashboard_server.rs"
+
+[[bin]]
+name = "load_test_runner"
+path = "src/bin/load_test_runner.rs"
 
 [lints.rust]
 # Rust compiler lints

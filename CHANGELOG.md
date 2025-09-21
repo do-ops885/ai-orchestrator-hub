@@ -4,6 +4,35 @@ All notable changes to the AI Orchestrator Hub will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.2.0-alpha.1] - 2025-09-21
+
+### Added
+- **Performance Monitoring**: Comprehensive performance monitoring and load testing features
+- **Dashboard Integration**: Performance dashboard server and websocket integration
+- **Load Testing**: Load testing infrastructure with comprehensive and quick test scripts
+- **Frontend Components**: Frontend performance dashboard component with metrics hooks
+- **Load Balancing**: CPU load balancer and optimized messaging for better performance
+- **Documentation**: Monitoring setup guides and performance analysis reports
+- **CI/CD Optimization**: Optimized CI workflows and update scripts
+- **Dependencies**: Updated frontend dependencies and added new components
+- **Backend Enhancements**: Monitoring system and testing enhancements to backend
+- **Workflow Permissions**: Added permissions to workflow jobs for Dependabot compatibility
+- **Validation Jobs**: Security report location validation job and unwrap() prevention check job
+- **Build Improvements**: Proper caching and permissions in build workflow
+
+### Changed
+- **MCP Components**: Updated MCP communication, monitoring, and server components
+- **PR Workflows**: Applied PR workflow fixes and validation checks
+
+### Fixed
+- **Rust Code Quality**: Fixed all unwrap calls in Rust code and ensured build/test/lint passes without errors
+- **Workflow Issues**: Fixed bash syntax errors and indentation issues in workflows
+- **CI Reliability**: Replaced dorny/paths-filter with manual git diff for reliability
+
+### Removed
+- **Temporary Files**: Removed temporary MCP test files
+
+
 
 ## [0.1.0-alpha.5] - 2025-09-19
 
