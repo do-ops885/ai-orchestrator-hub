@@ -1,31 +1,188 @@
-  # Build summary
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # Fast feedback job - runs first
+  pre-check:
+    name: Pre-flight Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      rust-changed: ${{ steps.filter.outputs.rust }}
+      frontend-changed: ${{ steps.filter.outputs.frontend }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'backend/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            frontend:
+              - 'frontend/**'
+              - 'package.json'
+              - 'package-lock.json'
+
+  # Rust build
+  rust-build:
+    name: Rust Build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    needs: pre-check
+    if: needs.pre-check.outputs.rust-changed == 'true'
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source ~/.cargo/env
+          rustup target add ${{ matrix.target }}
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache target directory
+        uses: actions/cache@v4
+        with:
+          path: backend/target/
+          key: ${{ runner.os }}-cargo-target-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock', 'backend/src/**/*.rs') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-target-${{ matrix.target }}-
+            ${{ runner.os }}-cargo-target-
+
+      - name: Build release binary
+        run: |
+          cd backend
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Run tests
+        run: |
+          cd backend
+          cargo test --release
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-binary-${{ matrix.target }}
+          path: backend/target/${{ matrix.target }}/release/multiagent-hive
+          retention-days: 30
+
+  # Frontend build
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    needs: pre-check
+    if: needs.pre-check.outputs.frontend-changed == 'true'
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Run linting
+        run: cd frontend && npm run lint
+
+      - name: Run tests
+        run: cd frontend && npm test
+
+      - name: Build
+        run: cd frontend && npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/dist/
+          retention-days: 30
+
+  # Integration tests
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [rust-build, frontend-build]
+    if: always() && (needs.rust-build.result == 'success' || needs.frontend-build.result == 'success')
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-build*"
+          merge-multiple: true
+
+      - name: Run integration tests
+        run: |
+          if [ -f "scripts/integration_tests.sh" ]; then
+            ./scripts/integration_tests.sh
+          fi
+
+  # Final summary job
   build-summary:
     name: Build Summary
     runs-on: ubuntu-latest
     needs: [pre-check, rust-build, frontend-build, integration-test]
     if: always()
-    permissions:
-      contents: read
 
     steps:
       - name: Generate build summary
         run: |
-          echo "::group::Build Summary"
+          echo "Build workflow summary:"
           echo "Pre-check: ${{ needs.pre-check.result }}"
           echo "Rust build: ${{ needs.rust-build.result }}"
           echo "Frontend build: ${{ needs.frontend-build.result }}"
           echo "Integration tests: ${{ needs.integration-test.result }}"
-          echo "Rust changes detected: ${{ needs.pre-check.outputs.rust-changed }}"
-          echo "Frontend changes detected: ${{ needs.pre-check.outputs.frontend-changed }}"
-          echo "::endgroup::"
-
-          # Determine overall status
-          if [[ "${{ needs.rust-build.result }}" == "success" || "${{ needs.rust-build.result }}" == "skipped" ]] && \
-             [[ "${{ needs.frontend-build.result }}" == "success" || "${{ needs.frontend-build.result }}" == "skipped" ]] && \
-             [[ "${{ needs.integration-test.result }}" == "success" || "${{ needs.integration-test.result }}" == "skipped" ]]; then
-            echo "✅ Build workflow completed successfully"
-            exit 0
-          else
-            echo "❌ Build workflow failed"
-            exit 1
-          fi
+          echo "Rust changed: ${{ needs.pre-check.outputs.rust-changed }}"
+          echo "Frontend changed: ${{ needs.pre-check.outputs.frontend-changed }}"
