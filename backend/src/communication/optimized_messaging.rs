@@ -124,7 +124,7 @@ impl MessagePool {
             MessageEnvelope::new(
                 MessageType::Request,
                 Uuid::new_v4(),
-                Uuid::new_v4(),
+                vec![Uuid::new_v4()],
                 MessagePayload::Text(String::new()),
             )
         }
@@ -615,13 +615,16 @@ mod tests {
             MessageEnvelope::new(
                 MessageType::Request,
                 Uuid::new_v4(),
-                Uuid::new_v4(),
+                vec![Uuid::new_v4()],
                 MessagePayload::Text("This is a test message that should compress well because it has repeated content. This is a test message that should compress well because it has repeated content.".to_string()),
             )
         ];
         
         let batch = MessageBatch::new(messages);
-        let compressed_batch = compressor.compress_batch(batch).await.unwrap();
+        let compressed_batch = match compressor.compress_batch(batch).await {
+            Ok(b) => b,
+            Err(e) => panic!("Failed to compress batch: {}", e),
+        };
         
         if compressed_batch.compressed {
             assert!(compressed_batch.compression_ratio() < 1.0);
@@ -646,10 +649,13 @@ mod tests {
             let message = MessageEnvelope::new(
                 MessageType::Request,
                 Uuid::new_v4(),
-                Uuid::new_v4(),
+                vec![Uuid::new_v4()],
                 MessagePayload::Text(format!("Message {}", i)),
             );
-            processor.add_message("test_target".to_string(), message).await.unwrap();
+            match processor.add_message("test_target".to_string(), message).await {
+                Ok(_) => {},
+                Err(e) => panic!("Failed to add message: {}", e),
+            }
         }
         
         // Give some time for batch processing
@@ -667,7 +673,7 @@ mod tests {
         let message = MessageEnvelope::new(
             MessageType::Request,
             Uuid::new_v4(),
-            Uuid::new_v4(),
+            vec![Uuid::new_v4()],
             MessagePayload::Text("Test message".to_string()),
         );
         

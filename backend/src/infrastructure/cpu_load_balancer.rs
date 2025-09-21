@@ -553,14 +553,22 @@ mod tests {
         // Give time for initialization
         tokio::time::sleep(Duration::from_millis(100)).await;
         
+        let now = chrono::Utc::now();
         let task = Task {
             id: Uuid::new_v4(),
-            task_type: "test".to_string(),
+            title: "Test Task".to_string(),
             description: "Test task".to_string(),
+            task_type: "test".to_string(),
             priority: TaskPriority::Medium,
-            created_at: chrono::Utc::now(),
-            agent_id: Some(Uuid::new_v4()),
-            metadata: std::collections::HashMap::new(),
+            status: TaskStatus::Pending,
+            required_capabilities: vec![],
+            assigned_agent: Some(Uuid::new_v4()),
+            created_at: now,
+            updated_at: now,
+            deadline: None,
+            estimated_duration: None,
+            context: std::collections::HashMap::new(),
+            dependencies: vec![],
         };
         
         let result = balancer.submit_task(task).await;

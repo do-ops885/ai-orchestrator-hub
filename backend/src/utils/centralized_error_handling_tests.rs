@@ -417,7 +417,7 @@ async fn test_error_prevention_and_no_panics() {
     );
 
     // The test verifies the handler structure works
-    assert!(future.is_ok());
+    assert!(future.await.is_ok());
 }
 
 #[tokio::test]

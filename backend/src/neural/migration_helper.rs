@@ -46,13 +46,12 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
     }
 
     /// Run forward pass through the network
-    pub fn run(&mut self, input: &[T]) -> Vec<T> {
+    pub fn run(&mut self, input: &[T]) -> HiveResult<Vec<T>> {
         let float_input: Vec<f32> = input.iter().map(|x| x.clone().into()).collect();
 
-        let result = self.inner.run(&float_input)
-            .expect("Forward pass failed");
+        let result = self.inner.run(&float_input)?;
 
-        result.into_iter().map(|x| T::from(x)).collect()
+        Ok(result.into_iter().map(|x| T::from(x)).collect())
     }
 
     /// Train the network with input/output pairs
@@ -244,9 +243,15 @@ mod tests {
 
     #[test]
     fn test_compatibility_network() {
-        let mut network: Network<f32> = Network::new(&[3, 2, 1]).expect("Failed to create network");
+        let mut network: Network<f32> = match Network::new(&[3, 2, 1]) {
+            Ok(n) => n,
+            Err(e) => panic!("Failed to create network: {}", e),
+        };
         let input = vec![1.0, 0.5, -0.5];
-        let output = network.run(&input);
+        let output = match network.run(&input) {
+            Ok(o) => o,
+            Err(e) => panic!("Forward pass failed: {}", e),
+        };
 
         assert_eq!(output.len(), 1);
         assert_eq!(network.num_inputs(), 3);

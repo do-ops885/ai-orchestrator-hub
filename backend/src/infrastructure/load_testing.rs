@@ -334,8 +334,7 @@ impl LoadTestEngine {
     /// Collect baseline performance metrics
     async fn collect_baseline_metrics(&self) -> HiveResult<BaselineMetrics> {
         tracing::info!("📏 Collecting baseline metrics...");
-        
-        let mut baseline_ops = Vec::new();
+
         let mut baseline_latencies = Vec::new();
         
         // Run 100 baseline operations
@@ -490,6 +489,7 @@ impl LoadTestEngine {
                     dependencies: vec![],
                     context: std::collections::HashMap::new(),
                     deadline: None,
+                    estimated_duration: None,
                     updated_at: chrono::Utc::now(),
                 };
                 self.load_balancer.submit_task(task).await
@@ -580,7 +580,7 @@ impl LoadTestEngine {
         };
         
         let performance_metrics = LoadTestPerformanceMetrics {
-            response_times: response_time_stats,
+            response_times: response_time_stats.clone(),
             throughput_stats: ThroughputStats {
                 min_ops_sec: avg_rps * 0.8,
                 max_ops_sec: avg_rps * 1.2,

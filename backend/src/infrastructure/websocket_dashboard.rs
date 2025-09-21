@@ -405,7 +405,10 @@ mod tests {
             data: Option<serde_json::Value>,
         }
         
-        let parsed: ClientMessage = serde_json::from_str(message).unwrap();
+        let parsed: ClientMessage = match serde_json::from_str(message) {
+            Ok(p) => p,
+            Err(e) => panic!("Failed to parse test message: {}", e),
+        };
         assert_eq!(parsed.action, "acknowledge_alert");
         assert!(parsed.data.is_some());
     }

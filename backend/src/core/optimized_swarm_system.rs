@@ -297,11 +297,19 @@ impl OptimizedSwarmSystem {
         for i in 0..sample_operations {
             let task = Task {
                 id: Uuid::new_v4(),
-                task_type: "baseline_test".to_string(),
+                title: format!("Baseline Test Task {}", i),
                 description: format!("Baseline test task {}", i),
+                task_type: "baseline_test".to_string(),
                 priority: crate::tasks::task::TaskPriority::Medium,
-                created_at: chrono::Utc::now(),
+                status: crate::tasks::task::TaskStatus::Pending,
+                required_capabilities: vec![],
                 assigned_agent: Some(Uuid::new_v4()),
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                deadline: None,
+                estimated_duration: None,
+                context: std::collections::HashMap::new(),
+                dependencies: vec![],
             };
 
             // Measure baseline without optimizations (simplified measurement)
@@ -536,14 +544,22 @@ mod tests {
         // Give time for initialization
         tokio::time::sleep(Duration::from_millis(100)).await;
         
+        let now = chrono::Utc::now();
         let task = Task {
             id: Uuid::new_v4(),
-            task_type: "test".to_string(),
+            title: "Test Task".to_string(),
             description: "Test task".to_string(),
+            task_type: "test".to_string(),
             priority: crate::tasks::task::TaskPriority::Medium,
-            created_at: chrono::Utc::now(),
-            agent_id: Some(Uuid::new_v4()),
-            metadata: std::collections::HashMap::new(),
+            status: crate::tasks::task::TaskStatus::Pending,
+            required_capabilities: vec![],
+            assigned_agent: Some(Uuid::new_v4()),
+            created_at: now,
+            updated_at: now,
+            deadline: None,
+            estimated_duration: None,
+            context: std::collections::HashMap::new(),
+            dependencies: vec![],
         };
         
         let result = system.submit_optimized_task(task).await;

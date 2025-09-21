@@ -191,6 +191,7 @@ impl TaskCreator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error::Error;
     use tokio::sync::mpsc;
 
     // Mock TaskDistributionConfig for testing

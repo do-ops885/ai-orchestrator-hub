@@ -611,8 +611,11 @@ mod tests {
         
         // Give time for initialization
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
-        let metrics = dashboard.get_current_metrics().await.unwrap();
+
+        let metrics = match dashboard.get_current_metrics().await {
+            Ok(m) => m,
+            Err(e) => panic!("Failed to get current metrics: {}", e),
+        };
         assert!(metrics.current.throughput_ops_sec > 0.0);
     }
 
@@ -624,10 +627,11 @@ mod tests {
         let mut receiver = dashboard.subscribe();
         
         // Wait for a metrics update
-        tokio::time::timeout(Duration::from_secs(2), receiver.recv())
-            .await
-            .expect("Should receive metrics within timeout")
-            .expect("Should receive valid metrics");
+        match tokio::time::timeout(Duration::from_secs(2), receiver.recv()).await {
+            Ok(Ok(_)) => {}, // Received metrics successfully
+            Ok(Err(e)) => panic!("Should receive valid metrics: {}", e),
+            Err(_) => panic!("Should receive metrics within timeout"),
+        }
     }
 
     #[tokio::test]
@@ -652,8 +656,11 @@ mod tests {
         
         // Give time for alert processing
         tokio::time::sleep(Duration::from_millis(1100)).await;
-        
-        let metrics = dashboard.get_current_metrics().await.unwrap();
+
+        let metrics = match dashboard.get_current_metrics().await {
+            Ok(m) => m,
+            Err(e) => panic!("Failed to get current metrics: {}", e),
+        };
         // Should have triggered an alert since throughput is likely below 1000
         assert!(!metrics.alerts.is_empty() || metrics.current.throughput_ops_sec >= 1000.0);
     }

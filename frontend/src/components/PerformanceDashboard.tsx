@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { AlertTriangle, TrendingUp, TrendingDown, Activity, Cpu, Memory, Zap } from 'lucide-react'
+import { AlertTriangle, TrendingUp, TrendingDown, Activity, Cpu, HardDrive, Zap } from 'lucide-react'
 
 // Performance data types matching backend
 interface PerformanceDataPoint {
@@ -278,7 +278,7 @@ const PerformanceDashboard: React.FC = () => {
             value={metrics.current.memory_mb}
             unit="MB"
             trend={-metrics.optimization_impact.memory_efficiency_gain}
-            icon={<Memory />}
+            icon={<HardDrive />}
             color="#8B5CF6"
           />
           <MetricCard
