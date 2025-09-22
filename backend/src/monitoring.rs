@@ -3,13 +3,13 @@
 //! Provides real-time monitoring, metrics collection, alerting,
 //! and performance tracking for the AI Orchestrator Hub.
 
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tokio::time::interval;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 use crate::agents::{Agent, AgentState};
 use crate::communication::CommunicationManager;
@@ -123,7 +123,7 @@ pub struct MonitoringSystem {
 }
 
 impl MonitoringSystem {
-    #[must_use] 
+    #[must_use]
     pub fn new(
         config: MonitoringConfig,
         swarm_coordinator: Arc<HiveCoordinator>,
@@ -153,22 +153,25 @@ impl MonitoringSystem {
             loop {
                 interval.tick().await;
 
-                if let Ok(metrics) = Self::collect_metrics(
-                    &swarm_coordinator,
-                    &communication_manager,
-                ).await {
+                if let Ok(metrics) =
+                    Self::collect_metrics(&swarm_coordinator, &communication_manager).await
+                {
                     let mut history = metrics_history.write().await;
                     history.push(metrics);
 
                     // Keep only recent metrics
-                    let max_entries = (u64::from(config.retention_days) * 24 * 60 * 60 / config.collection_interval_seconds) as usize;
+                    let max_entries = (u64::from(config.retention_days) * 24 * 60 * 60
+                        / config.collection_interval_seconds)
+                        as usize;
                     if history.len() > max_entries {
                         history.remove(0);
                     }
                 }
 
                 // Check alert rules
-                if let Err(e) = Self::check_alerts(&config.alert_rules, &alerts, &swarm_coordinator).await {
+                if let Err(e) =
+                    Self::check_alerts(&config.alert_rules, &alerts, &swarm_coordinator).await
+                {
                     eprintln!("Error checking alerts: {e}");
                 }
             }
@@ -217,7 +220,8 @@ impl MonitoringSystem {
     }
 
     /// Collect system resource usage
-    async fn collect_system_resources() -> Result<(f64, f64, f64), Box<dyn std::error::Error + Send + Sync>> {
+    async fn collect_system_resources(
+    ) -> Result<(f64, f64, f64), Box<dyn std::error::Error + Send + Sync>> {
         // CPU usage (simplified - in production use a proper system monitoring library)
         let cpu_usage = 45.5; // Placeholder
 
@@ -435,15 +439,21 @@ impl MonitoringSystem {
     ) -> bool {
         match condition {
             "high_error_rate" => {
-                let metrics = Self::collect_swarm_metrics(swarm_coordinator).await.unwrap_or_default();
+                let metrics = Self::collect_swarm_metrics(swarm_coordinator)
+                    .await
+                    .unwrap_or_default();
                 metrics.task_success_rate < 0.95
             }
             "agent_failures" => {
-                let metrics = Self::collect_agent_metrics(swarm_coordinator).await.unwrap_or_default();
+                let metrics = Self::collect_agent_metrics(swarm_coordinator)
+                    .await
+                    .unwrap_or_default();
                 metrics.failed_agents > 0
             }
             "high_latency" => {
-                let metrics = Self::collect_swarm_metrics(swarm_coordinator).await.unwrap_or_default();
+                let metrics = Self::collect_swarm_metrics(swarm_coordinator)
+                    .await
+                    .unwrap_or_default();
                 metrics.average_task_duration > 5000.0 // 5 seconds
             }
             _ => false,
@@ -451,10 +461,15 @@ impl MonitoringSystem {
     }
 
     /// Start Prometheus metrics exporter
-    async fn start_prometheus_exporter(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn start_prometheus_exporter(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // In a real implementation, this would set up a Prometheus HTTP server
         // For now, just log that it would start
-        println!("Starting Prometheus exporter on port {}", self.config.prometheus_port);
+        println!(
+            "Starting Prometheus exporter on port {}",
+            self.config.prometheus_port
+        );
         Ok(())
     }
 
@@ -479,15 +494,14 @@ impl MonitoringSystem {
     /// Get active alerts
     pub async fn get_active_alerts(&self) -> Vec<Alert> {
         let alerts = self.alerts.read().await;
-        alerts
-            .iter()
-            .filter(|a| !a.resolved)
-            .cloned()
-            .collect()
+        alerts.iter().filter(|a| !a.resolved).cloned().collect()
     }
 
     /// Acknowledge alert
-    pub async fn acknowledge_alert(&self, alert_id: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn acknowledge_alert(
+        &self,
+        alert_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut alerts = self.alerts.write().await;
         if let Some(alert) = alerts.iter_mut().find(|a| a.id == alert_id) {
             alert.acknowledged = true;
@@ -498,7 +512,7 @@ impl MonitoringSystem {
     }
 
     /// Get system uptime
-    #[must_use] 
+    #[must_use]
     pub fn get_uptime(&self) -> Duration {
         self.start_time.elapsed()
     }
@@ -509,15 +523,30 @@ impl MonitoringSystem {
 
         if let Some(metrics) = self.get_current_metrics().await {
             report.insert("status".to_string(), serde_json::json!("healthy"));
-            report.insert("cpu_usage".to_string(), serde_json::json!(metrics.cpu_usage));
-            report.insert("memory_usage".to_string(), serde_json::json!(metrics.memory_usage));
-            report.insert("active_agents".to_string(), serde_json::json!(metrics.agent_metrics.active_agents));
-            report.insert("task_success_rate".to_string(), serde_json::json!(metrics.swarm_metrics.task_success_rate));
+            report.insert(
+                "cpu_usage".to_string(),
+                serde_json::json!(metrics.cpu_usage),
+            );
+            report.insert(
+                "memory_usage".to_string(),
+                serde_json::json!(metrics.memory_usage),
+            );
+            report.insert(
+                "active_agents".to_string(),
+                serde_json::json!(metrics.agent_metrics.active_agents),
+            );
+            report.insert(
+                "task_success_rate".to_string(),
+                serde_json::json!(metrics.swarm_metrics.task_success_rate),
+            );
         } else {
             report.insert("status".to_string(), serde_json::json!("unknown"));
         }
 
-        report.insert("uptime_seconds".to_string(), serde_json::json!(self.get_uptime().as_secs()));
+        report.insert(
+            "uptime_seconds".to_string(),
+            serde_json::json!(self.get_uptime().as_secs()),
+        );
         report
     }
 }
@@ -535,7 +564,7 @@ impl Default for AlertManager {
 }
 
 impl AlertManager {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             alerts: Arc::new(RwLock::new(Vec::new())),
@@ -572,7 +601,10 @@ impl AlertManager {
 /// Notification channel trait
 #[async_trait::async_trait]
 pub trait NotificationChannel {
-    async fn send_notification(&self, alert: &Alert) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
+    async fn send_notification(
+        &self,
+        alert: &Alert,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }
 
 /// Slack notification channel
@@ -581,7 +613,7 @@ pub struct SlackChannel {
 }
 
 impl SlackChannel {
-    #[must_use] 
+    #[must_use]
     pub fn new(webhook_url: String) -> Self {
         Self { webhook_url }
     }
@@ -589,7 +621,10 @@ impl SlackChannel {
 
 #[async_trait::async_trait]
 impl NotificationChannel for SlackChannel {
-    async fn send_notification(&self, alert: &Alert) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn send_notification(
+        &self,
+        alert: &Alert,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let payload = serde_json::json!({
             "text": format!("🚨 {}: {}", alert.title, alert.description),
             "attachments": [{
@@ -615,11 +650,7 @@ impl NotificationChannel for SlackChannel {
         });
 
         let client = reqwest::Client::new();
-        let response = client
-            .post(&self.webhook_url)
-            .json(&payload)
-            .send()
-            .await?;
+        let response = client.post(&self.webhook_url).json(&payload).send().await?;
 
         if response.status().is_success() {
             Ok(())
@@ -640,7 +671,7 @@ pub struct EmailChannel {
 }
 
 impl EmailChannel {
-    #[must_use] 
+    #[must_use]
     pub fn new(
         smtp_server: String,
         smtp_port: u16,
@@ -662,7 +693,10 @@ impl EmailChannel {
 
 #[async_trait::async_trait]
 impl NotificationChannel for EmailChannel {
-    async fn send_notification(&self, alert: &Alert) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn send_notification(
+        &self,
+        alert: &Alert,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // In a real implementation, this would use an SMTP library like lettre
         println!("Sending email notification for alert: {}", alert.title);
         Ok(())

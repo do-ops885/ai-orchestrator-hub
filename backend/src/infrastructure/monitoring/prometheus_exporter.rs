@@ -40,7 +40,7 @@ pub enum PrometheusMetricType {
 
 impl PrometheusExporter {
     /// Create a new Prometheus exporter
-    #[must_use] 
+    #[must_use]
     pub fn new(
         production_monitoring: Arc<ProductionMonitoringSystem>,
         metrics_collector: Arc<MetricsCollector>,
@@ -126,7 +126,9 @@ impl PrometheusExporter {
         ));
 
         // Memory usage
-        output.push_str("# HELP ai_orchestrator_memory_usage_percent Current memory usage percentage\n");
+        output.push_str(
+            "# HELP ai_orchestrator_memory_usage_percent Current memory usage percentage\n",
+        );
         output.push_str("# TYPE ai_orchestrator_memory_usage_percent gauge\n");
         output.push_str(&format!(
             "ai_orchestrator_memory_usage_percent{} {}\n",
@@ -134,7 +136,8 @@ impl PrometheusExporter {
         ));
 
         // Memory usage bytes
-        output.push_str("# HELP ai_orchestrator_memory_usage_bytes Current memory usage in bytes\n");
+        output
+            .push_str("# HELP ai_orchestrator_memory_usage_bytes Current memory usage in bytes\n");
         output.push_str("# TYPE ai_orchestrator_memory_usage_bytes gauge\n");
         output.push_str(&format!(
             "ai_orchestrator_memory_usage_bytes{} {}\n",
@@ -157,14 +160,18 @@ impl PrometheusExporter {
         ));
 
         // Disk I/O
-        output.push_str("# HELP ai_orchestrator_disk_reads_per_second Disk read operations per second\n");
+        output.push_str(
+            "# HELP ai_orchestrator_disk_reads_per_second Disk read operations per second\n",
+        );
         output.push_str("# TYPE ai_orchestrator_disk_reads_per_second gauge\n");
         output.push_str(&format!(
             "ai_orchestrator_disk_reads_per_second{} {}\n",
             "", metrics.resource_usage.disk_io.reads_per_second
         ));
 
-        output.push_str("# HELP ai_orchestrator_disk_writes_per_second Disk write operations per second\n");
+        output.push_str(
+            "# HELP ai_orchestrator_disk_writes_per_second Disk write operations per second\n",
+        );
         output.push_str("# TYPE ai_orchestrator_disk_writes_per_second gauge\n");
         output.push_str(&format!(
             "ai_orchestrator_disk_writes_per_second{} {}\n",
@@ -172,7 +179,9 @@ impl PrometheusExporter {
         ));
 
         // Network connections
-        output.push_str("# HELP ai_orchestrator_websocket_connections Active WebSocket connections\n");
+        output.push_str(
+            "# HELP ai_orchestrator_websocket_connections Active WebSocket connections\n",
+        );
         output.push_str("# TYPE ai_orchestrator_websocket_connections gauge\n");
         output.push_str(&format!(
             "ai_orchestrator_websocket_connections{} {}\n",
@@ -217,14 +226,18 @@ impl PrometheusExporter {
         ));
 
         // Agent performance
-        output.push_str("# HELP ai_orchestrator_agent_performance_score Average agent performance score\n");
+        output.push_str(
+            "# HELP ai_orchestrator_agent_performance_score Average agent performance score\n",
+        );
         output.push_str("# TYPE ai_orchestrator_agent_performance_score gauge\n");
         output.push_str(&format!(
             "ai_orchestrator_agent_performance_score{} {}\n",
             "", metrics.agent_metrics.average_agent_performance
         ));
 
-        output.push_str("# HELP ai_orchestrator_agent_utilization_percent Agent utilization percentage\n");
+        output.push_str(
+            "# HELP ai_orchestrator_agent_utilization_percent Agent utilization percentage\n",
+        );
         output.push_str("# TYPE ai_orchestrator_agent_utilization_percent gauge\n");
         output.push_str(&format!(
             "ai_orchestrator_agent_utilization_percent{} {}\n",
@@ -235,7 +248,9 @@ impl PrometheusExporter {
         for (agent_id, agent_metrics) in &metrics.agent_metrics.individual_agent_metrics {
             let labels = format!(r#"{{agent_id="{agent_id}"}}"#);
 
-            output.push_str("# HELP ai_orchestrator_agent_tasks_completed Tasks completed by agent\n");
+            output.push_str(
+                "# HELP ai_orchestrator_agent_tasks_completed Tasks completed by agent\n",
+            );
             output.push_str("# TYPE ai_orchestrator_agent_tasks_completed counter\n");
             output.push_str(&format!(
                 "ai_orchestrator_agent_tasks_completed{} {}\n",
@@ -256,7 +271,9 @@ impl PrometheusExporter {
                 labels, agent_metrics.average_task_duration
             ));
 
-            output.push_str("# HELP ai_orchestrator_agent_learning_progress Agent learning progress\n");
+            output.push_str(
+                "# HELP ai_orchestrator_agent_learning_progress Agent learning progress\n",
+            );
             output.push_str("# TYPE ai_orchestrator_agent_learning_progress gauge\n");
             output.push_str(&format!(
                 "ai_orchestrator_agent_learning_progress{} {}\n",
@@ -354,9 +371,7 @@ impl PrometheusExporter {
 
             output.push_str("# HELP ai_orchestrator_errors_by_type Errors by type\n");
             output.push_str("# TYPE ai_orchestrator_errors_by_type counter\n");
-            output.push_str(&format!(
-                "ai_orchestrator_errors_by_type{labels} {count}\n"
-            ));
+            output.push_str(&format!("ai_orchestrator_errors_by_type{labels} {count}\n"));
         }
 
         output.push('\n');
@@ -386,7 +401,9 @@ impl PrometheusExporter {
             ));
 
             // System uptime
-            output.push_str("# HELP ai_orchestrator_system_uptime_percentage System uptime percentage\n");
+            output.push_str(
+                "# HELP ai_orchestrator_system_uptime_percentage System uptime percentage\n",
+            );
             output.push_str("# TYPE ai_orchestrator_system_uptime_percentage gauge\n");
             output.push_str(&format!(
                 "ai_orchestrator_system_uptime_percentage{} {}\n",
@@ -394,7 +411,9 @@ impl PrometheusExporter {
             ));
 
             // Customer satisfaction
-            output.push_str("# HELP ai_orchestrator_customer_satisfaction_score Customer satisfaction score\n");
+            output.push_str(
+                "# HELP ai_orchestrator_customer_satisfaction_score Customer satisfaction score\n",
+            );
             output.push_str("# TYPE ai_orchestrator_customer_satisfaction_score gauge\n");
             output.push_str(&format!(
                 "ai_orchestrator_customer_satisfaction_score{} {}\n",
@@ -450,7 +469,9 @@ impl PrometheusExporter {
                 "", alert_stats.alerts_last_hour
             ));
 
-            output.push_str("# HELP ai_orchestrator_critical_alerts_24h Critical alerts in the last 24 hours\n");
+            output.push_str(
+                "# HELP ai_orchestrator_critical_alerts_24h Critical alerts in the last 24 hours\n",
+            );
             output.push_str("# TYPE ai_orchestrator_critical_alerts_24h gauge\n");
             output.push_str(&format!(
                 "ai_orchestrator_critical_alerts_24h{} {}\n",
@@ -534,7 +555,7 @@ impl PrometheusExporter {
     }
 
     /// Create a standard custom metric
-    #[must_use] 
+    #[must_use]
     pub fn create_metric(
         name: String,
         help: String,

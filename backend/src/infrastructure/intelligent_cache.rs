@@ -785,7 +785,7 @@ where
     }
 
     /// Start background optimization processes
-    #[must_use] 
+    #[must_use]
     pub fn start_optimization(&self) -> tokio::task::JoinHandle<()> {
         let patterns_clone = Arc::clone(&self.access_patterns);
         let stats_clone = Arc::clone(&self.stats);
@@ -800,7 +800,9 @@ where
                 // Cleanup expired patterns
                 {
                     let mut patterns = patterns_clone.write().await;
-                    let cutoff = Instant::now().checked_sub(Duration::from_secs(3600)).unwrap(); // 1 hour
+                    let cutoff = Instant::now()
+                        .checked_sub(Duration::from_secs(3600))
+                        .expect("replaced unwrap"); // 1 hour
                     patterns.retain(|_, pattern| pattern.last_access > cutoff);
                 }
 
@@ -1236,7 +1238,7 @@ impl Default for CacheWarmer {
 
 impl CacheWarmer {
     /// Create new cache warmer
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             pattern_analyzer: Arc::new(RwLock::new(AccessPatternAnalyzer::new())),
@@ -1394,7 +1396,7 @@ impl Default for AccessPatternAnalyzer {
 
 impl AccessPatternAnalyzer {
     /// Create new access pattern analyzer
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             patterns: HashMap::new(),
@@ -1432,13 +1434,11 @@ impl AccessPatternAnalyzer {
                 return 0.0;
             }
 
-            let time_span = records
-                .last()
-                .map_or(0.0, |r| {
-                    r.timestamp
-                        .duration_since(records[0].timestamp)
-                        .as_secs_f64()
-                });
+            let time_span = records.last().map_or(0.0, |r| {
+                r.timestamp
+                    .duration_since(records[0].timestamp)
+                    .as_secs_f64()
+            });
             if time_span > 0.0 {
                 let frequency = records.len() as f64 / time_span;
                 // Normalize to 0-1 scale (assuming max 1 access per second)
@@ -1489,7 +1489,7 @@ impl AccessPatternAnalyzer {
     }
 
     /// Predict if key will be accessed soon
-    #[must_use] 
+    #[must_use]
     pub fn predict_access(&self, key: &str) -> Option<f64> {
         self.prediction_model
             .get(key)
@@ -1499,7 +1499,7 @@ impl AccessPatternAnalyzer {
 
 impl MultiTierCacheManager {
     /// Create a new multi-tier cache manager with intelligent features
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let l1_config = IntelligentCacheConfig {
             max_size: 1000,
@@ -1564,7 +1564,7 @@ impl MultiTierCacheManager {
     }
 
     /// Start optimization for both tiers
-    #[must_use] 
+    #[must_use]
     pub fn start_optimization(&self) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
         let l1_handle = self.l1_cache.start_optimization();
         let l2_handle = self.l2_cache.start_optimization();
@@ -1612,7 +1612,7 @@ impl Default for QueryInterceptor {
 
 impl QueryInterceptor {
     /// Create new query interceptor
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             total_queries: 0,
@@ -1631,7 +1631,7 @@ impl Default for BatchQueryOptimizer {
 
 impl BatchQueryOptimizer {
     /// Create new batch query optimizer
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             pending_queries: HashMap::new(),
@@ -1642,7 +1642,7 @@ impl BatchQueryOptimizer {
     }
 
     /// Get total number of pending queries
-    #[must_use] 
+    #[must_use]
     pub fn total_pending_queries(&self) -> usize {
         self.pending_queries
             .values()
@@ -1665,7 +1665,7 @@ impl BatchQueryOptimizer {
     }
 
     /// Check if batch should be executed
-    #[must_use] 
+    #[must_use]
     pub fn should_execute_batch(&self) -> bool {
         if let Some(timer) = self.batch_timer {
             tokio::time::Instant::now() >= timer
@@ -1690,7 +1690,7 @@ impl Default for QueryPerformanceAnalyzer {
 
 impl QueryPerformanceAnalyzer {
     /// Create new query performance analyzer
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             execution_times: HashMap::new(),
@@ -1760,13 +1760,13 @@ impl QueryPerformanceAnalyzer {
     }
 
     /// Get optimization suggestions
-    #[must_use] 
+    #[must_use]
     pub fn get_optimization_suggestions(&self) -> &[QueryOptimizationSuggestion] {
         &self.optimization_suggestions
     }
 
     /// Calculate average execution time for a query pattern
-    #[must_use] 
+    #[must_use]
     pub fn get_average_execution_time(&self, query_pattern: &str) -> Option<f64> {
         self.execution_times.get(query_pattern).and_then(|times| {
             if times.is_empty() {
@@ -1835,19 +1835,19 @@ impl QueryInterceptor {
     }
 
     /// Get query performance metrics
-    #[must_use] 
+    #[must_use]
     pub fn get_metrics(&self) -> &QueryMetrics {
         &self.metrics
     }
 
     /// Check if query reduction target is met (25% reduction)
-    #[must_use] 
+    #[must_use]
     pub fn is_target_met(&self) -> bool {
         self.metrics.query_reduction_percentage >= 25.0
     }
 
     /// Generate query performance report
-    #[must_use] 
+    #[must_use]
     pub fn generate_report(&self) -> String {
         format!(
             "Database Query Performance Report\n\
@@ -2304,9 +2304,8 @@ mod tests {
             let cache_manager_clone = cache_manager.clone();
             let query_key_clone = query_key.clone();
 
-            let handle = tokio::spawn(async move {
-                mock_db_query("user", &format!("user{}", i)).await
-            });
+            let handle =
+                tokio::spawn(async move { mock_db_query("user", &format!("user{}", i)).await });
             handles.push(handle);
         }
 

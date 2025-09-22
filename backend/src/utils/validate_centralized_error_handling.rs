@@ -4,7 +4,9 @@
 //! is properly integrated and functioning correctly.
 
 use crate::utils::error::HiveError;
-use crate::utils::error_recovery::{CircuitBreakerConfig, RetryConfig, DegradationStrategy, ErrorHandlerConfig, SafeUnwrap};
+use crate::utils::error_recovery::{
+    CircuitBreakerConfig, DegradationStrategy, ErrorHandlerConfig, RetryConfig, SafeUnwrap,
+};
 
 /// Validate that all error types are properly defined
 pub fn validate_error_types() -> bool {

@@ -3,7 +3,9 @@
 //! Handles the actual execution of tasks with verification, monitoring,
 //! and error recovery capabilities.
 
-use super::task_types::{TaskDistributionConfig, TaskExecutionResult, TaskStatus, TaskPerformanceAnalytics};
+use super::task_types::{
+    TaskDistributionConfig, TaskExecutionResult, TaskPerformanceAnalytics, TaskStatus,
+};
 use crate::agents::agent::{Agent, AgentState};
 use crate::tasks::task::Task;
 use crate::utils::error::{HiveError, HiveResult};
@@ -40,7 +42,7 @@ struct TaskExecution {
 
 impl TaskExecutor {
     /// Create a new task executor with async optimizations
-    #[must_use] 
+    #[must_use]
     pub fn new(config: TaskDistributionConfig) -> Self {
         let config_clone = config.clone();
         // Initialize async optimizer for task operations

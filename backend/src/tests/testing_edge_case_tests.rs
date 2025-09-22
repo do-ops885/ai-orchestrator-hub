@@ -3,6 +3,8 @@
 //! Tests to prevent regression of `unwrap_or()` to `unwrap_or_else`(||) changes
 //! in the testing utilities.
 
+use serde_json::json;
+use crate::utils::testing::{ConsistencyReport, IntegrationTests, LoadTestResults, TestHarness};
 
 /// Test malformed JSON strings in testing utilities
 #[test]
@@ -345,9 +347,9 @@ fn test_json_with_null_values_in_required_fields() {
         .and_then(|v| v.as_object())
     {
         assert_eq!(obj.len(), 3);
-        assert!(obj.get("key1").unwrap().is_null());
-        assert!(!obj.get("key2").unwrap().is_null());
-        assert!(obj.get("key3").unwrap().is_null());
+        assert!(obj.get("key1").expect("replaced unwrap").is_null());
+        assert!(!obj.get("key2").expect("replaced unwrap").is_null());
+        assert!(obj.get("key3").expect("replaced unwrap").is_null());
     }
 }
 

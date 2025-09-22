@@ -3,7 +3,7 @@
 //! Comprehensive metrics tracking for task performance, execution patterns,
 //! and system analytics.
 
-use super::task_types::{TaskMetrics, TaskPerformanceAnalytics, TaskExecutionResult, TaskStatus};
+use super::task_types::{TaskExecutionResult, TaskMetrics, TaskPerformanceAnalytics, TaskStatus};
 use crate::utils::error::HiveResult;
 use chrono::Utc;
 use std::collections::HashMap;
@@ -26,7 +26,7 @@ pub struct TaskMetricsCollector {
 
 impl TaskMetricsCollector {
     /// Create a new task metrics collector
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             task_metrics: Arc::new(RwLock::new(HashMap::new())),

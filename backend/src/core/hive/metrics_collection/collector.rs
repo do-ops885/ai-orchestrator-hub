@@ -5,7 +5,6 @@
 
 use crate::utils::error::HiveResult;
 
-
 use super::types::HiveMetrics;
 use crate::core::hive::coordinator::CoordinationMessage;
 
@@ -241,11 +240,17 @@ impl MetricsCollector {
         metrics.system_metrics.uptime_seconds = self.start_time.elapsed().as_secs();
 
         // Extract and update metrics from the provided data
-        if let Some(cpu_usage) = new_metrics.get("cpu_usage").and_then(serde_json::Value::as_f64) {
+        if let Some(cpu_usage) = new_metrics
+            .get("cpu_usage")
+            .and_then(serde_json::Value::as_f64)
+        {
             metrics.system_metrics.cpu_usage_percent = cpu_usage * 100.0;
         }
 
-        if let Some(memory_usage) = new_metrics.get("memory_usage").and_then(serde_json::Value::as_f64) {
+        if let Some(memory_usage) = new_metrics
+            .get("memory_usage")
+            .and_then(serde_json::Value::as_f64)
+        {
             metrics.system_metrics.total_memory_usage_mb = memory_usage;
         }
 

@@ -92,7 +92,7 @@ pub struct CircuitBreaker {
 
 impl CircuitBreaker {
     /// Create a new circuit breaker with the given configuration
-    #[must_use] 
+    #[must_use]
     pub fn new(config: RecoveryConfig) -> Self {
         Self {
             state: CircuitBreakerState::Closed,
@@ -141,7 +141,7 @@ impl CircuitBreaker {
     }
 
     /// Check if operations are allowed to proceed
-    #[must_use] 
+    #[must_use]
     pub fn allow_operation(&self) -> bool {
         match self.state {
             CircuitBreakerState::Closed => true,
@@ -160,7 +160,7 @@ impl CircuitBreaker {
     }
 
     /// Get the current circuit breaker state
-    #[must_use] 
+    #[must_use]
     pub fn get_state(&self) -> &CircuitBreakerState {
         &self.state
     }
@@ -175,7 +175,7 @@ pub struct SafeOperations {
 
 impl SafeOperations {
     /// Create a new safe operations wrapper
-    #[must_use] 
+    #[must_use]
     pub fn new(config: RecoveryConfig) -> Self {
         let circuit_breaker = Arc::new(RwLock::new(CircuitBreaker::new(config.clone())));
         Self {
@@ -313,7 +313,7 @@ impl SafeOperations {
 
 /// Panic-safe option handling utilities
 pub mod safe_option {
-    use super::{HiveResult, HiveError};
+    use super::{HiveError, HiveResult};
 
     /// Safely extract value from Option with proper error handling
     pub fn expect_or_error<T>(option: Option<T>, error_message: &str) -> HiveResult<T> {
@@ -346,7 +346,7 @@ pub mod safe_option {
 
 /// Panic-safe result handling utilities
 pub mod safe_result {
-    use super::{HiveResult, HiveError};
+    use super::{HiveError, HiveResult};
 
     /// Safely extract value from Result with proper error handling
     pub fn expect_or_error<T>(result: HiveResult<T>, error_message: &str) -> HiveResult<T> {
@@ -373,7 +373,7 @@ pub mod safe_result {
 
 /// JSON value handling utilities
 pub mod safe_json {
-    use super::{HiveResult, HiveError};
+    use super::{HiveError, HiveResult};
     use serde_json::Value;
 
     /// Safely extract string from JSON value
@@ -437,7 +437,7 @@ pub mod safe_json {
     }
 
     /// Safely extract optional string from JSON value
-    #[must_use] 
+    #[must_use]
     pub fn get_optional_string(value: &Value, key: &str) -> Option<String> {
         value
             .get(key)
@@ -446,13 +446,13 @@ pub mod safe_json {
     }
 
     /// Safely extract optional number from JSON value
-    #[must_use] 
+    #[must_use]
     pub fn get_optional_number(value: &Value, key: &str) -> Option<f64> {
         value.get(key).and_then(serde_json::Value::as_f64)
     }
 
     /// Safely extract optional boolean from JSON value
-    #[must_use] 
+    #[must_use]
     pub fn get_optional_boolean(value: &Value, key: &str) -> Option<bool> {
         value.get(key).and_then(serde_json::Value::as_bool)
     }

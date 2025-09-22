@@ -532,8 +532,9 @@ impl HybridNeuralProcessor {
 
     #[cfg(feature = "advanced-neural")]
     fn create_fann_network(&self, config: &FANNConfig) -> HiveResult<Network<f32>> {
-        let mut network = Network::new(&config.layers)
-            .map_err(|e| HiveError::NeuralNetwork(format!("Failed to create FANN network: {}", e)))?;
+        let mut network = Network::new(&config.layers).map_err(|e| {
+            HiveError::NeuralNetwork(format!("Failed to create FANN network: {}", e))
+        })?;
 
         // Set activation function
         let activation = match config.activation.as_str() {
@@ -696,7 +697,11 @@ impl HybridNeuralProcessor {
     }
 
     #[cfg(feature = "advanced-neural")]
-    async fn predict_with_fann(&mut self, agent_id: Uuid, task_description: &str) -> HiveResult<f64> {
+    async fn predict_with_fann(
+        &mut self,
+        agent_id: Uuid,
+        task_description: &str,
+    ) -> HiveResult<f64> {
         if let Some(network) = self.neural_networks.get_mut(&agent_id) {
             let processed = self.nlp_processor.process_text(task_description).await?;
 

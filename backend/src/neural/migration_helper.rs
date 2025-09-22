@@ -99,14 +99,16 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
     }
 
     /// Get number of inputs
-    #[must_use] 
+    #[must_use]
     pub fn num_inputs(&self) -> usize {
         self.inner.layers()[0]
     }
 
     /// Get number of outputs
     pub fn num_outputs(&self) -> usize {
-        if let Some(&output_size) = self.inner.layers().last() { output_size } else {
+        if let Some(&output_size) = self.inner.layers().last() {
+            output_size
+        } else {
             tracing::warn!("Network layers is empty, returning 0 for num_outputs");
             0
         }
@@ -156,10 +158,10 @@ pub fn create_optimized_network_from_fann(config: &FANNConfig) -> HiveResult<Fas
 
 /// Migration utility functions
 pub mod migration_utils {
-    use super::{FastNeuralConfig, HiveResult, FastNeuralNetwork, HiveError};
+    use super::{FastNeuralConfig, FastNeuralNetwork, HiveError, HiveResult};
 
     /// Convert ruv-fann style layer configuration to optimized config
-    #[must_use] 
+    #[must_use]
     pub fn convert_layer_config(layers: &[usize], specialization: &str) -> FastNeuralConfig {
         FastNeuralConfig {
             layers: layers.to_vec(),
@@ -178,7 +180,7 @@ pub mod migration_utils {
     }
 
     /// Performance comparison utility
-    #[must_use] 
+    #[must_use]
     pub fn benchmark_migration_performance() -> serde_json::Value {
         serde_json::json!({
             "migration_status": "completed",

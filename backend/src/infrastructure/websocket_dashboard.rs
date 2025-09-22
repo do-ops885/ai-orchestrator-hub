@@ -69,13 +69,10 @@ pub struct WebSocketDashboardServer {
 
 impl WebSocketDashboardServer {
     /// Create a new WebSocket dashboard server
-    #[must_use] 
-    pub fn new(
-        dashboard: Arc<PerformanceDashboard>,
-        config: WebSocketDashboardConfig,
-    ) -> Self {
+    #[must_use]
+    pub fn new(dashboard: Arc<PerformanceDashboard>, config: WebSocketDashboardConfig) -> Self {
         let metrics_receiver = dashboard.subscribe();
-        
+
         let state = WebSocketDashboardState {
             dashboard,
             clients: Arc::new(RwLock::new(HashMap::new())),
@@ -91,14 +88,17 @@ impl WebSocketDashboardServer {
     /// Start the WebSocket server
     pub async fn start(mut self) -> HiveResult<()> {
         let app = self.create_router();
-        
+
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", self.state.config.port))
             .await
             .map_err(|e| HiveError::OperationFailed {
                 reason: format!("Failed to bind WebSocket server: {e}"),
             })?;
 
-        tracing::info!("WebSocket dashboard server started on port {}", self.state.config.port);
+        tracing::info!(
+            "WebSocket dashboard server started on port {}",
+            self.state.config.port
+        );
 
         // Start background tasks
         self.start_metrics_broadcaster().await;
@@ -136,7 +136,7 @@ impl WebSocketDashboardServer {
         tokio::spawn(async move {
             while let Ok(metrics) = receiver.recv().await {
                 let clients_guard = clients.read().await;
-                
+
                 if !clients_guard.is_empty() {
                     let _message = match serde_json::to_string(&metrics) {
                         Ok(json) => json,
@@ -160,23 +160,21 @@ impl WebSocketDashboardServer {
         let heartbeat_interval = self.state.config.heartbeat_interval_secs;
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(
-                std::time::Duration::from_secs(heartbeat_interval)
-            );
+            let mut interval =
+                tokio::time::interval(std::time::Duration::from_secs(heartbeat_interval));
 
             loop {
                 interval.tick().await;
-                
+
                 let mut clients_guard = clients.write().await;
                 let now = std::time::Instant::now();
-                
+
                 // Remove clients that haven't responded to ping in 2x heartbeat interval
                 let timeout_threshold = std::time::Duration::from_secs(heartbeat_interval * 2);
-                
-                clients_guard.retain(|_id, client| {
-                    now.duration_since(client.last_ping) < timeout_threshold
-                });
-                
+
+                clients_guard
+                    .retain(|_id, client| now.duration_since(client.last_ping) < timeout_threshold);
+
                 tracing::debug!("Active WebSocket clients: {}", clients_guard.len());
             }
         });
@@ -230,12 +228,14 @@ async fn handle_client_connection(
 ) -> HiveResult<()> {
     // Send initial metrics
     let initial_metrics = state.dashboard.get_current_metrics().await?;
-    let initial_message = serde_json::to_string(&initial_metrics)
-        .map_err(|e| HiveError::OperationFailed {
+    let initial_message =
+        serde_json::to_string(&initial_metrics).map_err(|e| HiveError::OperationFailed {
             reason: format!("Failed to serialize initial metrics: {e}"),
         })?;
-    
-    socket.send(Message::Text(initial_message)).await
+
+    socket
+        .send(Message::Text(initial_message))
+        .await
         .map_err(|e| HiveError::OperationFailed {
             reason: format!("Failed to send initial metrics: {e}"),
         })?;
@@ -259,7 +259,7 @@ async fn handle_client_connection(
                             .map_err(|e| HiveError::OperationFailed {
                                 reason: format!("Failed to send pong: {e}"),
                             })?;
-                        
+
                         // Update last ping time
                         if let Some(client) = state.clients.write().await.get_mut(&client_id) {
                             client.last_ping = std::time::Instant::now();
@@ -280,7 +280,7 @@ async fn handle_client_connection(
                     _ => {} // Ignore other message types
                 }
             }
-            
+
             // Forward metrics updates to client
             metrics = metrics_receiver.recv() => {
                 if let Ok(metrics_data) = metrics {
@@ -288,7 +288,7 @@ async fn handle_client_connection(
                         .map_err(|e| HiveError::OperationFailed {
                             reason: format!("Failed to serialize metrics: {e}"),
                         })?;
-                    
+
                     if let Err(e) = socket.send(Message::Text(message)).await {
                         tracing::error!("Failed to send metrics to client {}: {}", client_id, e);
                         break;
@@ -316,8 +316,8 @@ async fn handle_client_message(
         data: Option<serde_json::Value>,
     }
 
-    let client_msg: ClientMessage = serde_json::from_str(message)
-        .map_err(|e| HiveError::OperationFailed {
+    let client_msg: ClientMessage =
+        serde_json::from_str(message).map_err(|e| HiveError::OperationFailed {
             reason: format!("Invalid client message format: {e}"),
         })?;
 
@@ -343,7 +343,11 @@ async fn handle_client_message(
             }
         }
         _ => {
-            tracing::warn!("Unknown action from client {}: {}", client_id, client_msg.action);
+            tracing::warn!(
+                "Unknown action from client {}: {}",
+                client_id,
+                client_msg.action
+            );
         }
     }
 
@@ -366,9 +370,12 @@ pub struct DashboardConnectionInfo {
 
 impl WebSocketDashboardState {
     /// Get connection information
-    pub async fn get_connection_info(&self, start_time: std::time::Instant) -> DashboardConnectionInfo {
+    pub async fn get_connection_info(
+        &self,
+        start_time: std::time::Instant,
+    ) -> DashboardConnectionInfo {
         let clients = self.clients.read().await;
-        
+
         DashboardConnectionInfo {
             total_connections: clients.len(),
             active_connections: clients.len(), // Simplified - all connected clients are active
@@ -388,21 +395,21 @@ mod tests {
         let dashboard_config = DashboardConfig::default();
         let dashboard = Arc::new(PerformanceDashboard::new(dashboard_config));
         let ws_config = WebSocketDashboardConfig::default();
-        
+
         let _server = WebSocketDashboardServer::new(dashboard, ws_config);
         // Server creation should not panic
     }
 
-    #[tokio::test] 
+    #[tokio::test]
     async fn test_client_message_parsing() {
         let message = r#"{"action": "acknowledge_alert", "data": {"alert_id": "12345"}}"#;
-        
+
         #[derive(serde::Deserialize)]
         struct ClientMessage {
             action: String,
             data: Option<serde_json::Value>,
         }
-        
+
         let parsed: ClientMessage = match serde_json::from_str(message) {
             Ok(p) => p,
             Err(e) => panic!("Failed to parse test message: {}", e),

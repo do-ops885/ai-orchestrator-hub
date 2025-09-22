@@ -152,7 +152,7 @@ pub struct CachePerformanceMonitor {
 
 impl CachePerformanceMonitor {
     /// Create a new cache performance monitor
-    #[must_use] 
+    #[must_use]
     pub fn new(
         cache_managers: Vec<Arc<CachedQueryManager>>,
         invalidation_managers: Vec<Arc<CacheInvalidationManager>>,
@@ -207,7 +207,7 @@ impl CachePerformanceMonitor {
     }
 
     /// Get cache managers (for testing)
-    #[must_use] 
+    #[must_use]
     pub fn cache_managers(&self) -> &Vec<Arc<CachedQueryManager>> {
         &self.cache_managers
     }
@@ -434,7 +434,7 @@ impl CachePerformanceMonitor {
     }
 
     /// Start background monitoring
-    #[must_use] 
+    #[must_use]
     pub fn start_monitoring(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let mut metrics_interval = tokio::time::interval(self.config.collection_interval);
@@ -583,7 +583,7 @@ impl CachePerformanceMonitor {
                     pattern_prediction_accuracy: 0.0,
                     burst_detection_rate: 0.0,
                 },
-            db_load_reduction: MonitoringDatabaseLoadReductionMetrics {
+                db_load_reduction: MonitoringDatabaseLoadReductionMetrics {
                     deduplication_savings: 0.0,
                     batch_processing_savings: 0.0,
                     total_load_reduction: 0.0,

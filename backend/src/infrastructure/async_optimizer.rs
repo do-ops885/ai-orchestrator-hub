@@ -83,14 +83,14 @@ impl<T> AsyncOperation<T> {
     }
 
     /// Set operation priority
-    #[must_use] 
+    #[must_use]
     pub fn with_priority(mut self, priority: OperationPriority) -> Self {
         self.priority = priority;
         self
     }
 
     /// Set operation timeout
-    #[must_use] 
+    #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
@@ -117,7 +117,7 @@ where
     T: Send + 'static,
 {
     /// Create a new batch processor
-    #[must_use] 
+    #[must_use]
     pub fn new(config: AsyncOptimizerConfig) -> Self {
         Self {
             pending_operations: Arc::new(Mutex::new(VecDeque::new())),
@@ -248,7 +248,7 @@ pub struct OptimizerMetrics {
 
 impl AsyncOptimizer {
     /// Create a new async optimizer
-    #[must_use] 
+    #[must_use]
     pub fn new(config: AsyncOptimizerConfig) -> Self {
         let semaphore = Arc::new(Semaphore::new(config.max_concurrent_ops));
 
@@ -343,7 +343,7 @@ impl AsyncOptimizer {
     }
 
     /// Start background metrics collection
-    #[must_use] 
+    #[must_use]
     pub fn start_metrics_collection(&self) -> tokio::task::JoinHandle<()> {
         let metrics = Arc::clone(&self.metrics);
         let interval_duration = self.config.metrics_interval;
@@ -390,7 +390,7 @@ pub struct ConnectionMetrics {
 
 impl ConnectionPoolOptimizer {
     /// Create a new connection pool optimizer
-    #[must_use] 
+    #[must_use]
     pub fn new(pool_size: usize) -> Self {
         Self {
             pool_size,

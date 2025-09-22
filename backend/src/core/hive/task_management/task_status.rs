@@ -22,7 +22,7 @@ pub struct TaskStatusReporter {
 
 impl TaskStatusReporter {
     /// Create a new status reporter
-    #[must_use] 
+    #[must_use]
     pub fn new(
         queue_manager: TaskQueueManager,
         executor: TaskExecutor,

@@ -4,9 +4,8 @@
 //! and improve performance while maintaining data consistency.
 
 use crate::infrastructure::intelligent_cache::{
-    BatchQueryOptimizer, BatchQueryRequest, IntelligentCacheConfig,
-    MultiTierCacheManager, OptimizationType, QueryExecution, QueryOptimizationSuggestion,
-    QueryPerformanceAnalyzer,
+    BatchQueryOptimizer, BatchQueryRequest, IntelligentCacheConfig, MultiTierCacheManager,
+    OptimizationType, QueryExecution, QueryOptimizationSuggestion, QueryPerformanceAnalyzer,
 };
 use crate::utils::error::{HiveError, HiveResult};
 use serde::{Deserialize, Serialize};
@@ -158,7 +157,7 @@ pub struct CachedQueryStats {
 
 impl CachedQueryManager {
     /// Create a new cached query manager
-    #[must_use] 
+    #[must_use]
     pub fn new(config: CachedQueryConfig) -> Self {
         let _cache_config = IntelligentCacheConfig {
             base_ttl: config.default_ttl,

@@ -93,7 +93,7 @@ impl Default for DependencyGraph {
 }
 
 impl DependencyGraph {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             forward_deps: HashMap::new(),
@@ -110,10 +110,7 @@ impl DependencyGraph {
             .insert(depends_on.clone());
 
         // Reverse: depends_on is depended on by key
-        self.reverse_deps
-            .entry(depends_on)
-            .or_default()
-            .insert(key);
+        self.reverse_deps.entry(depends_on).or_default().insert(key);
     }
 
     /// Remove a dependency relationship
@@ -127,13 +124,13 @@ impl DependencyGraph {
     }
 
     /// Get all keys that depend on the given key
-    #[must_use] 
+    #[must_use]
     pub fn get_dependents(&self, key: &CacheKey) -> HashSet<CacheKey> {
         self.reverse_deps.get(key).cloned().unwrap_or_default()
     }
 
     /// Get all keys that the given key depends on
-    #[must_use] 
+    #[must_use]
     pub fn get_dependencies(&self, key: &CacheKey) -> HashSet<CacheKey> {
         self.forward_deps.get(key).cloned().unwrap_or_default()
     }
@@ -232,7 +229,7 @@ pub struct InvalidationStats {
 
 impl CacheInvalidationManager {
     /// Create a new invalidation manager
-    #[must_use] 
+    #[must_use]
     pub fn new(cache_manager: Arc<CachedQueryManager>, strategy: InvalidationStrategy) -> Self {
         Self {
             cache_manager,
@@ -400,7 +397,11 @@ impl CacheInvalidationManager {
 
         for key in all_keys {
             let age = if let Some(last_invalidation) = state.age_distribution.get(&key) {
-                now.duration_since(Instant::now().checked_sub(*last_invalidation).unwrap())
+                now.duration_since(
+                    Instant::now()
+                        .checked_sub(*last_invalidation)
+                        .expect("replaced unwrap"),
+                )
             } else {
                 Duration::from_secs(0)
             };
@@ -699,7 +700,7 @@ pub struct AgentCacheInvalidationManager {
 }
 
 impl AgentCacheInvalidationManager {
-    #[must_use] 
+    #[must_use]
     pub fn new(base_manager: Arc<CacheInvalidationManager>) -> Self {
         Self { base_manager }
     }
@@ -759,7 +760,7 @@ pub struct TaskCacheInvalidationManager {
 }
 
 impl TaskCacheInvalidationManager {
-    #[must_use] 
+    #[must_use]
     pub fn new(base_manager: Arc<CacheInvalidationManager>) -> Self {
         Self { base_manager }
     }

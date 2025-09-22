@@ -72,7 +72,7 @@ pub struct DataChunk {
 
 impl DataChunk {
     /// Create a new data chunk
-    #[must_use] 
+    #[must_use]
     pub fn new(sequence: u64, data: Vec<u8>) -> Self {
         Self {
             id: uuid::Uuid::new_v4(),
@@ -85,14 +85,14 @@ impl DataChunk {
     }
 
     /// Add metadata to the chunk
-    #[must_use] 
+    #[must_use]
     pub fn with_metadata(mut self, key: String, value: String) -> Self {
         self.metadata.insert(key, value);
         self
     }
 
     /// Calculate and set checksum
-    #[must_use] 
+    #[must_use]
     pub fn with_checksum(mut self) -> Self {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
@@ -102,7 +102,7 @@ impl DataChunk {
     }
 
     /// Verify checksum
-    #[must_use] 
+    #[must_use]
     pub fn verify_checksum(&self) -> bool {
         if let Some(expected) = &self.checksum {
             use sha2::{Digest, Sha256};
@@ -168,7 +168,7 @@ pub struct DataChunkCodec {
 }
 
 impl DataChunkCodec {
-    #[must_use] 
+    #[must_use]
     pub fn new(max_chunk_size: usize) -> Self {
         Self { max_chunk_size }
     }
@@ -247,7 +247,7 @@ pub struct StreamProcessor {
 
 impl StreamProcessor {
     /// Create a new stream processor
-    #[must_use] 
+    #[must_use]
     pub fn new(config: StreamConfig) -> Self {
         let memory_pool = if config.enable_memory_pool {
             Some(Arc::new(MemoryPool::new(
@@ -540,7 +540,7 @@ pub struct NeuralDataStream {
 
 impl NeuralDataStream {
     /// Create a new neural data stream
-    #[must_use] 
+    #[must_use]
     pub fn new(config: StreamConfig) -> Self {
         Self {
             processor: StreamProcessor::new(config.clone()),
@@ -714,7 +714,7 @@ pub struct MemoryMonitor {
 
 impl MemoryMonitor {
     /// Create a new memory monitor
-    #[must_use] 
+    #[must_use]
     pub fn new(memory_reduction_target: f64) -> Self {
         Self {
             peak_memory_usage: Arc::new(RwLock::new(0)),
@@ -882,7 +882,7 @@ pub struct MemoryPool {
 
 impl MemoryPool {
     /// Create a new memory pool
-    #[must_use] 
+    #[must_use]
     pub fn new(max_pool_size: usize, chunk_size: usize) -> Self {
         Self {
             pool: Arc::new(RwLock::new(Vec::with_capacity(max_pool_size))),
@@ -933,7 +933,7 @@ pub struct ParallelConfig {
 }
 
 impl ParallelConfig {
-    #[must_use] 
+    #[must_use]
     pub fn new(workers: usize) -> Self {
         Self {
             workers,
@@ -951,7 +951,7 @@ impl Default for StreamingPerformanceMonitor {
 
 impl StreamingPerformanceMonitor {
     /// Create new performance monitor
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             start_time: std::time::Instant::now(),
@@ -1303,13 +1303,13 @@ where
     }
 
     /// Get current memory usage
-    #[must_use] 
+    #[must_use]
     pub fn memory_usage(&self) -> usize {
         self.memory_usage
     }
 
     /// Get memory efficiency percentage
-    #[must_use] 
+    #[must_use]
     pub fn memory_efficiency(&self) -> f64 {
         if self.chunk_size == 0 {
             return 100.0;
@@ -1322,7 +1322,7 @@ where
 
 impl<T> MemoryEfficientIterator<T> {
     /// Create a new memory-efficient iterator
-    #[must_use] 
+    #[must_use]
     pub fn new(data: Vec<T>, chunk_size: usize) -> Self {
         Self {
             data,
@@ -1333,7 +1333,7 @@ impl<T> MemoryEfficientIterator<T> {
     }
 
     /// Create iterator with performance monitoring
-    #[must_use] 
+    #[must_use]
     pub fn new_with_monitor(
         data: Vec<T>,
         chunk_size: usize,

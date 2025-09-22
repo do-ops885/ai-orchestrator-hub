@@ -12,7 +12,9 @@ pub mod mcp;
 pub mod mcp_batch;
 pub mod mcp_cache;
 pub mod mcp_cached_tools;
+pub mod mcp_composition;
 pub mod mcp_http;
+pub mod mcp_plugins;
 pub mod mcp_streaming;
 pub mod mcp_tool_registry;
 pub mod mcp_unified_error;
@@ -77,7 +79,7 @@ impl Default for CommunicationManager {
 
 impl CommunicationManager {
     /// Create a new communication manager
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
         Self {

@@ -7,10 +7,12 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn, Level};
 
+use crate::communication::mcp::HiveMCPServer;
 use crate::infrastructure::performance_optimizer::PerformanceConfig;
 use crate::infrastructure::persistence::PersistenceConfig;
 use crate::infrastructure::{IntelligentAlertConfig, StorageBackend};
 use crate::neural::AdaptiveLearningConfig;
+use crate::utils::auth::AuthManager;
 use crate::utils::config::HiveConfig;
 use crate::utils::error::{HiveError, HiveResult};
 use crate::utils::security::SecurityConfig;
@@ -20,8 +22,6 @@ use crate::{
     CircuitBreaker, IntelligentAlertingSystem, MetricsCollector, PerformanceOptimizer,
     PersistenceManager, RateLimiter, SecurityAuditor, SwarmIntelligenceEngine,
 };
-use crate::communication::mcp::HiveMCPServer;
-use crate::utils::auth::AuthManager;
 
 use chrono::Utc;
 
@@ -86,7 +86,8 @@ pub async fn initialize_system() -> HiveResult<AppState> {
 
     // Create shared MCP server instance
     let mcp_server = Arc::new(HiveMCPServer::new(Arc::clone(&hive)));
-    info!("✅ MCP server initialized with shared hive instance");
+    mcp_server.register_default_tools().await;
+    info!("✅ MCP server initialized with shared hive instance and default tools registered");
 
     // Log security event for system startup
     StructuredLogger::log_security_event(
@@ -194,7 +195,7 @@ async fn initialize_alerting(
 /// Initialize circuit breaker for resilience
 fn initialize_circuit_breaker() -> Arc<CircuitBreaker> {
     let circuit_breaker = Arc::new(CircuitBreaker::new(
-        5,                             // failure threshold
+        5,                                  // failure threshold
         std::time::Duration::from_secs(30), // recovery timeout
     ));
     info!("✅ Circuit breaker initialized (threshold: 5, timeout: 30s)");
@@ -248,21 +249,13 @@ async fn initialize_persistence(_config: &HiveConfig) -> HiveResult<Arc<Persiste
     // Create data directory if it doesn't exist (async to avoid blocking)
     if let Err(e) = tokio::task::spawn_blocking(|| std::fs::create_dir_all("./data"))
         .await
-        .unwrap_or_else(|_| {
-            Err(std::io::Error::other(
-                "spawn_blocking failed",
-            ))
-        })
+        .unwrap_or_else(|_| Err(std::io::Error::other("spawn_blocking failed")))
     {
         warn!("Failed to create data directory: {}", e);
     }
     if let Err(e) = tokio::task::spawn_blocking(|| std::fs::create_dir_all("./data/backups"))
         .await
-        .unwrap_or_else(|_| {
-            Err(std::io::Error::other(
-                "spawn_blocking failed",
-            ))
-        })
+        .unwrap_or_else(|_| Err(std::io::Error::other("spawn_blocking failed")))
     {
         warn!("Failed to create backup directory: {}", e);
     }
@@ -339,8 +332,8 @@ async fn initialize_auth_manager() -> HiveResult<Arc<AuthManager>> {
     let security_auditor = initialize_security_auditor();
     let auth_manager = Arc::new(AuthManager::new(
         "your-secret-key-here-change-in-production", // JWT secret - should be from config
-        "hive-system".to_string(), // issuer
-        "hive-api".to_string(),     // audience
+        "hive-system".to_string(),                   // issuer
+        "hive-api".to_string(),                      // audience
         security_auditor,
     ));
     info!("🔐 Authentication manager initialized with JWT support");

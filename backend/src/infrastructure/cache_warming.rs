@@ -175,7 +175,7 @@ pub struct WarmingStats {
 
 impl CacheWarmingEngine {
     /// Create a new cache warming engine
-    #[must_use] 
+    #[must_use]
     pub fn new(cache_manager: Arc<CachedQueryManager>, config: WarmingConfig) -> Self {
         Self {
             cache_manager,
@@ -257,7 +257,8 @@ impl CacheWarmingEngine {
             let candidates = self.warming_candidates.read().await;
             candidates
                 .iter()
-                .take(self.config.max_warming_batch).cloned()
+                .take(self.config.max_warming_batch)
+                .cloned()
                 .collect::<Vec<_>>()
         };
 
@@ -591,8 +592,6 @@ impl CacheWarmingEngine {
         let base_report = self.generate_report().await;
         let startup_data = self.startup_warming_data.read().await;
 
-        
-
         if let serde_json::Value::Object(mut obj) = base_report {
             obj.insert("startup_warming".to_string(), serde_json::json!({
                 "last_startup_warming": startup_data.last_startup_warming.map(|dt| dt.to_rfc3339()),
@@ -738,13 +737,13 @@ pub struct WarmingService {
 }
 
 impl WarmingService {
-    #[must_use] 
+    #[must_use]
     pub fn new(engine: Arc<CacheWarmingEngine>, config: WarmingConfig) -> Self {
         Self { engine, config }
     }
 
     /// Start background warming and prefetching
-    #[must_use] 
+    #[must_use]
     pub fn start_service(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let mut warming_interval = tokio::time::interval(self.config.warming_interval);
@@ -770,7 +769,7 @@ impl WarmingService {
 
 /// Cache warming strategy implementations
 pub mod strategies {
-    use super::{Arc, CacheWarmingEngine, HiveResult, CacheKey, Duration};
+    use super::{Arc, CacheKey, CacheWarmingEngine, Duration, HiveResult};
 
     /// Historical pattern warming strategy
     pub struct HistoricalPatternStrategy {
@@ -778,7 +777,7 @@ pub mod strategies {
     }
 
     impl HistoricalPatternStrategy {
-        #[must_use] 
+        #[must_use]
         pub fn new(engine: Arc<CacheWarmingEngine>) -> Self {
             Self { engine }
         }
@@ -813,7 +812,7 @@ pub mod strategies {
     }
 
     impl PredictiveStrategy {
-        #[must_use] 
+        #[must_use]
         pub fn new(engine: Arc<CacheWarmingEngine>) -> Self {
             Self { engine }
         }

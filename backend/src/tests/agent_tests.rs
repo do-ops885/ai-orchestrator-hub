@@ -9,9 +9,7 @@ mod tests {
     use crate::agents::agent::AgentBehavior;
     use crate::agents::{Agent, AgentState, AgentType, Experience};
     use crate::communication::patterns::{DeliveryGuarantee, MessagePriority};
-    use crate::communication::protocols::{
-        MessageEnvelope, MessagePayload, MessageType,
-    };
+    use crate::communication::protocols::{MessageEnvelope, MessagePayload, MessageType};
     use crate::neural::NLPProcessor;
     use crate::tasks::TaskPriority;
     use crate::tests::test_utils::{
@@ -160,7 +158,7 @@ mod tests {
                 .memory
                 .social_connections
                 .get(&other_agent_id)
-                .unwrap(),
+                .expect("replaced unwrap"),
             0.6, // 0.5 + 0.1
             0.001,
         );
@@ -172,7 +170,7 @@ mod tests {
                 .memory
                 .social_connections
                 .get(&other_agent_id)
-                .unwrap(),
+                .expect("replaced unwrap"),
             0.5, // 0.6 - 0.1
             0.001,
         );
@@ -279,7 +277,7 @@ mod tests {
         let result = agent.execute_task(task).await;
         assert!(result.is_ok());
 
-        let task_result = result.unwrap();
+        let task_result = result.expect("replaced unwrap");
         assert_eq!(task_result.task_id, task_id);
         assert_eq!(task_result.agent_id, agent.id);
         assert!(task_result.execution_time > 0);
@@ -313,7 +311,7 @@ mod tests {
         };
         let response = agent.communicate(envelope).await;
         assert!(response.is_ok());
-        let response_envelope = response.unwrap();
+        let response_envelope = response.expect("replaced unwrap");
         assert!(response_envelope.is_some());
         if let Some(ref env) = response_envelope {
             if let MessagePayload::Text(ref text) = env.payload {
@@ -340,7 +338,7 @@ mod tests {
         };
         let broadcast_response = agent.communicate(broadcast_envelope).await;
         assert!(broadcast_response.is_ok());
-        let broadcast_envelope_response = broadcast_response.unwrap();
+        let broadcast_envelope_response = broadcast_response.expect("replaced unwrap");
         if let Some(env) = broadcast_envelope_response {
             if let MessagePayload::Text(text) = &env.payload {
                 assert!(text.contains("TestAgent"));
@@ -367,7 +365,7 @@ mod tests {
         };
         agent.learn_from_experience(experience);
 
-        let nlp_processor = NLPProcessor::new().await.unwrap();
+        let nlp_processor = NLPProcessor::new().await.expect("replaced unwrap");
         let result = agent.learn(&nlp_processor).await;
         assert!(result.is_ok());
 
@@ -446,11 +444,11 @@ mod tests {
         assert!(serialized.is_ok());
 
         // Test deserialization from JSON
-        let json_str = serialized.unwrap();
+        let json_str = serialized.expect("replaced unwrap");
         let deserialized: Result<Agent, _> = serde_json::from_str(&json_str);
         assert!(deserialized.is_ok());
 
-        let restored_agent = deserialized.unwrap();
+        let restored_agent = deserialized.expect("replaced unwrap");
         assert_eq!(restored_agent.name, agent.name);
         assert_eq!(restored_agent.id, agent.id);
         // Note: AgentType doesn't implement PartialEq, so we can't directly compare

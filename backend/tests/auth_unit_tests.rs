@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use multiagent_hive::auth::{AuthManager, AuthError, User, UserRole, Claims};
+use multiagent_hive::auth::{AuthError, AuthManager, Claims, User, UserRole};
 use multiagent_hive::persistence::{PersistenceManager, SQLiteStorage};
 
 mod test_utils;
@@ -24,7 +24,7 @@ impl AuthTestFixture {
     async fn new() -> Self {
         let (temp_dir, db_path) = db_utils::temp_db_path();
         let storage = Arc::new(RwLock::new(
-            SQLiteStorage::new(&db_path).expect("Failed to create test storage")
+            SQLiteStorage::new(&db_path).expect("Failed to create test storage"),
         ));
 
         let persistence = PersistenceManager::new(storage.clone(), None)
@@ -184,10 +184,7 @@ mod auth_tests {
             .await
             .expect("Should generate expired token for testing");
 
-        let result = fixture
-            .auth_manager
-            .validate_token(&expired_token)
-            .await;
+        let result = fixture.auth_manager.validate_token(&expired_token).await;
 
         assert!(matches!(result, Err(AuthError::TokenExpired)));
     }
@@ -258,10 +255,25 @@ mod auth_tests {
             .await;
 
         // Test role checks
-        assert!(fixture.auth_manager.check_role(&admin_user, UserRole::Admin).await);
-        assert!(fixture.auth_manager.check_role(&admin_user, UserRole::User).await); // Admin has user permissions
+        assert!(
+            fixture
+                .auth_manager
+                .check_role(&admin_user, UserRole::Admin)
+                .await
+        );
+        assert!(
+            fixture
+                .auth_manager
+                .check_role(&admin_user, UserRole::User)
+                .await
+        ); // Admin has user permissions
         assert!(fixture.auth_manager.check_role(&user, UserRole::User).await);
-        assert!(!fixture.auth_manager.check_role(&user, UserRole::Admin).await);
+        assert!(
+            !fixture
+                .auth_manager
+                .check_role(&user, UserRole::Admin)
+                .await
+        );
     }
 
     #[tokio::test]
@@ -270,11 +282,11 @@ mod auth_tests {
 
         // Test various password requirements
         let weak_passwords = vec![
-            "",           // Empty
-            "1",          // Too short
-            "12345678",   // Only numbers
-            "password",   // Too common
-            "Password",   // Missing special chars/numbers
+            "",         // Empty
+            "1",        // Too short
+            "12345678", // Only numbers
+            "password", // Too common
+            "Password", // Missing special chars/numbers
         ];
 
         for password in weak_passwords {
@@ -368,7 +380,10 @@ mod auth_tests {
         // Test various error conditions and their messages
         let errors = vec![
             (
-                fixture.auth_manager.login_user("nonexistent", "password").await,
+                fixture
+                    .auth_manager
+                    .login_user("nonexistent", "password")
+                    .await,
                 "UserNotFound",
             ),
             (

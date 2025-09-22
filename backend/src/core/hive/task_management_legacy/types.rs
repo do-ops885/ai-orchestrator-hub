@@ -87,8 +87,7 @@ pub struct TaskMetrics {
 ///
 /// Represents the current state of a task as it moves through
 /// the execution pipeline from creation to completion.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum TaskStatus {
     /// Task has been created but not yet assigned
     #[default]
@@ -104,4 +103,3 @@ pub enum TaskStatus {
     /// Task has been cancelled
     Cancelled,
 }
-

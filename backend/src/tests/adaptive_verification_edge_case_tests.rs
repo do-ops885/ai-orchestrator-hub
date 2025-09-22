@@ -3,6 +3,16 @@
 //! Tests to prevent regression of `unwrap_or()` to `unwrap_or_else`(||) changes
 //! in the adaptive verification system.
 
+use crate::agents::adaptive_verification::{
+    AccuracyMetrics, AdaptationConfig, AdaptationInsights, EfficiencyMetrics, PerformanceTracker,
+    ThresholdEntry, ThresholdHistory, ThresholdRecommendation, VerificationOutcome,
+};
+use crate::agents::simple_verification::SimpleVerificationResult;
+use crate::agents::{SimpleVerificationStatus, VerificationTier};
+use chrono::{DateTime, Utc};
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+use uuid::Uuid;
 
 /// Test invalid constructor parameters
 #[test]
@@ -11,9 +21,9 @@ fn test_invalid_constructor_parameters() {
     let invalid_config = AdaptationConfig {
         learning_rate: -0.1,
         min_samples_for_adaptation: 0, // Can't be negative, use 0 instead
-        adaptation_window_hours: 0,     // Can't be negative, use 0 instead
+        adaptation_window_hours: 0,    // Can't be negative, use 0 instead
         confidence_threshold_range: (-0.5, 1.5), // Invalid range
-        rule_threshold_range: (-0.3, 1.2),       // Invalid range
+        rule_threshold_range: (-0.3, 1.2), // Invalid range
         adaptation_frequency_hours: 0, // Can't be negative, use 0 instead
         performance_weight_success: -0.4,
         performance_weight_efficiency: -0.3,
@@ -23,7 +33,7 @@ fn test_invalid_constructor_parameters() {
     // The config itself should be creatable, but validation should catch issues
     assert!(invalid_config.learning_rate < 0.0);
     assert_eq!(invalid_config.min_samples_for_adaptation, 0); // Changed from negative
-    assert_eq!(invalid_config.adaptation_window_hours, 0);     // Changed from negative
+    assert_eq!(invalid_config.adaptation_window_hours, 0); // Changed from negative
     assert!(invalid_config.confidence_threshold_range.0 < 0.0);
     assert!(invalid_config.confidence_threshold_range.1 > 1.0);
     assert!(invalid_config.rule_threshold_range.0 < 0.0);
@@ -232,15 +242,13 @@ fn test_threshold_history_edge_cases() {
 
     // Test history with invalid timestamps
     let mut invalid_history = ThresholdHistory::new();
-    invalid_history.confidence_thresholds.push(
-        ThresholdEntry {
-            timestamp: DateTime::<Utc>::MIN_UTC,
-            threshold_value: -1.0,     // Invalid threshold
-            performance_score: -100.0, // Invalid score
-            sample_count: 0,
-            adaptation_reason: "".to_string(),
-        },
-    );
+    invalid_history.confidence_thresholds.push(ThresholdEntry {
+        timestamp: DateTime::<Utc>::MIN_UTC,
+        threshold_value: -1.0,     // Invalid threshold
+        performance_score: -100.0, // Invalid score
+        sample_count: 0,
+        adaptation_reason: "".to_string(),
+    });
 
     assert_eq!(invalid_history.confidence_thresholds.len(), 1);
     assert_eq!(

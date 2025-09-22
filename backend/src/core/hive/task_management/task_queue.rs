@@ -26,7 +26,7 @@ pub struct TaskQueueManager {
 
 impl TaskQueueManager {
     /// Create a new task queue manager
-    #[must_use] 
+    #[must_use]
     pub fn new(config: TaskDistributionConfig) -> Self {
         Self {
             legacy_queue: Arc::new(RwLock::new(VecDeque::new())),

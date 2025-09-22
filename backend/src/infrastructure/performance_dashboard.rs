@@ -168,10 +168,10 @@ pub struct PerformanceDashboard {
 
 impl PerformanceDashboard {
     /// Create a new performance dashboard
-    #[must_use] 
+    #[must_use]
     pub fn new(config: DashboardConfig) -> Self {
         let (sender, _) = broadcast::channel(100);
-        
+
         let dashboard = Self {
             config: config.clone(),
             data_points: Arc::new(RwLock::new(VecDeque::with_capacity(config.max_data_points))),
@@ -184,7 +184,7 @@ impl PerformanceDashboard {
 
         // Start background metrics collection
         dashboard.start_metrics_collection();
-        
+
         dashboard
     }
 
@@ -199,34 +199,31 @@ impl PerformanceDashboard {
         let start_time = self.start_time;
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_millis(config.collection_interval_ms));
-            
+            let mut interval =
+                tokio::time::interval(Duration::from_millis(config.collection_interval_ms));
+
             loop {
                 interval.tick().await;
-                
+
                 // Collect current metrics (placeholder - would integrate with actual system)
                 let current_metrics = Self::collect_current_metrics().await;
-                
+
                 // Store data point
                 {
                     let mut data_points_guard = data_points.write().await;
                     data_points_guard.push_back(current_metrics.clone());
-                    
+
                     // Maintain max data points
                     if data_points_guard.len() > config.max_data_points {
                         data_points_guard.pop_front();
                     }
                 }
-                
+
                 // Check alerts if enabled
                 if config.enable_alerting {
-                    Self::check_alerts(
-                        &current_metrics,
-                        &alert_thresholds,
-                        &active_alerts,
-                    ).await;
+                    Self::check_alerts(&current_metrics, &alert_thresholds, &active_alerts).await;
                 }
-                
+
                 // Create dashboard metrics
                 let dashboard_metrics = Self::create_dashboard_metrics(
                     &current_metrics,
@@ -234,8 +231,9 @@ impl PerformanceDashboard {
                     &active_alerts,
                     &baseline_metrics,
                     start_time,
-                ).await;
-                
+                )
+                .await;
+
                 // Broadcast metrics to subscribers
                 let _ = metrics_sender.send(dashboard_metrics);
             }
@@ -270,7 +268,7 @@ impl PerformanceDashboard {
     ) {
         let thresholds = alert_thresholds.read().await;
         let mut alerts = active_alerts.write().await;
-        
+
         for threshold in thresholds.iter() {
             let current_value = Self::get_metric_value(current_metrics, &threshold.metric);
             let should_alert = match threshold.condition {
@@ -278,14 +276,15 @@ impl PerformanceDashboard {
                 AlertCondition::Below => current_value < threshold.threshold,
                 AlertCondition::Equal => (current_value - threshold.threshold).abs() < 0.01,
             };
-            
+
             if should_alert {
                 // Check if alert already exists and is not in cooldown
                 let existing_alert = alerts.iter().find(|a| {
-                    a.threshold.name == threshold.name && 
-                    a.triggered_at.elapsed().unwrap_or_default().as_secs() < threshold.cooldown_secs
+                    a.threshold.name == threshold.name
+                        && a.triggered_at.elapsed().unwrap_or_default().as_secs()
+                            < threshold.cooldown_secs
                 });
-                
+
                 if existing_alert.is_none() {
                     let alert = PerformanceAlert {
                         id: Uuid::new_v4(),
@@ -297,7 +296,7 @@ impl PerformanceDashboard {
                             threshold.metric,
                             match threshold.condition {
                                 AlertCondition::Above => "above",
-                                AlertCondition::Below => "below", 
+                                AlertCondition::Below => "below",
                                 AlertCondition::Equal => "equals",
                             },
                             threshold.threshold,
@@ -305,17 +304,15 @@ impl PerformanceDashboard {
                         ),
                         acknowledged: false,
                     };
-                    
+
                     alerts.push(alert);
                     tracing::warn!("Performance alert triggered: {}", threshold.name);
                 }
             }
         }
-        
+
         // Clean up old alerts (older than 1 hour)
-        alerts.retain(|alert| {
-            alert.triggered_at.elapsed().unwrap_or_default().as_secs() < 3600
-        });
+        alerts.retain(|alert| alert.triggered_at.elapsed().unwrap_or_default().as_secs() < 3600);
     }
 
     /// Get metric value by name
@@ -342,12 +339,12 @@ impl PerformanceDashboard {
         let data_points_guard = data_points.read().await;
         let alerts_guard = active_alerts.read().await;
         let baseline_guard = baseline_metrics.read().await;
-        
+
         let history: Vec<PerformanceDataPoint> = data_points_guard.iter().cloned().collect();
-        
+
         let summary = Self::calculate_summary(&history, start_time);
         let optimization_impact = Self::calculate_optimization_impact(&baseline_guard, current);
-        
+
         DashboardMetrics {
             current: current.clone(),
             history,
@@ -358,7 +355,10 @@ impl PerformanceDashboard {
     }
 
     /// Calculate performance summary statistics
-    fn calculate_summary(history: &[PerformanceDataPoint], start_time: Instant) -> PerformanceSummary {
+    fn calculate_summary(
+        history: &[PerformanceDataPoint],
+        start_time: Instant,
+    ) -> PerformanceSummary {
         if history.is_empty() {
             return PerformanceSummary {
                 avg_throughput: 0.0,
@@ -372,9 +372,13 @@ impl PerformanceDashboard {
             };
         }
 
-        let avg_throughput = history.iter().map(|p| p.throughput_ops_sec).sum::<f64>() / history.len() as f64;
-        let peak_throughput = history.iter().map(|p| p.throughput_ops_sec).fold(0.0, f64::max);
-        
+        let avg_throughput =
+            history.iter().map(|p| p.throughput_ops_sec).sum::<f64>() / history.len() as f64;
+        let peak_throughput = history
+            .iter()
+            .map(|p| p.throughput_ops_sec)
+            .fold(0.0, f64::max);
+
         let avg_latency = history.iter().map(|p| p.latency_ms).sum::<f64>() / history.len() as f64;
         let mut latencies: Vec<f64> = history.iter().map(|p| p.latency_ms).collect();
         latencies.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
@@ -383,10 +387,10 @@ impl PerformanceDashboard {
         } else {
             latencies[(latencies.len() as f64 * 0.95) as usize]
         };
-        
+
         let avg_memory_mb = history.iter().map(|p| p.memory_mb).sum::<f64>() / history.len() as f64;
         let peak_memory_mb = history.iter().map(|p| p.memory_mb).fold(0.0, f64::max);
-        
+
         // Calculate health score based on multiple factors
         let throughput_score = (avg_throughput / 1000.0).min(1.0) * 25.0; // Max 25 points
         let latency_score = (1.0 - (avg_latency / 200.0).min(1.0)) * 25.0; // Max 25 points
@@ -397,10 +401,10 @@ impl PerformanceDashboard {
             25.0
         };
         let health_score = throughput_score + latency_score + memory_score + error_score;
-        
+
         let _uptime_hours = start_time.elapsed().as_secs_f64() / 3600.0;
         let uptime_percent = 100.0; // Simplified - would track actual downtime
-        
+
         PerformanceSummary {
             avg_throughput,
             peak_throughput,
@@ -420,27 +424,33 @@ impl PerformanceDashboard {
     ) -> OptimizationImpact {
         if let Some(baseline) = baseline {
             let improvement_percent = if baseline.throughput_ops_sec > 0.0 {
-                ((current.throughput_ops_sec - baseline.throughput_ops_sec) / baseline.throughput_ops_sec) * 100.0
+                ((current.throughput_ops_sec - baseline.throughput_ops_sec)
+                    / baseline.throughput_ops_sec)
+                    * 100.0
             } else {
                 0.0
             };
-            
+
             let memory_efficiency_gain = if baseline.memory_mb > 0.0 {
                 ((baseline.memory_mb - current.memory_mb) / baseline.memory_mb) * 100.0
             } else {
                 0.0
             };
-            
+
             let cpu_efficiency_gain = if baseline.cpu_utilization > 0.0 {
-                ((baseline.cpu_utilization - current.cpu_utilization) / baseline.cpu_utilization) * 100.0
+                ((baseline.cpu_utilization - current.cpu_utilization) / baseline.cpu_utilization)
+                    * 100.0
             } else {
                 0.0
             };
-            
+
             let communication_improvement = 45.0; // Based on our optimization targets
-            let overall_effectiveness = (improvement_percent + memory_efficiency_gain + 
-                                       cpu_efficiency_gain + communication_improvement) / 4.0;
-            
+            let overall_effectiveness = (improvement_percent
+                + memory_efficiency_gain
+                + cpu_efficiency_gain
+                + communication_improvement)
+                / 4.0;
+
             OptimizationImpact {
                 improvement_percent,
                 memory_efficiency_gain,
@@ -506,7 +516,7 @@ impl PerformanceDashboard {
     }
 
     /// Subscribe to real-time metrics updates
-    #[must_use] 
+    #[must_use]
     pub fn subscribe(&self) -> broadcast::Receiver<DashboardMetrics> {
         self.metrics_sender.subscribe()
     }
@@ -521,22 +531,23 @@ impl PerformanceDashboard {
     /// Get current dashboard metrics
     pub async fn get_current_metrics(&self) -> HiveResult<DashboardMetrics> {
         let current = Self::collect_current_metrics().await;
-        
+
         let dashboard_metrics = Self::create_dashboard_metrics(
             &current,
             &self.data_points,
             &self.active_alerts,
             &self.baseline_metrics,
             self.start_time,
-        ).await;
-        
+        )
+        .await;
+
         Ok(dashboard_metrics)
     }
 
     /// Acknowledge an alert
     pub async fn acknowledge_alert(&self, alert_id: Uuid) -> HiveResult<()> {
         let mut alerts = self.active_alerts.write().await;
-        
+
         if let Some(alert) = alerts.iter_mut().find(|a| a.id == alert_id) {
             alert.acknowledged = true;
             tracing::info!("Alert {} acknowledged", alert_id);
@@ -558,33 +569,36 @@ impl PerformanceDashboard {
     /// Get performance trends analysis
     pub async fn get_trends_analysis(&self) -> PerformanceTrends {
         let data_points = self.data_points.read().await;
-        
+
         if data_points.len() < 2 {
             return PerformanceTrends::default();
         }
 
         let points: Vec<&PerformanceDataPoint> = data_points.iter().collect();
         let mid_point = points.len() / 2;
-        
+
         let first_half_avg_throughput = points[..mid_point]
             .iter()
             .map(|p| p.throughput_ops_sec)
-            .sum::<f64>() / mid_point as f64;
-            
+            .sum::<f64>()
+            / mid_point as f64;
+
         let second_half_avg_throughput = points[mid_point..]
             .iter()
             .map(|p| p.throughput_ops_sec)
-            .sum::<f64>() / (points.len() - mid_point) as f64;
-        
-        let throughput_trend = ((second_half_avg_throughput - first_half_avg_throughput) / 
-                               first_half_avg_throughput) * 100.0;
-        
+            .sum::<f64>()
+            / (points.len() - mid_point) as f64;
+
+        let throughput_trend = ((second_half_avg_throughput - first_half_avg_throughput)
+            / first_half_avg_throughput)
+            * 100.0;
+
         // Similar calculations for other metrics...
-        
+
         PerformanceTrends {
             throughput_trend_percent: throughput_trend,
-            latency_trend_percent: -2.5, // Placeholder
-            memory_trend_percent: 0.1,   // Placeholder
+            latency_trend_percent: -2.5,           // Placeholder
+            memory_trend_percent: 0.1,             // Placeholder
             optimization_effectiveness_trend: 1.2, // Placeholder
         }
     }
@@ -607,7 +621,7 @@ mod tests {
     async fn test_dashboard_creation() {
         let config = DashboardConfig::default();
         let dashboard = PerformanceDashboard::new(config);
-        
+
         // Give time for initialization
         tokio::time::sleep(Duration::from_millis(100)).await;
 
@@ -622,12 +636,12 @@ mod tests {
     async fn test_metrics_subscription() {
         let config = DashboardConfig::default();
         let dashboard = PerformanceDashboard::new(config);
-        
+
         let mut receiver = dashboard.subscribe();
-        
+
         // Wait for a metrics update
         match tokio::time::timeout(Duration::from_secs(2), receiver.recv()).await {
-            Ok(Ok(_)) => {}, // Received metrics successfully
+            Ok(Ok(_)) => {} // Received metrics successfully
             Ok(Err(e)) => panic!("Should receive valid metrics: {}", e),
             Err(_) => panic!("Should receive metrics within timeout"),
         }
@@ -640,7 +654,7 @@ mod tests {
             ..Default::default()
         };
         let dashboard = PerformanceDashboard::new(config);
-        
+
         // Add a test alert threshold
         let threshold = AlertThreshold {
             name: "Test Alert".to_string(),
@@ -650,9 +664,9 @@ mod tests {
             severity: AlertSeverity::Warning,
             cooldown_secs: 60,
         };
-        
+
         dashboard.add_alert_threshold(threshold).await;
-        
+
         // Give time for alert processing
         tokio::time::sleep(Duration::from_millis(1100)).await;
 

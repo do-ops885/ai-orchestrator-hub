@@ -6,10 +6,10 @@
 //! - CPU load balancing for optimal task distribution
 
 use crate::communication::optimized_messaging::{
-    OptimizedSwarmCommunicator, OptimizedMessagingConfig, OptimizedMessagingStats,
+    OptimizedMessagingConfig, OptimizedMessagingStats, OptimizedSwarmCommunicator,
 };
 use crate::infrastructure::cpu_load_balancer::{
-    CpuLoadBalancer, LoadBalancerConfig, LoadBalancerStats, LoadBalancerEfficiency,
+    CpuLoadBalancer, LoadBalancerConfig, LoadBalancerEfficiency, LoadBalancerStats,
 };
 use crate::infrastructure::memory_pool::{SwarmMemoryPools, SwarmPoolStats};
 use crate::tasks::task::Task;
@@ -131,7 +131,7 @@ struct PerformanceMonitor {
 
 impl OptimizedSwarmSystem {
     /// Create a new optimized swarm system
-    #[must_use] 
+    #[must_use]
     pub fn new(config: OptimizedSwarmConfig) -> Self {
         let communicator = OptimizedSwarmCommunicator::new(config.messaging_config.clone());
         let load_balancer = CpuLoadBalancer::new(config.load_balancer_config.clone());
@@ -161,13 +161,13 @@ impl OptimizedSwarmSystem {
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
-            
+
             loop {
                 interval.tick().await;
-                
+
                 let mut monitor = performance_monitor.write().await;
                 monitor.last_metrics_collection = Some(Instant::now());
-                
+
                 // Log performance metrics
                 tracing::debug!(
                     "Performance: {} operations processed, avg latency: {:.2}ms",
@@ -243,7 +243,9 @@ impl OptimizedSwarmSystem {
         let mut operation_ids = Vec::with_capacity(tasks.len());
 
         // Use concurrent processing with load balancing
-        let semaphore = Arc::new(tokio::sync::Semaphore::new(self.config.max_concurrent_operations));
+        let semaphore = Arc::new(tokio::sync::Semaphore::new(
+            self.config.max_concurrent_operations,
+        ));
         let mut handles = Vec::new();
 
         for task in tasks {
@@ -346,8 +348,12 @@ impl OptimizedSwarmSystem {
         let load_balancer_stats = self.load_balancer.get_stats().await;
         let memory_pool_stats = self.memory_pools.get_comprehensive_stats().await;
 
-        let system_efficiency = self.calculate_system_efficiency(&load_balancer_stats, &memory_pool_stats).await;
-        let performance_improvement = self.calculate_performance_improvement(&system_efficiency).await;
+        let system_efficiency = self
+            .calculate_system_efficiency(&load_balancer_stats, &memory_pool_stats)
+            .await;
+        let performance_improvement = self
+            .calculate_performance_improvement(&system_efficiency)
+            .await;
 
         OptimizedSwarmPerformanceStats {
             messaging_stats,
@@ -365,7 +371,7 @@ impl OptimizedSwarmSystem {
         memory_pool_stats: &SwarmPoolStats,
     ) -> SystemEfficiencyMetrics {
         let monitor = self.performance_monitor.read().await;
-        
+
         let throughput = if let Some(start_time) = monitor.start_time {
             let elapsed_secs = start_time.elapsed().as_secs_f64();
             if elapsed_secs > 0.0 {
@@ -387,7 +393,8 @@ impl OptimizedSwarmSystem {
         let cpu_efficiency = (1.0 - load_balancer_stats.current_load_avg) * 100.0;
         let communication_efficiency = 85.0; // Estimated from messaging optimizations
 
-        let overall_efficiency = (memory_efficiency + cpu_efficiency + communication_efficiency) / 3.0;
+        let overall_efficiency =
+            (memory_efficiency + cpu_efficiency + communication_efficiency) / 3.0;
 
         SystemEfficiencyMetrics {
             throughput_ops_per_sec: throughput,
@@ -406,22 +413,27 @@ impl OptimizedSwarmSystem {
         current_efficiency: &SystemEfficiencyMetrics,
     ) -> PerformanceImprovement {
         let baseline_guard = self.baseline_metrics.read().await;
-        
-        if let Some(baseline) = baseline_guard.as_ref() {
-            let throughput_improvement = 
-                ((current_efficiency.throughput_ops_per_sec - baseline.baseline_throughput) / 
-                 baseline.baseline_throughput) * 100.0;
 
-            let latency_reduction = 
-                ((baseline.baseline_latency_ms - current_efficiency.average_latency_ms) / 
-                 baseline.baseline_latency_ms) * 100.0;
+        if let Some(baseline) = baseline_guard.as_ref() {
+            let throughput_improvement = ((current_efficiency.throughput_ops_per_sec
+                - baseline.baseline_throughput)
+                / baseline.baseline_throughput)
+                * 100.0;
+
+            let latency_reduction = ((baseline.baseline_latency_ms
+                - current_efficiency.average_latency_ms)
+                / baseline.baseline_latency_ms)
+                * 100.0;
 
             // Estimated improvements based on optimizations
             let memory_reduction = 30.0; // Target from memory pooling
             let cpu_load_reduction = 31.0; // Target from load balancing
 
-            let overall_improvement = (throughput_improvement + latency_reduction + 
-                                      memory_reduction + cpu_load_reduction) / 4.0;
+            let overall_improvement = (throughput_improvement
+                + latency_reduction
+                + memory_reduction
+                + cpu_load_reduction)
+                / 4.0;
 
             PerformanceImprovement {
                 throughput_improvement_percent: throughput_improvement,
@@ -444,11 +456,11 @@ impl OptimizedSwarmSystem {
     /// Record operation metrics for performance monitoring
     async fn record_operation_metrics(&self, latency_ms: f64) {
         let mut monitor = self.performance_monitor.write().await;
-        
+
         if monitor.start_time.is_none() {
             monitor.start_time = Some(Instant::now());
         }
-        
+
         monitor.operation_count += 1;
         monitor.total_latency_ms += latency_ms;
     }
@@ -483,7 +495,8 @@ impl OptimizedSwarmSystem {
             recommendations.push(OptimizationRecommendation {
                 category: "Memory".to_string(),
                 priority: RecommendationPriority::Medium,
-                description: "Memory pool efficiency is low. Review object reuse patterns.".to_string(),
+                description: "Memory pool efficiency is low. Review object reuse patterns."
+                    .to_string(),
                 estimated_improvement: "10-15% memory reduction".to_string(),
             });
         }
@@ -493,7 +506,9 @@ impl OptimizedSwarmSystem {
             recommendations.push(OptimizationRecommendation {
                 category: "CPU".to_string(),
                 priority: RecommendationPriority::High,
-                description: "CPU load is high. Consider scaling up workers or optimizing task distribution.".to_string(),
+                description:
+                    "CPU load is high. Consider scaling up workers or optimizing task distribution."
+                        .to_string(),
                 estimated_improvement: "15-25% load reduction".to_string(),
             });
         }
@@ -528,10 +543,10 @@ mod tests {
     async fn test_optimized_swarm_system_creation() {
         let config = OptimizedSwarmConfig::default();
         let system = OptimizedSwarmSystem::new(config);
-        
+
         // Give time for initialization
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         let worker_count = system.get_worker_count().await;
         assert!(worker_count > 0);
     }
@@ -540,10 +555,10 @@ mod tests {
     async fn test_task_submission() {
         let config = OptimizedSwarmConfig::default();
         let system = OptimizedSwarmSystem::new(config);
-        
+
         // Give time for initialization
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         let now = chrono::Utc::now();
         let task = Task {
             id: Uuid::new_v4(),
@@ -561,7 +576,7 @@ mod tests {
             context: std::collections::HashMap::new(),
             dependencies: vec![],
         };
-        
+
         let result = system.submit_optimized_task(task).await;
         assert!(result.is_ok());
     }
@@ -570,10 +585,10 @@ mod tests {
     async fn test_performance_stats() {
         let config = OptimizedSwarmConfig::default();
         let system = OptimizedSwarmSystem::new(config);
-        
+
         // Give time for initialization
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         let stats = system.get_performance_stats().await;
         assert!(stats.system_efficiency.overall_efficiency_score >= 0.0);
     }
@@ -582,10 +597,10 @@ mod tests {
     async fn test_optimization_recommendations() {
         let config = OptimizedSwarmConfig::default();
         let system = OptimizedSwarmSystem::new(config);
-        
+
         // Give time for initialization
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         let recommendations = system.get_optimization_recommendations().await;
         // Should return some recommendations based on current metrics
         assert!(recommendations.len() >= 0); // May be empty for good performance

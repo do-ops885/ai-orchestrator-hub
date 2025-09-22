@@ -16,7 +16,7 @@ pub struct TaskMaintenanceManager {
 
 impl TaskMaintenanceManager {
     /// Create a new maintenance manager
-    #[must_use] 
+    #[must_use]
     pub fn new(metrics_collector: TaskMetricsCollector, config: TaskDistributionConfig) -> Self {
         Self {
             metrics_collector,
@@ -101,7 +101,7 @@ impl TaskMaintenanceManager {
     }
 
     /// Get current configuration
-    #[must_use] 
+    #[must_use]
     pub fn get_config(&self) -> &TaskDistributionConfig {
         &self.config
     }

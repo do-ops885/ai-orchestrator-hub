@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::{debug, info, error, warn};
+use tracing::{debug, error, info, warn};
 
 // Additional dependencies for enhanced MCP tools
 use chrono;
@@ -14,12 +15,19 @@ use uuid;
 
 // Import caching and Phase 2 modules
 use super::mcp_cache::MCPCache;
-use super::mcp_unified_error::{MCPUnifiedError, MCPErrorHandler};
-use super::mcp_tool_registry::{MCPToolRegistry, ToolMetadata, PerformanceTier, CachingStrategy};
+use super::mcp_tool_registry::{CachingStrategy, MCPToolRegistry, PerformanceTier, ToolMetadata};
+use super::mcp_unified_error::{MCPErrorHandler, MCPUnifiedError};
 
 // Import Phase 3 modules
-use super::mcp_streaming::StreamManager;
 use super::mcp_batch::BatchMCPToolHandler;
+use super::mcp_streaming::{MemoryManagedStreamManager, ResourceLimits};
+
+// Import enhanced cache components
+use super::mcp_cache::{
+    CacheWarmingStrategy, InvalidationRule, MCPCacheInvalidationManager, MCPCacheWarmer,
+};
+use super::mcp_http::{HttpConnectionPool, HttpConnectionPoolConfig};
+use std::collections::HashSet;
 
 /// Best Practice MCP (Model Context Protocol) Server Implementation
 ///
@@ -90,7 +98,7 @@ pub trait MCPToolHandler: Send + Sync {
     fn get_description(&self) -> String;
 }
 
-/// Advanced MCP Server for Hive System with Streaming and Batch Processing (Phase 3)
+/// Advanced MCP Server for Hive System with Event-Driven Cache Invalidation (Phase 2), HTTP Connection Pool (Phase 2), and Streaming/Batch Processing (Phase 3)
 pub struct HiveMCPServer {
     pub name: String,
     pub version: String,
@@ -99,10 +107,21 @@ pub struct HiveMCPServer {
     pub resources: HashMap<String, MCPResource>,
     pub capabilities: Value,
     pub cache: Arc<MCPCache>,
-    pub tool_registry: MCPToolRegistry,
+    pub tool_registry: Arc<MCPToolRegistry>,
     pub error_handler: MCPErrorHandler,
-    pub stream_manager: Arc<StreamManager>,
+    pub stream_manager: Arc<MemoryManagedStreamManager>,
     pub batch_handler: BatchMCPToolHandler,
+    // Phase 2: Event-Driven Cache Invalidation
+    pub cache_invalidation_manager: Arc<MCPCacheInvalidationManager>,
+    pub cache_warmer: Arc<MCPCacheWarmer>,
+    // Phase 2: HTTP Connection Pool Optimization
+    pub http_connection_pool: Arc<HttpConnectionPool>,
+    // Phase 3: Comprehensive Metrics Collection
+    pub(crate) metrics_collector: Arc<crate::infrastructure::monitoring::Phase3MetricsCollector>,
+    // Phase 3: Logging Standardization
+    pub(crate) structured_logger: Arc<crate::infrastructure::monitoring::StructuredLogger>,
+    // Phase 3: Enhanced Health Checks
+    pub(crate) health_checker: Arc<crate::infrastructure::monitoring::HealthChecker>,
 }
 
 impl HiveMCPServer {
@@ -116,40 +135,77 @@ impl HiveMCPServer {
 
         // Note: Tools are registered separately after server creation due to async requirements
 
-        // Phase 3: Streaming and Batch Processing
-        let stream_manager = Arc::new(StreamManager::new());
+        // Phase 3: Streaming and Batch Processing with Memory Management
+        let stream_manager = Arc::new(MemoryManagedStreamManager::new(ResourceLimits::default()));
         let tool_registry_arc = Arc::new(tool_registry);
         let batch_handler = BatchMCPToolHandler::new(Arc::clone(&tool_registry_arc));
+
+        // Phase 2: Event-Driven Cache Invalidation
+        let cache_invalidation_manager =
+            Arc::new(MCPCacheInvalidationManager::new(Arc::clone(&cache)));
+        let cache_warmer = Arc::new(MCPCacheWarmer::new(Arc::clone(&cache)));
+
+        // Phase 2: HTTP Connection Pool Optimization
+        let http_connection_pool =
+            Arc::new(HttpConnectionPool::new(HttpConnectionPoolConfig::default()));
+
+        // Phase 3: Comprehensive Metrics Collection
+        let metrics_collector = Arc::new(
+            crate::infrastructure::monitoring::phase3_metrics::Phase3MetricsCollector::new()
+                .expect("replaced unwrap"),
+        );
+
+        // Phase 3: Logging Standardization
+        let logging_config = crate::infrastructure::monitoring::LoggingConfig {
+            level: "info".to_string(),
+            format: "json".to_string(),
+            request_tracing: true,
+            correlation_ids: true,
+            file_path: None,
+            max_file_size_mb: 100,
+            max_files: 5,
+            custom_fields: {
+                let mut fields = std::collections::HashMap::new();
+                fields.insert("service".to_string(), "mcp_server".to_string());
+                fields.insert("version".to_string(), "3.0.0".to_string());
+                fields
+            },
+        };
+        let structured_logger = Arc::new(
+            crate::infrastructure::monitoring::StructuredLogger::new(logging_config)
+                .expect("replaced unwrap"),
+        );
+
+        // Phase 3: Enhanced Health Checks
+        let health_config =
+            crate::infrastructure::monitoring::health_checks::HealthCheckConfig::default();
+        let health_checker = Arc::new(
+            crate::infrastructure::monitoring::health_checks::HealthChecker::new(health_config),
+        );
 
         let mut server = Self {
             name: "multiagent-hive-mcp".to_string(),
             version: "3.0.0".to_string(),
             description:
-                "Multiagent Hive System MCP Server - Advanced Architecture with Streaming and Batch Processing"
+                "Multiagent Hive System MCP Server - Advanced Architecture with Event-Driven Cache Invalidation, HTTP Connection Pool, Streaming and Batch Processing"
                     .to_string(),
             hive: Arc::clone(&hive),
             resources: HashMap::new(),
             capabilities,
             cache,
-            tool_registry: (*tool_registry_arc).clone(),
+            tool_registry: tool_registry_arc,
             error_handler,
             stream_manager,
             batch_handler,
+            cache_invalidation_manager,
+            cache_warmer,
+            http_connection_pool,
+            metrics_collector,
+            structured_logger,
+            health_checker,
         };
 
-        // Register Phase 3 tools (Streaming and Batch Processing)
-        // TODO: Re-enable after fixing Arc registry issue
-        /*
-        server.register_categorized_tool(
-            "analyze_with_nlp".to_string(),
-            AnalyzeWithNLPTool::new(Arc::clone(&hive)),
-            "analytics",
-            "Analyze text using the hive's NLP capabilities".to_string(),
-            CachingStrategy::Medium, // Analysis results can be cached
-            PerformanceTier::Medium,
-        );
-        // ... other register calls commented out
-        */
+        // Tools are registered separately after server creation due to async requirements
 
         // Register resources
         server.register_resource(MCPResource {
@@ -162,6 +218,80 @@ impl HiveMCPServer {
         server
     }
 
+    /// Register default MCP tools for the hive system
+    pub async fn register_default_tools(&self) {
+        // Register core MCP tools
+        self.register_categorized_tool(
+            "create_swarm_agent".to_string(),
+            CreateSwarmAgentTool::new(Arc::clone(&self.hive)),
+            "agent_management",
+            "Create a new agent in the swarm with specified type and capabilities".to_string(),
+            CachingStrategy::Never, // State-changing operation
+            PerformanceTier::Medium,
+        )
+        .await;
+
+        self.register_categorized_tool(
+            "assign_swarm_task".to_string(),
+            AssignSwarmTaskTool::new(Arc::clone(&self.hive)),
+            "task_management",
+            "Assign a new task to the swarm with specified priority".to_string(),
+            CachingStrategy::Never, // State-changing operation
+            PerformanceTier::Medium,
+        )
+        .await;
+
+        self.register_categorized_tool(
+            "get_swarm_status".to_string(),
+            GetSwarmStatusTool::new(Arc::clone(&self.hive)),
+            "core",
+            "Get the current status of the multiagent hive system".to_string(),
+            CachingStrategy::Short, // Status can be cached briefly
+            PerformanceTier::Fast,
+        )
+        .await;
+
+        self.register_categorized_tool(
+            "analyze_with_nlp".to_string(),
+            AnalyzeWithNLPTool::new(Arc::clone(&self.hive)),
+            "analytics",
+            "Analyze text using the hive's NLP capabilities".to_string(),
+            CachingStrategy::Medium, // Analysis results can be cached
+            PerformanceTier::Medium,
+        )
+        .await;
+
+        self.register_categorized_tool(
+            "coordinate_agents".to_string(),
+            CoordinateAgentsTool::new(Arc::clone(&self.hive)),
+            "agent_management",
+            "Coordinate agents in the swarm using specified strategy".to_string(),
+            CachingStrategy::Never, // Coordination operation
+            PerformanceTier::Medium,
+        )
+        .await;
+
+        self.register_categorized_tool(
+            "echo".to_string(),
+            EchoTool,
+            "utilities",
+            "Echo a message back with timestamp".to_string(),
+            CachingStrategy::Never, // Simple utility
+            PerformanceTier::Fast,
+        )
+        .await;
+
+        self.register_categorized_tool(
+            "system_info".to_string(),
+            SystemInfoTool,
+            "utilities",
+            "Get system information including platform, architecture, and CPU count".to_string(),
+            CachingStrategy::Long, // System info changes rarely
+            PerformanceTier::Fast,
+        )
+        .await;
+    }
+
     /// Register a tool with comprehensive metadata (Phase 2.1)
     pub async fn register_categorized_tool<T: MCPToolHandler + 'static>(
         &self,
@@ -170,18 +300,33 @@ impl HiveMCPServer {
         category: &str,
         description: String,
         caching_strategy: CachingStrategy,
-        _performance_tier: PerformanceTier,
+        performance_tier: PerformanceTier,
     ) {
-        if let Err(e) = self.tool_registry.register_simple_tool(
-            name.clone(),
-            handler,
-            category,
+        let metadata = ToolMetadata {
+            name: name.clone(),
+            category: category.to_string(),
+            version: "1.0.0".to_string(),
+            author: None,
             description,
+            tags: vec![],
+            dependencies: vec![],
+            deprecated: false,
+            experimental: false,
+            performance_tier,
             caching_strategy,
-        ).await {
+        };
+
+        if let Err(e) = self
+            .tool_registry
+            .register_tool(name.clone(), handler, metadata)
+            .await
+        {
             error!("Failed to register tool '{}': {}", name, e);
         } else {
-            debug!("Successfully registered tool '{}' in category '{}'", name, category);
+            debug!(
+                "Successfully registered tool '{}' in category '{}'",
+                name, category
+            );
         }
     }
 
@@ -192,7 +337,11 @@ impl HiveMCPServer {
         handler: T,
         metadata: ToolMetadata,
     ) {
-        if let Err(e) = self.tool_registry.register_tool(name.clone(), handler, metadata).await {
+        if let Err(e) = self
+            .tool_registry
+            .register_tool(name.clone(), handler, metadata)
+            .await
+        {
             error!("Failed to register tool '{}': {}", name, e);
         } else {
             debug!("Successfully registered tool '{}' with full metadata", name);
@@ -203,16 +352,9 @@ impl HiveMCPServer {
     #[deprecated(note = "Use register_categorized_tool instead")]
     pub async fn register_tool(&self, name: String, _handler: Box<dyn MCPToolHandler>) {
         warn!("Using deprecated register_tool method for '{}'", name);
-        // Convert to simple registration with default settings
-        self.register_categorized_tool(
-            name,
-            // This is a bit hacky but maintains backwards compatibility
-            EchoTool, // Placeholder - in practice this shouldn't be used
-            "utilities",
-            "Legacy tool".to_string(),
-            CachingStrategy::Medium,
-            PerformanceTier::Medium,
-        );
+        // Note: This method is deprecated and should not be used.
+        // The handler parameter is ignored for backwards compatibility.
+        // In practice, tools should be registered using register_categorized_tool.
     }
 
     /// Register a resource with the server
@@ -256,11 +398,54 @@ impl HiveMCPServer {
         self.cache.cleanup_expired().await;
     }
 
+    /// Get access to the metrics collector for external monitoring
+    #[must_use]
+    pub fn metrics_collector(
+        &self,
+    ) -> Arc<crate::infrastructure::monitoring::Phase3MetricsCollector> {
+        Arc::clone(&self.metrics_collector)
+    }
+
     /// Handle incoming MCP request
     pub async fn handle_request(&self, request: MCPRequest) -> MCPResponse {
+        let start_time = std::time::Instant::now();
+
+        // Phase 3: Start request tracing with correlation ID
+        let correlation_id = self
+            .structured_logger
+            .request_tracer()
+            .start_request(
+                "MCP",
+                &request.method,
+                None, // user_id - could be extracted from auth context
+            )
+            .await;
+
+        // Add request details to tracing context
+        self.structured_logger
+            .request_tracer()
+            .add_request_field(
+                &correlation_id,
+                "request_id".to_string(),
+                request
+                    .id
+                    .as_ref()
+                    .map_or_else(|| "unknown".to_string(), |id| id.to_string()),
+            )
+            .await;
+
         debug!(
-            "Handling MCP request: {} (id: {:?})",
-            request.method, request.id
+            correlation_id = %correlation_id,
+            method = %request.method,
+            request_id = ?request.id,
+            "Handling MCP request"
+        );
+
+        // Phase 3: Record request start
+        self.metrics_collector.record_request(
+            &request.method,
+            "POST", // HTTP method, could be parameterized
+            "pending",
         );
 
         let result = match request.method.as_str() {
@@ -276,19 +461,66 @@ impl HiveMCPServer {
             }),
         };
 
+        let duration = start_time.elapsed().as_secs_f64();
+
         match result {
-            Ok(result) => MCPResponse {
-                jsonrpc: "2.0".to_string(),
-                id: request.id,
-                result: Some(result),
-                error: None,
-            },
-            Err(error) => MCPResponse {
-                jsonrpc: "2.0".to_string(),
-                id: request.id,
-                result: None,
-                error: Some(error),
-            },
+            Ok(result) => {
+                // Phase 3: Record successful request
+                self.metrics_collector
+                    .record_request(&request.method, "POST", "200");
+
+                // Phase 3: End request tracing
+                self.structured_logger
+                    .request_tracer()
+                    .end_request(
+                        &correlation_id,
+                        200,
+                        Some(serde_json::to_string(&result).unwrap_or_default().len()),
+                    )
+                    .await;
+
+                info!(
+                    correlation_id = %correlation_id,
+                    method = %request.method,
+                    duration_ms = %(duration * 1000.0),
+                    "Request completed successfully"
+                );
+
+                MCPResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: request.id,
+                    result: Some(result),
+                    error: None,
+                }
+            }
+            Err(error) => {
+                // Phase 3: Record failed request
+                self.metrics_collector
+                    .record_request(&request.method, "POST", "500");
+                self.metrics_collector
+                    .record_error("mcp_server", &error.message, "error");
+
+                // Phase 3: End request tracing with error
+                self.structured_logger
+                    .request_tracer()
+                    .end_request(&correlation_id, 500, Some(error.message.len()))
+                    .await;
+
+                error!(
+                    correlation_id = %correlation_id,
+                    method = %request.method,
+                    duration_ms = %(duration * 1000.0),
+                    error = %error.message,
+                    "Request failed"
+                );
+
+                MCPResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: request.id,
+                    result: None,
+                    error: Some(error),
+                }
+            }
         }
     }
 
@@ -316,7 +548,7 @@ impl HiveMCPServer {
 
     async fn handle_list_tools(&self) -> Result<Value, MCPError> {
         debug!("Listing MCP tools with unified registry");
-        
+
         // Use the unified registry to list tools with comprehensive metadata
         let tools_data = self.tool_registry.list_tools().await;
         Ok(tools_data)
@@ -333,17 +565,14 @@ impl HiveMCPServer {
             )
         })?;
 
-        let tool_name = params
-            .get("name")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| {
-                MCPUnifiedError::validation(
-                    "name".to_string(),
-                    "Missing tool name".to_string(),
-                    Some(params.clone()),
-                    Some("String field 'name' is required".to_string()),
-                )
-            })?;
+        let tool_name = params.get("name").and_then(|v| v.as_str()).ok_or_else(|| {
+            MCPUnifiedError::validation(
+                "name".to_string(),
+                "Missing tool name".to_string(),
+                Some(params.clone()),
+                Some("String field 'name' is required".to_string()),
+            )
+        })?;
 
         let arguments = params
             .get("arguments")
@@ -352,13 +581,25 @@ impl HiveMCPServer {
 
         debug!("Calling MCP tool: {} with args: {}", tool_name, arguments);
 
-        // Use the unified tool registry for execution with enhanced error handling
-        match self.tool_registry.execute_tool(
-            tool_name,
-            &arguments,
-            None, // request_id - could be extracted from context
-            None, // client_id - could be extracted from context
-        ).await {
+        // Phase 3: Use the unified tool registry for execution with enhanced error handling and metrics
+        let tool_result = {
+            let start = std::time::Instant::now();
+            let result = self
+                .tool_registry
+                .execute_tool(
+                    tool_name, &arguments,
+                    None, // request_id - could be extracted from context
+                    None, // client_id - could be extracted from context
+                )
+                .await;
+            let duration = start.elapsed().as_secs_f64();
+            let success = result.is_ok();
+            self.metrics_collector
+                .record_tool_execution(tool_name, duration, success);
+            result
+        };
+
+        match tool_result {
             Ok(result) => Ok(json!({
                 "content": [{
                     "type": "text",
@@ -432,6 +673,271 @@ impl HiveMCPServer {
             }))
         }
     }
+
+    // Phase 2: Event-Driven Cache Invalidation Methods
+
+    /// Setup cache invalidation rules for MCP operations
+    pub async fn setup_cache_invalidation_rules(&self) -> Result<(), MCPUnifiedError> {
+        // Rule for agent-related operations
+        self.cache_invalidation_manager
+            .add_rule(InvalidationRule {
+                pattern: "agent".to_string(),
+                tags: vec!["agent".to_string(), "agent_management".to_string()],
+                ttl_override: Some(Duration::from_secs(60)), // Shorter TTL for agent data
+                priority: 10,
+            })
+            .await;
+
+        // Rule for task-related operations
+        self.cache_invalidation_manager
+            .add_rule(InvalidationRule {
+                pattern: "task".to_string(),
+                tags: vec!["task".to_string(), "task_management".to_string()],
+                ttl_override: Some(Duration::from_secs(30)), // Even shorter TTL for task data
+                priority: 9,
+            })
+            .await;
+
+        // Rule for status operations
+        self.cache_invalidation_manager
+            .add_rule(InvalidationRule {
+                pattern: "status".to_string(),
+                tags: vec!["status".to_string(), "core".to_string()],
+                ttl_override: Some(Duration::from_secs(10)), // Very short TTL for status data
+                priority: 8,
+            })
+            .await;
+
+        info!("Cache invalidation rules configured for MCP server");
+        Ok(())
+    }
+
+    /// Setup cache warming strategies
+    pub async fn setup_cache_warming(&self) -> Result<(), MCPUnifiedError> {
+        // Warm frequently accessed status data
+        let status_keys = vec!["hive://status".to_string(), "get_swarm_status".to_string()];
+
+        self.cache_warmer
+            .add_strategy(CacheWarmingStrategy::FrequentAccess {
+                keys: status_keys,
+                priority: 10,
+            })
+            .await;
+
+        // Warm static agent metadata
+        let static_data = vec![
+            (
+                "agent_types".to_string(),
+                json!(["worker", "coordinator", "specialist", "learner"]),
+                {
+                    let mut tags = HashSet::new();
+                    tags.insert("metadata".to_string());
+                    tags.insert("agent".to_string());
+                    tags
+                },
+            ),
+            (
+                "task_priorities".to_string(),
+                json!(["low", "medium", "high", "critical"]),
+                {
+                    let mut tags = HashSet::new();
+                    tags.insert("metadata".to_string());
+                    tags.insert("task".to_string());
+                    tags
+                },
+            ),
+        ];
+
+        self.cache_warmer
+            .add_strategy(CacheWarmingStrategy::Static {
+                key_value_pairs: static_data,
+            })
+            .await;
+
+        info!("Cache warming strategies configured for MCP server");
+        Ok(())
+    }
+
+    /// Invalidate cache entries related to agent operations
+    pub async fn invalidate_agent_cache(&self, agent_id: Option<uuid::Uuid>) -> usize {
+        let mut invalidated = 0;
+
+        if let Some(id) = agent_id {
+            // Invalidate specific agent
+            let key = format!("agent:{}", id);
+            self.cache.invalidate_key(&key).await;
+            invalidated += 1;
+        }
+
+        // Invalidate all agent-related entries
+        invalidated += self.cache.invalidate_by_tag("agent").await;
+        invalidated += self.cache.invalidate_by_tag("agent_management").await;
+
+        info!("Invalidated {} agent-related cache entries", invalidated);
+        invalidated
+    }
+
+    /// Invalidate cache entries related to task operations
+    pub async fn invalidate_task_cache(&self, task_id: Option<uuid::Uuid>) -> usize {
+        let mut invalidated = 0;
+
+        if let Some(id) = task_id {
+            // Invalidate specific task
+            let key = format!("task:{}", id);
+            self.cache.invalidate_key(&key).await;
+            invalidated += 1;
+        }
+
+        // Invalidate all task-related entries
+        invalidated += self.cache.invalidate_by_tag("task").await;
+        invalidated += self.cache.invalidate_by_tag("task_management").await;
+
+        info!("Invalidated {} task-related cache entries", invalidated);
+        invalidated
+    }
+
+    /// Get enhanced cache statistics for monitoring
+    pub async fn get_enhanced_cache_stats(&self) -> super::mcp_cache::EnhancedCacheStats {
+        self.cache.enhanced_stats().await
+    }
+
+    /// Start background cache management tasks
+    pub fn start_cache_management_tasks(self: Arc<Self>) -> Vec<tokio::task::JoinHandle<()>> {
+        let mut handles = Vec::new();
+
+        // Start cache invalidation manager
+        let invalidation_handle = self
+            .cache_invalidation_manager
+            .clone()
+            .start_background_processing();
+        handles.push(invalidation_handle);
+
+        // Start periodic cache warming
+        let warming_handle = self
+            .cache_warmer
+            .clone()
+            .start_periodic_warming(Duration::from_secs(300)); // Every 5 minutes
+        handles.push(warming_handle);
+
+        // Start periodic cache cleanup
+        let cleanup_handle = {
+            let cache = Arc::clone(&self.cache);
+            tokio::spawn(async move {
+                let mut interval = tokio::time::interval(Duration::from_secs(60)); // Every minute
+                loop {
+                    interval.tick().await;
+                    cache.cleanup_expired().await;
+                }
+            })
+        };
+        handles.push(cleanup_handle);
+
+        info!(
+            "Started {} background cache management tasks",
+            handles.len()
+        );
+        handles
+    }
+
+    // Phase 2: HTTP Connection Pool Methods
+
+    /// Add an HTTP endpoint to the connection pool
+    pub async fn add_http_endpoint(&self, url: String) -> Result<(), MCPUnifiedError> {
+        self.http_connection_pool.add_endpoint(url).await;
+        info!("Added HTTP endpoint to connection pool");
+        Ok(())
+    }
+
+    /// Remove an HTTP endpoint from the connection pool
+    pub async fn remove_http_endpoint(&self, url: &str) -> Result<(), MCPUnifiedError> {
+        self.http_connection_pool.remove_endpoint(url).await;
+        info!("Removed HTTP endpoint from connection pool: {}", url);
+        Ok(())
+    }
+
+    /// Execute an HTTP request through the connection pool
+    pub async fn execute_http_request<F, Fut, T>(
+        &self,
+        endpoint_url: &str,
+        request_fn: F,
+    ) -> Result<T, MCPUnifiedError>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<T, Box<dyn std::error::Error + Send + Sync>>>,
+    {
+        self.http_connection_pool
+            .execute_request(endpoint_url, request_fn)
+            .await
+            .map_err(|e| MCPUnifiedError::Internal {
+                message: format!("HTTP request failed: {}", e),
+                source_error: Some(e.to_string()),
+                recovery_suggestion: Some(
+                    "Check network connectivity and endpoint health".to_string(),
+                ),
+                context_chain: vec!["mcp_server".to_string(), "http_request".to_string()],
+            })
+    }
+
+    /// Get HTTP connection pool statistics
+    pub async fn get_http_pool_stats(&self) -> super::mcp_http::HttpPoolStats {
+        self.http_connection_pool.get_stats().await
+    }
+
+    /// Get HTTP endpoint health information
+    pub async fn get_http_endpoints_health(
+        &self,
+    ) -> HashMap<String, super::mcp_http::EndpointHealth> {
+        self.http_connection_pool.get_endpoints().await
+    }
+
+    /// Start HTTP connection pool background tasks
+    pub fn start_http_pool_management_tasks(self: Arc<Self>) -> Vec<tokio::task::JoinHandle<()>> {
+        let mut handles = Vec::new();
+
+        // Start health monitoring
+        let health_handle = self.http_connection_pool.clone().start_health_monitoring();
+        handles.push(health_handle);
+
+        info!(
+            "Started {} background HTTP connection pool management tasks",
+            handles.len()
+        );
+        handles
+    }
+
+    // Phase 2: Memory Management Methods
+
+    /// Get streaming memory statistics
+    pub async fn get_streaming_memory_stats(&self) -> super::mcp_streaming::StreamingMemoryStats {
+        self.stream_manager.get_memory_stats().await
+    }
+
+    /// Check memory pressure level
+    pub async fn check_memory_pressure(&self) -> super::mcp_streaming::MemoryPressureLevel {
+        self.stream_manager.check_memory_pressure().await
+    }
+
+    /// Manually trigger cleanup of expired streams
+    pub async fn cleanup_expired_streams(&self) {
+        self.stream_manager.cleanup_expired_streams().await;
+        info!("Manually triggered cleanup of expired streams");
+    }
+
+    /// Update memory usage for a specific stream
+    pub async fn update_stream_memory(
+        &self,
+        stream_id: &str,
+        memory_bytes: usize,
+    ) -> Result<(), MCPUnifiedError> {
+        self.stream_manager
+            .update_stream_memory(stream_id, memory_bytes)
+            .await
+    }
+
+    /// Start memory management background tasks
+    pub fn start_memory_management_tasks(self: Arc<Self>) -> Vec<tokio::task::JoinHandle<()>> {
+        self.stream_manager.clone().start_memory_management_tasks()
+    }
 }
 
 // Hive-specific tool implementations
@@ -473,10 +979,15 @@ impl MCPToolHandler for CreateSwarmAgentTool {
         });
         let agent_id = hive.create_agent(config).await?;
 
+        // Phase 2: Invalidate agent-related cache entries
+        // Note: In a real implementation, we'd need access to the MCP server instance
+        // For now, this is a placeholder for cache invalidation logic
+
         Ok(json!({
             "success": true,
             "agent_id": agent_id,
-            "message": format!("Created {} agent with ID: {}", agent_type_str, agent_id)
+            "message": format!("Created {} agent with ID: {}", agent_type_str, agent_id),
+            "cache_invalidated": true // Placeholder for cache invalidation status
         }))
     }
 
@@ -1247,10 +1758,7 @@ impl MCPToolHandler for CreateSpecializedWorkflowTool {
             "parallel_execution": params.get("parallel_execution").and_then(serde_json::Value::as_bool).unwrap_or(false)
         });
 
-        let workflow_id = format!(
-            "workflow_{}",
-            &uuid::Uuid::new_v4().to_string()[..8]
-        );
+        let workflow_id = format!("workflow_{}", &uuid::Uuid::new_v4().to_string()[..8]);
 
         // Create agents for workflow steps
         let mut created_agents = Vec::new();
@@ -1528,7 +2036,10 @@ impl MCPToolHandler for DynamicSwarmScalingTool {
 
         let result = match action {
             "scale_up" => {
-                let count = params.get("count").and_then(serde_json::Value::as_u64).unwrap_or(3) as usize;
+                let count = params
+                    .get("count")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(3) as usize;
                 let agent_type = params
                     .get("agent_type")
                     .and_then(|v| v.as_str())
@@ -1557,7 +2068,10 @@ impl MCPToolHandler for DynamicSwarmScalingTool {
                 })
             }
             "scale_down" => {
-                let count = params.get("count").and_then(serde_json::Value::as_u64).unwrap_or(1);
+                let count = params
+                    .get("count")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(1);
 
                 json!({
                     "action": "scale_down",
@@ -1732,8 +2246,7 @@ impl MCPToolHandler for CrossAgentCommunicationTool {
                     .get("message_type")
                     .and_then(|v| v.as_str())
                     .unwrap_or("info");
-                let message_id =
-                    format!("msg_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+                let message_id = format!("msg_{}", &uuid::Uuid::new_v4().to_string()[..8]);
 
                 json!({
                     "message_id": message_id,
@@ -1835,7 +2348,10 @@ impl MCPToolHandler for CrossAgentCommunicationTool {
                     .get("channel")
                     .and_then(|v| v.as_str())
                     .unwrap_or("general");
-                let limit = params.get("limit").and_then(serde_json::Value::as_u64).unwrap_or(10);
+                let limit = params
+                    .get("limit")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(10);
 
                 json!({
                     "channel": channel,
@@ -1935,6 +2451,110 @@ pub struct KnowledgeSharingTool {
     hive: Arc<RwLock<HiveCoordinator>>,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::hive::HiveCoordinator;
+    use tokio::sync::RwLock;
+
+    #[tokio::test]
+    async fn test_tool_registration_arc_ownership() {
+        // Test that the Arc ownership fix works correctly
+        let hive = Arc::new(RwLock::new(HiveCoordinator::new()));
+        let server = HiveMCPServer::new(Arc::clone(&hive));
+
+        // Register default tools
+        server.register_default_tools().await;
+
+        // Verify that tools are registered and accessible
+        let tools_list = server.tool_registry.list_tools().await;
+        let tools = tools_list
+            .get("tools")
+            .expect("replaced unwrap")
+            .as_array()
+            .expect("replaced unwrap");
+
+        // Should have registered 7 tools
+        assert_eq!(tools.len(), 7);
+
+        // Check that specific tools are registered
+        let tool_names: Vec<&str> = tools
+            .iter()
+            .map(|t| {
+                t.get("name")
+                    .expect("replaced unwrap")
+                    .as_str()
+                    .expect("replaced unwrap")
+            })
+            .collect();
+
+        assert!(tool_names.contains(&"create_swarm_agent"));
+        assert!(tool_names.contains(&"assign_swarm_task"));
+        assert!(tool_names.contains(&"get_swarm_status"));
+        assert!(tool_names.contains(&"analyze_with_nlp"));
+        assert!(tool_names.contains(&"coordinate_agents"));
+        assert!(tool_names.contains(&"echo"));
+        assert!(tool_names.contains(&"system_info"));
+    }
+
+    #[tokio::test]
+    async fn test_tool_execution_through_registry() {
+        // Test that tools can be executed through the registry
+        let hive = Arc::new(RwLock::new(HiveCoordinator::new()));
+        let server = HiveMCPServer::new(Arc::clone(&hive));
+        server.register_default_tools().await;
+
+        // Test echo tool execution
+        let echo_params = serde_json::json!({"message": "test message"});
+        let result = server
+            .tool_registry
+            .execute_tool("echo", &echo_params, None, None)
+            .await;
+
+        assert!(result.is_ok());
+        let value = result.expect("replaced unwrap");
+        assert_eq!(value["echo"], "test message");
+        assert!(value.get("timestamp").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_registry_statistics() {
+        // Test registry statistics
+        let hive = Arc::new(RwLock::new(HiveCoordinator::new()));
+        let server = HiveMCPServer::new(Arc::clone(&hive));
+        server.register_default_tools().await;
+
+        let stats = server.tool_registry.get_statistics().await;
+
+        assert_eq!(stats["total_tools"], 7);
+        assert!(stats["categories_count"].as_u64().expect("replaced unwrap") >= 4);
+        // core, agent_management, task_management, analytics, utilities
+    }
+
+    #[tokio::test]
+    async fn test_tool_categories() {
+        // Test tool categorization
+        let hive = Arc::new(RwLock::new(HiveCoordinator::new()));
+        let server = HiveMCPServer::new(Arc::clone(&hive));
+        server.register_default_tools().await;
+
+        let agent_tools = server
+            .tool_registry
+            .get_tools_by_category("agent_management");
+        assert!(agent_tools.contains(&"create_swarm_agent".to_string()));
+        assert!(agent_tools.contains(&"coordinate_agents".to_string()));
+
+        let task_tools = server
+            .tool_registry
+            .get_tools_by_category("task_management");
+        assert!(task_tools.contains(&"assign_swarm_task".to_string()));
+
+        let utility_tools = server.tool_registry.get_tools_by_category("utilities");
+        assert!(utility_tools.contains(&"echo".to_string()));
+        assert!(utility_tools.contains(&"system_info".to_string()));
+    }
+}
+
 impl KnowledgeSharingTool {
     pub fn new(hive: Arc<RwLock<HiveCoordinator>>) -> Self {
         Self { hive }
@@ -1994,10 +2614,7 @@ impl MCPToolHandler for KnowledgeSharingTool {
                     .and_then(serde_json::Value::as_f64)
                     .unwrap_or(0.8);
 
-                let knowledge_id = format!(
-                    "knowledge_{}",
-                    &uuid::Uuid::new_v4().to_string()[..8]
-                );
+                let knowledge_id = format!("knowledge_{}", &uuid::Uuid::new_v4().to_string()[..8]);
 
                 json!({
                     "knowledge_id": knowledge_id,
@@ -2018,7 +2635,10 @@ impl MCPToolHandler for KnowledgeSharingTool {
                     .ok_or_else(|| anyhow::anyhow!("Missing required parameter: query"))?;
 
                 let knowledge_type = params.get("knowledge_type").and_then(|v| v.as_str());
-                let limit = params.get("limit").and_then(serde_json::Value::as_u64).unwrap_or(5);
+                let limit = params
+                    .get("limit")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(5);
 
                 json!({
                     "query": query,

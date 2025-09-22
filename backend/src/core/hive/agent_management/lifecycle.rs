@@ -24,7 +24,7 @@ pub struct AgentLifecycle {
 
 impl AgentLifecycle {
     /// Create a new agent lifecycle manager
-    #[must_use] 
+    #[must_use]
     pub fn new(registry: AgentRegistry) -> Self {
         Self { registry }
     }

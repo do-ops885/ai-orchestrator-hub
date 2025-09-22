@@ -100,7 +100,7 @@ pub struct PerformanceLayer {
 
 impl PerformanceLayer {
     /// Create a new performance layer
-    #[must_use] 
+    #[must_use]
     pub fn new(config: PerformanceConfig) -> Self {
         let async_optimizer = AsyncOptimizer::new(config.async_config.clone());
         let cache_manager = MultiTierCacheManager::new();
@@ -195,7 +195,7 @@ impl PerformanceLayer {
     }
 
     /// Start performance monitoring and optimization
-    #[must_use] 
+    #[must_use]
     pub fn start_monitoring(&self) -> Vec<tokio::task::JoinHandle<()>> {
         let mut handles = Vec::new();
 
@@ -487,6 +487,7 @@ impl Default for PerformanceLayer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::HiveError;
 
     #[tokio::test]
     async fn test_performance_layer_basic_operations() -> Result<(), Box<dyn std::error::Error>> {

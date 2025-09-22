@@ -103,7 +103,7 @@ struct CircuitBreakerState {
 
 impl CircuitBreaker {
     /// Create a new circuit breaker with the given configuration
-    #[must_use] 
+    #[must_use]
     pub fn new(config: CircuitBreakerConfig) -> Self {
         Self {
             config,
@@ -254,7 +254,7 @@ pub struct RetryMechanism {
 
 impl RetryMechanism {
     /// Create a new retry mechanism
-    #[must_use] 
+    #[must_use]
     pub fn new(config: RetryConfig) -> Self {
         Self { config }
     }
@@ -308,7 +308,7 @@ pub struct ErrorRecoveryCoordinator {
 
 impl ErrorRecoveryCoordinator {
     /// Create a new error recovery coordinator
-    #[must_use] 
+    #[must_use]
     pub fn new(circuit_config: CircuitBreakerConfig, retry_config: RetryConfig) -> Self {
         Self {
             circuit_breaker: CircuitBreaker::new(circuit_config),
@@ -416,7 +416,7 @@ impl RecoveryContext {
     ///
     /// let context = RecoveryContext::new("data_processing", "DataProcessor", 3);
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn new(operation: &str, component: &str, max_attempts: u32) -> Self {
         Self {
             operation: operation.to_string(),
@@ -517,7 +517,7 @@ impl RecoveryContext {
     /// context.increment_attempt();
     /// assert!(!context.should_retry());
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn should_retry(&self) -> bool {
         self.attempt_count < self.max_attempts
     }
@@ -545,7 +545,7 @@ impl RecoveryContext {
     /// let elapsed = context.elapsed_time();
     /// assert!(elapsed >= Duration::from_millis(100));
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn elapsed_time(&self) -> std::time::Duration {
         self.start_time.elapsed()
     }
@@ -602,7 +602,7 @@ impl AdaptiveErrorRecovery {
     ///
     /// let adaptive_recovery = AdaptiveErrorRecovery::new();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             recovery_history: Arc::new(RwLock::new(HashMap::new())),
@@ -1191,14 +1191,18 @@ impl<T> SafeUnwrap<T> for Option<T> {
     where
         T: Default,
     {
-        if let Some(value) = self { value } else {
+        if let Some(value) = self {
+            value
+        } else {
             warn!("Using default value in {} during {}", component, operation);
             T::default()
         }
     }
 
     fn unwrap_or_with_log(self, default: T, operation: &str, component: &str) -> T {
-        if let Some(value) = self { value } else {
+        if let Some(value) = self {
+            value
+        } else {
             warn!("Using fallback value in {} during {}", component, operation);
             default
         }
@@ -1216,9 +1220,7 @@ where
                 component, operation, e
             );
             HiveError::OperationFailed {
-                reason: format!(
-                    "Operation failed in {component} during {operation}: {e}"
-                ),
+                reason: format!("Operation failed in {component} during {operation}: {e}"),
             }
         })
     }
@@ -1473,7 +1475,7 @@ pub struct ExponentialBackoffRetry {
 }
 
 impl ExponentialBackoffRetry {
-    #[must_use] 
+    #[must_use]
     pub fn new(config: ExponentialBackoffConfig) -> Self {
         Self { config }
     }
@@ -1567,7 +1569,7 @@ impl std::fmt::Display for ErrorCategory {
 pub struct ErrorClassifier;
 
 impl ErrorClassifier {
-    #[must_use] 
+    #[must_use]
     pub fn classify_error(error: &HiveError) -> ErrorCategory {
         match error {
             HiveError::TimeoutError { .. } => ErrorCategory::Transient,
@@ -1600,7 +1602,7 @@ impl ErrorClassifier {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn should_retry(category: &ErrorCategory) -> bool {
         matches!(
             category,
@@ -1608,7 +1610,7 @@ impl ErrorClassifier {
         )
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_retry_config(category: &ErrorCategory) -> RetryConfig {
         match category {
             ErrorCategory::Network => RetryConfig {
@@ -1851,7 +1853,7 @@ impl AgentRecoveryManager {
     ///
     /// let recovery_manager = AgentRecoveryManager::new();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         let mut recovery_strategies = HashMap::new();
 
@@ -2541,7 +2543,7 @@ impl ContextAwareRecovery {
     ///
     /// let recovery = ContextAwareRecovery::new();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             error_classifier: ErrorClassifier,
@@ -2601,7 +2603,8 @@ impl ContextAwareRecovery {
         component_name: &str,
     ) -> HiveResult<T>
     where
-        F: Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send>> + Clone,
+        F: Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send>>
+            + Clone,
         E: std::fmt::Display + Send + Sync + 'static,
     {
         let mut context = RecoveryContext::new(operation_name, component_name, 3);
@@ -2742,7 +2745,7 @@ impl HealthMetrics {
     /// assert_eq!(metrics.total_operations, 0);
     /// assert_eq!(metrics.successful_operations, 0);
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             total_operations: 0,
@@ -2857,7 +2860,7 @@ impl HealthMetrics {
     /// assert_eq!(report.success_rate, 0.5);
     /// assert_eq!(report.recovery_rate, 1.0);
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn get_health_report(&self) -> HealthReport {
         if self.total_operations == 0 {
             return HealthReport {
@@ -2915,7 +2918,7 @@ impl HealthMetrics {
     /// let score = metrics.get_overall_health_score();
     /// assert!(score > 0.0 && score < 1.0);
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn get_overall_health_score(&self) -> f64 {
         if self.total_operations == 0 {
             return 1.0;
@@ -2970,7 +2973,7 @@ impl RecoveryHealthMonitor {
     ///
     /// let health_monitor = RecoveryHealthMonitor::new();
     /// ```
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             health_metrics: Arc::new(RwLock::new(HashMap::new())),
@@ -3242,7 +3245,7 @@ impl Default for ErrorHandlerConfig {
 
 impl CentralizedErrorHandler {
     /// Create a new centralized error handler
-    #[must_use] 
+    #[must_use]
     pub fn new(config: ErrorHandlerConfig) -> Self {
         Self {
             context_aware_recovery: Arc::new(ContextAwareRecovery::new()),
@@ -3262,7 +3265,8 @@ impl CentralizedErrorHandler {
         _agent_id: Option<&str>,
     ) -> HiveResult<T>
     where
-        F: Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send>> + Clone,
+        F: Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send>>
+            + Clone,
         E: std::fmt::Display + Send + Sync + 'static,
     {
         let start_time = std::time::Instant::now();
@@ -3453,7 +3457,7 @@ impl CentralizedErrorHandler {
     }
 
     /// Get error handling configuration
-    #[must_use] 
+    #[must_use]
     pub fn get_config(&self) -> &ErrorHandlerConfig {
         &self.config
     }
@@ -3466,9 +3470,10 @@ impl CentralizedErrorHandler {
 }
 
 /// Global error handler instance
-static GLOBAL_ERROR_HANDLER: std::sync::LazyLock<tokio::sync::RwLock<CentralizedErrorHandler>> = std::sync::LazyLock::new(|| {
-    tokio::sync::RwLock::new(CentralizedErrorHandler::new(ErrorHandlerConfig::default()))
-});
+static GLOBAL_ERROR_HANDLER: std::sync::LazyLock<tokio::sync::RwLock<CentralizedErrorHandler>> =
+    std::sync::LazyLock::new(|| {
+        tokio::sync::RwLock::new(CentralizedErrorHandler::new(ErrorHandlerConfig::default()))
+    });
 
 /// Get the global error handler instance
 pub async fn get_global_error_handler(

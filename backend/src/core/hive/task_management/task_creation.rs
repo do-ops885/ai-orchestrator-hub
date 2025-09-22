@@ -19,7 +19,7 @@ pub struct TaskCreator {
 
 impl TaskCreator {
     /// Create a new task creator
-    #[must_use] 
+    #[must_use]
     pub fn new(
         coordination_tx: mpsc::UnboundedSender<CoordinationMessage>,
         config: TaskDistributionConfig,

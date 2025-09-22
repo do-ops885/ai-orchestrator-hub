@@ -26,12 +26,12 @@ async fn test_centralized_error_handler_basic_operation() {
         .await;
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 42);
+    assert_eq!(result.expect("replaced unwrap"), 42);
 
     // Test health monitoring
     let health = handler.get_component_health("TestComponent").await;
     assert!(health.is_some());
-    let health_metrics = health.unwrap();
+    let health_metrics = health.expect("replaced unwrap");
     assert_eq!(health_metrics.total_operations, 1);
     assert_eq!(health_metrics.successful_operations, 1);
     assert_eq!(health_metrics.failed_operations, 0);
@@ -57,7 +57,7 @@ async fn test_centralized_error_handler_with_failure() {
     // Test health monitoring records failure
     let health = handler.get_component_health("TestComponent").await;
     assert!(health.is_some());
-    let health_metrics = health.unwrap();
+    let health_metrics = health.expect("replaced unwrap");
     assert_eq!(health_metrics.total_operations, 1);
     assert_eq!(health_metrics.successful_operations, 0);
     assert_eq!(health_metrics.failed_operations, 1);
@@ -76,7 +76,7 @@ async fn test_circuit_breaker_functionality() {
     // Initially circuit breaker should be closed
     let status = handler.get_circuit_breaker_status("TestComponent").await;
     assert!(status.is_some());
-    assert_eq!(status.unwrap(), CircuitState::Closed);
+    assert_eq!(status.expect("replaced unwrap"), CircuitState::Closed);
 
     // Fail operations to open circuit breaker
     for _ in 0..3 {
@@ -93,7 +93,7 @@ async fn test_circuit_breaker_functionality() {
     // Circuit breaker should now be open
     let status = handler.get_circuit_breaker_status("TestComponent").await;
     assert!(status.is_some());
-    assert_eq!(status.unwrap(), CircuitState::Open);
+    assert_eq!(status.expect("replaced unwrap"), CircuitState::Open);
 
     // Next operation should be blocked
     let result = handler
@@ -141,7 +141,7 @@ async fn test_agent_specific_error_handling() {
         .await;
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "agent success");
+    assert_eq!(result.expect("replaced unwrap"), "agent success");
 
     // Test agent-specific error handling
     let result = handler
@@ -265,7 +265,7 @@ async fn test_system_health_monitoring() {
     // Check component health
     let component_health = handler.get_component_health("TestComponent").await;
     assert!(component_health.is_some());
-    let metrics = component_health.unwrap();
+    let metrics = component_health.expect("replaced unwrap");
     assert_eq!(metrics.total_operations, 10);
     assert_eq!(metrics.successful_operations, 7);
     assert_eq!(metrics.failed_operations, 3);
@@ -293,7 +293,7 @@ async fn test_circuit_breaker_reset() {
 
     // Verify circuit breaker is open
     let status = handler.get_circuit_breaker_status("TestComponent").await;
-    assert_eq!(status.unwrap(), CircuitState::Open);
+    assert_eq!(status.expect("replaced unwrap"), CircuitState::Open);
 
     // Reset circuit breaker
     let reset_result = handler.reset_circuit_breaker("TestComponent").await;
@@ -301,7 +301,7 @@ async fn test_circuit_breaker_reset() {
 
     // Verify circuit breaker is now closed
     let status = handler.get_circuit_breaker_status("TestComponent").await;
-    assert_eq!(status.unwrap(), CircuitState::Closed);
+    assert_eq!(status.expect("replaced unwrap"), CircuitState::Closed);
 
     // Operations should now succeed
     let result = handler
@@ -361,12 +361,12 @@ async fn test_global_error_handler() {
         .await;
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 100);
+    assert_eq!(result.expect("replaced unwrap"), 100);
 
     // Test that the global handler persists state
     let health = global_handler.get_component_health("GlobalComponent").await;
     assert!(health.is_some());
-    assert_eq!(health.unwrap().total_operations, 1);
+    assert_eq!(health.expect("replaced unwrap").total_operations, 1);
 }
 
 #[tokio::test]
@@ -382,7 +382,7 @@ async fn test_centralized_error_handler_macros() {
     );
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 200);
+    assert_eq!(result.expect("replaced unwrap"), 200);
 
     // Test the agent-specific macro
     let result = handle_agent_with_centralized_error_recovery!(
@@ -393,7 +393,7 @@ async fn test_centralized_error_handler_macros() {
     );
 
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "agent macro test");
+    assert_eq!(result.expect("replaced unwrap"), "agent macro test");
 }
 
 #[tokio::test]
@@ -426,59 +426,86 @@ async fn test_comprehensive_error_coverage() {
     let handler = CentralizedErrorHandler::new(config);
 
     // Test a comprehensive set of error types to ensure coverage
-    let error_types: Vec<Box<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), HiveError>> + Send>> + Send + Sync>> = vec![
-        Box::new(|| Box::pin(async {
-            Err::<(), HiveError>(HiveError::AgentNotFound {
-                id: "test".to_string(),
+    let error_types: Vec<
+        Box<
+            dyn Fn() -> std::pin::Pin<
+                    Box<dyn std::future::Future<Output = Result<(), HiveError>> + Send>,
+                > + Send
+                + Sync,
+        >,
+    > = vec![
+        Box::new(|| {
+            Box::pin(async {
+                Err::<(), HiveError>(HiveError::AgentNotFound {
+                    id: "test".to_string(),
+                })
             })
-        })),
-        Box::new(|| Box::pin(async {
-            Err::<(), HiveError>(HiveError::TaskNotFound {
-                id: "test".to_string(),
+        }),
+        Box::new(|| {
+            Box::pin(async {
+                Err::<(), HiveError>(HiveError::TaskNotFound {
+                    id: "test".to_string(),
+                })
             })
-        })),
-        Box::new(|| Box::pin(async {
-            Err::<(), HiveError>(HiveError::ResourceExhausted {
-                resource: "memory".to_string(),
+        }),
+        Box::new(|| {
+            Box::pin(async {
+                Err::<(), HiveError>(HiveError::ResourceExhausted {
+                    resource: "memory".to_string(),
+                })
             })
-        })),
-        Box::new(|| Box::pin(async {
-            Err::<(), HiveError>(HiveError::Communication {
-                reason: "network error".to_string(),
+        }),
+        Box::new(|| {
+            Box::pin(async {
+                Err::<(), HiveError>(HiveError::Communication {
+                    reason: "network error".to_string(),
+                })
             })
-        })),
-        Box::new(|| Box::pin(async {
-            Err::<(), HiveError>(HiveError::DatabaseError {
-                reason: "connection failed".to_string(),
+        }),
+        Box::new(|| {
+            Box::pin(async {
+                Err::<(), HiveError>(HiveError::DatabaseError {
+                    reason: "connection failed".to_string(),
+                })
             })
-        })),
-        Box::new(|| Box::pin(async {
-            Err::<(), HiveError>(HiveError::ValidationError {
-                field: "test".to_string(),
-                reason: "invalid".to_string(),
+        }),
+        Box::new(|| {
+            Box::pin(async {
+                Err::<(), HiveError>(HiveError::ValidationError {
+                    field: "test".to_string(),
+                    reason: "invalid".to_string(),
+                })
             })
-        })),
-        Box::new(|| Box::pin(async {
-            Err::<(), HiveError>(HiveError::AuthenticationError {
-                reason: "unauthorized".to_string(),
+        }),
+        Box::new(|| {
+            Box::pin(async {
+                Err::<(), HiveError>(HiveError::AuthenticationError {
+                    reason: "unauthorized".to_string(),
+                })
             })
-        })),
-        Box::new(|| Box::pin(async {
-            Err::<(), HiveError>(HiveError::SecurityError {
-                reason: "breach detected".to_string(),
+        }),
+        Box::new(|| {
+            Box::pin(async {
+                Err::<(), HiveError>(HiveError::SecurityError {
+                    reason: "breach detected".to_string(),
+                })
             })
-        })),
-        Box::new(|| Box::pin(async {
-            Err::<(), HiveError>(HiveError::AgentLearningFailed {
-                agent_id: "test".to_string(),
-                reason: "model failed".to_string(),
+        }),
+        Box::new(|| {
+            Box::pin(async {
+                Err::<(), HiveError>(HiveError::AgentLearningFailed {
+                    agent_id: "test".to_string(),
+                    reason: "model failed".to_string(),
+                })
             })
-        })),
-        Box::new(|| Box::pin(async {
-            Err::<(), HiveError>(HiveError::SystemOverloaded {
-                reason: "high load".to_string(),
+        }),
+        Box::new(|| {
+            Box::pin(async {
+                Err::<(), HiveError>(HiveError::SystemOverloaded {
+                    reason: "high load".to_string(),
+                })
             })
-        })),
+        }),
     ];
 
     for (index, error_fn) in error_types.into_iter().enumerate() {
@@ -499,7 +526,7 @@ async fn test_comprehensive_error_coverage() {
         .get_component_health("ComprehensiveTestComponent")
         .await;
     assert!(health.is_some());
-    let metrics = health.unwrap();
+    let metrics = health.expect("replaced unwrap");
     assert_eq!(metrics.total_operations, 10);
     assert_eq!(metrics.successful_operations, 0);
     assert_eq!(metrics.failed_operations, 10);

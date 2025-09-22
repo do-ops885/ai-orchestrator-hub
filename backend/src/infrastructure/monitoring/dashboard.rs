@@ -46,7 +46,7 @@ impl Default for EnhancedDashboard {
 }
 
 impl EnhancedDashboard {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             config: Arc::new(RwLock::new(DashboardConfig {
@@ -61,7 +61,7 @@ impl EnhancedDashboard {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_production_monitoring(
         mut self,
         monitoring: Arc<ProductionMonitoringSystem>,
@@ -654,7 +654,7 @@ impl Default for Dashboard {
 }
 
 impl Dashboard {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self
     }

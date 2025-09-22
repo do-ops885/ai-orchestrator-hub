@@ -161,7 +161,7 @@ impl HiveCoordinator {
     ///
     /// Performs health checks on all registered agents and returns
     /// aggregated health status information.
-    #[must_use] 
+    #[must_use]
     pub fn check_agent_health(&self) -> serde_json::Value {
         // Placeholder implementation
         serde_json::json!({

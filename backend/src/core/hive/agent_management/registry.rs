@@ -44,7 +44,7 @@ pub struct AgentRegistry {
 
 impl AgentRegistry {
     /// Create a new agent registry
-    #[must_use] 
+    #[must_use]
     pub fn new(
         resource_manager: Arc<ResourceManager>,
         coordination_tx: mpsc::UnboundedSender<CoordinationMessage>,
@@ -161,7 +161,7 @@ impl AgentRegistry {
     /// Get all active agents
     ///
     /// Returns a complete list of all currently active agents in the system.
-    #[must_use] 
+    #[must_use]
     pub fn get_all_agents(&self) -> Vec<(Uuid, Agent)> {
         self.agents
             .iter()
@@ -179,7 +179,7 @@ impl AgentRegistry {
     /// Get agent count
     ///
     /// Returns the total number of active agents in the system.
-    #[must_use] 
+    #[must_use]
     pub fn get_agent_count(&self) -> usize {
         self.agents.len()
     }
@@ -187,7 +187,7 @@ impl AgentRegistry {
     /// Check if agent exists
     ///
     /// Returns true if the agent with the given ID exists in the registry.
-    #[must_use] 
+    #[must_use]
     pub fn agent_exists(&self, agent_id: Uuid) -> bool {
         self.agents.contains_key(&agent_id)
     }
@@ -195,7 +195,7 @@ impl AgentRegistry {
     /// Get agent metrics
     ///
     /// Retrieves the performance metrics for a specific agent.
-    #[must_use] 
+    #[must_use]
     pub fn get_agent_metrics(&self, agent_id: Uuid) -> Option<AgentMetrics> {
         self.agent_metrics.get(&agent_id).map(|entry| entry.clone())
     }

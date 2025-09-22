@@ -8,8 +8,8 @@
 //! - Better numerical stability
 
 use crate::neural::optimized_network::{
-    NetworkConfig, NetworkSpecialization, OptimizedNeuralManager,
-    OptimizedNeuralNetwork, TrainingBatch,
+    NetworkConfig, NetworkSpecialization, OptimizedNeuralManager, OptimizedNeuralNetwork,
+    TrainingBatch,
 };
 use crate::utils::error::{HiveError, HiveResult};
 use nalgebra::{DMatrix, DVector};
@@ -78,16 +78,22 @@ impl FastNeuralNetwork {
             },
             "pattern" | "classification" => NetworkSpecialization::PatternRecognition {
                 feature_dim: config.layers[0],
-                num_classes: config.layers.last().copied().ok_or_else(|| HiveError::ValidationError {
-                    field: "layers".to_string(),
-                    reason: "Network layers cannot be empty for pattern recognition".to_string(),
+                num_classes: config.layers.last().copied().ok_or_else(|| {
+                    HiveError::ValidationError {
+                        field: "layers".to_string(),
+                        reason: "Network layers cannot be empty for pattern recognition"
+                            .to_string(),
+                    }
                 })?,
             },
             "coordination" | "swarm" => NetworkSpecialization::CoordinationDecision {
                 agent_count: config.layers[0] / 4,
-                action_space: config.layers.last().copied().ok_or_else(|| HiveError::ValidationError {
-                    field: "layers".to_string(),
-                    reason: "Network layers cannot be empty for coordination decision".to_string(),
+                action_space: config.layers.last().copied().ok_or_else(|| {
+                    HiveError::ValidationError {
+                        field: "layers".to_string(),
+                        reason: "Network layers cannot be empty for coordination decision"
+                            .to_string(),
+                    }
                 })?,
             },
             "forecasting" | "prediction" | "temporal" => {
@@ -121,7 +127,7 @@ impl FastNeuralNetwork {
     }
 
     /// Get the network layers configuration
-    #[must_use] 
+    #[must_use]
     pub fn layers(&self) -> &[usize] {
         &self.network.config.layers
     }
@@ -359,7 +365,7 @@ impl FastNeuralNetwork {
     }
 
     /// Get network performance metrics
-    #[must_use] 
+    #[must_use]
     pub fn get_performance_metrics(&self) -> serde_json::Value {
         let metrics = self.network.get_metrics();
         serde_json::json!({
@@ -436,7 +442,7 @@ impl Default for FastNeuralProcessor {
 
 impl FastNeuralProcessor {
     /// Create a new fast neural processor
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             manager: OptimizedNeuralManager::new(),
@@ -617,8 +623,11 @@ mod tests {
         let agent_id = Uuid::new_v4();
 
         // Create network
-        match processor.create_agent_network(agent_id, "sentiment", 10, 1).await {
-            Ok(_) => {},
+        match processor
+            .create_agent_network(agent_id, "sentiment", 10, 1)
+            .await
+        {
+            Ok(_) => {}
             Err(e) => panic!("Failed to create agent network: {}", e),
         }
 
@@ -637,8 +646,11 @@ mod tests {
         let processor = FastNeuralProcessor::new();
         let agent_id = Uuid::new_v4();
 
-        match processor.create_agent_network(agent_id, "pattern", 3, 1).await {
-            Ok(_) => {},
+        match processor
+            .create_agent_network(agent_id, "pattern", 3, 1)
+            .await
+        {
+            Ok(_) => {}
             Err(e) => panic!("Failed to create agent network: {}", e),
         }
 
@@ -651,7 +663,10 @@ mod tests {
         ];
         let targets = vec![vec![1.0], vec![0.0], vec![0.0], vec![1.0]];
 
-        let result = match processor.train_agent_network(agent_id, &inputs, &targets, 10).await {
+        let result = match processor
+            .train_agent_network(agent_id, &inputs, &targets, 10)
+            .await
+        {
             Ok(r) => r,
             Err(e) => panic!("Failed to train: {}", e),
         };

@@ -211,7 +211,7 @@ pub struct MockEnvVar {
 
 impl MockEnvVar {
     /// Create a new mock environment variable
-    #[must_use] 
+    #[must_use]
     pub fn new(key: &str, value: &str) -> Self {
         let original_value = std::env::var(key).ok();
         std::env::set_var(key, value);
@@ -242,7 +242,7 @@ pub struct TestFixture {
 
 impl TestFixture {
     /// Create a new test fixture
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             setup_actions: Vec::new(),
@@ -290,7 +290,7 @@ pub struct TestTimer {
 
 impl TestTimer {
     /// Start timing
-    #[must_use] 
+    #[must_use]
     pub fn start() -> Self {
         Self {
             start_time: std::time::Instant::now(),
@@ -298,7 +298,7 @@ impl TestTimer {
     }
 
     /// Get elapsed time in milliseconds
-    #[must_use] 
+    #[must_use]
     pub fn elapsed_ms(&self) -> u128 {
         self.start_time.elapsed().as_millis()
     }
@@ -320,7 +320,7 @@ pub struct TestDataGenerator {
 
 impl TestDataGenerator {
     /// Create a new test data generator
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self { counter: 0 }
     }
@@ -357,7 +357,7 @@ pub struct ConcurrentTestRunner {
 
 impl ConcurrentTestRunner {
     /// Create a new concurrent test runner
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             handles: Vec::new(),

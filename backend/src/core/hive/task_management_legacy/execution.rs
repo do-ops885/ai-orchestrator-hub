@@ -3,7 +3,6 @@
 //! This module handles task execution logic, result processing,
 //! and execution history management.
 
-
 use super::distributor::TaskDistributor;
 use super::types::{TaskExecutionResult, TaskStatus};
 

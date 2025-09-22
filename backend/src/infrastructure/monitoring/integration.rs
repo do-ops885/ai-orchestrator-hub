@@ -15,7 +15,7 @@ impl Default for Integration {
 }
 
 impl Integration {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self
     }

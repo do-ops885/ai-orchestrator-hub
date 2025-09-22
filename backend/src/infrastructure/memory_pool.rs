@@ -101,20 +101,20 @@ where
             stats.objects_reused += 1;
             stats.current_pool_size = pool.len();
             stats.objects_in_use += 1;
-            
+
             // Update hit ratio
             let total = stats.objects_created + stats.objects_reused;
             stats.hit_ratio = stats.objects_reused as f64 / total as f64;
-            
+
             object
         } else {
             stats.objects_created += 1;
             stats.objects_in_use += 1;
-            
+
             // Update hit ratio
             let total = stats.objects_created + stats.objects_reused;
             stats.hit_ratio = stats.objects_reused as f64 / total as f64;
-            
+
             (self.factory)()
         }
     }
@@ -123,9 +123,9 @@ where
     pub async fn put(&self, object: T) {
         let mut pool = self.pool.lock().await;
         let mut stats = self.stats.lock().await;
-        
+
         stats.objects_in_use = stats.objects_in_use.saturating_sub(1);
-        
+
         if pool.len() < self.max_size {
             pool.push_back(object);
             stats.current_pool_size = pool.len();
@@ -152,7 +152,7 @@ pub struct SwarmMemoryPools {
 
 impl SwarmMemoryPools {
     /// Create new swarm memory pools
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             string_pool: SimpleObjectPool::new(
@@ -196,7 +196,7 @@ pub struct SwarmPoolStats {
 
 impl SwarmPoolStats {
     /// Calculate overall memory efficiency
-    #[must_use] 
+    #[must_use]
     pub fn overall_efficiency(&self) -> f64 {
         let pools = [
             &self.string_pool_stats,
@@ -204,16 +204,17 @@ impl SwarmPoolStats {
             &self.uuid_vec_pool_stats,
         ];
 
-        let avg_hit_ratio: f64 = pools.iter().map(|p| p.hit_ratio).sum::<f64>() / pools.len() as f64;
+        let avg_hit_ratio: f64 =
+            pools.iter().map(|p| p.hit_ratio).sum::<f64>() / pools.len() as f64;
         avg_hit_ratio * 100.0
     }
 
     /// Calculate total memory saved
-    #[must_use] 
+    #[must_use]
     pub fn total_memory_saved_bytes(&self) -> u64 {
-        self.string_pool_stats.memory_saved_bytes +
-        self.byte_vec_pool_stats.memory_saved_bytes +
-        self.uuid_vec_pool_stats.memory_saved_bytes
+        self.string_pool_stats.memory_saved_bytes
+            + self.byte_vec_pool_stats.memory_saved_bytes
+            + self.uuid_vec_pool_stats.memory_saved_bytes
     }
 }
 
@@ -224,17 +225,17 @@ mod tests {
     #[tokio::test]
     async fn test_simple_object_pool() {
         let pool = SimpleObjectPool::new(|| String::from("test"), 5);
-        
+
         // Get object
         let obj1 = pool.get().await;
         assert_eq!(obj1, "test");
-        
+
         // Return object
         pool.put(obj1).await;
-        
+
         // Get object again - should be reused
         let obj2 = pool.get().await;
-        
+
         let stats = pool.get_stats().await;
         assert_eq!(stats.objects_reused, 1);
         assert!(stats.hit_ratio > 0.0);
@@ -243,19 +244,19 @@ mod tests {
     #[tokio::test]
     async fn test_swarm_memory_pools() {
         let pools = SwarmMemoryPools::new();
-        
+
         // Test string pool
         let string1 = pools.string_pool.get().await;
         assert!(string1.capacity() >= 1024);
-        
+
         // Test byte vec pool
         let vec1 = pools.byte_vec_pool.get().await;
         assert!(vec1.capacity() >= 4096);
-        
+
         // Test UUID vec pool
         let uuid_vec1 = pools.uuid_vec_pool.get().await;
         assert!(uuid_vec1.capacity() >= 16);
-        
+
         let stats = pools.get_comprehensive_stats().await;
         assert!(stats.overall_efficiency() >= 0.0);
     }

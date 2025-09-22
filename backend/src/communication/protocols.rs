@@ -44,7 +44,7 @@ pub struct MessageEnvelope {
 
 impl MessageEnvelope {
     /// Create a new message envelope
-    #[must_use] 
+    #[must_use]
     pub fn new(
         message_type: MessageType,
         sender_id: Uuid,
@@ -68,7 +68,7 @@ impl MessageEnvelope {
     }
 
     /// Create a request message with correlation ID
-    #[must_use] 
+    #[must_use]
     pub fn new_request(
         message_type: MessageType,
         sender_id: Uuid,
@@ -93,7 +93,7 @@ impl MessageEnvelope {
     }
 
     /// Create a response message
-    #[must_use] 
+    #[must_use]
     pub fn new_response(
         original_message: &MessageEnvelope,
         sender_id: Uuid,
@@ -116,7 +116,7 @@ impl MessageEnvelope {
     }
 
     /// Check if message is expired
-    #[must_use] 
+    #[must_use]
     pub fn is_expired(&self) -> bool {
         if let Some(ttl) = self.ttl_seconds {
             let elapsed = self.timestamp.signed_duration_since(Utc::now());
@@ -127,28 +127,28 @@ impl MessageEnvelope {
     }
 
     /// Add metadata to the message
-    #[must_use] 
+    #[must_use]
     pub fn with_metadata(mut self, key: String, value: serde_json::Value) -> Self {
         self.metadata.insert(key, value);
         self
     }
 
     /// Set message priority
-    #[must_use] 
+    #[must_use]
     pub fn with_priority(mut self, priority: MessagePriority) -> Self {
         self.priority = priority;
         self
     }
 
     /// Set delivery guarantee
-    #[must_use] 
+    #[must_use]
     pub fn with_delivery_guarantee(mut self, guarantee: DeliveryGuarantee) -> Self {
         self.delivery_guarantee = guarantee;
         self
     }
 
     /// Set TTL
-    #[must_use] 
+    #[must_use]
     pub fn with_ttl(mut self, ttl_seconds: u64) -> Self {
         self.ttl_seconds = Some(ttl_seconds);
         self
@@ -241,7 +241,7 @@ pub enum MessagePayload {
 
 impl MessagePayload {
     /// Get the size of the payload in bytes
-    #[must_use] 
+    #[must_use]
     pub fn size_bytes(&self) -> usize {
         match self {
             MessagePayload::Empty => 0,
@@ -258,7 +258,7 @@ impl MessagePayload {
     }
 
     /// Check if payload is empty
-    #[must_use] 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         matches!(self, MessagePayload::Empty)
     }
@@ -274,7 +274,7 @@ pub struct ProtocolVersion {
 
 impl ProtocolVersion {
     /// Create a new protocol version
-    #[must_use] 
+    #[must_use]
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
         Self {
             major,
@@ -302,13 +302,13 @@ impl ProtocolVersion {
     }
 
     /// Convert to string
-    #[must_use] 
+    #[must_use]
     pub fn to_string(&self) -> String {
         format!("{}.{}.{}", self.major, self.minor, self.patch)
     }
 
     /// Check if this version is compatible with another
-    #[must_use] 
+    #[must_use]
     pub fn is_compatible(&self, other: &ProtocolVersion) -> bool {
         self.major == other.major
     }
@@ -436,7 +436,7 @@ pub struct MessageRouter;
 
 impl MessageRouter {
     /// Route a message to appropriate handlers based on message type
-    #[must_use] 
+    #[must_use]
     pub fn route_message<'a>(
         envelope: &MessageEnvelope,
         handlers: &'a [Box<dyn super::patterns::MessageHandler>],
@@ -448,7 +448,7 @@ impl MessageRouter {
     }
 
     /// Determine if a message should be broadcast
-    #[must_use] 
+    #[must_use]
     pub fn should_broadcast(envelope: &MessageEnvelope) -> bool {
         matches!(
             envelope.message_type,
@@ -457,7 +457,7 @@ impl MessageRouter {
     }
 
     /// Get routing priority based on message characteristics
-    #[must_use] 
+    #[must_use]
     pub fn get_routing_priority(envelope: &MessageEnvelope) -> MessagePriority {
         // Critical messages get highest priority
         if matches!(
@@ -488,7 +488,7 @@ pub struct MessageDeduplicator {
 
 impl MessageDeduplicator {
     /// Create a new deduplicator
-    #[must_use] 
+    #[must_use]
     pub fn new(max_size: usize) -> Self {
         Self {
             seen_messages: std::collections::HashSet::new(),
@@ -497,7 +497,7 @@ impl MessageDeduplicator {
     }
 
     /// Check if message is duplicate
-    #[must_use] 
+    #[must_use]
     pub fn is_duplicate(&self, message_id: &Uuid) -> bool {
         self.seen_messages.contains(message_id)
     }

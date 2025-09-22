@@ -9,7 +9,7 @@ use super::health_monitor::HealthMonitor;
 use super::integration::Integration;
 use super::performance_monitor::PerformanceMonitor;
 use super::reporting::Reporting;
-use super::types::{HealthSnapshot, PerformanceStatusSummary, MonitoringStatus};
+use super::types::{HealthSnapshot, MonitoringStatus, PerformanceStatusSummary};
 use crate::infrastructure::intelligent_alerting::{
     IntelligentAlertConfig, IntelligentAlertingSystem,
 };
@@ -647,13 +647,13 @@ impl ProductionMonitoringSystem {
     }
 
     /// Get metrics collector (for internal use)
-    #[must_use] 
+    #[must_use]
     pub fn get_metrics_collector(&self) -> Arc<MetricsCollector> {
         Arc::clone(&self.metrics_collector)
     }
 
     /// Get telemetry collector (for internal use)
-    #[must_use] 
+    #[must_use]
     pub fn get_telemetry_collector(&self) -> Arc<TelemetryCollector> {
         Arc::clone(&self.telemetry_collector)
     }

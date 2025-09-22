@@ -12,11 +12,11 @@ use multiagent_hive::auth::{AuthManager, UserRole};
 use multiagent_hive::persistence::{PersistenceManager, SQLiteStorage};
 use multiagent_hive::settings::Settings;
 
+use axum::http::StatusCode;
 use reqwest::Client;
 use serde_json::json;
 use tempfile::TempDir;
 use tower::ServiceBuilder;
-use axum::http::StatusCode;
 
 mod test_utils;
 use test_utils::*;
@@ -37,7 +37,7 @@ impl AuthIntegrationFixture {
 
         // Setup storage and persistence
         let storage = Arc::new(RwLock::new(
-            SQLiteStorage::new(&db_path).expect("Failed to create storage")
+            SQLiteStorage::new(&db_path).expect("Failed to create storage"),
         ));
 
         let persistence = PersistenceManager::new(storage, None)
@@ -50,23 +50,20 @@ impl AuthIntegrationFixture {
             .expect("Failed to create auth manager");
 
         // Find available port
-        let listener = TcpListener::bind("127.0.0.1:0")
-            .expect("Failed to bind to available port");
+        let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind to available port");
         let port = listener.local_addr().unwrap().port();
 
         // Create router with auth manager
-        let app = create_router()
-            .layer(
-                ServiceBuilder::new()
-                    .layer(axum::middleware::from_fn(move |req, next| {
-                        let auth_manager = auth_manager.clone();
-                        async move {
-                            // Add auth manager to request extensions for testing
-                            req.extensions_mut().insert(auth_manager);
-                            next.run(req).await
-                        }
-                    }))
-            );
+        let app = create_router().layer(ServiceBuilder::new().layer(axum::middleware::from_fn(
+            move |req, next| {
+                let auth_manager = auth_manager.clone();
+                async move {
+                    // Add auth manager to request extensions for testing
+                    req.extensions_mut().insert(auth_manager);
+                    next.run(req).await
+                }
+            },
+        )));
 
         // Start server
         let server_handle = tokio::spawn(async move {
@@ -89,7 +86,12 @@ impl AuthIntegrationFixture {
         }
     }
 
-    async fn register_user(&self, username: &str, password: &str, role: UserRole) -> reqwest::Response {
+    async fn register_user(
+        &self,
+        username: &str,
+        password: &str,
+        role: UserRole,
+    ) -> reqwest::Response {
         self.client
             .post(&format!("{}/api/auth/register", self.base_url))
             .json(&json!({
@@ -155,7 +157,11 @@ mod auth_integration_tests {
 
         // 1. Register a new user
         let register_response = fixture
-            .register_user("integration_test_user", "secure_password123!", UserRole::User)
+            .register_user(
+                "integration_test_user",
+                "secure_password123!",
+                UserRole::User,
+            )
             .await;
 
         assert_eq!(register_response.status(), StatusCode::CREATED);
@@ -188,16 +194,12 @@ mod auth_integration_tests {
         let refresh_token = login_data["refresh_token"].as_str().unwrap();
 
         // 3. Access protected resource with access token
-        let protected_response = fixture
-            .get_protected_resource(access_token)
-            .await;
+        let protected_response = fixture.get_protected_resource(access_token).await;
 
         assert_eq!(protected_response.status(), StatusCode::OK);
 
         // 4. Refresh the access token
-        let refresh_response = fixture
-            .refresh_token(refresh_token)
-            .await;
+        let refresh_response = fixture.refresh_token(refresh_token).await;
 
         assert_eq!(refresh_response.status(), StatusCode::OK);
 
@@ -209,23 +211,17 @@ mod auth_integration_tests {
         let new_access_token = refresh_data["access_token"].as_str().unwrap();
 
         // 5. Verify new token works
-        let protected_response2 = fixture
-            .get_protected_resource(new_access_token)
-            .await;
+        let protected_response2 = fixture.get_protected_resource(new_access_token).await;
 
         assert_eq!(protected_response2.status(), StatusCode::OK);
 
         // 6. Logout
-        let logout_response = fixture
-            .logout(new_access_token)
-            .await;
+        let logout_response = fixture.logout(new_access_token).await;
 
         assert_eq!(logout_response.status(), StatusCode::OK);
 
         // 7. Verify token is invalidated
-        let protected_response3 = fixture
-            .get_protected_resource(new_access_token)
-            .await;
+        let protected_response3 = fixture.get_protected_resource(new_access_token).await;
 
         assert_eq!(protected_response3.status(), StatusCode::UNAUTHORIZED);
     }
@@ -254,7 +250,8 @@ mod auth_integration_tests {
         assert_eq!(weak_password_response.status(), StatusCode::BAD_REQUEST);
 
         // Test invalid role
-        let invalid_role_response = fixture.client
+        let invalid_role_response = fixture
+            .client
             .post(&format!("{}/api/auth/register", fixture.base_url))
             .json(&json!({
                 "username": "invalid_role_user",
@@ -273,9 +270,7 @@ mod auth_integration_tests {
         let fixture = AuthIntegrationFixture::new().await;
 
         // Test nonexistent user
-        let nonexistent_response = fixture
-            .login("nonexistent_user", "password")
-            .await;
+        let nonexistent_response = fixture.login("nonexistent_user", "password").await;
 
         assert_eq!(nonexistent_response.status(), StatusCode::UNAUTHORIZED);
 
@@ -284,9 +279,7 @@ mod auth_integration_tests {
             .register_user("wrong_password_user", "correct_password", UserRole::User)
             .await;
 
-        let wrong_password_response = fixture
-            .login("wrong_password_user", "wrong_password")
-            .await;
+        let wrong_password_response = fixture.login("wrong_password_user", "wrong_password").await;
 
         assert_eq!(wrong_password_response.status(), StatusCode::UNAUTHORIZED);
     }
@@ -300,17 +293,13 @@ mod auth_integration_tests {
             .register_user("security_test_user", "password123", UserRole::User)
             .await;
 
-        let login_response = fixture
-            .login("security_test_user", "password123")
-            .await;
+        let login_response = fixture.login("security_test_user", "password123").await;
 
         let login_data: serde_json::Value = login_response.json().await.unwrap();
         let access_token = login_data["access_token"].as_str().unwrap();
 
         // Test with malformed token
-        let malformed_response = fixture
-            .get_protected_resource("malformed.jwt.token")
-            .await;
+        let malformed_response = fixture.get_protected_resource("malformed.jwt.token").await;
 
         assert_eq!(malformed_response.status(), StatusCode::UNAUTHORIZED);
 
@@ -318,7 +307,8 @@ mod auth_integration_tests {
         // This would require manipulating time or using a pre-expired token
 
         // Test missing authorization header
-        let no_auth_response = fixture.client
+        let no_auth_response = fixture
+            .client
             .get(&format!("{}/api/protected", fixture.base_url))
             .send()
             .await
@@ -351,7 +341,8 @@ mod auth_integration_tests {
         let admin_token = admin_data["access_token"].as_str().unwrap();
 
         // Test admin-only endpoint
-        let admin_only_response = fixture.client
+        let admin_only_response = fixture
+            .client
             .get(&format!("{}/api/admin/users", fixture.base_url))
             .header("Authorization", format!("Bearer {}", user_token))
             .send()
@@ -362,7 +353,8 @@ mod auth_integration_tests {
         assert_eq!(admin_only_response.status(), StatusCode::FORBIDDEN);
 
         // Admin should have access
-        let admin_access_response = fixture.client
+        let admin_access_response = fixture
+            .client
             .get(&format!("{}/api/admin/users", fixture.base_url))
             .header("Authorization", format!("Bearer {}", admin_token))
             .send()
@@ -387,9 +379,7 @@ mod auth_integration_tests {
         for i in 0..10 {
             let fixture_clone = fixture.clone();
             let handle = tokio::spawn(async move {
-                let response = fixture_clone
-                    .login("concurrent_user", "password")
-                    .await;
+                let response = fixture_clone.login("concurrent_user", "password").await;
 
                 assert_eq!(response.status(), StatusCode::OK);
 
@@ -413,9 +403,7 @@ mod auth_integration_tests {
         let mut responses = vec![];
 
         for _ in 0..50 {
-            let response = fixture
-                .login("nonexistent", "password")
-                .await;
+            let response = fixture.login("nonexistent", "password").await;
 
             responses.push(response.status());
         }
@@ -463,7 +451,8 @@ mod auth_integration_tests {
         // Test various error conditions
         let error_cases = vec![
             (
-                fixture.client
+                fixture
+                    .client
                     .post(&format!("{}/api/auth/register", fixture.base_url))
                     .json(&json!({}))
                     .send()
@@ -472,7 +461,8 @@ mod auth_integration_tests {
                 StatusCode::BAD_REQUEST,
             ),
             (
-                fixture.client
+                fixture
+                    .client
                     .post(&format!("{}/api/auth/login", fixture.base_url))
                     .json(&json!({ "username": "", "password": "" }))
                     .send()

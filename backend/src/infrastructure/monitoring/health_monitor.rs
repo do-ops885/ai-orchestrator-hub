@@ -2,7 +2,7 @@
 //!
 //! Monitors the health and status of agents and system components
 
-use super::types::{AgentHealth, SystemHealth, HealthSnapshot, HealthStatus, ResourceHealth};
+use super::types::{AgentHealth, HealthSnapshot, HealthStatus, ResourceHealth, SystemHealth};
 use crate::utils::error::HiveResult;
 use chrono::Utc;
 use std::collections::HashMap;
@@ -26,7 +26,7 @@ impl Default for HealthMonitor {
 
 impl HealthMonitor {
     /// Create a new health monitor
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             agent_health: Arc::new(RwLock::new(HashMap::new())),

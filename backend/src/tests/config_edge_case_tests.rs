@@ -3,38 +3,40 @@
 //! Tests to prevent regression of `unwrap_or()` to `unwrap_or_else`(||) changes
 //! in the configuration parsing system.
 
+use crate::HiveConfig;
+use std::env;
 
 /// Test invalid environment variable values for numeric parsing
 #[test]
 fn test_invalid_monitoring_interval_values() {
     // Test non-numeric values
     env::set_var("MONITORING_INTERVAL", "invalid");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 5); // Should use default
 
     // Test negative values
     env::set_var("MONITORING_INTERVAL", "-10");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 5); // Should use default
 
     // Test zero values
     env::set_var("MONITORING_INTERVAL", "0");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 0); // Zero is valid
 
     // Test very large values
     env::set_var("MONITORING_INTERVAL", "999999999999999999999");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 5); // Should use default for overflow
 
     // Test empty string
     env::set_var("MONITORING_INTERVAL", "");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 5); // Should use default
 
     // Test whitespace
     env::set_var("MONITORING_INTERVAL", "  123  ");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 5); // Should use default for invalid
 
     // Cleanup
@@ -46,27 +48,27 @@ fn test_invalid_monitoring_interval_values() {
 fn test_invalid_metrics_retention_values() {
     // Test non-numeric values
     env::set_var("METRICS_RETENTION", "not_a_number");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.metrics_retention_days, 7); // Should use default
 
     // Test negative values
     env::set_var("METRICS_RETENTION", "-5");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.metrics_retention_days, 7); // Should use default
 
     // Test zero
     env::set_var("METRICS_RETENTION", "0");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.metrics_retention_days, 0); // Zero is valid
 
     // Test very large values
     env::set_var("METRICS_RETENTION", "999999999999999999999");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.metrics_retention_days, 7); // Should use default for overflow
 
     // Test empty string
     env::set_var("METRICS_RETENTION", "");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.metrics_retention_days, 7); // Should use default
 
     // Cleanup
@@ -78,37 +80,37 @@ fn test_invalid_metrics_retention_values() {
 fn test_invalid_alert_threshold_values() {
     // Test non-numeric values
     env::set_var("ALERT_THRESHOLD", "not_a_number");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.alert_threshold, 0.8); // Should use default
 
     // Test negative values
     env::set_var("ALERT_THRESHOLD", "-0.5");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.alert_threshold, 0.8); // Should use default
 
     // Test values greater than 1.0
     env::set_var("ALERT_THRESHOLD", "1.5");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.alert_threshold, 1.5); // Should accept as-is
 
     // Test zero
     env::set_var("ALERT_THRESHOLD", "0.0");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.alert_threshold, 0.0); // Zero is valid
 
     // Test very small decimal
     env::set_var("ALERT_THRESHOLD", "0.0000001");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.alert_threshold, 0.0000001); // Should accept
 
     // Test empty string
     env::set_var("ALERT_THRESHOLD", "");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.alert_threshold, 0.8); // Should use default
 
     // Test special characters
     env::set_var("ALERT_THRESHOLD", "0.8abc");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.alert_threshold, 0.8); // Should use default
 
     // Cleanup
@@ -125,7 +127,7 @@ fn test_missing_required_env_vars() {
     env::remove_var("METRICS_ENDPOINT");
     env::remove_var("HEALTH_ENDPOINT");
 
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
 
     // Should use all defaults
     assert_eq!(config.monitoring.monitoring_interval_secs, 5);
@@ -146,17 +148,17 @@ fn test_missing_required_env_vars() {
 fn test_malformed_env_var_formats() {
     // Test JSON-like strings that aren't valid numbers
     env::set_var("MONITORING_INTERVAL", "{\"value\": 10}");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 5); // Should use default
 
     // Test array-like strings
     env::set_var("METRICS_RETENTION", "[7, 14, 30]");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.metrics_retention_days, 7); // Should use default
 
     // Test boolean strings
     env::set_var("ALERT_THRESHOLD", "true");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.alert_threshold, 0.8); // Should use default
 
     // Cleanup
@@ -175,7 +177,7 @@ fn test_empty_string_env_values() {
     env::set_var("METRICS_ENDPOINT", "");
     env::set_var("HEALTH_ENDPOINT", "");
 
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
 
     // Should use defaults for numeric values
     assert_eq!(config.monitoring.monitoring_interval_secs, 5);
@@ -201,14 +203,14 @@ fn test_very_long_env_values() {
     let long_value = "1".repeat(10000);
 
     env::set_var("MONITORING_INTERVAL", &long_value);
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 5); // Should use default for invalid
 
     // Test with a valid long number
     let long_number =
         "999999999999999999999999999999999999999999999999999999999999999999999999999999";
     env::set_var("METRICS_RETENTION", long_number);
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.metrics_retention_days, 7); // Should use default for overflow
 
     // Cleanup
@@ -256,7 +258,7 @@ fn test_special_characters_in_env_vars() {
 
     for value in special_values {
         env::set_var("MONITORING_INTERVAL", value);
-        let config = HiveConfig::from_env().unwrap();
+        let config = HiveConfig::from_env().expect("replaced unwrap");
         assert_eq!(
             config.monitoring.monitoring_interval_secs, 5,
             "Failed for special character value: {}",
@@ -273,22 +275,22 @@ fn test_special_characters_in_env_vars() {
 fn test_numeric_boundary_conditions() {
     // Test maximum u64 values
     env::set_var("MONITORING_INTERVAL", &u64::MAX.to_string());
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, u64::MAX); // Should accept
 
     // Test minimum u64 values
     env::set_var("MONITORING_INTERVAL", "0");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 0); // Should accept
 
     // Test maximum u64 minus 1
     env::set_var("MONITORING_INTERVAL", &(u64::MAX - 1).to_string());
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, u64::MAX - 1); // Should accept
 
     // Test very large numbers that might cause overflow
     env::set_var("MONITORING_INTERVAL", "18446744073709551616"); // u64::MAX + 1
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 5); // Should use default for overflow
 
     // Cleanup
@@ -314,7 +316,7 @@ async fn test_concurrent_env_var_access() {
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
 
             // Read config
-            let config = HiveConfig::from_env().unwrap();
+            let config = HiveConfig::from_env().expect("replaced unwrap");
             let mut count = counter_clone.lock().await;
             *count += 1;
 
@@ -329,7 +331,7 @@ async fn test_concurrent_env_var_access() {
 
     // Wait for all tasks to complete
     for handle in handles {
-        handle.await.unwrap();
+        handle.await.expect("replaced unwrap");
     }
 
     let final_count = *counter.lock().await;
@@ -354,7 +356,7 @@ fn test_unicode_env_values() {
 
     for value in unicode_values {
         env::set_var("MONITORING_INTERVAL", value);
-        let config = HiveConfig::from_env().unwrap();
+        let config = HiveConfig::from_env().expect("replaced unwrap");
         assert_eq!(
             config.monitoring.monitoring_interval_secs, 5,
             "Failed for Unicode value: {}",
@@ -371,7 +373,7 @@ fn test_unicode_env_values() {
 fn test_rapid_env_changes() {
     for i in 0..100 {
         env::set_var("MONITORING_INTERVAL", i.to_string());
-        let config = HiveConfig::from_env().unwrap();
+        let config = HiveConfig::from_env().expect("replaced unwrap");
 
         // Should either get the current value or default (due to parsing)
         assert!(
@@ -389,11 +391,11 @@ fn test_rapid_env_changes() {
 fn test_env_var_case_sensitivity() {
     // Test different cases
     env::set_var("monitoring_interval", "10");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 5); // Should use default (wrong case)
 
     env::set_var("MONITORING_INTERVAL", "10");
-    let config = HiveConfig::from_env().unwrap();
+    let config = HiveConfig::from_env().expect("replaced unwrap");
     assert_eq!(config.monitoring.monitoring_interval_secs, 10); // Should accept (correct case)
 
     // Cleanup
@@ -423,7 +425,7 @@ fn test_whitespace_env_values() {
 
     for value in whitespace_values {
         env::set_var("MONITORING_INTERVAL", value);
-        let config = HiveConfig::from_env().unwrap();
+        let config = HiveConfig::from_env().expect("replaced unwrap");
         assert_eq!(
             config.monitoring.monitoring_interval_secs, 5,
             "Failed for whitespace value: {:?}",

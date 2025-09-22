@@ -15,7 +15,7 @@ impl Default for Reporting {
 }
 
 impl Reporting {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self
     }

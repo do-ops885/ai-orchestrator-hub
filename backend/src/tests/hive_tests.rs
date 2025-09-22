@@ -27,12 +27,25 @@ mod tests {
 
         // Check initial status
         let status = coordinator.get_status().await;
-        let agents_info = status["agents"].as_object().unwrap();
-        assert_eq!(agents_info["total_agents"].as_u64().unwrap(), 0);
-        assert_eq!(agents_info["active_agents"].as_u64().unwrap(), 0);
+        let agents_info = status["agents"].as_object().expect("replaced unwrap");
+        assert_eq!(
+            agents_info["total_agents"]
+                .as_u64()
+                .expect("replaced unwrap"),
+            0
+        );
+        assert_eq!(
+            agents_info["active_agents"]
+                .as_u64()
+                .expect("replaced unwrap"),
+            0
+        );
 
-        let tasks_info = status["tasks"].as_object().unwrap();
-        assert_eq!(tasks_info["total_tasks"].as_u64().unwrap(), 0);
+        let tasks_info = status["tasks"].as_object().expect("replaced unwrap");
+        assert_eq!(
+            tasks_info["total_tasks"].as_u64().expect("replaced unwrap"),
+            0
+        );
     }
 
     #[tokio::test]
@@ -72,14 +85,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_agent_creation_with_capabilities() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Test creating an agent with capabilities
         let capabilities = vec![("data_processing", 0.8, 0.1), ("analysis", 0.6, 0.15)];
         let agent_config = create_agent_config("SkillfulAgent", "worker", Some(capabilities));
-        let agent_id = hive.create_agent(agent_config).await.unwrap();
+        let agent_id = hive
+            .create_agent(agent_config)
+            .await
+            .expect("replaced unwrap");
 
-        let agent = hive.get_agent(agent_id).await.unwrap();
+        let agent = hive.get_agent(agent_id).await.expect("replaced unwrap");
         assert_eq!(agent.capabilities.len(), 2);
         assert_approx_eq(agent.get_capability_score("data_processing"), 0.8, 0.001);
         assert_approx_eq(agent.get_capability_score("analysis"), 0.6, 0.001);
@@ -87,26 +103,41 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_different_agent_types() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Test creating different agent types
         let coordinator_config = create_agent_config("Coordinator", "coordinator", None);
-        let coordinator_id = hive.create_agent(coordinator_config).await.unwrap();
+        let coordinator_id = hive
+            .create_agent(coordinator_config)
+            .await
+            .expect("replaced unwrap");
 
         let learner_config = create_agent_config("Learner", "learner", None);
-        let learner_id = hive.create_agent(learner_config).await.unwrap();
+        let learner_id = hive
+            .create_agent(learner_config)
+            .await
+            .expect("replaced unwrap");
 
         let specialist_config = create_agent_config("Specialist", "specialist:AI", None);
-        let specialist_id = hive.create_agent(specialist_config).await.unwrap();
+        let specialist_id = hive
+            .create_agent(specialist_config)
+            .await
+            .expect("replaced unwrap");
 
         // Verify agent types
-        let coordinator = hive.get_agent(coordinator_id).await.unwrap();
+        let coordinator = hive
+            .get_agent(coordinator_id)
+            .await
+            .expect("replaced unwrap");
         assert!(matches!(coordinator.agent_type, AgentType::Coordinator));
 
-        let learner = hive.get_agent(learner_id).await.unwrap();
+        let learner = hive.get_agent(learner_id).await.expect("replaced unwrap");
         assert!(matches!(learner.agent_type, AgentType::Learner));
 
-        let specialist = hive.get_agent(specialist_id).await.unwrap();
+        let specialist = hive
+            .get_agent(specialist_id)
+            .await
+            .expect("replaced unwrap");
         if let AgentType::Specialist(domain) = &specialist.agent_type {
             assert_eq!(domain, "AI");
         } else {
@@ -116,7 +147,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_task_creation() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Test creating a basic task
         let task_config = create_task_config("Test task", "general", 1, None);
@@ -124,15 +155,15 @@ mod tests {
         assert!(task_id.is_ok());
 
         // Verify task was added to queue
-        let tasks_info = hive.get_tasks_info().await.unwrap();
-        let queue_info = tasks_info["queue"].as_object().unwrap();
+        let tasks_info = hive.get_tasks_info().await.expect("replaced unwrap");
+        let queue_info = tasks_info["queue"].as_object().expect("replaced unwrap");
         let queue_size = queue_info["legacy_queue_size"].as_u64().unwrap_or(0);
         assert!(queue_size > 0);
     }
 
     #[tokio::test]
     async fn test_hive_task_creation_with_requirements() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Test creating a task with capability requirements
         let requirements = vec![("data_processing", 0.7), ("analysis", 0.5)];
@@ -148,7 +179,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_task_priority_handling() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Create tasks with different priorities
         let low_config = create_task_config("Low priority", "general", 0, None);
@@ -156,36 +187,61 @@ mod tests {
         let high_config = create_task_config("High priority", "general", 2, None);
         let critical_config = create_task_config("Critical priority", "general", 3, None);
 
-        let _low_id = hive.create_task(low_config).await.unwrap();
-        let _medium_id = hive.create_task(medium_config).await.unwrap();
-        let _high_id = hive.create_task(high_config).await.unwrap();
-        let _critical_id = hive.create_task(critical_config).await.unwrap();
+        let _low_id = hive.create_task(low_config).await.expect("replaced unwrap");
+        let _medium_id = hive
+            .create_task(medium_config)
+            .await
+            .expect("replaced unwrap");
+        let _high_id = hive
+            .create_task(high_config)
+            .await
+            .expect("replaced unwrap");
+        let _critical_id = hive
+            .create_task(critical_config)
+            .await
+            .expect("replaced unwrap");
 
         // All tasks should be created successfully
-        let tasks_info = hive.get_tasks_info().await.unwrap();
-        let queue_info = tasks_info["queue"].as_object().unwrap();
+        let tasks_info = hive.get_tasks_info().await.expect("replaced unwrap");
+        let queue_info = tasks_info["queue"].as_object().expect("replaced unwrap");
         let queue_size = queue_info["legacy_queue_size"].as_u64().unwrap_or(0);
         assert!(queue_size >= 4);
     }
 
     #[tokio::test]
     async fn test_hive_agents_info() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Initially should have no agents
         let initial_info = hive.get_agents_info().await;
-        assert_eq!(initial_info["total_agents"].as_u64().unwrap(), 0);
+        assert_eq!(
+            initial_info["total_agents"]
+                .as_u64()
+                .expect("replaced unwrap"),
+            0
+        );
 
         // Add some agents
         let worker_config = create_agent_config("Worker1", "worker", None);
-        let _worker_id = hive.create_agent(worker_config).await.unwrap();
+        let _worker_id = hive
+            .create_agent(worker_config)
+            .await
+            .expect("replaced unwrap");
 
         let coordinator_config = create_agent_config("Coordinator1", "coordinator", None);
-        let _coordinator_id = hive.create_agent(coordinator_config).await.unwrap();
+        let _coordinator_id = hive
+            .create_agent(coordinator_config)
+            .await
+            .expect("replaced unwrap");
 
         // Check updated info
         let updated_info = hive.get_agents_info().await;
-        assert_eq!(updated_info["total_agents"].as_u64().unwrap(), 2);
+        assert_eq!(
+            updated_info["total_agents"]
+                .as_u64()
+                .expect("replaced unwrap"),
+            2
+        );
 
         // Verify agent information structure exists
         assert!(updated_info["active_agents"].is_number());
@@ -195,22 +251,28 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_tasks_info() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Check initial task info
-        let initial_info = hive.get_tasks_info().await.unwrap();
+        let initial_info = hive.get_tasks_info().await.expect("replaced unwrap");
         assert!(initial_info["queue"].is_object());
         assert!(initial_info["executor"].is_object());
 
         // Add some tasks
         let task_config1 = create_task_config("Task 1", "general", 1, None);
-        let _task_id1 = hive.create_task(task_config1).await.unwrap();
+        let _task_id1 = hive
+            .create_task(task_config1)
+            .await
+            .expect("replaced unwrap");
 
         let task_config2 = create_task_config("Task 2", "analysis", 2, None);
-        let _task_id2 = hive.create_task(task_config2).await.unwrap();
+        let _task_id2 = hive
+            .create_task(task_config2)
+            .await
+            .expect("replaced unwrap");
 
         // Check updated task info
-        let updated_info = hive.get_tasks_info().await.unwrap();
+        let updated_info = hive.get_tasks_info().await.expect("replaced unwrap");
         let queue_info = &updated_info["queue"];
 
         // Should have some tasks in the system
@@ -219,7 +281,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_status() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         let status = hive.get_status().await;
 
@@ -249,9 +311,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_resource_info() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
-        let resource_info = hive.get_resource_info().await.unwrap();
+        let resource_info = hive.get_resource_info().await.expect("replaced unwrap");
 
         // Verify resource info structure
         assert!(resource_info["system_resources"].is_object());
@@ -271,7 +333,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_simple_verification_stats() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         let verification_stats = hive.get_simple_verification_stats().await;
 
@@ -287,15 +349,24 @@ mod tests {
 
         // Initial stats should show no verifications
         assert_eq!(
-            verification_stats["total_verifications"].as_u64().unwrap(),
+            verification_stats["total_verifications"]
+                .as_u64()
+                .expect("replaced unwrap"),
             0
         );
-        assert!((verification_stats["success_rate"].as_f64().unwrap() - 0.0).abs() < f64::EPSILON);
+        assert!(
+            (verification_stats["success_rate"]
+                .as_f64()
+                .expect("replaced unwrap")
+                - 0.0)
+                .abs()
+                < f64::EPSILON
+        );
     }
 
     #[tokio::test]
     async fn test_hive_simple_verification_config() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Test configuration
         let config = json!({
@@ -315,7 +386,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_auto_scaling_stats() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         let auto_scaling_stats = hive.get_auto_scaling_stats().await;
 
@@ -325,7 +396,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_skill_evolution_stats() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         let skill_evolution_stats = hive.get_skill_evolution_stats().await;
 
@@ -335,7 +406,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_enhanced_analytics() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         let analytics = hive.get_enhanced_analytics().await;
 
@@ -356,16 +427,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_execute_task_with_simple_verification() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Create an agent capable of performing tasks
         let agent_config =
             create_agent_config("TestAgent", "worker", Some(vec![("general", 0.8, 0.1)]));
-        let agent_id = hive.create_agent(agent_config).await.unwrap();
+        let agent_id = hive
+            .create_agent(agent_config)
+            .await
+            .expect("replaced unwrap");
 
         // Create a task
         let task_config = create_task_config("Verification test", "general", 1, None);
-        let task_id = hive.create_task(task_config).await.unwrap();
+        let task_id = hive
+            .create_task(task_config)
+            .await
+            .expect("replaced unwrap");
 
         // Task is already created and should be available in the system
 
@@ -383,7 +460,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_concurrent_agent_creation() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Create multiple agents concurrently
         let mut handles = vec![];
@@ -399,9 +476,9 @@ mod tests {
         // Wait for all agents to be created
         let mut agent_ids = vec![];
         for handle in handles {
-            let result = handle.await.unwrap();
+            let result = handle.await.expect("replaced unwrap");
             assert!(result.is_ok());
-            agent_ids.push(result.unwrap());
+            agent_ids.push(result.expect("replaced unwrap"));
         }
 
         // Verify all agents were created with unique IDs
@@ -418,7 +495,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_concurrent_task_creation() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Create multiple tasks concurrently
         let mut handles = vec![];
@@ -434,9 +511,9 @@ mod tests {
         // Wait for all tasks to be created
         let mut task_ids = vec![];
         for handle in handles {
-            let result = handle.await.unwrap();
+            let result = handle.await.expect("replaced unwrap");
             assert!(result.is_ok());
-            task_ids.push(result.unwrap());
+            task_ids.push(result.expect("replaced unwrap"));
         }
 
         // Verify all tasks were created with unique IDs
@@ -452,7 +529,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_hive_metrics_update_with_agents() {
-        let hive = HiveCoordinator::new().await.unwrap();
+        let hive = HiveCoordinator::new().await.expect("replaced unwrap");
 
         // Add some agents
         for i in 0..3 {
@@ -461,7 +538,7 @@ mod tests {
                 "worker",
                 Some(vec![("general", 0.7, 0.1)]),
             );
-            let _agent_id = hive.create_agent(config).await.unwrap();
+            let _agent_id = hive.create_agent(config).await.expect("replaced unwrap");
         }
 
         // Wait a bit for metrics to update
@@ -471,8 +548,16 @@ mod tests {
         let metrics = &status["metrics"];
 
         // Should reflect the added agents
-        assert_eq!(metrics["total_agents"].as_u64().unwrap(), 3);
-        assert!(metrics["average_performance"].as_f64().unwrap() > 0.0);
+        assert_eq!(
+            metrics["total_agents"].as_u64().expect("replaced unwrap"),
+            3
+        );
+        assert!(
+            metrics["average_performance"]
+                .as_f64()
+                .expect("replaced unwrap")
+                > 0.0
+        );
     }
 
     #[test]
@@ -493,11 +578,11 @@ mod tests {
         assert!(serialized.is_ok());
 
         // Test deserialization
-        let json_str = serialized.unwrap();
+        let json_str = serialized.expect("replaced unwrap");
         let deserialized: Result<SwarmMetrics, _> = serde_json::from_str(&json_str);
         assert!(deserialized.is_ok());
 
-        let restored_metrics = deserialized.unwrap();
+        let restored_metrics = deserialized.expect("replaced unwrap");
         assert_eq!(restored_metrics.total_agents, metrics.total_agents);
         assert_eq!(restored_metrics.active_agents, metrics.active_agents);
         assert_approx_eq(

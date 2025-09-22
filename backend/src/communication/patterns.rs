@@ -181,7 +181,7 @@ pub struct ConnectionPool {
 
 impl ConnectionPool {
     /// Create a new connection pool
-    #[must_use] 
+    #[must_use]
     pub fn new(config: CommunicationConfig) -> Self {
         Self {
             connections: Arc::new(RwLock::new(std::collections::HashMap::new())),
@@ -273,7 +273,7 @@ impl Default for CircuitBreakerConfig {
 
 impl CircuitBreaker {
     /// Create a new circuit breaker
-    #[must_use] 
+    #[must_use]
     pub fn new(config: CircuitBreakerConfig) -> Self {
         Self {
             state: Arc::new(RwLock::new(CircuitBreakerState {
@@ -371,7 +371,7 @@ impl Default for RetryConfig {
 
 impl RetryMechanism {
     /// Create a new retry mechanism
-    #[must_use] 
+    #[must_use]
     pub fn new(config: RetryConfig) -> Self {
         Self { config }
     }
@@ -431,7 +431,7 @@ pub struct ResourceStats {
 
 impl ResourceManager {
     /// Create a new resource manager
-    #[must_use] 
+    #[must_use]
     pub fn new(max_concurrent: usize) -> Self {
         Self {
             semaphore: Arc::new(tokio::sync::Semaphore::new(max_concurrent)),

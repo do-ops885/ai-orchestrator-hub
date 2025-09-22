@@ -109,7 +109,7 @@ mod tests {
         let test_agent_id = Uuid::new_v4();
         
         // Register first
-        agent.register_agent(test_agent_id).await.unwrap();
+        agent.register_agent(test_agent_id).await.expect("replaced unwrap");
         
         // Then unregister
         let result = agent.unregister_agent(test_agent_id).await;
@@ -185,7 +185,7 @@ mod tests {
         let test_agent_id = Uuid::new_v4();
         
         // Register agent with critical health
-        agent.register_agent(test_agent_id).await.unwrap();
+        agent.register_agent(test_agent_id).await.expect("replaced unwrap");
         
         // Set up critical health metrics
         {
@@ -213,9 +213,9 @@ mod tests {
         let degraded_id = Uuid::new_v4();
         let critical_id = Uuid::new_v4();
         
-        agent.register_agent(healthy_id).await.unwrap();
-        agent.register_agent(degraded_id).await.unwrap();
-        agent.register_agent(critical_id).await.unwrap();
+        agent.register_agent(healthy_id).await.expect("replaced unwrap");
+        agent.register_agent(degraded_id).await.expect("replaced unwrap");
+        agent.register_agent(critical_id).await.expect("replaced unwrap");
         
         // Update health metrics
         {
@@ -239,8 +239,8 @@ mod tests {
         let mut agent = create_test_self_healing_agent();
         
         // Register some test agents
-        agent.register_agent(Uuid::new_v4()).await.unwrap();
-        agent.register_agent(Uuid::new_v4()).await.unwrap();
+        agent.register_agent(Uuid::new_v4()).await.expect("replaced unwrap");
+        agent.register_agent(Uuid::new_v4()).await.expect("replaced unwrap");
         
         let request = MessageEnvelope {
             id: Uuid::new_v4(),
@@ -253,7 +253,7 @@ mod tests {
             correlation_id: None,
         };
         
-        let response = agent.communicate(request).await.unwrap();
+        let response = agent.communicate(request).await.expect("replaced unwrap");
         assert!(response.is_some());
         
         if let Some(response_envelope) = response {
@@ -277,7 +277,7 @@ mod tests {
         );
         
         // Complete the recovery
-        agent.complete_recovery(test_agent_id, true).await.unwrap();
+        agent.complete_recovery(test_agent_id, true).await.expect("replaced unwrap");
         
         // Check incident was recorded
         assert_eq!(agent.incident_history.len(), 1);
@@ -333,7 +333,7 @@ mod tests {
         let swarm_center = (50.0, 50.0);
         let neighbors = vec![];
         
-        agent.update_position(swarm_center, &neighbors).await.unwrap();
+        agent.update_position(swarm_center, &neighbors).await.expect("replaced unwrap");
         
         // Agent should move toward center
         assert!(agent.agent.position.0 < 100.0);
@@ -377,10 +377,10 @@ mod tests {
         let mut agent = create_test_self_healing_agent();
         let test_agent_id = Uuid::new_v4();
         
-        agent.register_agent(test_agent_id).await.unwrap();
+        agent.register_agent(test_agent_id).await.expect("replaced unwrap");
         
         // Perform health checks to simulate metric updates
-        agent.perform_health_checks().await.unwrap();
+        agent.perform_health_checks().await.expect("replaced unwrap");
         
         let health_metrics = agent.health_metrics.read().await;
         let metrics = &health_metrics[&test_agent_id];

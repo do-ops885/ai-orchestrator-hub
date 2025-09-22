@@ -3,7 +3,9 @@
 //! Comprehensive load testing system to validate performance optimizations
 //! under realistic load conditions and measure scalability improvements.
 
-use crate::communication::optimized_messaging::{OptimizedSwarmCommunicator, OptimizedMessagingConfig};
+use crate::communication::optimized_messaging::{
+    OptimizedMessagingConfig, OptimizedSwarmCommunicator,
+};
 use crate::infrastructure::cpu_load_balancer::{CpuLoadBalancer, LoadBalancerConfig};
 use crate::infrastructure::memory_pool::SwarmMemoryPools;
 use crate::tasks::task::{Task, TaskPriority};
@@ -256,11 +258,11 @@ struct LoadTestError {
 
 impl LoadTestEngine {
     /// Create a new load testing engine
-    #[must_use] 
+    #[must_use]
     pub fn new(config: LoadTestConfig) -> Self {
         let messaging_config = OptimizedMessagingConfig::default();
         let load_balancer_config = LoadBalancerConfig::default();
-        
+
         Self {
             config,
             communicator: OptimizedSwarmCommunicator::new(messaging_config),
@@ -272,52 +274,64 @@ impl LoadTestEngine {
 
     /// Execute the load test
     pub async fn execute_load_test(&self) -> HiveResult<LoadTestResult> {
-        tracing::info!("🚀 Starting load test with {} concurrent users", self.config.concurrent_users);
-        
+        tracing::info!(
+            "🚀 Starting load test with {} concurrent users",
+            self.config.concurrent_users
+        );
+
         let start_time = Instant::now();
-        
+
         // Start metrics collection
         self.start_metrics_collection().await;
-        
+
         // Execute load test phases
         let baseline_metrics = self.collect_baseline_metrics().await?;
-        
+
         // Ramp-up phase
         tracing::info!("📈 Ramp-up phase: {} seconds", self.config.ramp_up_secs);
         self.execute_ramp_up_phase().await?;
-        
+
         // Steady-state load phase
-        tracing::info!("⚡ Steady-state load phase: {} seconds", self.config.duration_secs);
+        tracing::info!(
+            "⚡ Steady-state load phase: {} seconds",
+            self.config.duration_secs
+        );
         self.execute_steady_state_phase().await?;
-        
+
         // Ramp-down phase
         tracing::info!("📉 Ramp-down phase: {} seconds", self.config.ramp_down_secs);
         self.execute_ramp_down_phase().await?;
-        
+
         let total_duration = start_time.elapsed();
-        
+
         // Analyze results
-        let load_test_result = self.analyze_results(baseline_metrics, total_duration).await?;
-        
-        tracing::info!("✅ Load test completed in {:.2} seconds", total_duration.as_secs_f64());
-        tracing::info!("📊 Results: {:.1} avg ops/sec, {:.1}% success rate", 
+        let load_test_result = self
+            .analyze_results(baseline_metrics, total_duration)
+            .await?;
+
+        tracing::info!(
+            "✅ Load test completed in {:.2} seconds",
+            total_duration.as_secs_f64()
+        );
+        tracing::info!(
+            "📊 Results: {:.1} avg ops/sec, {:.1}% success rate",
             load_test_result.summary.avg_requests_per_second,
             load_test_result.summary.success_rate_percent
         );
-        
+
         Ok(load_test_result)
     }
 
     /// Start background metrics collection
     async fn start_metrics_collection(&self) {
         let metrics = Arc::clone(&self.metrics);
-        
+
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(1));
-            
+
             loop {
                 interval.tick().await;
-                
+
                 // Collect resource metrics
                 let sample = ResourceSample {
                     timestamp: Instant::now(),
@@ -325,7 +339,7 @@ impl LoadTestEngine {
                     memory_mb: Self::get_memory_usage().await,
                     active_connections: Self::get_active_connections().await,
                 };
-                
+
                 let metrics_guard = metrics.read().await;
                 metrics_guard.resource_samples.write().await.push(sample);
             }
@@ -337,19 +351,21 @@ impl LoadTestEngine {
         tracing::info!("📏 Collecting baseline metrics...");
 
         let mut baseline_latencies = Vec::new();
-        
+
         // Run 100 baseline operations
         for _ in 0..100 {
             let start = Instant::now();
-            self.execute_single_operation(LoadTestOperation::TaskSubmission).await?;
+            self.execute_single_operation(LoadTestOperation::TaskSubmission)
+                .await?;
             let latency = start.elapsed().as_millis() as f64;
             baseline_latencies.push(latency);
         }
-        
+
         // Calculate baseline metrics
-        let baseline_latency = baseline_latencies.iter().sum::<f64>() / baseline_latencies.len() as f64;
+        let baseline_latency =
+            baseline_latencies.iter().sum::<f64>() / baseline_latencies.len() as f64;
         let baseline_throughput = 1000.0 / baseline_latency; // ops/sec
-        
+
         Ok(BaselineMetrics {
             baseline_ops_sec: baseline_throughput,
             baseline_latency_ms: baseline_latency,
@@ -361,13 +377,13 @@ impl LoadTestEngine {
         let ramp_duration = Duration::from_secs(self.config.ramp_up_secs);
         let max_users = self.config.concurrent_users;
         let step_duration = ramp_duration.as_millis() / max_users as u128;
-        
+
         for _user_count in 1..=max_users {
             let users_to_start = 1;
             self.start_virtual_users(users_to_start).await?;
             tokio::time::sleep(Duration::from_millis(step_duration as u64)).await;
         }
-        
+
         Ok(())
     }
 
@@ -375,13 +391,13 @@ impl LoadTestEngine {
     async fn execute_steady_state_phase(&self) -> HiveResult<()> {
         let duration = Duration::from_secs(self.config.duration_secs);
         let start_time = Instant::now();
-        
+
         // Maintain steady load
         while start_time.elapsed() < duration {
             self.maintain_steady_load().await?;
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
-        
+
         Ok(())
     }
 
@@ -396,24 +412,24 @@ impl LoadTestEngine {
     async fn start_virtual_users(&self, count: usize) -> HiveResult<()> {
         let semaphore = Arc::new(Semaphore::new(count));
         let metrics = Arc::clone(&self.metrics);
-        
+
         for _ in 0..count {
             let permit = semaphore.clone().acquire_owned().await.map_err(|_| {
                 HiveError::ResourceExhausted {
                     resource: "Virtual user semaphore".to_string(),
                 }
             })?;
-            
+
             let metrics_clone = Arc::clone(&metrics);
             let operations = self.config.operation_types.clone();
             let rps = self.config.requests_per_second_per_user;
-            
+
             tokio::spawn(async move {
                 let _permit = permit;
                 Self::virtual_user_loop(metrics_clone, operations, rps).await;
             });
         }
-        
+
         Ok(())
     }
 
@@ -425,28 +441,46 @@ impl LoadTestEngine {
     ) {
         let request_interval = Duration::from_millis((1000.0 / requests_per_second) as u64);
         let mut interval = tokio::time::interval(request_interval);
-        
+
         loop {
             interval.tick().await;
-            
+
             // Select random operation
             let operation = &operations[rand::random::<usize>() % operations.len()];
-            
+
             let start_time = Instant::now();
-            metrics.read().await.requests_sent.fetch_add(1, Ordering::Relaxed);
-            
+            metrics
+                .read()
+                .await
+                .requests_sent
+                .fetch_add(1, Ordering::Relaxed);
+
             // Execute operation
             let result = Self::simulate_operation(operation.clone()).await;
-            
+
             let latency = start_time.elapsed().as_millis() as f64;
-            
+
             match result {
                 Ok(()) => {
-                    metrics.read().await.requests_completed.fetch_add(1, Ordering::Relaxed);
-                    metrics.read().await.response_times.write().await.push(latency);
+                    metrics
+                        .read()
+                        .await
+                        .requests_completed
+                        .fetch_add(1, Ordering::Relaxed);
+                    metrics
+                        .read()
+                        .await
+                        .response_times
+                        .write()
+                        .await
+                        .push(latency);
                 }
                 Err(e) => {
-                    metrics.read().await.requests_failed.fetch_add(1, Ordering::Relaxed);
+                    metrics
+                        .read()
+                        .await
+                        .requests_failed
+                        .fetch_add(1, Ordering::Relaxed);
                     let error = LoadTestError {
                         timestamp: Instant::now(),
                         operation: format!("{operation:?}"),
@@ -463,13 +497,18 @@ impl LoadTestEngine {
     async fn maintain_steady_load(&self) -> HiveResult<()> {
         // Monitor and adjust load as needed
         let current_rps = self.get_current_rps().await;
-        let target_rps = self.config.concurrent_users as f64 * self.config.requests_per_second_per_user;
-        
+        let target_rps =
+            self.config.concurrent_users as f64 * self.config.requests_per_second_per_user;
+
         if current_rps < target_rps * 0.9 {
             // Add more virtual users if needed
-            tracing::debug!("Adjusting load: current {:.1} rps, target {:.1} rps", current_rps, target_rps);
+            tracing::debug!(
+                "Adjusting load: current {:.1} rps, target {:.1} rps",
+                current_rps,
+                target_rps
+            );
         }
-        
+
         Ok(())
     }
 
@@ -500,9 +539,13 @@ impl LoadTestEngine {
                     crate::communication::protocols::MessageType::Request,
                     Uuid::new_v4(),
                     vec![Uuid::new_v4()],
-                    crate::communication::protocols::MessagePayload::Text("Load test message".to_string()),
+                    crate::communication::protocols::MessagePayload::Text(
+                        "Load test message".to_string(),
+                    ),
                 );
-                self.communicator.send_optimized_message("test_target".to_string(), envelope).await
+                self.communicator
+                    .send_optimized_message("test_target".to_string(), envelope)
+                    .await
             }
             LoadTestOperation::MemoryPoolOperations => {
                 let _string = self.memory_pools.string_pool.get().await;
@@ -521,21 +564,27 @@ impl LoadTestEngine {
     async fn simulate_operation(operation: LoadTestOperation) -> HiveResult<()> {
         // Simulate operation latency
         let latency = match operation {
-            LoadTestOperation::TaskSubmission => Duration::from_millis(10 + rand::random::<u64>() % 20),
-            LoadTestOperation::MessageSending => Duration::from_millis(5 + rand::random::<u64>() % 10),
-            LoadTestOperation::MemoryPoolOperations => Duration::from_millis(1 + rand::random::<u64>() % 5),
+            LoadTestOperation::TaskSubmission => {
+                Duration::from_millis(10 + rand::random::<u64>() % 20)
+            }
+            LoadTestOperation::MessageSending => {
+                Duration::from_millis(5 + rand::random::<u64>() % 10)
+            }
+            LoadTestOperation::MemoryPoolOperations => {
+                Duration::from_millis(1 + rand::random::<u64>() % 5)
+            }
             _ => Duration::from_millis(2 + rand::random::<u64>() % 8),
         };
-        
+
         tokio::time::sleep(latency).await;
-        
+
         // Simulate occasional failures (1% failure rate)
         if rand::random::<f64>() < 0.01 {
             return Err(HiveError::OperationFailed {
                 reason: "Simulated operation failure".to_string(),
             });
         }
-        
+
         Ok(())
     }
 
@@ -543,7 +592,7 @@ impl LoadTestEngine {
     async fn get_current_rps(&self) -> f64 {
         let metrics = self.metrics.read().await;
         let completed = metrics.requests_completed.load(Ordering::Relaxed);
-        
+
         // Calculate RPS based on recent activity (simplified)
         completed as f64 / 10.0 // Rough estimate
     }
@@ -555,21 +604,21 @@ impl LoadTestEngine {
         total_duration: Duration,
     ) -> HiveResult<LoadTestResult> {
         let metrics = self.metrics.read().await;
-        
+
         let total_requests = metrics.requests_sent.load(Ordering::Relaxed);
         let successful_requests = metrics.requests_completed.load(Ordering::Relaxed);
         let failed_requests = metrics.requests_failed.load(Ordering::Relaxed);
-        
+
         let avg_rps = successful_requests as f64 / total_duration.as_secs_f64();
         let success_rate = if total_requests > 0 {
             (successful_requests as f64 / total_requests as f64) * 100.0
         } else {
             0.0
         };
-        
+
         let response_times = metrics.response_times.read().await;
         let response_time_stats = Self::calculate_response_time_stats(&response_times);
-        
+
         let summary = LoadTestSummary {
             total_duration_secs: total_duration.as_secs_f64(),
             total_requests,
@@ -579,7 +628,7 @@ impl LoadTestEngine {
             peak_requests_per_second: avg_rps * 1.2, // Simplified
             success_rate_percent: success_rate,
         };
-        
+
         let performance_metrics = LoadTestPerformanceMetrics {
             response_times: response_time_stats.clone(),
             throughput_stats: ThroughputStats {
@@ -605,7 +654,7 @@ impl LoadTestEngine {
                 optimization_overhead_ms: 2.5,
             },
         };
-        
+
         let scalability_analysis = ScalabilityAnalysis {
             linear_scalability_coefficient: 0.85,
             throughput_scaling_efficiency: 88.0,
@@ -613,22 +662,27 @@ impl LoadTestEngine {
             optimization_effectiveness_under_load: 89.0,
             recommended_max_users: (self.config.concurrent_users as f64 * 1.5) as usize,
         };
-        
+
         let error_analysis = ErrorAnalysis {
             error_types: HashMap::new(), // Simplified
             error_rate_over_time: vec![],
             errors_by_operation: HashMap::new(),
             critical_errors: vec![],
         };
-        
+
         let optimization_effectiveness = OptimizationEffectiveness {
             baseline_comparison: BaselineComparison {
                 baseline_ops_sec: baseline.baseline_ops_sec,
                 optimized_ops_sec: avg_rps,
-                improvement_percent: ((avg_rps - baseline.baseline_ops_sec) / baseline.baseline_ops_sec) * 100.0,
+                improvement_percent: ((avg_rps - baseline.baseline_ops_sec)
+                    / baseline.baseline_ops_sec)
+                    * 100.0,
                 baseline_latency_ms: baseline.baseline_latency_ms,
                 optimized_latency_ms: response_time_stats.mean_ms,
-                latency_improvement_percent: ((baseline.baseline_latency_ms - response_time_stats.mean_ms) / baseline.baseline_latency_ms) * 100.0,
+                latency_improvement_percent: ((baseline.baseline_latency_ms
+                    - response_time_stats.mean_ms)
+                    / baseline.baseline_latency_ms)
+                    * 100.0,
             },
             optimization_impact: OptimizationImpact {
                 communication_optimization_gain: 47.8,
@@ -644,7 +698,7 @@ impl LoadTestEngine {
                 overall_efficiency_score: 89.5,
             },
         };
-        
+
         Ok(LoadTestResult {
             config: self.config.clone(),
             summary,
@@ -668,22 +722,21 @@ impl LoadTestEngine {
                 std_dev_ms: 0.0,
             };
         }
-        
+
         let mut sorted = response_times.to_vec();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        
+
         let min = sorted[0];
         let max = sorted[sorted.len() - 1];
         let mean = sorted.iter().sum::<f64>() / sorted.len() as f64;
         let median = sorted[sorted.len() / 2];
         let p95 = sorted[(sorted.len() as f64 * 0.95) as usize];
         let p99 = sorted[(sorted.len() as f64 * 0.99) as usize];
-        
-        let variance = sorted.iter()
-            .map(|&x| (x - mean).powi(2))
-            .sum::<f64>() / sorted.len() as f64;
+
+        let variance =
+            sorted.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / sorted.len() as f64;
         let std_dev = variance.sqrt();
-        
+
         ResponseTimeStats {
             min_ms: min,
             max_ms: max,
@@ -733,7 +786,7 @@ mod tests {
     async fn test_response_time_stats_calculation() {
         let response_times = vec![10.0, 20.0, 30.0, 40.0, 50.0];
         let stats = LoadTestEngine::calculate_response_time_stats(&response_times);
-        
+
         assert_eq!(stats.min_ms, 10.0);
         assert_eq!(stats.max_ms, 50.0);
         assert_eq!(stats.mean_ms, 30.0);
@@ -748,7 +801,7 @@ mod tests {
             ..Default::default()
         };
         let engine = LoadTestEngine::new(config);
-        
+
         // This test would require actual system components to be fully functional
         // For now, we just test that the structure compiles
         assert!(true);

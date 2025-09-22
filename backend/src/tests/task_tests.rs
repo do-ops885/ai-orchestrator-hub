@@ -85,7 +85,7 @@ mod tests {
         .with_dependencies(vec![dependency_id]);
 
         assert!(task.deadline.is_some());
-        assert_eq!(task.deadline.unwrap(), deadline);
+        assert_eq!(task.deadline.expect("replaced unwrap"), deadline);
         assert_eq!(task.estimated_duration, Some(3600));
         assert_eq!(task.context.len(), 2);
         assert_eq!(task.context.get("environment"), Some(&"test".to_string()));
@@ -201,7 +201,7 @@ mod tests {
                 "Improved error handling".to_string(),
             ]);
 
-        assert_approx_eq(result.quality_score.unwrap(), 0.95, 0.001);
+        assert_approx_eq(result.quality_score.expect("replaced unwrap"), 0.95, 0.001);
         assert_eq!(result.learned_insights.len(), 2);
         assert_eq!(result.learned_insights[0], "Learned efficient algorithm");
         assert_eq!(result.learned_insights[1], "Improved error handling");
@@ -215,11 +215,19 @@ mod tests {
         // Test quality score clamping
         let high_score_result = TaskResult::success(task_id, agent_id, "output".to_string(), 1000)
             .with_quality_score(1.5); // Should be clamped to 1.0
-        assert_approx_eq(high_score_result.quality_score.unwrap(), 1.0, 0.001);
+        assert_approx_eq(
+            high_score_result.quality_score.expect("replaced unwrap"),
+            1.0,
+            0.001,
+        );
 
         let low_score_result = TaskResult::success(task_id, agent_id, "output".to_string(), 1000)
             .with_quality_score(-0.5); // Should be clamped to 0.0
-        assert_approx_eq(low_score_result.quality_score.unwrap(), 0.0, 0.001);
+        assert_approx_eq(
+            low_score_result.quality_score.expect("replaced unwrap"),
+            0.0,
+            0.001,
+        );
     }
 
     #[test]
@@ -248,16 +256,16 @@ mod tests {
         queue.add_task(high_task.clone());
 
         // Tasks should be retrieved in priority order: Critical, High, Medium, Low
-        let first = queue.get_next_task().unwrap();
+        let first = queue.get_next_task().expect("replaced unwrap");
         assert_eq!(first.title, "Critical");
 
-        let second = queue.get_next_task().unwrap();
+        let second = queue.get_next_task().expect("replaced unwrap");
         assert_eq!(second.title, "High Priority");
 
-        let third = queue.get_next_task().unwrap();
+        let third = queue.get_next_task().expect("replaced unwrap");
         assert_eq!(third.title, "Medium Priority");
 
-        let fourth = queue.get_next_task().unwrap();
+        let fourth = queue.get_next_task().expect("replaced unwrap");
         assert_eq!(fourth.title, "Low Priority");
 
         // Queue should be empty now
@@ -277,7 +285,7 @@ mod tests {
         assert_eq!(queue.get_assigned_count(), 1);
         assert_eq!(queue.get_pending_count(), 0);
 
-        let assigned_task = queue.get_task_by_agent(&agent_id).unwrap();
+        let assigned_task = queue.get_task_by_agent(&agent_id).expect("replaced unwrap");
         assert_eq!(assigned_task.id, task_id);
         assert_eq!(assigned_task.assigned_agent, Some(agent_id));
         assert!(matches!(assigned_task.status, TaskStatus::Assigned));
@@ -427,11 +435,11 @@ mod tests {
         assert!(serialized.is_ok());
 
         // Test deserialization from JSON
-        let json_str = serialized.unwrap();
+        let json_str = serialized.expect("replaced unwrap");
         let deserialized: Result<Task, _> = serde_json::from_str(&json_str);
         assert!(deserialized.is_ok());
 
-        let restored_task = deserialized.unwrap();
+        let restored_task = deserialized.expect("replaced unwrap");
         assert_eq!(restored_task.title, task.title);
         assert_eq!(restored_task.description, task.description);
         assert_eq!(restored_task.task_type, task.task_type);
@@ -454,18 +462,18 @@ mod tests {
         assert!(serialized.is_ok());
 
         // Test deserialization from JSON
-        let json_str = serialized.unwrap();
+        let json_str = serialized.expect("replaced unwrap");
         let deserialized: Result<TaskResult, _> = serde_json::from_str(&json_str);
         assert!(deserialized.is_ok());
 
-        let restored_result = deserialized.unwrap();
+        let restored_result = deserialized.expect("replaced unwrap");
         assert_eq!(restored_result.task_id, result.task_id);
         assert_eq!(restored_result.agent_id, result.agent_id);
         assert_eq!(restored_result.success, result.success);
         assert_eq!(restored_result.output, result.output);
         assert_approx_eq(
-            restored_result.quality_score.unwrap(),
-            result.quality_score.unwrap(),
+            restored_result.quality_score.expect("replaced unwrap"),
+            result.quality_score.expect("replaced unwrap"),
             0.001,
         );
     }

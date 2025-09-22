@@ -222,7 +222,7 @@ pub struct StreamingLoaderMetrics {
 
 impl StreamingDataLoader {
     /// Create a new memory-efficient streaming data loader
-    #[must_use] 
+    #[must_use]
     pub fn new(data_path: std::path::PathBuf, config: StreamConfig) -> Self {
         let memory_pool = Arc::new(RwLock::new(Vec::with_capacity(config.memory_pool_size)));
         let compression_buffer = Vec::with_capacity(config.max_chunk_size);
@@ -358,7 +358,7 @@ impl StreamingDataLoader {
     }
 
     /// Get streaming loader performance metrics
-    #[must_use] 
+    #[must_use]
     pub fn get_metrics(&self) -> &StreamingLoaderMetrics {
         &self.metrics
     }
@@ -422,7 +422,7 @@ pub struct DatasetMetrics {
 
 impl StreamingBatch {
     /// Create new streaming batch with memory pool
-    #[must_use] 
+    #[must_use]
     pub fn new(
         features: Vec<Vec<f32>>,
         labels: Vec<Vec<f32>>,
@@ -443,13 +443,13 @@ impl StreamingBatch {
     }
 
     /// Get batch size
-    #[must_use] 
+    #[must_use]
     pub fn size(&self) -> usize {
         self.features.len()
     }
 
     /// Calculate memory efficiency (lower is better)
-    #[must_use] 
+    #[must_use]
     pub fn memory_efficiency(&self) -> f64 {
         if self.size() == 0 {
             return 0.0;
@@ -494,7 +494,7 @@ impl StreamingBatch {
 
 impl MemoryEfficientDataset {
     /// Create new memory-efficient dataset
-    #[must_use] 
+    #[must_use]
     pub fn new(metadata: DatasetMetadata, max_memory_limit: usize) -> Self {
         let feature_pool = Arc::new(RwLock::new(Vec::with_capacity(1000)));
         let label_pool = Arc::new(RwLock::new(Vec::with_capacity(1000)));
@@ -621,7 +621,7 @@ impl MemoryEfficientDataset {
     }
 
     /// Get dataset performance metrics
-    #[must_use] 
+    #[must_use]
     pub fn get_metrics(&self) -> &DatasetMetrics {
         &self.metrics
     }
@@ -686,7 +686,7 @@ impl DataPipeline {
     }
 
     /// Create a new data pipeline with streaming support
-    #[must_use] 
+    #[must_use]
     pub fn new_with_streaming(stream_config: StreamConfig) -> Self {
         let stream_processor = StreamProcessor::new(stream_config.clone());
         let neural_stream = NeuralDataStream::new(stream_config);
@@ -922,7 +922,7 @@ impl DataPipeline {
     }
 
     /// Convert regular batch to streaming batch
-    #[must_use] 
+    #[must_use]
     pub fn to_streaming_batch(&self, batch: DataBatch) -> StreamingBatch {
         let memory_usage = self.estimate_batch_memory(&batch.features, &batch.labels);
 

@@ -181,7 +181,7 @@ impl WorkerThread {
                         if let Some(lb_task) = task_opt {
                             let start_time = Instant::now();
                             stats.queue_size.fetch_sub(1, Ordering::Relaxed);
-                            
+
                             // Update load based on queue size
                             let queue_size = stats.queue_size.load(Ordering::Relaxed);
                             let load = queue_size as f64 / 50.0; // Normalize to queue capacity
@@ -193,7 +193,7 @@ impl WorkerThread {
                             // Update statistics
                             let _processing_time = start_time.elapsed();
                             stats.tasks_processed.fetch_add(1, Ordering::Relaxed);
-                            
+
                             let mut last_task_time = stats.last_task_time.write().await;
                             *last_task_time = Some(start_time);
                         } else {
@@ -261,7 +261,7 @@ pub struct CpuLoadBalancer {
 
 impl CpuLoadBalancer {
     /// Create a new CPU load balancer
-    #[must_use] 
+    #[must_use]
     pub fn new(config: LoadBalancerConfig) -> Self {
         let balancer = Self {
             config: config.clone(),
@@ -284,7 +284,7 @@ impl CpuLoadBalancer {
     /// Initialize worker threads
     async fn initialize_workers(&self) {
         let mut workers = self.workers.write().await;
-        
+
         for i in 0..self.config.min_workers {
             let worker = Arc::new(WorkerThread::new(i, self.config.queue_size_per_worker));
             worker.clone().start().await;
@@ -306,14 +306,15 @@ impl CpuLoadBalancer {
         let rebalance_counter = Arc::clone(&self.rebalance_counter);
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_millis(config.load_sample_interval_ms));
+            let mut interval =
+                tokio::time::interval(Duration::from_millis(config.load_sample_interval_ms));
 
             loop {
                 interval.tick().await;
 
                 // Calculate current system load
                 let current_load = Self::calculate_system_load(&workers).await;
-                
+
                 // Update statistics
                 {
                     let mut stats_guard = stats.write().await;
@@ -355,10 +356,13 @@ impl CpuLoadBalancer {
         stats: &Arc<RwLock<LoadBalancerStats>>,
     ) {
         let mut workers_guard = workers.write().await;
-        
+
         if workers_guard.len() < config.max_workers {
             let new_worker_id = workers_guard.len();
-            let worker = Arc::new(WorkerThread::new(new_worker_id, config.queue_size_per_worker));
+            let worker = Arc::new(WorkerThread::new(
+                new_worker_id,
+                config.queue_size_per_worker,
+            ));
             worker.clone().start().await;
             workers_guard.push(worker);
 
@@ -378,7 +382,7 @@ impl CpuLoadBalancer {
         stats: &Arc<RwLock<LoadBalancerStats>>,
     ) {
         let mut workers_guard = workers.write().await;
-        
+
         if workers_guard.len() > config.min_workers {
             if let Some(worker) = workers_guard.pop() {
                 worker.shutdown().await;
@@ -396,19 +400,19 @@ impl CpuLoadBalancer {
     pub async fn submit_task(&self, task: Task) -> HiveResult<()> {
         let lb_task = LoadBalancedTask::new(task);
         let optimal_worker = self.find_optimal_worker().await?;
-        
+
         optimal_worker.add_task(lb_task).await?;
-        
+
         self.task_counter.fetch_add(1, Ordering::Relaxed);
         self.rebalance_counter.fetch_add(1, Ordering::Relaxed);
-        
+
         Ok(())
     }
 
     /// Find the optimal worker for task assignment
     async fn find_optimal_worker(&self) -> HiveResult<Arc<WorkerThread>> {
         let workers = self.workers.read().await;
-        
+
         if workers.is_empty() {
             return Err(HiveError::ResourceExhausted {
                 resource: "No workers available".to_string(),
@@ -422,10 +426,10 @@ impl CpuLoadBalancer {
         for worker in workers.iter() {
             let load = worker.current_load();
             let queue_size = worker.queue_size().await as f64;
-            
+
             // Combined score: lower is better
             let score = load * 0.7 + (queue_size / self.config.queue_size_per_worker as f64) * 0.3;
-            
+
             if score < best_score {
                 best_score = score;
                 best_worker = Some(Arc::clone(worker));
@@ -440,11 +444,11 @@ impl CpuLoadBalancer {
     /// Get comprehensive load balancer statistics
     pub async fn get_stats(&self) -> LoadBalancerStats {
         let mut stats = self.stats.read().await.clone();
-        
+
         // Update real-time counters
         stats.tasks_processed = self.task_counter.load(Ordering::Relaxed);
         stats.rebalance_operations = self.rebalance_counter.load(Ordering::Relaxed);
-        
+
         // Calculate load variance
         let workers = self.workers.read().await;
         if !workers.is_empty() {
@@ -453,9 +457,10 @@ impl CpuLoadBalancer {
             let variance = loads
                 .iter()
                 .map(|load| (load - mean_load).powi(2))
-                .sum::<f64>() / loads.len() as f64;
+                .sum::<f64>()
+                / loads.len() as f64;
             stats.load_variance = variance;
-            
+
             // Update queue sizes
             let mut total_queued = 0;
             for worker in workers.iter() {
@@ -463,7 +468,7 @@ impl CpuLoadBalancer {
             }
             stats.tasks_queued = total_queued as u64;
         }
-        
+
         stats
     }
 
@@ -475,7 +480,7 @@ impl CpuLoadBalancer {
     /// Get efficiency metrics
     pub async fn get_efficiency_metrics(&self) -> LoadBalancerEfficiency {
         let stats = self.get_stats().await;
-        
+
         let load_distribution_score = if stats.load_variance < 0.1 {
             1.0 // Excellent distribution
         } else if stats.load_variance < 0.3 {
@@ -485,7 +490,7 @@ impl CpuLoadBalancer {
         };
 
         let utilization_score = stats.current_load_avg;
-        
+
         let throughput_score = if stats.avg_processing_time_ms < 50.0 {
             1.0
         } else if stats.avg_processing_time_ms < 100.0 {
@@ -498,7 +503,9 @@ impl CpuLoadBalancer {
             load_distribution_score: load_distribution_score * 100.0,
             utilization_score: utilization_score * 100.0,
             throughput_score: throughput_score * 100.0,
-            overall_efficiency: (load_distribution_score + utilization_score + throughput_score) / 3.0 * 100.0,
+            overall_efficiency: (load_distribution_score + utilization_score + throughput_score)
+                / 3.0
+                * 100.0,
         }
     }
 }
@@ -527,16 +534,17 @@ pub struct LoadBalancerEfficiency {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tasks::task::TaskPriority;
+    use crate::tasks::task::{TaskPriority, TaskStatus};
+    use uuid::Uuid;
 
     #[tokio::test]
     async fn test_load_balancer_creation() {
         let config = LoadBalancerConfig::default();
         let balancer = CpuLoadBalancer::new(config);
-        
+
         // Give time for initialization
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         let worker_count = balancer.worker_count().await;
         assert!(worker_count >= num_cpus::get());
     }
@@ -549,10 +557,10 @@ mod tests {
             ..Default::default()
         };
         let balancer = CpuLoadBalancer::new(config);
-        
+
         // Give time for initialization
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         let now = chrono::Utc::now();
         let task = Task {
             id: Uuid::new_v4(),
@@ -570,10 +578,10 @@ mod tests {
             context: std::collections::HashMap::new(),
             dependencies: vec![],
         };
-        
+
         let result = balancer.submit_task(task).await;
         assert!(result.is_ok());
-        
+
         let stats = balancer.get_stats().await;
         assert_eq!(stats.tasks_processed, 1);
     }
@@ -582,10 +590,10 @@ mod tests {
     async fn test_efficiency_metrics() {
         let config = LoadBalancerConfig::default();
         let balancer = CpuLoadBalancer::new(config);
-        
+
         // Give time for initialization
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         let efficiency = balancer.get_efficiency_metrics().await;
         assert!(efficiency.overall_efficiency >= 0.0);
         assert!(efficiency.overall_efficiency <= 100.0);

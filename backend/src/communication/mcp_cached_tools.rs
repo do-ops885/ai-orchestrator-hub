@@ -1,5 +1,5 @@
 use super::mcp::MCPToolHandler;
-use super::mcp_cache::{MCPCache, generate_cache_key};
+use super::mcp_cache::{generate_cache_key, MCPCache};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;
@@ -22,33 +22,37 @@ impl<T: MCPToolHandler> CachedMCPToolHandler<T> {
 impl<T: MCPToolHandler> MCPToolHandler for CachedMCPToolHandler<T> {
     async fn execute(&self, params: &Value) -> Result<Value> {
         // Generate cache key
-        let cache_key = format!("tool:{}:{}", 
-            self.inner.get_description().replace(' ', "_").to_lowercase(),
+        let cache_key = format!(
+            "tool:{}:{}",
+            self.inner
+                .get_description()
+                .replace(' ', "_")
+                .to_lowercase(),
             generate_cache_key("execute", &Some(params.clone()))
         );
 
         // Use cache for read-only operations (avoid caching state-changing operations)
         let is_cacheable = self.is_cacheable_operation(params);
-        
+
         if !is_cacheable {
             debug!("Skipping cache for non-cacheable operation");
             return self.inner.execute(params).await;
         }
 
         // Try to get from cache or compute
-        self.cache.get_or_compute(&cache_key, || {
-            let inner = &self.inner;
-            async move {
-                inner.execute(params).await
-            }
-        }).await
+        self.cache
+            .get_or_compute(&cache_key, || {
+                let inner = &self.inner;
+                async move { inner.execute(params).await }
+            })
+            .await
     }
-    
-    fn get_schema(&self) -> Value { 
-        self.inner.get_schema() 
+
+    fn get_schema(&self) -> Value {
+        self.inner.get_schema()
     }
-    
-    fn get_description(&self) -> String { 
+
+    fn get_description(&self) -> String {
         format!("{} (cached)", self.inner.get_description())
     }
 }
@@ -57,37 +61,42 @@ impl<T: MCPToolHandler> CachedMCPToolHandler<T> {
     /// Determine if an operation should be cached based on its nature
     fn is_cacheable_operation(&self, _params: &Value) -> bool {
         let description = self.inner.get_description().to_lowercase();
-        
+
         // Read-only operations that are safe to cache
         let cacheable_patterns = [
-            "get_", "list_", "analyze_", "status", "info", "details", "echo"
+            "get_", "list_", "analyze_", "status", "info", "details", "echo",
         ];
-        
+
         // State-changing operations that should not be cached
         let non_cacheable_patterns = [
-            "create_", "assign_", "batch_create", "coordinate_", "delete_", "update_"
+            "create_",
+            "assign_",
+            "batch_create",
+            "coordinate_",
+            "delete_",
+            "update_",
         ];
-        
+
         // Check for non-cacheable operations first
         for pattern in &non_cacheable_patterns {
             if description.contains(pattern) {
                 return false;
             }
         }
-        
+
         // Check for cacheable operations
         for pattern in &cacheable_patterns {
             if description.contains(pattern) {
                 return true;
             }
         }
-        
+
         // For specialized workflows and performance analytics, check if it's read-only
         if description.contains("analytics") || description.contains("performance") {
             // These are typically read operations
             return true;
         }
-        
+
         // Default to not caching unless we're sure it's safe
         false
     }
@@ -99,7 +108,7 @@ pub struct CachedMCPToolRegistry {
 }
 
 impl CachedMCPToolRegistry {
-    #[must_use] 
+    #[must_use]
     pub fn new(cache_ttl_seconds: u64) -> Self {
         Self {
             cache: Arc::new(MCPCache::new(cache_ttl_seconds)),
@@ -148,7 +157,8 @@ mod tests {
     #[async_trait]
     impl MCPToolHandler for MockTool {
         async fn execute(&self, params: &Value) -> Result<Value> {
-            self.call_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            self.call_count
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             Ok(json!({"result": "mock", "params": params}))
         }
 
@@ -166,45 +176,49 @@ mod tests {
         let mock_tool = MockTool::new();
         let cache = Arc::new(MCPCache::new(5));
         let cached_tool = CachedMCPToolHandler::new(mock_tool, cache);
-        
+
         let params = json!({"test": "value"});
-        
+
         // First call should execute the tool
-        let result1 = cached_tool.execute(&params).await.unwrap();
+        let result1 = cached_tool.execute(&params).await.expect("replaced unwrap");
         assert_eq!(cached_tool.inner.get_call_count(), 1);
-        
+
         // Second call should use cache
-        let result2 = cached_tool.execute(&params).await.unwrap();
+        let result2 = cached_tool.execute(&params).await.expect("replaced unwrap");
         assert_eq!(cached_tool.inner.get_call_count(), 1); // Should not increase
-        
+
         assert_eq!(result1, result2);
     }
 
     #[tokio::test]
     async fn test_non_cacheable_operation() {
         struct CreateTool;
-        
+
         #[async_trait]
         impl MCPToolHandler for CreateTool {
             async fn execute(&self, _params: &Value) -> Result<Value> {
                 Ok(json!({"created": true}))
             }
-            
-            fn get_schema(&self) -> Value { json!({}) }
-            fn get_description(&self) -> String { "create_agent".to_string() }
+
+            fn get_schema(&self) -> Value {
+                json!({})
+            }
+            fn get_description(&self) -> String {
+                "create_agent".to_string()
+            }
         }
-        
+
         let create_tool = CreateTool;
         let cache = Arc::new(MCPCache::new(5));
         let cached_tool = CachedMCPToolHandler::new(create_tool, cache.clone());
-        
+
         let params = json!({"type": "worker"});
-        
+
         // Should not use cache for create operations
         assert!(!cached_tool.is_cacheable_operation(&params));
-        
+
         // Verify cache is empty after execution
-        cached_tool.execute(&params).await.unwrap();
+        cached_tool.execute(&params).await.expect("replaced unwrap");
         let stats = cache.stats().await;
         assert_eq!(stats.total_entries, 0);
     }

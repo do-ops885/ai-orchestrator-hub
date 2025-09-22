@@ -101,8 +101,8 @@ pub use infrastructure::{
     PersistenceManager, ResourceManager, TelemetryCollector,
 };
 pub use monitoring::{
-    Alert, AlertManager, AlertSeverity, MonitoringConfig, MonitoringSystem,
-    SystemMetrics, SlackChannel, EmailChannel,
+    Alert, AlertManager, AlertSeverity, EmailChannel, MonitoringConfig, MonitoringSystem,
+    SlackChannel, SystemMetrics,
 };
 pub use neural::{AdaptiveLearningSystem, HybridNeuralProcessor, NLPProcessor};
 pub use tasks::{Task, TaskPriority, TaskQueue, TaskResult, TaskStatus, WorkStealingQueue};

@@ -57,6 +57,12 @@ opentelemetry-jaeger = "0.20"
 tracing-opentelemetry = "0.22"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 warp = "0.3"
+prometheus = "0.13"
+lazy_static = "1.4"
+serde_yaml = "0.9"
+notify = "6.1"
+tokio-stream = "0.1"
+sys-info = "0.9"
 
 # Development dependencies
 [dev-dependencies]

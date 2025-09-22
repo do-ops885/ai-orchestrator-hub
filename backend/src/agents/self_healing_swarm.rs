@@ -176,7 +176,7 @@ pub struct SelfHealingSwarmAgent {
 
 impl SelfHealingSwarmAgent {
     /// Creates a new self-healing swarm agent
-    #[must_use] 
+    #[must_use]
     pub fn new(name: String, config: SelfHealingConfig) -> Self {
         let agent = Agent::new(name, AgentType::Coordinator);
 
@@ -641,7 +641,7 @@ impl SelfHealingSwarmAgent {
     }
 
     /// Gets incident history for analysis
-    #[must_use] 
+    #[must_use]
     pub fn get_incident_history(&self) -> &[IncidentRecord] {
         &self.incident_history
     }

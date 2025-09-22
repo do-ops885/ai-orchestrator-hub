@@ -1,7 +1,7 @@
 use super::mcp::MCPToolHandler;
 use super::mcp_cache::MCPCache;
 use super::mcp_cached_tools::CachedMCPToolHandler;
-use super::mcp_unified_error::{MCPUnifiedError, MCPErrorHandler};
+use super::mcp_unified_error::{MCPErrorHandler, MCPUnifiedError};
 use anyhow::Result;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -41,23 +41,23 @@ pub struct ToolMetadata {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PerformanceTier {
-    Fast,      // < 100ms expected
-    Medium,    // 100ms - 1s expected
-    Slow,      // 1s - 10s expected
-    Heavy,     // > 10s expected
+    Fast,   // < 100ms expected
+    Medium, // 100ms - 1s expected
+    Slow,   // 1s - 10s expected
+    Heavy,  // > 10s expected
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CachingStrategy {
-    Never,       // Never cache (state-changing operations)
-    Short,       // Cache for 1 minute
-    Medium,      // Cache for 5 minutes
-    Long,        // Cache for 30 minutes
-    Persistent,  // Cache until explicitly invalidated
+    Never,      // Never cache (state-changing operations)
+    Short,      // Cache for 1 minute
+    Medium,     // Cache for 5 minutes
+    Long,       // Cache for 30 minutes
+    Persistent, // Cache until explicitly invalidated
 }
 
 impl MCPToolRegistry {
-    #[must_use] 
+    #[must_use]
     pub fn new(cache_ttl_seconds: u64) -> Self {
         Self {
             tools: Arc::new(RwLock::new(HashMap::new())),
@@ -106,11 +106,14 @@ impl MCPToolRegistry {
                 "category".to_string(),
                 format!("Category '{}' is not enabled", metadata.category),
                 Some(json!(metadata.category)),
-                Some(format!("Enabled categories: {}", enabled_categories.join(", "))),
+                Some(format!(
+                    "Enabled categories: {}",
+                    enabled_categories.join(", ")
+                )),
             ));
         }
 
-        // Check dependencies
+        // Check dependencies exist
         for dep in &metadata.dependencies {
             if !self.tools.read().await.contains_key(dep) {
                 return Err(MCPUnifiedError::validation(
@@ -122,8 +125,31 @@ impl MCPToolRegistry {
             }
         }
 
+        // Temporarily add this tool to check for cycles
+        // We'll validate the dependency graph after adding
+        let mut temp_dependencies = self.dependencies.read().await.clone();
+        temp_dependencies.insert(name.clone(), metadata.dependencies.clone());
+
+        // Check for cycles by attempting topological sort on temp graph
+        if let Err(_) = self
+            .validate_dependencies_with_graph(&temp_dependencies)
+            .await
+        {
+            return Err(MCPUnifiedError::validation(
+                "dependencies".to_string(),
+                format!("Adding tool '{}' would create a circular dependency", name),
+                Some(json!({
+                    "tool": name,
+                    "dependencies": metadata.dependencies
+                })),
+                Some("Ensure the new tool does not create dependency cycles".to_string()),
+            ));
+        }
+
         // Wrap with caching based on strategy
-        let cached_handler = if metadata.caching_strategy == CachingStrategy::Never { Box::new(handler) as Box<dyn MCPToolHandler> } else {
+        let cached_handler = if metadata.caching_strategy == CachingStrategy::Never {
+            Box::new(handler) as Box<dyn MCPToolHandler>
+        } else {
             let cache_ttl = match metadata.caching_strategy {
                 CachingStrategy::Short => 60,
                 CachingStrategy::Medium => 300,
@@ -136,7 +162,10 @@ impl MCPToolRegistry {
         };
 
         // Register the tool
-        self.tools.write().await.insert(name.clone(), Arc::from(cached_handler));
+        self.tools
+            .write()
+            .await
+            .insert(name.clone(), Arc::from(cached_handler));
 
         // Update categories
         self.categories
@@ -147,10 +176,16 @@ impl MCPToolRegistry {
             .push(name.clone());
 
         // Store dependencies
-        self.dependencies.write().await.insert(name.clone(), metadata.dependencies.clone());
+        self.dependencies
+            .write()
+            .await
+            .insert(name.clone(), metadata.dependencies.clone());
 
         // Store metadata
-        self.tool_metadata.write().await.insert(name.clone(), metadata.clone());
+        self.tool_metadata
+            .write()
+            .await
+            .insert(name.clone(), metadata.clone());
 
         info!(
             "Registered tool '{}' in category '{}' with {} dependencies",
@@ -198,7 +233,8 @@ impl MCPToolRegistry {
         self.categories
             .read()
             .await
-            .get(category).cloned()
+            .get(category)
+            .cloned()
             .unwrap_or_default()
     }
 
@@ -219,9 +255,7 @@ impl MCPToolRegistry {
             .read()
             .await
             .iter()
-            .filter(|(_, metadata)| {
-                tags.iter().any(|tag| metadata.tags.contains(tag))
-            })
+            .filter(|(_, metadata)| tags.iter().any(|tag| metadata.tags.contains(tag)))
             .map(|(name, _)| name.clone())
             .collect()
     }
@@ -305,11 +339,190 @@ impl MCPToolRegistry {
 
     /// Validate tool dependencies (topological sort)
     pub async fn validate_dependencies(&self) -> Result<Vec<String>, MCPUnifiedError> {
-        // TODO: Implement proper dependency validation
-        Ok(vec![])
+        let dependencies = self.dependencies.read().await;
+        let tools = self.tools.read().await;
+
+        // Build adjacency list for topological sort
+        let mut adj_list: HashMap<String, Vec<String>> = HashMap::new();
+        let mut in_degree: HashMap<String, usize> = HashMap::new();
+
+        // Initialize in-degree for all tools
+        for tool_name in tools.keys() {
+            in_degree.insert(tool_name.clone(), 0);
+            adj_list.insert(tool_name.clone(), Vec::new());
+        }
+
+        // Build the graph
+        for (tool_name, deps) in dependencies.iter() {
+            if let Some(neighbors) = adj_list.get_mut(tool_name) {
+                for dep in deps {
+                    neighbors.push(dep.clone());
+                    *in_degree.entry(dep.clone()).or_insert(0) += 1;
+                }
+            }
+        }
+
+        // Perform topological sort using Kahn's algorithm
+        let mut queue: Vec<String> = in_degree
+            .iter()
+            .filter(|(_, &deg)| deg == 0)
+            .map(|(name, _)| name.clone())
+            .collect();
+
+        let mut sorted_order = Vec::new();
+        let mut visited_count = 0;
+
+        while let Some(tool) = queue.pop() {
+            sorted_order.push(tool.clone());
+            visited_count += 1;
+
+            if let Some(neighbors) = adj_list.get(&tool) {
+                for neighbor in neighbors {
+                    if let Some(deg) = in_degree.get_mut(neighbor) {
+                        *deg -= 1;
+                        if *deg == 0 {
+                            queue.push(neighbor.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check for cycles
+        if visited_count != tools.len() {
+            // Find tools involved in cycles
+            let mut cycle_tools = Vec::new();
+            for (tool, &deg) in &in_degree {
+                if deg > 0 {
+                    cycle_tools.push(tool.clone());
+                }
+            }
+
+            return Err(MCPUnifiedError::validation(
+                "tool_dependencies".to_string(),
+                format!(
+                    "Circular dependency detected involving tools: {}",
+                    cycle_tools.join(", ")
+                ),
+                Some(serde_json::json!({
+                    "cycle_participants": cycle_tools,
+                    "total_tools": tools.len(),
+                    "visited_tools": visited_count
+                })),
+                Some("Ensure no circular dependencies exist between tools".to_string()),
+            ));
+        }
+
+        // Return the valid topological order
+        Ok(sorted_order)
     }
 
+    /// Validate dependencies with a custom graph (helper for registration)
+    async fn validate_dependencies_with_graph(
+        &self,
+        custom_dependencies: &HashMap<String, Vec<String>>,
+    ) -> Result<Vec<String>, MCPUnifiedError> {
+        let tools = self.tools.read().await;
 
+        // Build adjacency list for topological sort
+        let mut adj_list: HashMap<String, Vec<String>> = HashMap::new();
+        let mut in_degree: HashMap<String, usize> = HashMap::new();
+
+        // Initialize in-degree for all tools
+        for tool_name in tools.keys() {
+            in_degree.insert(tool_name.clone(), 0);
+            adj_list.insert(tool_name.clone(), Vec::new());
+        }
+
+        // Build the graph using custom dependencies
+        for (tool_name, deps) in custom_dependencies.iter() {
+            if let Some(neighbors) = adj_list.get_mut(tool_name) {
+                for dep in deps {
+                    neighbors.push(dep.clone());
+                    *in_degree.entry(dep.clone()).or_insert(0) += 1;
+                }
+            }
+        }
+
+        // Perform topological sort using Kahn's algorithm
+        let mut queue: Vec<String> = in_degree
+            .iter()
+            .filter(|(_, &deg)| deg == 0)
+            .map(|(name, _)| name.clone())
+            .collect();
+
+        let mut sorted_order = Vec::new();
+        let mut visited_count = 0;
+
+        while let Some(tool) = queue.pop() {
+            sorted_order.push(tool.clone());
+            visited_count += 1;
+
+            if let Some(neighbors) = adj_list.get(&tool) {
+                for neighbor in neighbors {
+                    if let Some(deg) = in_degree.get_mut(neighbor) {
+                        *deg -= 1;
+                        if *deg == 0 {
+                            queue.push(neighbor.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check for cycles
+        if visited_count != tools.len() {
+            return Err(MCPUnifiedError::validation(
+                "tool_dependencies".to_string(),
+                "Circular dependency detected".to_string(),
+                None,
+                Some("Dependency graph contains cycles".to_string()),
+            ));
+        }
+
+        Ok(sorted_order)
+    }
+
+    /// Get dependency graph structure
+    pub async fn get_dependency_graph(&self) -> Value {
+        use serde_json::Map;
+
+        let dependencies = self.dependencies.read().await;
+        let tools = self.tools.read().await;
+        let metadata = self.tool_metadata.read().await;
+
+        let mut graph = Map::new();
+
+        for (tool_name, deps) in dependencies.iter() {
+            let mut node = Map::new();
+            node.insert("name".to_string(), Value::String(tool_name.clone()));
+            node.insert("dependencies".to_string(), serde_json::json!(deps));
+
+            // Add metadata if available
+            if let Some(meta) = metadata.get(tool_name) {
+                node.insert("category".to_string(), Value::String(meta.category.clone()));
+                node.insert("version".to_string(), Value::String(meta.version.clone()));
+                node.insert(
+                    "performance_tier".to_string(),
+                    Value::String(format!("{:?}", meta.performance_tier)),
+                );
+            }
+
+            // Check if tool exists
+            node.insert(
+                "exists".to_string(),
+                Value::Bool(tools.contains_key(tool_name)),
+            );
+
+            graph.insert(tool_name.clone(), Value::Object(node));
+        }
+
+        serde_json::json!({
+            "graph": graph,
+            "total_tools": tools.len(),
+            "total_dependencies": dependencies.len()
+        })
+    }
 
     /// Enable or disable tool categories
     pub fn set_enabled_categories(&mut self, categories: Vec<String>) {
@@ -318,11 +531,19 @@ impl MCPToolRegistry {
     }
 
     /// Mark a tool as deprecated
-    pub async fn deprecate_tool(&mut self, name: &str, reason: Option<String>) -> Result<(), MCPUnifiedError> {
+    pub async fn deprecate_tool(
+        &mut self,
+        name: &str,
+        reason: Option<String>,
+    ) -> Result<(), MCPUnifiedError> {
         let mut tool_metadata = self.tool_metadata.write().await;
         if let Some(metadata) = tool_metadata.get_mut(name) {
             metadata.deprecated = true;
-            warn!("Tool '{}' marked as deprecated: {}", name, reason.unwrap_or_else(|| "No reason provided".to_string()));
+            warn!(
+                "Tool '{}' marked as deprecated: {}",
+                name,
+                reason.unwrap_or_else(|| "No reason provided".to_string())
+            );
             Ok(())
         } else {
             Err(MCPUnifiedError::validation(
@@ -343,22 +564,19 @@ impl MCPToolRegistry {
         let total_tools = tools.len();
         let categories_count = categories.len();
 
-        let deprecated_count = tool_metadata
-            .values()
-            .filter(|m| m.deprecated)
-            .count();
+        let deprecated_count = tool_metadata.values().filter(|m| m.deprecated).count();
 
-        let experimental_count = tool_metadata
-            .values()
-            .filter(|m| m.experimental)
-            .count();
+        let experimental_count = tool_metadata.values().filter(|m| m.experimental).count();
 
         let performance_distribution: HashMap<String, usize> = [
             ("Fast".to_string(), 0),
             ("Medium".to_string(), 0),
             ("Slow".to_string(), 0),
             ("Heavy".to_string(), 0),
-        ].iter().cloned().collect();
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
         let mut perf_dist = performance_distribution;
         for metadata in tool_metadata.values() {
@@ -390,13 +608,17 @@ impl MCPToolRegistry {
 
         // Check if tool exists
         let tools = self.tools.read().await;
-        let tool = tools.get(tool_name)
-            .ok_or_else(|| MCPUnifiedError::validation(
+        let tool = tools.get(tool_name).ok_or_else(|| {
+            MCPUnifiedError::validation(
                 "tool_name".to_string(),
                 format!("Tool '{tool_name}' not found"),
                 Some(json!(tool_name)),
-                Some(format!("Available tools: {}", tools.keys().cloned().collect::<Vec<_>>().join(", "))),
-            ))?;
+                Some(format!(
+                    "Available tools: {}",
+                    tools.keys().cloned().collect::<Vec<_>>().join(", ")
+                )),
+            )
+        })?;
 
         // Check if tool is deprecated
         let tool_metadata = self.tool_metadata.read().await;
@@ -407,13 +629,14 @@ impl MCPToolRegistry {
         }
 
         // Execute tool with error handling
-        let result = tool.execute(params).await
-            .map_err(|e| MCPUnifiedError::tool_execution(
+        let result = tool.execute(params).await.map_err(|e| {
+            MCPUnifiedError::tool_execution(
                 tool_name.to_string(),
                 e.to_string(),
                 Some(params.clone()),
                 Some(start_time.elapsed().as_millis() as u64),
-            ))?;
+            )
+        })?;
 
         let duration = start_time.elapsed();
         debug!(
@@ -459,7 +682,7 @@ mod tests {
     #[tokio::test]
     async fn test_tool_registration() {
         let mut registry = MCPToolRegistry::new(300);
-        
+
         let metadata = ToolMetadata {
             name: "test_tool".to_string(),
             category: "core".to_string(),
@@ -476,7 +699,9 @@ mod tests {
 
         let result = registry.register_tool(
             "test_tool".to_string(),
-            MockTool { name: "test".to_string() },
+            MockTool {
+                name: "test".to_string(),
+            },
             metadata,
         );
 
@@ -487,7 +712,7 @@ mod tests {
     #[tokio::test]
     async fn test_category_filtering() {
         let mut registry = MCPToolRegistry::new(300);
-        
+
         let metadata1 = ToolMetadata {
             name: "tool1".to_string(),
             category: "core".to_string(),
@@ -516,8 +741,24 @@ mod tests {
             caching_strategy: CachingStrategy::Short,
         };
 
-        registry.register_tool("tool1".to_string(), MockTool { name: "tool1".to_string() }, metadata1).unwrap();
-        registry.register_tool("tool2".to_string(), MockTool { name: "tool2".to_string() }, metadata2).unwrap();
+        registry
+            .register_tool(
+                "tool1".to_string(),
+                MockTool {
+                    name: "tool1".to_string(),
+                },
+                metadata1,
+            )
+            .expect("replaced unwrap");
+        registry
+            .register_tool(
+                "tool2".to_string(),
+                MockTool {
+                    name: "tool2".to_string(),
+                },
+                metadata2,
+            )
+            .expect("replaced unwrap");
 
         let core_tools = registry.get_tools_by_category("core");
         assert_eq!(core_tools.len(), 1);
@@ -531,7 +772,7 @@ mod tests {
     #[tokio::test]
     async fn test_dependency_validation() {
         let mut registry = MCPToolRegistry::new(300);
-        
+
         // Register base tool
         let base_metadata = ToolMetadata {
             name: "base_tool".to_string(),
@@ -546,8 +787,16 @@ mod tests {
             performance_tier: PerformanceTier::Fast,
             caching_strategy: CachingStrategy::Never,
         };
-        
-        registry.register_tool("base_tool".to_string(), MockTool { name: "base".to_string() }, base_metadata).unwrap();
+
+        registry
+            .register_tool(
+                "base_tool".to_string(),
+                MockTool {
+                    name: "base".to_string(),
+                },
+                base_metadata,
+            )
+            .expect("replaced unwrap");
 
         // Register dependent tool
         let dependent_metadata = ToolMetadata {
@@ -564,7 +813,13 @@ mod tests {
             caching_strategy: CachingStrategy::Short,
         };
 
-        let result = registry.register_tool("dependent_tool".to_string(), MockTool { name: "dependent".to_string() }, dependent_metadata);
+        let result = registry.register_tool(
+            "dependent_tool".to_string(),
+            MockTool {
+                name: "dependent".to_string(),
+            },
+            dependent_metadata,
+        );
         assert!(result.is_ok());
 
         // Test dependency validation
@@ -575,7 +830,7 @@ mod tests {
     #[tokio::test]
     async fn test_tool_execution() {
         let mut registry = MCPToolRegistry::new(300);
-        
+
         let metadata = ToolMetadata {
             name: "test_tool".to_string(),
             category: "core".to_string(),
@@ -590,17 +845,196 @@ mod tests {
             caching_strategy: CachingStrategy::Never,
         };
 
-        registry.register_tool("test_tool".to_string(), MockTool { name: "test".to_string() }, metadata).unwrap();
+        registry
+            .register_tool(
+                "test_tool".to_string(),
+                MockTool {
+                    name: "test".to_string(),
+                },
+                metadata,
+            )
+            .expect("replaced unwrap");
 
-        let result = registry.execute_tool(
-            "test_tool",
-            &json!({}),
-            Some("req_123"),
-            Some("client_456"),
-        ).await;
+        let result = registry
+            .execute_tool("test_tool", &json!({}), Some("req_123"), Some("client_456"))
+            .await;
 
         assert!(result.is_ok());
-        let value = result.unwrap();
+        let value = result.expect("replaced unwrap");
         assert_eq!(value["tool"], "test");
+    }
+
+    #[tokio::test]
+    async fn test_dependency_validation_no_cycles() {
+        let registry = MCPToolRegistry::new(300);
+
+        // Register tools with dependencies
+        let base_metadata = ToolMetadata {
+            name: "base_tool".to_string(),
+            category: "core".to_string(),
+            version: "1.0.0".to_string(),
+            author: None,
+            description: "Base tool".to_string(),
+            tags: vec![],
+            dependencies: vec![],
+            deprecated: false,
+            experimental: false,
+            performance_tier: PerformanceTier::Fast,
+            caching_strategy: CachingStrategy::Never,
+        };
+
+        let dependent_metadata = ToolMetadata {
+            name: "dependent_tool".to_string(),
+            category: "core".to_string(),
+            version: "1.0.0".to_string(),
+            author: None,
+            description: "Dependent tool".to_string(),
+            tags: vec![],
+            dependencies: vec!["base_tool".to_string()],
+            deprecated: false,
+            experimental: false,
+            performance_tier: PerformanceTier::Medium,
+            caching_strategy: CachingStrategy::Short,
+        };
+
+        registry
+            .register_tool(
+                "base_tool".to_string(),
+                MockTool {
+                    name: "base".to_string(),
+                },
+                base_metadata,
+            )
+            .await
+            .expect("replaced unwrap");
+        registry
+            .register_tool(
+                "dependent_tool".to_string(),
+                MockTool {
+                    name: "dependent".to_string(),
+                },
+                dependent_metadata,
+            )
+            .await
+            .expect("replaced unwrap");
+
+        let result = registry.validate_dependencies().await;
+        assert!(result.is_ok());
+        let order = result.expect("replaced unwrap");
+        assert_eq!(order.len(), 2);
+        // base_tool should come before dependent_tool
+        assert!(
+            order
+                .iter()
+                .position(|x| x == "base_tool")
+                .expect("replaced unwrap")
+                < order
+                    .iter()
+                    .position(|x| x == "dependent_tool")
+                    .expect("replaced unwrap")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_dependency_validation_with_cycles() {
+        let registry = MCPToolRegistry::new(300);
+
+        // Register tools that would create a cycle
+        let tool_a_metadata = ToolMetadata {
+            name: "tool_a".to_string(),
+            category: "core".to_string(),
+            version: "1.0.0".to_string(),
+            author: None,
+            description: "Tool A".to_string(),
+            tags: vec![],
+            dependencies: vec!["tool_b".to_string()], // Depends on B
+            deprecated: false,
+            experimental: false,
+            performance_tier: PerformanceTier::Fast,
+            caching_strategy: CachingStrategy::Never,
+        };
+
+        let tool_b_metadata = ToolMetadata {
+            name: "tool_b".to_string(),
+            category: "core".to_string(),
+            version: "1.0.0".to_string(),
+            author: None,
+            description: "Tool B".to_string(),
+            tags: vec![],
+            dependencies: vec!["tool_a".to_string()], // Depends on A - creates cycle
+            deprecated: false,
+            experimental: false,
+            performance_tier: PerformanceTier::Medium,
+            caching_strategy: CachingStrategy::Short,
+        };
+
+        registry
+            .register_tool(
+                "tool_a".to_string(),
+                MockTool {
+                    name: "a".to_string(),
+                },
+                tool_a_metadata,
+            )
+            .await
+            .expect("replaced unwrap");
+        let result = registry
+            .register_tool(
+                "tool_b".to_string(),
+                MockTool {
+                    name: "b".to_string(),
+                },
+                tool_b_metadata,
+            )
+            .await;
+        assert!(result.is_err());
+
+        if let Err(MCPUnifiedError::Validation { field, .. }) = result {
+            assert_eq!(field, "dependencies");
+        } else {
+            panic!("Expected validation error");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_dependency_graph() {
+        let registry = MCPToolRegistry::new(300);
+
+        let metadata = ToolMetadata {
+            name: "test_tool".to_string(),
+            category: "core".to_string(),
+            version: "1.0.0".to_string(),
+            author: None,
+            description: "Test tool".to_string(),
+            tags: vec![],
+            dependencies: vec![],
+            deprecated: false,
+            experimental: false,
+            performance_tier: PerformanceTier::Fast,
+            caching_strategy: CachingStrategy::Medium,
+        };
+
+        registry
+            .register_tool(
+                "test_tool".to_string(),
+                MockTool {
+                    name: "test".to_string(),
+                },
+                metadata,
+            )
+            .await
+            .expect("replaced unwrap");
+
+        let graph = registry.get_dependency_graph().await;
+        assert!(graph.get("graph").is_some());
+        assert!(graph.get("total_tools").is_some());
+        assert!(graph.get("total_dependencies").is_some());
+
+        let graph_obj = graph
+            .get("graph")
+            .expect("replaced unwrap")
+            .as_object()
+            .expect("replaced unwrap");
+        assert!(graph_obj.contains_key("test_tool"));
     }
 }

@@ -524,7 +524,7 @@ impl OptimizedNeuralNetwork {
             // Multi-class confidence based on max probability
             let max_val = output.max();
             let sum_exp: f32 = output.iter().map(|x| (x - max_val).exp()).sum();
-            
+
             (output.max() - max_val).exp() / sum_exp
         }
     }
@@ -549,7 +549,7 @@ impl OptimizedNeuralNetwork {
     }
 
     /// Get network performance metrics
-    #[must_use] 
+    #[must_use]
     pub fn get_metrics(&self) -> &NetworkMetrics {
         &self.metrics
     }
@@ -700,7 +700,7 @@ impl Default for OptimizedNeuralManager {
 
 impl OptimizedNeuralManager {
     /// Create a new optimized neural manager
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             networks: Arc::new(RwLock::new(std::collections::HashMap::new())),

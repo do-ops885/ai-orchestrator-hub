@@ -53,35 +53,92 @@ async fn main() -> Result<()> {
 async fn run_http_server(hive: Arc<RwLock<HiveCoordinator>>) -> Result<()> {
     // Create shared MCP server instance (Phase 1.1 optimization)
     let mcp_server = Arc::new(HiveMCPServer::new(Arc::clone(&hive)));
+    mcp_server.register_default_tools().await;
 
     // Enhanced app state with shared server instance
     #[derive(Clone)]
     struct MCPAppState {
         hive: Arc<RwLock<HiveCoordinator>>,
-        mcp_server: Arc<HiveMCPServer>,  // SHARED INSTANCE
+        mcp_server: Arc<HiveMCPServer>, // SHARED INSTANCE
     }
 
-    let app_state = MCPAppState { 
+    let app_state = MCPAppState {
         hive,
-        mcp_server: Arc::clone(&mcp_server)
+        mcp_server: Arc::clone(&mcp_server),
     };
 
     // Create router with optimized handler
-    let app = Router::new()
-        .route("/", post(move |state: axum::extract::State<MCPAppState>, Json(request): Json<MCPRequest>| async move {
-            // Use shared server instance instead of creating new one per request
-            let response = state.mcp_server.handle_request(request).await;
-            Ok::<Json<MCPResponse>, (StatusCode, Json<Value>)>(Json(response))
-        }))
-        .route("/health", get(|| async {
-            Json(serde_json::json!({
-                "status": "healthy",
-                "service": "mcp-http-standalone",
-                "mode": "http",
-                "hive_connected": true
-            }))
-        }))
-        .with_state(app_state);
+    let app =
+        Router::new()
+            .route(
+                "/",
+                post(
+                    move |state: axum::extract::State<MCPAppState>,
+                          Json(request): Json<MCPRequest>| async move {
+                        // Use shared server instance instead of creating new one per request
+                        let response = state.mcp_server.handle_request(request).await;
+                        Ok::<Json<MCPResponse>, (StatusCode, Json<Value>)>(Json(response))
+                    },
+                ),
+            )
+            .route(
+                "/health",
+                get(move |state: axum::extract::State<MCPAppState>| async move {
+                    // Phase 3: Enhanced health checks with diagnostics
+                    match state.mcp_server.health_checker.check_health().await {
+                        Ok(report) => Json(serde_json::json!({
+                            "status": format!("{:?}", report.overall_status).to_lowercase(),
+                            "service": "mcp-http-standalone",
+                            "mode": "http",
+                            "hive_connected": true,
+                            "timestamp": report.timestamp.to_rfc3339(),
+                            "uptime_seconds": report.uptime_seconds,
+                            "version": report.version,
+                            "components": report.components.iter().map(|(name, result)| {
+                                serde_json::json!({
+                                    "name": name,
+                                    "status": format!("{:?}", result.status).to_lowercase(),
+                                    "response_time_ms": result.response_time_ms,
+                                    "error_message": result.error_message
+                                })
+                            }).collect::<Vec<_>>()
+                        })),
+                        Err(e) => Json(serde_json::json!({
+                            "status": "error",
+                            "service": "mcp-http-standalone",
+                            "error": e.to_string(),
+                            "timestamp": chrono::Utc::now().to_rfc3339()
+                        })),
+                    }
+                }),
+            )
+            .route(
+                "/metrics",
+                get(move |state: axum::extract::State<MCPAppState>| async move {
+                    // Phase 3: Expose Prometheus metrics
+                    match state.mcp_server.metrics_collector.gather_metrics().await {
+                        Ok(metrics) => Ok::<String, (StatusCode, String)>(metrics),
+                        Err(e) => Err((
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            format!("Failed to gather metrics: {}", e),
+                        )),
+                    }
+                }),
+            )
+            .route(
+                "/health/detailed",
+                get(move |state: axum::extract::State<MCPAppState>| async move {
+                    // Phase 3: Detailed health report with diagnostics
+                    match state.mcp_server.health_checker.get_detailed_report().await {
+                        Ok(report) => Json(report),
+                        Err(e) => Json(serde_json::json!({
+                            "error": e.to_string(),
+                            "timestamp": chrono::Utc::now().to_rfc3339()
+                        })),
+                    }
+                }),
+            )
+            .with_state(app_state);
 
     let listener = TcpListener::bind("0.0.0.0:3002").await?;
     info!("MCP HTTP Server listening on http://0.0.0.0:3002");
@@ -95,6 +152,7 @@ async fn run_http_server(hive: Arc<RwLock<HiveCoordinator>>) -> Result<()> {
 /// Run MCP server in stdio mode (original implementation)
 async fn run_stdio_server(hive: Arc<RwLock<HiveCoordinator>>) -> Result<()> {
     let mcp_server = HiveMCPServer::new(hive);
+    mcp_server.register_default_tools().await;
 
     info!("MCP Server ready - listening on stdin/stdout");
     info!(

@@ -2,7 +2,9 @@
 //!
 //! Monitors performance metrics for agents and system components
 
-use super::types::{AgentPerformance, SystemPerformance, ResourceUtilization, PerformanceStatusSummary};
+use super::types::{
+    AgentPerformance, PerformanceStatusSummary, ResourceUtilization, SystemPerformance,
+};
 use crate::utils::error::HiveResult;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -23,7 +25,7 @@ impl Default for PerformanceMonitor {
 }
 
 impl PerformanceMonitor {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             agent_performance: Arc::new(RwLock::new(HashMap::new())),

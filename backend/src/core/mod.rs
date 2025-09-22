@@ -4,9 +4,9 @@ pub mod auto_scaling;
 pub mod fallback;
 /// Core hive coordination and management system (modular)
 pub mod hive;
-pub mod optimized_swarm_system;
 /// Legacy hive module - deprecated in favor of modular hive
 pub mod hive_legacy;
+pub mod optimized_swarm_system;
 /// Enhanced swarm coordination with neural intelligence
 pub mod swarm_coordination;
 /// Swarm intelligence algorithms and formation optimization

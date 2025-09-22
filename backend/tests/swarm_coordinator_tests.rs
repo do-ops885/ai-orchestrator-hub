@@ -6,13 +6,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{RwLock, mpsc};
-use tokio::time::{timeout, sleep};
+use tokio::sync::{mpsc, RwLock};
+use tokio::time::{sleep, timeout};
 
-use multiagent_hive::agents::{Agent, AgentConfig, AgentStatus};
-use multiagent_hive::communication::{Message, MessageType, CommunicationManager};
-use multiagent_hive::swarm::{SwarmCoordinator, SwarmConfig, Task, TaskStatus, TaskPriority};
+use multiagent_hive::agents::{Agent, AgentConfig, AgentState};
+use multiagent_hive::communication::{CommunicationManager, Message, MessageType};
 use multiagent_hive::persistence::{PersistenceManager, SQLiteStorage};
+use multiagent_hive::swarm::{SwarmConfig, SwarmCoordinator, Task, TaskPriority, TaskStatus};
 
 mod test_utils;
 use test_utils::*;
@@ -31,7 +31,7 @@ impl SwarmTestFixture {
         let db_path = temp_dir.path().join("test.db");
 
         let storage = Arc::new(RwLock::new(
-            SQLiteStorage::new(&db_path).expect("Failed to create storage")
+            SQLiteStorage::new(&db_path).expect("Failed to create storage"),
         ));
 
         let persistence = PersistenceManager::new(storage, None)
@@ -54,7 +54,7 @@ impl SwarmTestFixture {
         let coordinator = Arc::new(
             SwarmCoordinator::new(config, persistence, communication.clone())
                 .await
-                .expect("Failed to create coordinator")
+                .expect("Failed to create coordinator"),
         );
 
         Self {
@@ -79,7 +79,7 @@ impl SwarmTestFixture {
         };
 
         let agent = Arc::new(RwLock::new(
-            Agent::new(config).expect("Failed to create agent")
+            Agent::new(config).expect("Failed to create agent"),
         ));
 
         self.coordinator
@@ -91,14 +91,22 @@ impl SwarmTestFixture {
         agent
     }
 
-    async fn create_task(&self, title: &str, priority: TaskPriority, required_capabilities: Vec<&str>) -> Task {
+    async fn create_task(
+        &self,
+        title: &str,
+        priority: TaskPriority,
+        required_capabilities: Vec<&str>,
+    ) -> Task {
         let task = Task {
             id: uuid::Uuid::new_v4(),
             title: title.to_string(),
             description: format!("Test task: {}", title),
             status: TaskStatus::Pending,
             priority,
-            required_capabilities: required_capabilities.into_iter().map(|s| s.to_string()).collect(),
+            required_capabilities: required_capabilities
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect(),
             assigned_agent: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -137,17 +145,28 @@ mod swarm_coordinator_tests {
     async fn test_agent_registration() {
         let mut fixture = SwarmTestFixture::new().await;
 
-        let agent = fixture.add_agent("worker", vec!["computation", "analysis"]).await;
+        let agent = fixture
+            .add_agent("worker", vec!["computation", "analysis"])
+            .await;
 
         let agent_read = agent.read().await;
         assert_eq!(agent_read.config.agent_type, "worker");
-        assert!(agent_read.config.capabilities.contains(&"computation".to_string()));
-        assert!(agent_read.config.capabilities.contains(&"analysis".to_string()));
+        assert!(agent_read
+            .config
+            .capabilities
+            .contains(&"computation".to_string()));
+        assert!(agent_read
+            .config
+            .capabilities
+            .contains(&"analysis".to_string()));
 
         // Verify agent is registered with coordinator
         let registered_agents = fixture.coordinator.list_agents().await;
         assert_eq!(registered_agents.len(), 1);
-        assert_eq!(registered_agents[0].read().await.config.name, agent_read.config.name);
+        assert_eq!(
+            registered_agents[0].read().await.config.name,
+            agent_read.config.name
+        );
     }
 
     #[tokio::test]
@@ -158,7 +177,13 @@ mod swarm_coordinator_tests {
         fixture.add_agent("worker", vec!["computation"]).await;
 
         // Submit a task requiring computation capability
-        let task = fixture.create_task("Compute intensive task", TaskPriority::Medium, vec!["computation"]).await;
+        let task = fixture
+            .create_task(
+                "Compute intensive task",
+                TaskPriority::Medium,
+                vec!["computation"],
+            )
+            .await;
 
         // Wait for task assignment
         let assigned = fixture.wait_for_task_assignment(task.id, 1000).await;
@@ -178,11 +203,16 @@ mod swarm_coordinator_tests {
         fixture.add_agent("worker", vec!["analysis"]).await;
 
         // Submit task requiring different capability
-        let task = fixture.create_task("ML task", TaskPriority::High, vec!["machine_learning"]).await;
+        let task = fixture
+            .create_task("ML task", TaskPriority::High, vec!["machine_learning"])
+            .await;
 
         // Task should not be assigned
         let assigned = fixture.wait_for_task_assignment(task.id, 500).await;
-        assert!(!assigned, "Task should not be assigned when no matching agents available");
+        assert!(
+            !assigned,
+            "Task should not be assigned when no matching agents available"
+        );
 
         let task_status = fixture.coordinator.get_task(task.id).await.unwrap();
         assert_eq!(task_status.status, TaskStatus::Pending);
@@ -201,11 +231,13 @@ mod swarm_coordinator_tests {
         // Submit multiple tasks
         let mut tasks = Vec::new();
         for i in 0..6 {
-            let task = fixture.create_task(
-                &format!("Task {}", i),
-                TaskPriority::Medium,
-                vec!["computation"]
-            ).await;
+            let task = fixture
+                .create_task(
+                    &format!("Task {}", i),
+                    TaskPriority::Medium,
+                    vec!["computation"],
+                )
+                .await;
             tasks.push(task);
         }
 
@@ -224,7 +256,10 @@ mod swarm_coordinator_tests {
 
         // Each agent should have roughly equal load (2 tasks each)
         for &count in agent_assignments.values() {
-            assert!(count >= 1 && count <= 3, "Load balancing should distribute tasks evenly");
+            assert!(
+                count >= 1 && count <= 3,
+                "Load balancing should distribute tasks evenly"
+            );
         }
     }
 
@@ -236,24 +271,40 @@ mod swarm_coordinator_tests {
         fixture.add_agent("worker", vec!["computation"]).await;
 
         // Submit tasks with different priorities
-        let low_task = fixture.create_task("Low priority", TaskPriority::Low, vec!["computation"]).await;
-        let high_task = fixture.create_task("High priority", TaskPriority::High, vec!["computation"]).await;
-        let medium_task = fixture.create_task("Medium priority", TaskPriority::Medium, vec!["computation"]).await;
+        let low_task = fixture
+            .create_task("Low priority", TaskPriority::Low, vec!["computation"])
+            .await;
+        let high_task = fixture
+            .create_task("High priority", TaskPriority::High, vec!["computation"])
+            .await;
+        let medium_task = fixture
+            .create_task("Medium priority", TaskPriority::Medium, vec!["computation"])
+            .await;
 
         // High priority task should be assigned first
         sleep(Duration::from_millis(50)).await;
 
         let high_assigned = fixture.coordinator.get_task(high_task.id).await.unwrap();
-        assert!(high_assigned.assigned_agent.is_some(), "High priority task should be assigned first");
+        assert!(
+            high_assigned.assigned_agent.is_some(),
+            "High priority task should be assigned first"
+        );
 
         // Complete high priority task
-        fixture.coordinator.complete_task(high_task.id).await.unwrap();
+        fixture
+            .coordinator
+            .complete_task(high_task.id)
+            .await
+            .unwrap();
 
         // Medium priority should be assigned next
         sleep(Duration::from_millis(50)).await;
 
         let medium_assigned = fixture.coordinator.get_task(medium_task.id).await.unwrap();
-        assert!(medium_assigned.assigned_agent.is_some(), "Medium priority task should be assigned second");
+        assert!(
+            medium_assigned.assigned_agent.is_some(),
+            "Medium priority task should be assigned second"
+        );
     }
 
     #[tokio::test]
@@ -265,7 +316,9 @@ mod swarm_coordinator_tests {
         let agent2 = fixture.add_agent("worker", vec!["computation"]).await;
 
         // Submit task
-        let task = fixture.create_task("Test task", TaskPriority::Medium, vec!["computation"]).await;
+        let task = fixture
+            .create_task("Test task", TaskPriority::Medium, vec!["computation"])
+            .await;
 
         // Wait for assignment
         fixture.wait_for_task_assignment(task.id, 500).await;
@@ -273,7 +326,7 @@ mod swarm_coordinator_tests {
         // Simulate agent failure
         {
             let mut agent = agent1.write().await;
-            agent.status = AgentStatus::Failed;
+            agent.state = AgentState::Failed;
         }
 
         // Task should be reassigned to healthy agent
@@ -332,7 +385,8 @@ mod swarm_coordinator_tests {
 
         // Check that tasks are being processed
         let all_tasks = fixture.coordinator.list_tasks().await;
-        let in_progress_count = all_tasks.iter()
+        let in_progress_count = all_tasks
+            .iter()
             .filter(|t| t.status == TaskStatus::InProgress)
             .count();
 
@@ -353,22 +407,37 @@ mod swarm_coordinator_tests {
 
         // Submit more tasks than agent can handle
         for i in 0..5 {
-            fixture.create_task(&format!("Task {}", i), TaskPriority::Medium, vec!["computation"]).await;
+            fixture
+                .create_task(
+                    &format!("Task {}", i),
+                    TaskPriority::Medium,
+                    vec!["computation"],
+                )
+                .await;
         }
 
         sleep(Duration::from_millis(100)).await;
 
         // Check agent task load
         let agent_read = agent.read().await;
-        assert!(agent_read.active_tasks.len() <= 2, "Agent should not exceed max concurrent tasks");
+        assert!(
+            agent_read.active_tasks.len() <= 2,
+            "Agent should not exceed max concurrent tasks"
+        );
 
         // Some tasks should remain pending
-        let pending_tasks = fixture.coordinator.list_tasks().await
+        let pending_tasks = fixture
+            .coordinator
+            .list_tasks()
+            .await
             .into_iter()
             .filter(|t| t.status == TaskStatus::Pending)
             .count();
 
-        assert!(pending_tasks > 0, "Some tasks should remain pending due to resource limits");
+        assert!(
+            pending_tasks > 0,
+            "Some tasks should remain pending due to resource limits"
+        );
     }
 
     #[tokio::test]
@@ -378,7 +447,9 @@ mod swarm_coordinator_tests {
         fixture.add_agent("worker", vec!["computation"]).await;
 
         // Submit task with short timeout
-        let task = fixture.create_task("Timeout task", TaskPriority::High, vec!["computation"]).await;
+        let task = fixture
+            .create_task("Timeout task", TaskPriority::High, vec!["computation"])
+            .await;
 
         // Wait for assignment
         fixture.wait_for_task_assignment(task.id, 500).await;
@@ -395,7 +466,10 @@ mod swarm_coordinator_tests {
         let mut fixture = SwarmTestFixture::new().await;
 
         // Test round-robin strategy
-        fixture.coordinator.set_coordination_strategy("round_robin").await;
+        fixture
+            .coordinator
+            .set_coordination_strategy("round_robin")
+            .await;
 
         for _ in 0..3 {
             fixture.add_agent("worker", vec!["computation"]).await;
@@ -403,18 +477,30 @@ mod swarm_coordinator_tests {
 
         // Submit tasks and check distribution
         for i in 0..6 {
-            fixture.create_task(&format!("RR Task {}", i), TaskPriority::Medium, vec!["computation"]).await;
+            fixture
+                .create_task(
+                    &format!("RR Task {}", i),
+                    TaskPriority::Medium,
+                    vec!["computation"],
+                )
+                .await;
         }
 
         sleep(Duration::from_millis(100)).await;
 
         // Check round-robin distribution
-        let assignments: Vec<_> = fixture.coordinator.list_tasks().await
+        let assignments: Vec<_> = fixture
+            .coordinator
+            .list_tasks()
+            .await
             .into_iter()
             .filter_map(|t| t.assigned_agent)
             .collect();
 
-        let unique_agents = assignments.iter().collect::<std::collections::HashSet<_>>().len();
+        let unique_agents = assignments
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len();
         assert_eq!(unique_agents, 3, "Round-robin should use all agents");
     }
 
@@ -425,17 +511,22 @@ mod swarm_coordinator_tests {
         let agent = fixture.add_agent("worker", vec!["computation"]).await;
 
         // Agent should be healthy initially
-        let health_status = fixture.coordinator.check_agent_health(agent.read().await.id).await;
+        let health_status = fixture
+            .coordinator
+            .check_agent_health(agent.read().await.id)
+            .await;
         assert!(health_status, "Agent should be healthy initially");
 
         // Simulate unhealthy agent
         {
             let mut agent_write = agent.write().await;
-            agent_write.status = AgentStatus::Failed;
-            agent_write.last_health_check = Some(chrono::Utc::now() - chrono::Duration::minutes(10));
+            agent_write.state = AgentState::Failed;
         }
 
-        let health_status_after = fixture.coordinator.check_agent_health(agent.read().await.id).await;
+        let health_status_after = fixture
+            .coordinator
+            .check_agent_health(agent.read().await.id)
+            .await;
         assert!(!health_status_after, "Agent should be marked as unhealthy");
     }
 
@@ -446,15 +537,26 @@ mod swarm_coordinator_tests {
         fixture.add_agent("worker", vec!["computation"]).await;
 
         // Submit and complete some tasks
-        let task = fixture.create_task("Metrics task", TaskPriority::Medium, vec!["computation"]).await;
+        let task = fixture
+            .create_task("Metrics task", TaskPriority::Medium, vec!["computation"])
+            .await;
         fixture.wait_for_task_assignment(task.id, 500).await;
         fixture.coordinator.complete_task(task.id).await.unwrap();
 
         // Check metrics
         let metrics = fixture.coordinator.get_metrics().await;
 
-        assert!(metrics.total_tasks > 0, "Should have processed at least one task");
-        assert!(metrics.completed_tasks > 0, "Should have completed at least one task");
-        assert!(metrics.success_rate >= 0.0 && metrics.success_rate <= 1.0, "Success rate should be valid");
+        assert!(
+            metrics.total_tasks > 0,
+            "Should have processed at least one task"
+        );
+        assert!(
+            metrics.completed_tasks > 0,
+            "Should have completed at least one task"
+        );
+        assert!(
+            metrics.success_rate >= 0.0 && metrics.success_rate <= 1.0,
+            "Success rate should be valid"
+        );
     }
 }

@@ -2,7 +2,9 @@
 //!
 //! Analyzes agent behavior patterns and communication
 
-use super::types::{CommunicationPattern, DecisionPattern, BehaviorStatusSummary, AdaptationMetrics};
+use super::types::{
+    AdaptationMetrics, BehaviorStatusSummary, CommunicationPattern, DecisionPattern,
+};
 use crate::utils::error::HiveResult;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -23,7 +25,7 @@ impl Default for BehaviorAnalyzer {
 }
 
 impl BehaviorAnalyzer {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             communication_patterns: Arc::new(RwLock::new(HashMap::new())),

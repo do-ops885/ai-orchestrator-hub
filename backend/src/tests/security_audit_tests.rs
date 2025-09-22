@@ -36,7 +36,7 @@ mod tests {
         }).await;
         
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "test_success");
+        assert_eq!(result.expect("replaced unwrap"), "test_success");
     }
 
     /// Test that safe operations handle failures gracefully
@@ -80,7 +80,7 @@ mod tests {
         }, 3).await;
         
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "success_after_retry");
+        assert_eq!(result.expect("replaced unwrap"), "success_after_retry");
         assert_eq!(attempt_count.load(std::sync::atomic::Ordering::SeqCst), 3);
     }
 
@@ -139,7 +139,7 @@ mod tests {
         }).await;
         
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "success_after_timeout");
+        assert_eq!(result.expect("replaced unwrap"), "success_after_timeout");
     }
 
     /// Test safe option utilities
@@ -149,7 +149,7 @@ mod tests {
         let some_value: Option<i32> = Some(42);
         let result = safe_option::expect_or_error(some_value, "Should not fail");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        assert_eq!(result.expect("replaced unwrap"), 42);
         
         // Test expect_or_error with None
         let none_value: Option<i32> = None;
@@ -178,28 +178,28 @@ mod tests {
         
         // Test successful string extraction
         assert_eq!(
-            safe_json::get_string(&test_json, "string_field").unwrap(),
+            safe_json::get_string(&test_json, "string_field").expect("replaced unwrap"),
             "test_value"
         );
         
         // Test successful number extraction
         assert_eq!(
-            safe_json::get_number(&test_json, "number_field").unwrap(),
+            safe_json::get_number(&test_json, "number_field").expect("replaced unwrap"),
             42.5
         );
         
         // Test successful boolean extraction
         assert_eq!(
-            safe_json::get_boolean(&test_json, "boolean_field").unwrap(),
+            safe_json::get_boolean(&test_json, "boolean_field").expect("replaced unwrap"),
             true
         );
         
         // Test successful array extraction
-        let array = safe_json::get_array(&test_json, "array_field").unwrap();
+        let array = safe_json::get_array(&test_json, "array_field").expect("replaced unwrap");
         assert_eq!(array.len(), 3);
         
         // Test successful object extraction
-        let object = safe_json::get_object(&test_json, "object_field").unwrap();
+        let object = safe_json::get_object(&test_json, "object_field").expect("replaced unwrap");
         assert_eq!(object.len(), 1);
         
         // Test error cases for missing fields
@@ -211,7 +211,7 @@ mod tests {
         
         // Test optional extractions
         assert_eq!(
-            safe_json::get_optional_string(&test_json, "string_field").unwrap(),
+            safe_json::get_optional_string(&test_json, "string_field").expect("replaced unwrap"),
             "test_value"
         );
         assert_eq!(
@@ -219,7 +219,7 @@ mod tests {
             None
         );
         assert_eq!(
-            safe_json::get_optional_number(&test_json, "number_field").unwrap(),
+            safe_json::get_optional_number(&test_json, "number_field").expect("replaced unwrap"),
             42.5
         );
         assert_eq!(
@@ -328,7 +328,7 @@ mod tests {
             }
         }, 2).await;
         assert!(result2.is_ok());
-        assert_eq!(result2.unwrap(), "scenario2_recovered");
+        assert_eq!(result2.expect("replaced unwrap"), "scenario2_recovered");
         
         // Scenario 3: Non-transient failure (should not retry)
         let result3 = safe_ops.with_retry(|| {
@@ -356,9 +356,9 @@ mod tests {
         assert!(score.is_ok());
         assert!(is_active.is_ok());
         
-        assert_eq!(user_id.unwrap(), "12345");
-        assert_eq!(score.unwrap(), 95.5);
-        assert_eq!(is_active.unwrap(), true);
+        assert_eq!(user_id.expect("replaced unwrap"), "12345");
+        assert_eq!(score.expect("replaced unwrap"), 95.5);
+        assert_eq!(is_active.expect("replaced unwrap"), true);
     }
 
     /// Test that the system handles edge cases gracefully

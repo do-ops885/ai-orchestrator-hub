@@ -714,7 +714,7 @@ impl Default for ThresholdHistory {
 }
 
 impl ThresholdHistory {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             confidence_thresholds: Vec::new(),
@@ -731,7 +731,7 @@ impl Default for PerformanceTracker {
 }
 
 impl PerformanceTracker {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             verification_outcomes: Vec::new(),
@@ -940,7 +940,7 @@ impl AdaptiveVerificationCapable for Agent {
     }
 }
 
-    #[cfg(test)]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::agents::simple_verification::{SimpleVerificationSystem, VerificationTier};

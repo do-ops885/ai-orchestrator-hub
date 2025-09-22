@@ -11,7 +11,7 @@ use uuid::Uuid;
 use multiagent_hive::agents::{Agent, AgentConfig, AgentStatus};
 use multiagent_hive::communication::{Message, MessageType};
 use multiagent_hive::persistence::{PersistenceManager, StorageBackend};
-use multiagent_hive::swarm::{SwarmCoordinator, SwarmConfig};
+use multiagent_hive::swarm::{SwarmConfig, SwarmCoordinator};
 
 /// Test fixture for creating mock agents
 pub struct MockAgent {
@@ -148,7 +148,10 @@ pub mod async_utils {
     use tokio::time::{timeout, Duration};
 
     /// Run a future with a timeout
-    pub async fn with_timeout<T, F>(future: F, duration: Duration) -> Result<T, tokio::time::error::Elapsed>
+    pub async fn with_timeout<T, F>(
+        future: F,
+        duration: Duration,
+    ) -> Result<T, tokio::time::error::Elapsed>
     where
         F: Future<Output = T>,
     {
@@ -214,22 +217,32 @@ pub mod assertions {
     where
         T: std::ops::Sub<Output = T> + std::cmp::PartialOrd + Debug + Copy,
     {
-        let diff = if left > right { left - right } else { right - left };
-        assert!(diff <= tolerance, "{}: {:?} vs {:?} (diff: {:?})", message, left, right, diff);
+        let diff = if left > right {
+            left - right
+        } else {
+            right - left
+        };
+        assert!(
+            diff <= tolerance,
+            "{}: {:?} vs {:?} (diff: {:?})",
+            message,
+            left,
+            right,
+            diff
+        );
     }
 
     /// Assert that a future completes within a timeout
-    pub async fn assert_completes_within<T, F>(
-        future: F,
-        timeout_ms: u64,
-        message: &str,
-    ) -> T
+    pub async fn assert_completes_within<T, F>(future: F, timeout_ms: u64, message: &str) -> T
     where
         F: std::future::Future<Output = T>,
     {
         match tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), future).await {
             Ok(result) => result,
-            Err(_) => panic!("{}: Future did not complete within {}ms", message, timeout_ms),
+            Err(_) => panic!(
+                "{}: Future did not complete within {}ms",
+                message, timeout_ms
+            ),
         }
     }
 
@@ -240,7 +253,11 @@ pub mod assertions {
         T: Debug,
     {
         let found = collection.iter().any(predicate);
-        assert!(found, "{}: No item in {:?} matches the predicate", message, collection);
+        assert!(
+            found,
+            "{}: No item in {:?} matches the predicate",
+            message, collection
+        );
     }
 }
 
@@ -271,7 +288,14 @@ pub mod integration {
     /// Start a test server process
     pub fn start_test_server(port: u16) -> std::process::Child {
         Command::new("cargo")
-            .args(&["run", "--bin", "mcp_server", "--", "--port", &port.to_string()])
+            .args(&[
+                "run",
+                "--bin",
+                "mcp_server",
+                "--",
+                "--port",
+                &port.to_string(),
+            ])
             .spawn()
             .expect("Failed to start test server")
     }
@@ -280,7 +304,10 @@ pub mod integration {
     pub async fn wait_for_server(port: u16, timeout_ms: u64) {
         let start = std::time::Instant::now();
         while start.elapsed().as_millis() < timeout_ms as u128 {
-            if tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port)).await.is_err() {
+            if tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port))
+                .await
+                .is_err()
+            {
                 // Port is in use, server might be ready
                 return;
             }

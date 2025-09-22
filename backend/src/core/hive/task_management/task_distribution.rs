@@ -30,7 +30,7 @@ pub struct TaskDistributor {
 
 impl TaskDistributor {
     /// Create a new task distributor
-    #[must_use] 
+    #[must_use]
     pub fn new(
         queue_manager: TaskQueueManager,
         executor: TaskExecutor,
@@ -112,29 +112,31 @@ impl TaskDistributor {
         }
 
         // Execute tasks in parallel using join_all for better async performance
-        let execution_futures = tasks_to_execute.into_iter().map(|(task, _agent_id, agent)| {
-            let executor = self.executor.clone();
-            let metrics_collector = self.metrics_collector.clone();
-            let queue_manager = self.queue_manager.clone();
+        let execution_futures = tasks_to_execute
+            .into_iter()
+            .map(|(task, _agent_id, agent)| {
+                let executor = self.executor.clone();
+                let metrics_collector = self.metrics_collector.clone();
+                let queue_manager = self.queue_manager.clone();
 
-            async move {
-                match executor
-                    .execute_task_with_verification(&task.clone(), &agent)
-                    .await
-                {
-                    Ok(result) => {
-                        metrics_collector.record_task_completed(result).await?;
-                        Ok(())
-                    }
-                    Err(e) => {
-                        tracing::error!("Task execution failed: {}", e);
-                        // Re-queue the task for retry
-                        queue_manager.enqueue_task(task).await?;
-                        Err(e)
+                async move {
+                    match executor
+                        .execute_task_with_verification(&task.clone(), &agent)
+                        .await
+                    {
+                        Ok(result) => {
+                            metrics_collector.record_task_completed(result).await?;
+                            Ok(())
+                        }
+                        Err(e) => {
+                            tracing::error!("Task execution failed: {}", e);
+                            // Re-queue the task for retry
+                            queue_manager.enqueue_task(task).await?;
+                            Err(e)
+                        }
                     }
                 }
-            }
-        });
+            });
 
         // Execute all tasks concurrently
         let results = join_all(execution_futures).await;

@@ -3,6 +3,8 @@
 //! Tests to prevent regression of `unwrap_or()` to `unwrap_or_else`(||) changes
 //! in the error handling and recovery system.
 
+use crate::utils::error_handling::{CircuitBreaker, CircuitBreakerState, RecoveryConfig, SafeOperations};
+use crate::HiveError;
 
 /// Test cascade failure scenarios
 #[tokio::test]
@@ -80,7 +82,7 @@ async fn test_partial_recovery_situations() {
 
     let result = safe_ops.with_retry(operation, 5).await;
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "partial_recovery_success");
+    assert_eq!(result.expect("replaced unwrap"), "partial_recovery_success");
 }
 
 /// Test resource exhaustion during recovery
@@ -208,7 +210,10 @@ async fn test_database_failures_during_recovery() {
 
     let result = safe_ops.with_retry(operation, 3).await;
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "database_recovery_success");
+    assert_eq!(
+        result.expect("replaced unwrap"),
+        "database_recovery_success"
+    );
 }
 
 /// Test circuit breaker state transitions
@@ -303,7 +308,7 @@ async fn test_concurrent_circuit_breaker_access() {
     let mut circuit_breaker_opened = false;
 
     for handle in handles {
-        let result = handle.await.unwrap();
+        let result = handle.await.expect("replaced unwrap");
         match result {
             Ok(_) => success_count += 1,
             Err(HiveError::CircuitBreakerOpen { .. }) => {
@@ -442,7 +447,7 @@ async fn test_circuit_breaker_reset() {
     // Should now allow operations
     let result = safe_ops.execute_safely(async { Ok("reset_success") }).await;
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "reset_success");
+    assert_eq!(result.expect("replaced unwrap"), "reset_success");
 }
 
 /// Test safe option utilities edge cases
@@ -462,7 +467,7 @@ fn test_safe_option_utilities_edge_cases() {
     let some_value = Some(42);
     let result = safe_option::expect_or_error(some_value, "Should not see this");
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 42);
+    assert_eq!(result.expect("replaced unwrap"), 42);
 
     // Test unwrap_or_default
     assert_eq!(safe_option::unwrap_or_default::<i32>(None), 0);
@@ -489,7 +494,7 @@ fn test_safe_result_utilities_edge_cases() {
     let ok_result: Result<i32, HiveError> = Ok(42);
     let result = safe_result::expect_or_error(ok_result, "Should not see this");
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 42);
+    assert_eq!(result.expect("replaced unwrap"), 42);
 
     // Test map_error
     let err_result: Result<i32, HiveError> = Err(HiveError::OperationFailed {

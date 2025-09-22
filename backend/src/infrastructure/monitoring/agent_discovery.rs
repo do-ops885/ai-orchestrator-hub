@@ -24,7 +24,7 @@ impl Default for AgentDiscovery {
 }
 
 impl AgentDiscovery {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             agents: Arc::new(RwLock::new(HashMap::new())),

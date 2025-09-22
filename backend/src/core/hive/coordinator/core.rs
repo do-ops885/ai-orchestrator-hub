@@ -203,7 +203,7 @@ impl HiveCoordinator {
     }
 
     /// Get the current number of agents in the system.
-    #[must_use] 
+    #[must_use]
     pub fn get_agent_count(&self) -> usize {
         self.agent_manager.get_agent_count()
     }
@@ -244,13 +244,13 @@ impl HiveCoordinator {
     }
 
     /// Get reference to NLP processor.
-    #[must_use] 
+    #[must_use]
     pub fn get_nlp_processor(&self) -> &Arc<crate::neural::nlp::NLPProcessor> {
         &self.nlp_processor
     }
 
     /// Get reference to neural processor.
-    #[must_use] 
+    #[must_use]
     pub fn get_neural_processor(&self) -> &Arc<RwLock<crate::neural::core::HybridNeuralProcessor>> {
         &self.neural_processor
     }

@@ -3,7 +3,9 @@
 //! Standalone binary for executing comprehensive load tests
 //! to validate performance optimizations and scalability.
 
-use multiagent_hive::infrastructure::load_testing::{LoadTestConfig, LoadTestEngine, LoadTestOperation};
+use multiagent_hive::infrastructure::load_testing::{
+    LoadTestConfig, LoadTestEngine, LoadTestOperation,
+};
 use serde_json;
 use std::fs;
 use tokio;
@@ -32,25 +34,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for (i, config) in configs.into_iter().enumerate() {
         info!("📊 Running load test {} of 4: {}", i + 1, get_test_name(i));
-        info!("⚙️  Config: {} users, {:.1} RPS/user, {} seconds", 
-            config.concurrent_users, 
-            config.requests_per_second_per_user,
-            config.duration_secs
+        info!(
+            "⚙️  Config: {} users, {:.1} RPS/user, {} seconds",
+            config.concurrent_users, config.requests_per_second_per_user, config.duration_secs
         );
 
         let engine = LoadTestEngine::new(config);
-        
+
         match engine.execute_load_test().await {
             Ok(result) => {
                 info!("✅ Test completed successfully");
-                info!("📈 Results: {:.1} ops/sec avg, {:.1}% success rate", 
-                    result.summary.avg_requests_per_second,
-                    result.summary.success_rate_percent
+                info!(
+                    "📈 Results: {:.1} ops/sec avg, {:.1}% success rate",
+                    result.summary.avg_requests_per_second, result.summary.success_rate_percent
                 );
-                info!("⚡ Optimization effectiveness: {:.1}%", 
-                    result.optimization_effectiveness.optimization_impact.overall_optimization_effectiveness
+                info!(
+                    "⚡ Optimization effectiveness: {:.1}%",
+                    result
+                        .optimization_effectiveness
+                        .optimization_impact
+                        .overall_optimization_effectiveness
                 );
-                
+
                 all_results.push(result);
             }
             Err(e) => {
@@ -161,10 +166,12 @@ fn get_test_name(index: usize) -> &'static str {
     }
 }
 
-async fn generate_load_test_report(results: &[multiagent_hive::infrastructure::load_testing::LoadTestResult]) -> Result<(), Box<dyn std::error::Error>> {
+async fn generate_load_test_report(
+    results: &[multiagent_hive::infrastructure::load_testing::LoadTestResult],
+) -> Result<(), Box<dyn std::error::Error>> {
     let report = serde_json::to_string_pretty(results)?;
     fs::write("load_test_report.json", report)?;
-    
+
     // Generate summary report
     let mut summary_lines = vec![
         "# Load Test Summary Report".to_string(),
@@ -172,22 +179,45 @@ async fn generate_load_test_report(results: &[multiagent_hive::infrastructure::l
         "## Test Results Overview".to_string(),
         "".to_string(),
     ];
-    
+
     for (i, result) in results.iter().enumerate() {
         summary_lines.push(format!("### {} - {}", i + 1, get_test_name(i)));
         summary_lines.push("".to_string());
-        summary_lines.push(format!("- **Concurrent Users**: {}", result.config.concurrent_users));
-        summary_lines.push(format!("- **Duration**: {} seconds", result.config.duration_secs));
-        summary_lines.push(format!("- **Total Requests**: {}", result.summary.total_requests));
-        summary_lines.push(format!("- **Success Rate**: {:.1}%", result.summary.success_rate_percent));
-        summary_lines.push(format!("- **Avg Throughput**: {:.1} ops/sec", result.summary.avg_requests_per_second));
-        summary_lines.push(format!("- **P95 Latency**: {:.1}ms", result.performance_metrics.response_times.p95_ms));
-        summary_lines.push(format!("- **Optimization Effectiveness**: {:.1}%", 
-            result.optimization_effectiveness.optimization_impact.overall_optimization_effectiveness));
+        summary_lines.push(format!(
+            "- **Concurrent Users**: {}",
+            result.config.concurrent_users
+        ));
+        summary_lines.push(format!(
+            "- **Duration**: {} seconds",
+            result.config.duration_secs
+        ));
+        summary_lines.push(format!(
+            "- **Total Requests**: {}",
+            result.summary.total_requests
+        ));
+        summary_lines.push(format!(
+            "- **Success Rate**: {:.1}%",
+            result.summary.success_rate_percent
+        ));
+        summary_lines.push(format!(
+            "- **Avg Throughput**: {:.1} ops/sec",
+            result.summary.avg_requests_per_second
+        ));
+        summary_lines.push(format!(
+            "- **P95 Latency**: {:.1}ms",
+            result.performance_metrics.response_times.p95_ms
+        ));
+        summary_lines.push(format!(
+            "- **Optimization Effectiveness**: {:.1}%",
+            result
+                .optimization_effectiveness
+                .optimization_impact
+                .overall_optimization_effectiveness
+        ));
         summary_lines.push("".to_string());
     }
-    
+
     fs::write("load_test_summary.md", summary_lines.join("\n"))?;
-    
+
     Ok(())
 }

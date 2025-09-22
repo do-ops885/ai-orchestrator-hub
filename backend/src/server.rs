@@ -5,7 +5,7 @@
 
 use axum::{
     extract::{ws::WebSocketUpgrade, State},
-    http::{StatusCode, header::AUTHORIZATION},
+    http::{header::AUTHORIZATION, StatusCode},
     response::Response,
     routing::get,
     Router,
@@ -395,25 +395,32 @@ async fn login(
     let user_id = Uuid::new_v4().to_string();
     let client_type = payload.client_type.unwrap_or(ClientType::Human);
     let roles = vec![Role::Admin];
-    let permissions = roles.iter().flat_map(super::utils::auth::Role::permissions).collect::<Vec<_>>();
+    let permissions = roles
+        .iter()
+        .flat_map(super::utils::auth::Role::permissions)
+        .collect::<Vec<_>>();
 
     // Generate JWT token
-    let (token, session_id) = state.auth_manager.authenticate_user(
-        user_id.clone(),
-        roles.clone(),
-        client_type.clone(),
-        Some("127.0.0.1".to_string()), // In production, get from request
-        Some("Demo User Agent".to_string()),
-    ).await.map_err(|e| {
-        error!("❌ [{}] Authentication failed: {}", request_id, e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(json!({
-                "error": "Authentication failed",
-                "request_id": request_id.to_string()
-            })),
+    let (token, session_id) = state
+        .auth_manager
+        .authenticate_user(
+            user_id.clone(),
+            roles.clone(),
+            client_type.clone(),
+            Some("127.0.0.1".to_string()), // In production, get from request
+            Some("Demo User Agent".to_string()),
         )
-    })?;
+        .await
+        .map_err(|e| {
+            error!("❌ [{}] Authentication failed: {}", request_id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(json!({
+                    "error": "Authentication failed",
+                    "request_id": request_id.to_string()
+                })),
+            )
+        })?;
 
     let user_info = UserInfo {
         id: user_id,
@@ -445,19 +452,26 @@ async fn logout(
 ) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
     let request_id = Uuid::new_v4();
 
-    info!("🚪 [{}] Logout request for session: {}", request_id, payload.session_id);
+    info!(
+        "🚪 [{}] Logout request for session: {}",
+        request_id, payload.session_id
+    );
 
     // Logout the user
-    state.auth_manager.logout(&payload.session_id).await.map_err(|e| {
-        error!("❌ [{}] Logout failed: {}", request_id, e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(json!({
-                "error": "Logout failed",
-                "request_id": request_id.to_string()
-            })),
-        )
-    })?;
+    state
+        .auth_manager
+        .logout(&payload.session_id)
+        .await
+        .map_err(|e| {
+            error!("❌ [{}] Logout failed: {}", request_id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(json!({
+                    "error": "Logout failed",
+                    "request_id": request_id.to_string()
+                })),
+            )
+        })?;
 
     info!("✅ [{}] User logged out successfully", request_id);
 
@@ -477,16 +491,20 @@ async fn refresh_token(
     info!("🔄 [{}] Token refresh request", request_id);
 
     // Refresh the token
-    let new_token = state.auth_manager.refresh_token(&payload.refresh_token).await.map_err(|e| {
-        warn!("🚫 [{}] Token refresh failed: {}", request_id, e);
-        (
-            StatusCode::UNAUTHORIZED,
-            axum::Json(json!({
-                "error": "Invalid refresh token",
-                "request_id": request_id.to_string()
-            })),
-        )
-    })?;
+    let new_token = state
+        .auth_manager
+        .refresh_token(&payload.refresh_token)
+        .await
+        .map_err(|e| {
+            warn!("🚫 [{}] Token refresh failed: {}", request_id, e);
+            (
+                StatusCode::UNAUTHORIZED,
+                axum::Json(json!({
+                    "error": "Invalid refresh token",
+                    "request_id": request_id.to_string()
+                })),
+            )
+        })?;
 
     info!("✅ [{}] Token refreshed successfully", request_id);
 
@@ -505,7 +523,10 @@ async fn get_current_user(
     let request_id = Uuid::new_v4();
 
     if let Some(claims) = claims {
-        info!("👤 [{}] Getting current user info for: {}", request_id, claims.sub);
+        info!(
+            "👤 [{}] Getting current user info for: {}",
+            request_id, claims.sub
+        );
 
         let user_info = UserInfo {
             id: claims.sub.clone(),
@@ -1048,18 +1069,16 @@ async fn get_monitoring_alerts(
 ) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
     // In a full implementation, this would use the AlertManager
     // For now, return mock alerts
-    let mock_alerts = vec![
-        json!({
-            "id": "alert-1",
-            "title": "High CPU Usage",
-            "description": "CPU usage exceeded 80%",
-            "severity": "medium",
-            "source": "system_monitor",
-            "timestamp": Utc::now(),
-            "acknowledged": false,
-            "resolved": false
-        })
-    ];
+    let mock_alerts = vec![json!({
+        "id": "alert-1",
+        "title": "High CPU Usage",
+        "description": "CPU usage exceeded 80%",
+        "severity": "medium",
+        "source": "system_monitor",
+        "timestamp": Utc::now(),
+        "acknowledged": false,
+        "resolved": false
+    })];
 
     Ok(axum::Json(json!({
         "alerts": mock_alerts,

@@ -594,11 +594,11 @@ mod tests {
 
         // Register agents
         match queue_system.register_agent(agent1_id).await {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => panic!("Failed to register agent1: {}", e),
         }
         match queue_system.register_agent(agent2_id).await {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => panic!("Failed to register agent2: {}", e),
         }
 
@@ -613,7 +613,7 @@ mod tests {
 
         // Submit task
         match queue_system.submit_task(task).await {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => panic!("Failed to submit task: {}", e),
         }
 

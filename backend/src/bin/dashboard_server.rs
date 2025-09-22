@@ -33,10 +33,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create performance dashboard
     let dashboard = Arc::new(PerformanceDashboard::new(dashboard_config));
-    
+
     // Establish performance baseline
-    dashboard.set_baseline(PerformanceDashboard::collect_current_metrics().await).await?;
-    
+    dashboard
+        .set_baseline(PerformanceDashboard::collect_current_metrics().await)
+        .await?;
+
     info!("📊 Performance dashboard initialized with baseline metrics");
 
     // Create WebSocket server configuration
@@ -49,11 +51,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create and start WebSocket server
     let server = WebSocketDashboardServer::new(Arc::clone(&dashboard), ws_config);
-    
+
     info!("🌐 WebSocket server starting on port 8081...");
     info!("📈 Dashboard available at: http://localhost:3000/dashboard");
     info!("🔌 WebSocket endpoint: ws://localhost:8081/ws");
-    
+
     // Start the server (this will run indefinitely)
     server.start().await?;
 

@@ -92,7 +92,7 @@ pub struct OptimizationEvent {
 
 impl CacheOptimizationEngine {
     /// Create a new cache optimization engine
-    #[must_use] 
+    #[must_use]
     pub fn new(
         cache_manager: Arc<CachedQueryManager>,
         performance_monitor: Arc<CachePerformanceMonitor>,
@@ -493,7 +493,7 @@ impl Default for TuningConfig {
 }
 
 impl CacheTuner {
-    #[must_use] 
+    #[must_use]
     pub fn new(optimization_engine: Arc<CacheOptimizationEngine>, config: TuningConfig) -> Self {
         Self {
             optimization_engine,
@@ -502,7 +502,7 @@ impl CacheTuner {
     }
 
     /// Start automatic tuning
-    #[must_use] 
+    #[must_use]
     pub fn start_auto_tuning(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(self.tuning_config.tuning_interval);
