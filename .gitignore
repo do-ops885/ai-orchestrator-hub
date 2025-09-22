@@ -61,3 +61,8 @@ backend/test_agent_types
 *.db-journal
 *.sqlite-journal
 
+-e 
+# Obsolete file patterns
+*.backup
+old_*.sh
+obsolete_*.*
