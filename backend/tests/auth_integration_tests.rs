@@ -12,7 +12,7 @@ use multiagent_hive::auth::{AuthManager, UserRole};
 use multiagent_hive::persistence::{PersistenceManager, SQLiteStorage};
 use multiagent_hive::settings::Settings;
 
-use axum::http::StatusCode;
+use reqwest::StatusCode;
 use reqwest::Client;
 use serde_json::json;
 use tempfile::TempDir;
