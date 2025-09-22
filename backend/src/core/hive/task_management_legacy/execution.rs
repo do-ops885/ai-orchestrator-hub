@@ -105,7 +105,7 @@ impl TaskDistributor {
 
         // Calculate agent performance
         let mut agent_performance = HashMap::new();
-        for result in history.iter() {
+        for result in history {
             let agent_id = result.agent_id.to_string();
             let entry = agent_performance
                 .entry(agent_id)
@@ -124,11 +124,9 @@ impl TaskDistributor {
                             *successful = serde_json::json!(num + 1);
                         }
                     }
-                } else {
-                    if let Some(failed) = obj.get_mut("failed") {
-                        if let Some(num) = failed.as_u64() {
-                            *failed = serde_json::json!(num + 1);
-                        }
+                } else if let Some(failed) = obj.get_mut("failed") {
+                    if let Some(num) = failed.as_u64() {
+                        *failed = serde_json::json!(num + 1);
                     }
                 }
             }
@@ -213,7 +211,7 @@ impl TaskDistributor {
     ///
     /// ## Performance
     ///
-    /// O(1) average case - HashMap lookup.
+    /// O(1) average case - `HashMap` lookup.
     ///
     /// # Parameters
     ///
@@ -233,7 +231,7 @@ impl TaskDistributor {
     ///
     /// ## Performance
     ///
-    /// O(1) average case - HashMap update.
+    /// O(1) average case - `HashMap` update.
     ///
     /// # Parameters
     ///
@@ -328,7 +326,7 @@ impl TaskDistributor {
         }
 
         let average_execution_time = if execution_count > 0 {
-            total_execution_time as f64 / execution_count as f64
+            total_execution_time as f64 / f64::from(execution_count)
         } else {
             0.0
         };

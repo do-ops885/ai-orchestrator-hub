@@ -69,6 +69,7 @@ pub struct WebSocketDashboardServer {
 
 impl WebSocketDashboardServer {
     /// Create a new WebSocket dashboard server
+    #[must_use] 
     pub fn new(
         dashboard: Arc<PerformanceDashboard>,
         config: WebSocketDashboardConfig,
@@ -94,7 +95,7 @@ impl WebSocketDashboardServer {
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", self.state.config.port))
             .await
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to bind WebSocket server: {}", e),
+                reason: format!("Failed to bind WebSocket server: {e}"),
             })?;
 
         tracing::info!("WebSocket dashboard server started on port {}", self.state.config.port);
@@ -107,7 +108,7 @@ impl WebSocketDashboardServer {
         axum::serve(listener, app)
             .await
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("WebSocket server error: {}", e),
+                reason: format!("WebSocket server error: {e}"),
             })?;
 
         Ok(())
@@ -137,7 +138,7 @@ impl WebSocketDashboardServer {
                 let clients_guard = clients.read().await;
                 
                 if !clients_guard.is_empty() {
-                    let message = match serde_json::to_string(&metrics) {
+                    let _message = match serde_json::to_string(&metrics) {
                         Ok(json) => json,
                         Err(e) => {
                             tracing::error!("Failed to serialize metrics: {}", e);
@@ -231,12 +232,12 @@ async fn handle_client_connection(
     let initial_metrics = state.dashboard.get_current_metrics().await?;
     let initial_message = serde_json::to_string(&initial_metrics)
         .map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to serialize initial metrics: {}", e),
+            reason: format!("Failed to serialize initial metrics: {e}"),
         })?;
     
     socket.send(Message::Text(initial_message)).await
         .map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to send initial metrics: {}", e),
+            reason: format!("Failed to send initial metrics: {e}"),
         })?;
 
     // Set up metrics subscription for this client
@@ -256,7 +257,7 @@ async fn handle_client_connection(
                         // Respond to ping
                         socket.send(Message::Pong(data)).await
                             .map_err(|e| HiveError::OperationFailed {
-                                reason: format!("Failed to send pong: {}", e),
+                                reason: format!("Failed to send pong: {e}"),
                             })?;
                         
                         // Update last ping time
@@ -282,22 +283,19 @@ async fn handle_client_connection(
             
             // Forward metrics updates to client
             metrics = metrics_receiver.recv() => {
-                match metrics {
-                    Ok(metrics_data) => {
-                        let message = serde_json::to_string(&metrics_data)
-                            .map_err(|e| HiveError::OperationFailed {
-                                reason: format!("Failed to serialize metrics: {}", e),
-                            })?;
-                        
-                        if let Err(e) = socket.send(Message::Text(message)).await {
-                            tracing::error!("Failed to send metrics to client {}: {}", client_id, e);
-                            break;
-                        }
-                    }
-                    Err(_) => {
-                        tracing::error!("Metrics channel closed for client {}", client_id);
+                if let Ok(metrics_data) = metrics {
+                    let message = serde_json::to_string(&metrics_data)
+                        .map_err(|e| HiveError::OperationFailed {
+                            reason: format!("Failed to serialize metrics: {e}"),
+                        })?;
+                    
+                    if let Err(e) = socket.send(Message::Text(message)).await {
+                        tracing::error!("Failed to send metrics to client {}: {}", client_id, e);
                         break;
                     }
+                } else {
+                    tracing::error!("Metrics channel closed for client {}", client_id);
+                    break;
                 }
             }
         }
@@ -320,7 +318,7 @@ async fn handle_client_message(
 
     let client_msg: ClientMessage = serde_json::from_str(message)
         .map_err(|e| HiveError::OperationFailed {
-            reason: format!("Invalid client message format: {}", e),
+            reason: format!("Invalid client message format: {e}"),
         })?;
 
     match client_msg.action.as_str() {

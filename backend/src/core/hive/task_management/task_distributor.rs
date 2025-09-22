@@ -11,7 +11,7 @@ use super::task_maintenance::TaskMaintenanceManager;
 use super::task_metrics::TaskMetricsCollector;
 use super::task_queue::TaskQueueManager;
 use super::task_status::TaskStatusReporter;
-use super::task_types::*;
+use super::task_types::TaskDistributionConfig;
 use crate::agents::agent::Agent;
 use crate::infrastructure::cache_invalidation::{
     CacheInvalidationManager, InvalidationStrategy, TaskCacheInvalidationManager,
@@ -43,12 +43,12 @@ use uuid::Uuid;
 /// ## Architecture
 ///
 /// The task management system uses a modular approach:
-/// 1. Tasks are created and validated by TaskCreator
-/// 2. Tasks are queued using TaskQueueManager
-/// 3. Tasks are distributed by TaskDistributor
-/// 4. Tasks are executed by TaskExecutor
-/// 5. Status and analytics provided by TaskStatusReporter
-/// 6. Maintenance handled by TaskMaintenanceManager
+/// 1. Tasks are created and validated by `TaskCreator`
+/// 2. Tasks are queued using `TaskQueueManager`
+/// 3. Tasks are distributed by `TaskDistributor`
+/// 4. Tasks are executed by `TaskExecutor`
+/// 5. Status and analytics provided by `TaskStatusReporter`
+/// 6. Maintenance handled by `TaskMaintenanceManager`
 /// 7. Intelligent caching reduces database queries by up to 25%
 ///
 /// ## Thread Safety
@@ -263,7 +263,7 @@ impl TaskDistributor {
         // Get the next task from queue (simplified - in practice would find specific task)
         let task = self.task_distributor.dequeue_task().await?.ok_or_else(|| {
             crate::utils::error::HiveError::NotFound {
-                resource: format!("task {}", task_id),
+                resource: format!("task {task_id}"),
             }
         })?;
 

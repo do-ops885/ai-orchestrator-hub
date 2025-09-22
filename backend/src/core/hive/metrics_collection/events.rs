@@ -22,7 +22,7 @@ impl MetricsCollector {
     /// ## Performance
     ///
     /// O(1) time complexity - direct clone of counter map.
-    /// Memory overhead from cloning the HashMap.
+    /// Memory overhead from cloning the `HashMap`.
     ///
     /// ## Use Cases
     ///
@@ -50,7 +50,7 @@ impl MetricsCollector {
     ///
     /// # Returns
     ///
-    /// Returns a HashMap containing all event counters.
+    /// Returns a `HashMap` containing all event counters.
     pub async fn get_event_counters(&self) -> HashMap<String, u64> {
         self.event_counters.read().await.clone()
     }
@@ -61,7 +61,7 @@ impl MetricsCollector {
     ///
     /// ## Performance
     ///
-    /// O(1) average case - HashMap lookup.
+    /// O(1) average case - `HashMap` lookup.
     ///
     /// # Parameters
     ///
@@ -82,7 +82,7 @@ impl MetricsCollector {
     ///
     /// ## Performance
     ///
-    /// O(1) average case - HashMap insertion/update.
+    /// O(1) average case - `HashMap` insertion/update.
     ///
     /// ## Example
     ///
@@ -109,7 +109,7 @@ impl MetricsCollector {
     ///
     /// ## Performance
     ///
-    /// O(1) average case - HashMap update.
+    /// O(1) average case - `HashMap` update.
     ///
     /// # Parameters
     ///
@@ -126,7 +126,7 @@ impl MetricsCollector {
     ///
     /// ## Performance
     ///
-    /// O(1) time complexity - HashMap clear operation.
+    /// O(1) time complexity - `HashMap` clear operation.
     ///
     /// ## Warning
     ///

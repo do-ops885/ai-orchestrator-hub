@@ -14,7 +14,7 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 
-use crate::communication::mcp::{HiveMCPServer, MCPRequest, MCPResponse};
+use crate::communication::mcp::{MCPRequest, MCPResponse};
 use crate::AppState;
 
 /// HTTP handler for MCP requests
@@ -38,9 +38,7 @@ pub async fn handle_mcp_request(
         serde_json::to_string(&request.params).unwrap_or_else(|_| "Invalid JSON".to_string())
     );
 
-    // Create MCP server instance with the shared hive coordinator
-    let hive = Arc::clone(&state.hive);
-    let mcp_server = HiveMCPServer::new(hive);
+    let mcp_server = Arc::clone(&state.mcp_server);
 
     // Handle the request
     let response = mcp_server.handle_request(request).await;

@@ -1,10 +1,8 @@
 //! # Edge Case Tests for Configuration Unwrap Fixes
 //!
-//! Tests to prevent regression of unwrap_or() to unwrap_or_else(||) changes
+//! Tests to prevent regression of `unwrap_or()` to `unwrap_or_else`(||) changes
 //! in the configuration parsing system.
 
-use crate::HiveConfig;
-use std::env;
 
 /// Test invalid environment variable values for numeric parsing
 #[test]

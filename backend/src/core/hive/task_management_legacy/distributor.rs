@@ -261,7 +261,7 @@ impl TaskDistributor {
                 metrics.completed_at = Some(Utc::now());
                 metrics.total_execution_time_ms += execution_time;
                 metrics.average_execution_time_ms =
-                    metrics.total_execution_time_ms as f64 / metrics.execution_attempts as f64;
+                    metrics.total_execution_time_ms as f64 / f64::from(metrics.execution_attempts);
             }
         }
 
@@ -342,7 +342,7 @@ impl TaskDistributor {
             "critical" => Ok(TaskPriority::Critical),
             _ => Err(HiveError::ValidationError {
                 field: "priority".to_string(),
-                reason: format!("Unknown priority: {}", priority_str),
+                reason: format!("Unknown priority: {priority_str}"),
             }),
         }
     }
@@ -362,7 +362,7 @@ impl TaskDistributor {
                 if let Some(cap_name) = cap.get("name").and_then(|v| v.as_str()) {
                     let min_proficiency = cap
                         .get("minimum_proficiency")
-                        .and_then(|v| v.as_f64())
+                        .and_then(serde_json::Value::as_f64)
                         .unwrap_or_default();
 
                     required_capabilities.push(TaskRequiredCapability {

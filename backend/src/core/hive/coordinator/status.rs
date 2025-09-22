@@ -1,7 +1,7 @@
 //! # Status and Analytics Reporting
 //!
 //! This module handles all status reporting, analytics, and monitoring operations
-//! for the HiveCoordinator. It provides comprehensive system health and performance data.
+//! for the `HiveCoordinator`. It provides comprehensive system health and performance data.
 
 use super::core::HiveCoordinator;
 use crate::utils::error::HiveResult;
@@ -22,7 +22,7 @@ impl HiveCoordinator {
     /// - `tasks`: Task queue status and execution statistics
     /// - `metrics`: Performance metrics and system health indicators
     /// - `resources`: Current resource utilization and availability
-    /// - `swarm_center`: Calculated center coordinates of the swarm based on hive_id
+    /// - `swarm_center`: Calculated center coordinates of the swarm based on `hive_id`
     /// - `total_energy`: Derived energy consumption based on system metrics
     /// - `timestamp`: When the status was generated
     ///
@@ -39,7 +39,7 @@ impl HiveCoordinator {
         // Calculate swarm_center based on hive_id
         // Use a simple hash of the hive_id to generate coordinates
         let hive_id_str = self.id.to_string();
-        let hash = hive_id_str.chars().map(|c| c as u32).sum::<u32>() as f64;
+        let hash = f64::from(hive_id_str.chars().map(|c| c as u32).sum::<u32>());
         let swarm_center_x = (hash % 1000.0) / 100.0; // Range 0.0 to 10.0
         let swarm_center_y = ((hash / 1000.0) % 1000.0) / 100.0; // Range 0.0 to 10.0
 
@@ -149,7 +149,7 @@ impl HiveCoordinator {
         let task_status = self.task_distributor.get_status().await;
         let queue_size = task_status
             .get("legacy_queue_size")
-            .and_then(|v| v.as_u64())
+            .and_then(serde_json::Value::as_u64)
             .unwrap_or(0);
         Ok(serde_json::json!({
             "queue_size": queue_size,
@@ -161,6 +161,7 @@ impl HiveCoordinator {
     ///
     /// Performs health checks on all registered agents and returns
     /// aggregated health status information.
+    #[must_use] 
     pub fn check_agent_health(&self) -> serde_json::Value {
         // Placeholder implementation
         serde_json::json!({

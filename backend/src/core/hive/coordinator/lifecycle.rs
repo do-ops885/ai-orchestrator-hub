@@ -1,6 +1,6 @@
 //! # Coordinator Lifecycle Management
 //!
-//! This module handles the startup and shutdown operations for the HiveCoordinator.
+//! This module handles the startup and shutdown operations for the `HiveCoordinator`.
 //! It manages the lifecycle of background processes and coordination loops.
 
 use super::core::HiveCoordinator;

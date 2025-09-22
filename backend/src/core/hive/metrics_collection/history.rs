@@ -156,7 +156,7 @@ impl MetricsCollector {
     /// - **"improving"**: Success rate increasing over time
     /// - **"declining"**: Success rate decreasing over time
     /// - **"stable"**: Success rate relatively constant
-    /// - **"insufficient_data"**: Not enough data for analysis
+    /// - **"`insufficient_data`"**: Not enough data for analysis
     ///
     /// # Parameters
     ///
@@ -184,12 +184,12 @@ impl MetricsCollector {
         let first_half: Vec<f64> = recent_success_rates
             .iter()
             .take(recent_success_rates.len() / 2)
-            .cloned()
+            .copied()
             .collect();
         let second_half: Vec<f64> = recent_success_rates
             .iter()
             .skip(recent_success_rates.len() / 2)
-            .cloned()
+            .copied()
             .collect();
 
         let first_avg = first_half.iter().sum::<f64>() / first_half.len() as f64;
@@ -249,12 +249,12 @@ impl MetricsCollector {
         let first_half: Vec<f64> = performance_scores
             .iter()
             .take(performance_scores.len() / 2)
-            .cloned()
+            .copied()
             .collect();
         let second_half: Vec<f64> = performance_scores
             .iter()
             .skip(performance_scores.len() / 2)
-            .cloned()
+            .copied()
             .collect();
 
         let first_avg = first_half.iter().sum::<f64>() / first_half.len() as f64;

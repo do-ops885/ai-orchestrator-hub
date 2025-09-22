@@ -88,8 +88,10 @@ pub struct TaskMetrics {
 /// Represents the current state of a task as it moves through
 /// the execution pipeline from creation to completion.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default)]
 pub enum TaskStatus {
     /// Task has been created but not yet assigned
+    #[default]
     Pending,
     /// Task has been assigned to an agent but not yet started
     Assigned,
@@ -103,8 +105,3 @@ pub enum TaskStatus {
     Cancelled,
 }
 
-impl Default for TaskStatus {
-    fn default() -> Self {
-        TaskStatus::Pending
-    }
-}

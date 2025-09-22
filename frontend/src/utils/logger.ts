@@ -53,7 +53,11 @@ class Logger {
     return currentLevelIndex >= minLevelIndex
   }
 
-  private formatMessage(level: LogLevel, message: string, context?: Record<string, unknown>): string {
+  private formatMessage(
+    level: LogLevel,
+    message: string,
+    context?: Record<string, unknown>,
+  ): string {
     const timestamp = new Date().toISOString()
     const levelEmoji = {
       debug: '🐛',
@@ -71,7 +75,12 @@ class Logger {
     return formattedMessage
   }
 
-  private log(level: LogLevel, message: string, context?: Record<string, unknown>, component?: string): void {
+  private log(
+    level: LogLevel,
+    message: string,
+    context?: Record<string, unknown>,
+    component?: string,
+  ): void {
     if (!this.shouldLog(level)) {
       return
     }
@@ -95,16 +104,25 @@ class Logger {
 
     // Console logging
     if (this.config.enableConsoleLogging) {
-      const consoleMethod = level === 'debug' ? 'debug' : level === 'warn' ? 'warn' : level === 'error' ? 'error' : 'log'
+      const consoleMethod =
+        level === 'debug'
+          ? 'debug'
+          : level === 'warn'
+            ? 'warn'
+            : level === 'error'
+              ? 'error'
+              : 'log'
       const formattedMessage = this.formatMessage(level, message, context)
 
       if (consoleMethod === 'debug') {
+        // eslint-disable-next-line no-console
         console.debug(formattedMessage)
       } else if (consoleMethod === 'warn') {
         console.warn(formattedMessage)
       } else if (consoleMethod === 'error') {
         console.error(formattedMessage)
       } else {
+        // eslint-disable-next-line no-console
         console.log(formattedMessage)
       }
     }
@@ -116,8 +134,12 @@ class Logger {
   }
 
   private async sendToRemote(entry: LogEntry): Promise<void> {
+    if (!this.config.remoteEndpoint) {
+      return
+    }
+
     try {
-      await fetch(this.config.remoteEndpoint!, {
+      await fetch(this.config.remoteEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -198,19 +220,35 @@ export function getLogger(config?: Partial<LoggerConfig>): Logger {
 }
 
 // Convenience functions
-export function logDebug(message: string, context?: Record<string, unknown>, component?: string): void {
+export function logDebug(
+  message: string,
+  context?: Record<string, unknown>,
+  component?: string,
+): void {
   getLogger().debug(message, context, component)
 }
 
-export function logInfo(message: string, context?: Record<string, unknown>, component?: string): void {
+export function logInfo(
+  message: string,
+  context?: Record<string, unknown>,
+  component?: string,
+): void {
   getLogger().info(message, context, component)
 }
 
-export function logWarn(message: string, context?: Record<string, unknown>, component?: string): void {
+export function logWarn(
+  message: string,
+  context?: Record<string, unknown>,
+  component?: string,
+): void {
   getLogger().warn(message, context, component)
 }
 
-export function logError(message: string, context?: Record<string, unknown>, component?: string): void {
+export function logError(
+  message: string,
+  context?: Record<string, unknown>,
+  component?: string,
+): void {
   getLogger().error(message, context, component)
 }
 

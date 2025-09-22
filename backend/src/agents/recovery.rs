@@ -60,8 +60,7 @@ impl AgentBehavior for AgentRecoveryManager {
             MessageType::Request => {
                 let response_payload = match &envelope.payload {
                     MessagePayload::Text(text) => MessagePayload::Text(format!(
-                        "Agent recovery manager acknowledging: {} - Ready to recover agents",
-                        text
+                        "Agent recovery manager acknowledging: {text} - Ready to recover agents"
                     )),
                     MessagePayload::Json(json) => MessagePayload::Json(serde_json::json!({
                         "response": "Agent recovery manager ready",

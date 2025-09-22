@@ -9,7 +9,13 @@
 //! - Resource management and connection pooling
 
 pub mod mcp;
+pub mod mcp_batch;
+pub mod mcp_cache;
+pub mod mcp_cached_tools;
 pub mod mcp_http;
+pub mod mcp_streaming;
+pub mod mcp_tool_registry;
+pub mod mcp_unified_error;
 pub mod optimized_messaging;
 pub mod patterns;
 pub mod protocols;
@@ -63,8 +69,15 @@ pub struct CommunicationMetrics {
     pub total_bandwidth_bytes: u64,
 }
 
+impl Default for CommunicationManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CommunicationManager {
     /// Create a new communication manager
+    #[must_use] 
     pub fn new() -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
         Self {
@@ -97,7 +110,7 @@ impl CommunicationManager {
                 let elapsed = start_time.elapsed().as_millis() as f64;
                 let mut metrics = self.metrics.write().await;
                 metrics.average_response_time_ms =
-                    (metrics.average_response_time_ms + elapsed) / 2.0;
+                    f64::midpoint(metrics.average_response_time_ms, elapsed);
                 Ok(())
             }
             Ok(Err(_)) => {
@@ -228,8 +241,7 @@ pub async fn handle_websocket(socket: WebSocket, state: AppState) {
                     if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&text) {
                         let timeout_duration = client_msg
                             .timeout_ms
-                            .map(Duration::from_millis)
-                            .unwrap_or(Duration::from_secs(30));
+                            .map_or(Duration::from_secs(30), Duration::from_millis);
 
                         match tokio::time::timeout(
                             timeout_duration,
@@ -438,7 +450,7 @@ async fn send_hive_status(
         message_type: "hive_status".to_string(),
         data: status,
         timestamp: chrono::Utc::now(),
-        correlation_id: Some(format!("status_{}", client_id)),
+        correlation_id: Some(format!("status_{client_id}")),
         priority: MessagePriority::Normal,
     })
 }
@@ -461,7 +473,7 @@ async fn send_agents_update(
         message_type: "agents_update".to_string(),
         data: agents_info,
         timestamp: chrono::Utc::now(),
-        correlation_id: Some(format!("agents_{}", client_id)),
+        correlation_id: Some(format!("agents_{client_id}")),
         priority: MessagePriority::Low,
     })
 }
@@ -490,7 +502,7 @@ async fn send_metrics_update(
         message_type: "metrics_update".to_string(),
         data: metrics_data,
         timestamp: chrono::Utc::now(),
-        correlation_id: Some(format!("metrics_{}", client_id)),
+        correlation_id: Some(format!("metrics_{client_id}")),
         priority: MessagePriority::Low,
     })
 }

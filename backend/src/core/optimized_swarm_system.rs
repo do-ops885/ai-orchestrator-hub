@@ -5,7 +5,6 @@
 //! - Memory pooling for efficient object reuse
 //! - CPU load balancing for optimal task distribution
 
-use crate::agents::agent::{Agent, AgentType};
 use crate::communication::optimized_messaging::{
     OptimizedSwarmCommunicator, OptimizedMessagingConfig, OptimizedMessagingStats,
 };
@@ -132,6 +131,7 @@ struct PerformanceMonitor {
 
 impl OptimizedSwarmSystem {
     /// Create a new optimized swarm system
+    #[must_use] 
     pub fn new(config: OptimizedSwarmConfig) -> Self {
         let communicator = OptimizedSwarmCommunicator::new(config.messaging_config.clone());
         let load_balancer = CpuLoadBalancer::new(config.load_balancer_config.clone());
@@ -267,7 +267,7 @@ impl OptimizedSwarmSystem {
         // Collect results
         for handle in handles {
             let operation_id = handle.await.map_err(|e| HiveError::OperationFailed {
-                reason: format!("Task processing failed: {}", e),
+                reason: format!("Task processing failed: {e}"),
             })??;
             operation_ids.push(operation_id);
         }
@@ -295,10 +295,10 @@ impl OptimizedSwarmSystem {
         let sample_operations = 100;
 
         for i in 0..sample_operations {
-            let task = Task {
+            let _task = Task {
                 id: Uuid::new_v4(),
-                title: format!("Baseline Test Task {}", i),
-                description: format!("Baseline test task {}", i),
+                title: format!("Baseline Test Task {i}"),
+                description: format!("Baseline test task {i}"),
                 task_type: "baseline_test".to_string(),
                 priority: crate::tasks::task::TaskPriority::Medium,
                 status: crate::tasks::task::TaskStatus::Pending,
@@ -317,8 +317,8 @@ impl OptimizedSwarmSystem {
         }
 
         let baseline_duration = start_time.elapsed();
-        let baseline_throughput = sample_operations as f64 / baseline_duration.as_secs_f64();
-        let baseline_latency = baseline_duration.as_millis() as f64 / sample_operations as f64;
+        let baseline_throughput = f64::from(sample_operations) / baseline_duration.as_secs_f64();
+        let baseline_latency = baseline_duration.as_millis() as f64 / f64::from(sample_operations);
 
         let baseline = BaselineMetrics {
             baseline_throughput,

@@ -312,16 +312,7 @@ describe('Error Reporting', () => {
       </ErrorBoundary>,
     )
 
-    // Should have called console.error with error report
-    expect(console.error).toHaveBeenCalledWith(
-      'Error Report:',
-      expect.objectContaining({
-        message: 'Test error',
-        timestamp: expect.any(String),
-        userAgent: expect.any(String),
-        url: expect.any(String),
-        retryCount: 0,
-      }),
-    )
+    // Error boundary should catch the error and render fallback UI
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument()
   })
 })

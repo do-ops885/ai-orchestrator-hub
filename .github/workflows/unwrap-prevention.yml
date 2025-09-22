@@ -1,16 +1,17 @@
+---
 name: 🚫 Unwrap() Prevention Check
 
 on:
   push:
-    branches: [ main, develop ]
-    paths: 
+    branches: [main, develop]
+    paths:
       - 'backend/src/**/*.rs'
       - '!backend/src/tests/**'
       - '!backend/src/**/*test*.rs'
       - '!backend/examples/**'
       - '!backend/benches/**'
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'backend/src/**/*.rs'
       - '!backend/src/tests/**'
@@ -22,20 +23,20 @@ jobs:
   unwrap-prevention:
     name: 🔍 Scan for unwrap() calls
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: 📥 Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 2  # Need previous commit for comparison
-      
+
     - name: 🦀 Setup Rust
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         components: clippy
         override: true
-        
+
     - name: 📋 Cache dependencies
       uses: actions/cache@v3
       with:
@@ -44,11 +45,11 @@ jobs:
           ~/.cargo/git
           backend/target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-        
+
     - name: 🔍 Check for unwrap() calls in production code
       run: |
         echo "🔍 Scanning for unwrap() calls in production code..."
-        
+
         # Find production Rust files (exclude tests, examples, benches)
         PRODUCTION_FILES=$(find backend/src -name "*.rs" -type f \
           ! -path "*/tests/*" \
@@ -57,27 +58,27 @@ jobs:
           ! -name "tests.rs" \
           ! -path "*/examples/*" \
           ! -path "*/benches/*")
-        
+
         echo "📁 Scanning $(echo "$PRODUCTION_FILES" | wc -l) production files..."
-        
+
         UNWRAP_FOUND=false
         UNWRAP_COUNT=0
         TOTAL_VIOLATIONS=0
-        
+
         echo "## 🔍 Unwrap() Prevention Report" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
+
         for file in $PRODUCTION_FILES; do
-          if [[ -f "$file" ]]; then
+          if [[-f "$file"]]; then
             VIOLATIONS=$(grep -n "\.unwrap()\|\.expect(" "$file" 2>/dev/null || true)
-            if [[ -n "$VIOLATIONS" ]]; then
+            if [[-n "$VIOLATIONS"]]; then
               echo "❌ Found unwrap() call in: $file"
               echo "### ❌ \`$file\`" >> $GITHUB_STEP_SUMMARY
               echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
               echo "$VIOLATIONS" | head -5 >> $GITHUB_STEP_SUMMARY
               echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              
+
               UNWRAP_FOUND=true
               UNWRAP_COUNT=$((UNWRAP_COUNT + 1))
               VIOLATION_COUNT=$(echo "$VIOLATIONS" | wc -l)
@@ -85,8 +86,8 @@ jobs:
             fi
           fi
         done
-        
-        if [[ "$UNWRAP_FOUND" == "true" ]]; then
+
+        if [["$UNWRAP_FOUND" == "true"]]; then
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🚫 CRITICAL SECURITY VIOLATION" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -101,7 +102,7 @@ jobs:
           echo "- Return \`Result<T, E>\` types from functions" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See [Unwrap Alternatives Guide](../docs/UNWRAP_ALTERNATIVES.md) for detailed examples." >> $GITHUB_STEP_SUMMARY
-          
+
           echo ""
           echo "🚫 CRITICAL: Found unwrap() calls in $UNWRAP_COUNT production files"
           echo "This violates our security policy and could cause runtime panics."
@@ -111,7 +112,7 @@ jobs:
           echo "- Use match or if-let for explicit handling"
           echo "- Use ? operator for error propagation"
           echo "- Use Result<T, E> return types"
-          
+
           exit 1
         else
           echo "✅ SUCCESS: No unwrap() calls found in production code"
@@ -119,13 +120,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "No unwrap() calls found in production code. Security policy compliance verified." >> $GITHUB_STEP_SUMMARY
         fi
-        
+
     - name: 🧪 Run Clippy with unwrap() detection
       if: always()
       run: |
         cd backend
         echo "🧪 Running Clippy with unwrap() prevention rules..."
-        
+
         # Run clippy with our unwrap prevention configuration
         cargo clippy --all-targets --all-features -- \
           -W clippy::unwrap_used \
@@ -134,25 +135,25 @@ jobs:
           -W clippy::unreachable \
           -D warnings \
           --message-format=json > clippy_results.json || true
-          
+
         # Parse clippy results for unwrap violations
-        if [[ -f clippy_results.json ]]; then
+        if [[-f clippy_results.json]]; then
           UNWRAP_VIOLATIONS=$(cat clippy_results.json | jq -r 'select(.reason == "compiler-message" and .message.code.code == "clippy::unwrap_used") | .message' 2>/dev/null || echo "")
           EXPECT_VIOLATIONS=$(cat clippy_results.json | jq -r 'select(.reason == "compiler-message" and .message.code.code == "clippy::expect_used") | .message' 2>/dev/null || echo "")
-          
-          if [[ -n "$UNWRAP_VIOLATIONS" ]] || [[ -n "$EXPECT_VIOLATIONS" ]]; then
+
+          if [[-n "$UNWRAP_VIOLATIONS"]] || [[-n "$EXPECT_VIOLATIONS"]]; then
             echo "🚫 Clippy detected unwrap/expect violations:"
             echo "$UNWRAP_VIOLATIONS"
             echo "$EXPECT_VIOLATIONS"
             exit 1
           fi
         fi
-        
+
     - name: 📊 Generate security metrics
       if: always()
       run: |
         echo "📊 Generating unwrap() prevention metrics..."
-        
+
         # Count total Rust files
         TOTAL_FILES=$(find backend/src -name "*.rs" -type f | wc -l)
         PRODUCTION_FILES=$(find backend/src -name "*.rs" -type f \
@@ -162,13 +163,13 @@ jobs:
           ! -name "tests.rs" \
           ! -path "*/examples/*" \
           ! -path "*/benches/*" | wc -l)
-        
+
         echo "📈 Security Metrics:"
         echo "- Total Rust files: $TOTAL_FILES"
         echo "- Production files scanned: $PRODUCTION_FILES"
         echo "- Unwrap() calls in production: 0 ✅"
         echo "- Security compliance: 100% ✅"
-        
+
         # Create metrics file for monitoring
         cat > unwrap_metrics.json << EOF
         {
@@ -180,15 +181,15 @@ jobs:
           "scan_status": "passed"
         }
         EOF
-        
+
     - name: 📤 Upload security metrics
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: unwrap-prevention-metrics
         path: unwrap_metrics.json
         retention-days: 30
-        
+
     - name: 💬 Comment on PR
       if: failure() && github.event_name == 'pull_request'
       uses: actions/github-script@v6
@@ -199,30 +200,30 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             body: `🚫 **Unwrap() Prevention Check Failed**
-            
+
             This PR introduces \`unwrap()\` or \`expect()\` calls in production code, which violates our security policy.
-            
+
             **Why this matters:**
             - \`unwrap()\` calls can cause runtime panics
             - Production systems should never panic unexpectedly
             - This could lead to service outages and data loss
-            
+
             **How to fix:**
             1. Replace \`unwrap()\` with \`unwrap_or(default_value)\`
             2. Use proper error handling with \`match\` or \`if let\`
             3. Use the \`?\` operator for error propagation
             4. Return \`Result<T, E>\` types from functions
-            
+
             See our [Unwrap Alternatives Guide](../docs/UNWRAP_ALTERNATIVES.md) for examples.
-            
+
             **Next steps:**
             1. Fix the unwrap() calls in your code
             2. Run \`./scripts/unwrap-prevention-monitor.sh check_unwrap_calls\` locally
             3. Commit your changes and push again
-            
+
             This check will pass once all production unwrap() calls are resolved.`
           })
-          
+
     - name: 🎉 Success notification
       if: success()
       run: |

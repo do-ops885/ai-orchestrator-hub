@@ -2,7 +2,7 @@
 //!
 //! Provides automated monitoring tasks and responses
 
-use super::types::*;
+use super::types::AutomationTaskType;
 use crate::utils::error::HiveResult;
 
 #[derive(Clone)]
@@ -15,6 +15,7 @@ impl Default for Automation {
 }
 
 impl Automation {
+    #[must_use] 
     pub fn new() -> Self {
         Self
     }

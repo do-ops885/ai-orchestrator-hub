@@ -3,8 +3,8 @@
 //! This script validates that the centralized error handling system
 //! is properly integrated and functioning correctly.
 
-use crate::utils::error::*;
-use crate::utils::error_recovery::*;
+use crate::utils::error::HiveError;
+use crate::utils::error_recovery::{CircuitBreakerConfig, RetryConfig, DegradationStrategy, ErrorHandlerConfig, SafeUnwrap};
 
 /// Validate that all error types are properly defined
 pub fn validate_error_types() -> bool {
@@ -25,9 +25,9 @@ pub fn validate_error_types() -> bool {
     };
 
     // Test error formatting
-    assert!(format!("{}", agent_error).contains("AgentLearningFailed"));
-    assert!(format!("{}", system_error).contains("SystemOverloaded"));
-    assert!(format!("{}", task_error).contains("TaskExecutionFailed"));
+    assert!(format!("{agent_error}").contains("AgentLearningFailed"));
+    assert!(format!("{system_error}").contains("SystemOverloaded"));
+    assert!(format!("{task_error}").contains("TaskExecutionFailed"));
 
     println!("✓ Error types validation passed");
     true

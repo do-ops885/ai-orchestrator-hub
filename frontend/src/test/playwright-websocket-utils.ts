@@ -1,5 +1,6 @@
 import { Page, test as baseTest } from '@playwright/test'
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/rules-of-hooks */
 import { MockWebSocketServer } from './websocket-mock'
 
 /**

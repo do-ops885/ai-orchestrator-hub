@@ -186,12 +186,10 @@ pub fn assert_error_contains<T>(result: Result<T, impl std::fmt::Display>, patte
     match result {
         Ok(_) => panic!("Expected error but got success"),
         Err(e) => {
-            let error_str = format!("{}", e);
+            let error_str = format!("{e}");
             assert!(
                 error_str.contains(pattern),
-                "Error '{}' does not contain pattern '{}'",
-                error_str,
-                pattern
+                "Error '{error_str}' does not contain pattern '{pattern}'"
             );
         }
     }
@@ -201,7 +199,7 @@ pub fn assert_error_contains<T>(result: Result<T, impl std::fmt::Display>, patte
 pub fn assert_success<T>(result: Result<T, impl std::fmt::Display>) -> T {
     match result {
         Ok(value) => value,
-        Err(e) => panic!("Expected success but got error: {}", e),
+        Err(e) => panic!("Expected success but got error: {e}"),
     }
 }
 
@@ -213,6 +211,7 @@ pub struct MockEnvVar {
 
 impl MockEnvVar {
     /// Create a new mock environment variable
+    #[must_use] 
     pub fn new(key: &str, value: &str) -> Self {
         let original_value = std::env::var(key).ok();
         std::env::set_var(key, value);
@@ -243,6 +242,7 @@ pub struct TestFixture {
 
 impl TestFixture {
     /// Create a new test fixture
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             setup_actions: Vec::new(),
@@ -290,6 +290,7 @@ pub struct TestTimer {
 
 impl TestTimer {
     /// Start timing
+    #[must_use] 
     pub fn start() -> Self {
         Self {
             start_time: std::time::Instant::now(),
@@ -297,6 +298,7 @@ impl TestTimer {
     }
 
     /// Get elapsed time in milliseconds
+    #[must_use] 
     pub fn elapsed_ms(&self) -> u128 {
         self.start_time.elapsed().as_millis()
     }
@@ -306,10 +308,7 @@ impl TestTimer {
         let elapsed = self.elapsed_ms();
         assert!(
             elapsed >= min_ms && elapsed <= max_ms,
-            "Elapsed time {}ms not within bounds [{}, {}]ms",
-            elapsed,
-            min_ms,
-            max_ms
+            "Elapsed time {elapsed}ms not within bounds [{min_ms}, {max_ms}]ms"
         );
     }
 }
@@ -321,6 +320,7 @@ pub struct TestDataGenerator {
 
 impl TestDataGenerator {
     /// Create a new test data generator
+    #[must_use] 
     pub fn new() -> Self {
         Self { counter: 0 }
     }
@@ -357,6 +357,7 @@ pub struct ConcurrentTestRunner {
 
 impl ConcurrentTestRunner {
     /// Create a new concurrent test runner
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             handles: Vec::new(),
@@ -390,9 +391,7 @@ impl Default for ConcurrentTestRunner {
 pub fn assert_contains<T: std::fmt::Debug + PartialEq>(collection: &[T], item: &T) {
     assert!(
         collection.contains(item),
-        "Collection {:?} does not contain item {:?}",
-        collection,
-        item
+        "Collection {collection:?} does not contain item {item:?}"
     );
 }
 
@@ -400,18 +399,16 @@ pub fn assert_contains<T: std::fmt::Debug + PartialEq>(collection: &[T], item: &
 pub fn assert_not_contains<T: std::fmt::Debug + PartialEq>(collection: &[T], item: &T) {
     assert!(
         !collection.contains(item),
-        "Collection {:?} unexpectedly contains item {:?}",
-        collection,
-        item
+        "Collection {collection:?} unexpectedly contains item {item:?}"
     );
 }
 
 /// Safe unwrap with detailed error message
 pub fn safe_unwrap<T>(option: Option<T>, context: &str) -> T {
-    option.unwrap_or_else(|| panic!("Expected Some value in {} but got None", context))
+    option.unwrap_or_else(|| panic!("Expected Some value in {context} but got None"))
 }
 
 /// Safe expect with context
 pub fn safe_expect<T>(result: Result<T, impl std::fmt::Display>, context: &str) -> T {
-    result.unwrap_or_else(|e| panic!("Expected Ok value in {} but got error: {}", context, e))
+    result.unwrap_or_else(|e| panic!("Expected Ok value in {context} but got error: {e}"))
 }

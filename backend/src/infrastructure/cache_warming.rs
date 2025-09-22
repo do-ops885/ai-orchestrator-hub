@@ -175,6 +175,7 @@ pub struct WarmingStats {
 
 impl CacheWarmingEngine {
     /// Create a new cache warming engine
+    #[must_use] 
     pub fn new(cache_manager: Arc<CachedQueryManager>, config: WarmingConfig) -> Self {
         Self {
             cache_manager,
@@ -221,7 +222,7 @@ impl CacheWarmingEngine {
         let time_since_last = (now - pattern.last_access).num_hours() as f64;
         if time_since_last > 0.0 {
             let instant_frequency = 1.0 / time_since_last.max(0.0167); // Min 1 minute
-            pattern.access_frequency = (pattern.access_frequency + instant_frequency) / 2.0;
+            pattern.access_frequency = f64::midpoint(pattern.access_frequency, instant_frequency);
         }
 
         // Predict next access based on frequency
@@ -232,7 +233,7 @@ impl CacheWarmingEngine {
         }
 
         // Add to warming candidates if access count meets threshold
-        if pattern.access_count >= self.config.prefetch_threshold as u64 {
+        if pattern.access_count >= u64::from(self.config.prefetch_threshold) {
             let mut candidates = self.warming_candidates.write().await;
             candidates.insert(key.clone());
         }
@@ -256,8 +257,7 @@ impl CacheWarmingEngine {
             let candidates = self.warming_candidates.read().await;
             candidates
                 .iter()
-                .cloned()
-                .take(self.config.max_warming_batch)
+                .take(self.config.max_warming_batch).cloned()
                 .collect::<Vec<_>>()
         };
 
@@ -265,7 +265,7 @@ impl CacheWarmingEngine {
 
         for key in candidates {
             match self.warm_key(&key).await {
-                Ok(_) => {
+                Ok(()) => {
                     warmed_count += 1;
                     {
                         let mut stats = self.stats.write().await;
@@ -324,7 +324,7 @@ impl CacheWarmingEngine {
 
         for item in items_to_process {
             match self.prefetch_key(&item.key, item.context).await {
-                Ok(_) => {
+                Ok(()) => {
                     processed_count += 1;
                     let mut stats = self.stats.write().await;
                     stats.total_prefetches += 1;
@@ -422,7 +422,7 @@ impl CacheWarmingEngine {
             let priority = self.determine_key_priority(key).await;
             keys_by_priority
                 .entry(priority)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(key.clone());
         }
 
@@ -433,7 +433,7 @@ impl CacheWarmingEngine {
 
                 for key in keys {
                     match self.warm_key_with_fetcher(key, fetcher.clone()).await {
-                        Ok(_) => {
+                        Ok(()) => {
                             progress.warmed_keys += 1;
                             let mut stats = self.stats.write().await;
                             stats.total_warmings += 1;
@@ -591,7 +591,9 @@ impl CacheWarmingEngine {
         let base_report = self.generate_report().await;
         let startup_data = self.startup_warming_data.read().await;
 
-        let report = if let serde_json::Value::Object(mut obj) = base_report {
+        
+
+        if let serde_json::Value::Object(mut obj) = base_report {
             obj.insert("startup_warming".to_string(), serde_json::json!({
                 "last_startup_warming": startup_data.last_startup_warming.map(|dt| dt.to_rfc3339()),
                 "startup_keys_count": startup_data.startup_keys.len(),
@@ -601,9 +603,7 @@ impl CacheWarmingEngine {
             serde_json::Value::Object(obj)
         } else {
             base_report
-        };
-
-        report
+        }
     }
 
     /// Remove warming candidate
@@ -709,7 +709,7 @@ impl CacheWarmingEngine {
     async fn trigger_prefetching(&self, key: &CacheKey, context: HashMap<String, String>) {
         let patterns = self.access_patterns.read().await;
         if let Some(pattern) = patterns.get(key) {
-            if pattern.access_count >= self.config.prefetch_threshold as u64 {
+            if pattern.access_count >= u64::from(self.config.prefetch_threshold) {
                 if let Some(predicted_time) = pattern.predicted_next_access {
                     let prefetch_item = PrefetchItem {
                         key: key.clone(),
@@ -738,11 +738,13 @@ pub struct WarmingService {
 }
 
 impl WarmingService {
+    #[must_use] 
     pub fn new(engine: Arc<CacheWarmingEngine>, config: WarmingConfig) -> Self {
         Self { engine, config }
     }
 
     /// Start background warming and prefetching
+    #[must_use] 
     pub fn start_service(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let mut warming_interval = tokio::time::interval(self.config.warming_interval);
@@ -768,7 +770,7 @@ impl WarmingService {
 
 /// Cache warming strategy implementations
 pub mod strategies {
-    use super::*;
+    use super::{Arc, CacheWarmingEngine, HiveResult, CacheKey, Duration};
 
     /// Historical pattern warming strategy
     pub struct HistoricalPatternStrategy {
@@ -776,6 +778,7 @@ pub mod strategies {
     }
 
     impl HistoricalPatternStrategy {
+        #[must_use] 
         pub fn new(engine: Arc<CacheWarmingEngine>) -> Self {
             Self { engine }
         }
@@ -793,8 +796,8 @@ pub mod strategies {
 
             // Sort by access frequency
             high_frequency_keys.sort_by(|a, b| {
-                let freq_a = patterns.get(a).map(|p| p.access_frequency).unwrap_or(0.0);
-                let freq_b = patterns.get(b).map(|p| p.access_frequency).unwrap_or(0.0);
+                let freq_a = patterns.get(a).map_or(0.0, |p| p.access_frequency);
+                let freq_b = patterns.get(b).map_or(0.0, |p| p.access_frequency);
                 freq_b
                     .partial_cmp(&freq_a)
                     .unwrap_or(std::cmp::Ordering::Equal)
@@ -810,6 +813,7 @@ pub mod strategies {
     }
 
     impl PredictiveStrategy {
+        #[must_use] 
         pub fn new(engine: Arc<CacheWarmingEngine>) -> Self {
             Self { engine }
         }

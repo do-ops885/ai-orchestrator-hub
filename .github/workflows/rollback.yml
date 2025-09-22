@@ -1,3 +1,4 @@
+---
 name: Emergency Rollback
 
 on:
@@ -55,26 +56,26 @@ jobs:
         id: validation
         run: |
           echo "🔍 Validating rollback request..."
-          
+
           TARGET_ENV="${{ github.event.inputs.target_environment }}"
           ROLLBACK_TYPE="${{ github.event.inputs.rollback_type }}"
           TARGET_VERSION="${{ github.event.inputs.target_version }}"
           REASON="${{ github.event.inputs.reason }}"
-          
+
           echo "Environment: $TARGET_ENV"
           echo "Rollback Type: $ROLLBACK_TYPE"
           echo "Target Version: $TARGET_VERSION"
           echo "Reason: $REASON"
-          
+
           # Validate that rollback is possible
           # Check if previous deployment exists, etc.
-          
+
           # For now, assume rollback is possible
           PREVIOUS_VERSION="v1.2.3"  # This should be determined from deployment history
-          
+
           echo "can_rollback=true" >> $GITHUB_OUTPUT
           echo "previous_version=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
-          
+
           echo "✅ Rollback validation passed"
 
   immediate-rollback:
@@ -92,33 +93,33 @@ jobs:
       - name: Execute immediate rollback
         run: |
           echo "🚨 Executing immediate rollback..."
-          
+
           TARGET_ENV="${{ github.event.inputs.target_environment }}"
           PREVIOUS_VERSION="${{ needs.rollback-validation.outputs.previous_version }}"
-          
+
           echo "Rolling back $TARGET_ENV to $PREVIOUS_VERSION"
-          
+
           # Execute immediate rollback
           # Replace with your actual rollback commands
-          
+
           # Example for AWS ECS:
           # aws ecs update-service --cluster ai-orchestrator-$TARGET_ENV --service ai-orchestrator-service --task-definition ai-orchestrator-task-$PREVIOUS_VERSION
-          
+
           # Example for Kubernetes:
           # kubectl rollout undo deployment/ai-orchestrator-backend
           # kubectl rollout undo deployment/ai-orchestrator-frontend
-          
+
           echo "✅ Immediate rollback completed"
 
       - name: Verify rollback
         run: |
           echo "🔍 Verifying rollback..."
-          
+
           TARGET_ENV="${{ github.event.inputs.target_environment }}"
-          
+
           # Verify that the rollback was successful
           # Check health endpoints, version info, etc.
-          
+
           echo "✅ Rollback verification completed"
 
   gradual-rollback:
@@ -136,19 +137,19 @@ jobs:
       - name: Execute gradual rollback
         run: |
           echo "🔄 Executing gradual rollback..."
-          
+
           TARGET_ENV="${{ github.event.inputs.target_environment }}"
           PREVIOUS_VERSION="${{ needs.rollback-validation.outputs.previous_version }}"
-          
+
           echo "Gradually rolling back $TARGET_ENV to $PREVIOUS_VERSION"
-          
+
           # Execute gradual rollback with traffic shifting
           # Replace with your actual rollback commands
-          
+
           # Example: Gradually shift traffic back
           for percentage in 90 75 50 25 10 0; do
             echo "📊 Shifting $percentage% traffic to previous version..."
-            
+
             # Update load balancer weights
             # aws elbv2 modify-listener --listener-arn $LISTENER_ARN \
             #   --default-actions '[
@@ -159,14 +160,14 @@ jobs:
             #         "TargetGroups": [
             #           {"TargetGroupArn": "'$PREVIOUS_TG_ARN'", "Weight": '$percentage'},
             #           {"TargetGroupArn": "'$CURRENT_TG_ARN'", "Weight": '$((100-percentage))'}
-            #         ]
+            #        ]
             #       }
             #     }
-            #   ]'
-            
+            #  ]'
+
             # Wait and monitor
             sleep 60
-            
+
             # Check health during rollback
             if curl -f -s "https://$TARGET_ENV.ai-orchestrator-hub.com/health" > /dev/null; then
               echo "✅ Traffic shift to $percentage% successful"
@@ -175,15 +176,15 @@ jobs:
               exit 1
             fi
           done
-          
+
           echo "✅ Gradual rollback completed"
 
       - name: Verify rollback
         run: |
           echo "🔍 Verifying gradual rollback..."
-          
+
           # Verify that all traffic has been shifted back
-          
+
           echo "✅ Gradual rollback verification completed"
 
   blue-green-swap:
@@ -201,35 +202,35 @@ jobs:
       - name: Execute blue-green swap
         run: |
           echo "🔄 Executing blue-green environment swap..."
-          
+
           TARGET_ENV="${{ github.event.inputs.target_environment }}"
-          
+
           # Determine current active environment
           CURRENT_ACTIVE="green"  # This should be determined dynamically
-          
-          if [[ "$CURRENT_ACTIVE" == "blue" ]]; then
+
+          if [["$CURRENT_ACTIVE" == "blue"]]; then
             ROLLBACK_ENV="green"
           else
             ROLLBACK_ENV="blue"
           fi
-          
+
           echo "Switching from $CURRENT_ACTIVE to $ROLLBACK_ENV"
-          
+
           # Execute environment swap
           # Replace with your actual swap commands
-          
+
           # Example: Update load balancer to point to rollback environment
           # aws elbv2 modify-listener --listener-arn $LISTENER_ARN \
           #   --default-actions '[{"Type": "forward", "TargetGroupArn": "'$ROLLBACK_TG_ARN'"}]'
-          
+
           echo "✅ Blue-green swap completed"
 
       - name: Verify swap
         run: |
           echo "🔍 Verifying environment swap..."
-          
+
           # Verify that traffic is now going to the rollback environment
-          
+
           echo "✅ Environment swap verification completed"
 
   rollback-notification:
@@ -243,28 +244,28 @@ jobs:
       - name: Send rollback notifications
         run: |
           echo "📢 Sending rollback notifications..."
-          
+
           ROLLBACK_TYPE="${{ github.event.inputs.rollback_type }}"
           TARGET_ENV="${{ github.event.inputs.target_environment }}"
           REASON="${{ github.event.inputs.reason }}"
-          
+
           # Determine rollback status
-          if [[ "${{ needs.immediate-rollback.result }}" == "success" ]] || \
-             [[ "${{ needs.gradual-rollback.result }}" == "success" ]] || \
-             [[ "${{ needs.blue-green-swap.result }}" == "success" ]]; then
+          if [["${{ needs.immediate-rollback.result }}" == "success"]] || \
+             [["${{ needs.gradual-rollback.result }}" == "success"]] || \
+             [["${{ needs.blue-green-swap.result }}" == "success"]]; then
             STATUS="successful"
           else
             STATUS="failed"
           fi
-          
+
           echo "Rollback Status: $STATUS"
           echo "Type: $ROLLBACK_TYPE"
           echo "Environment: $TARGET_ENV"
           echo "Reason: $REASON"
-          
+
           # Send notifications to team
           # Example: Slack, email, PagerDuty, etc.
-          
+
           echo "✅ Rollback notifications sent"
 
       - name: Generate rollback report
@@ -276,28 +277,28 @@ jobs:
           echo "**Type:** ${{ github.event.inputs.rollback_type }}" >> $GITHUB_STEP_SUMMARY
           echo "**Reason:** ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Rollback Status" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ needs.immediate-rollback.result }}" == "success" ]] || \
-             [[ "${{ needs.gradual-rollback.result }}" == "success" ]] || \
-             [[ "${{ needs.blue-green-swap.result }}" == "success" ]]; then
+          if [["${{ needs.immediate-rollback.result }}" == "success"]] || \
+             [["${{ needs.gradual-rollback.result }}" == "success"]] || \
+             [["${{ needs.blue-green-swap.result }}" == "success"]]; then
             echo "- ✅ **Rollback completed successfully**" >> $GITHUB_STEP_SUMMARY
           else
             echo "- ❌ **Rollback failed**" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Actions Taken" >> $GITHUB_STEP_SUMMARY
           echo "- 🔄 Validation: ${{ needs.rollback-validation.result }}" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ github.event.inputs.rollback_type }}" == "immediate" ]]; then
+          if [["${{ github.event.inputs.rollback_type }}" == "immediate"]]; then
             echo "- 🚀 Immediate Rollback: ${{ needs.immediate-rollback.result }}" >> $GITHUB_STEP_SUMMARY
-          elif [[ "${{ github.event.inputs.rollback_type }}" == "gradual" ]]; then
+          elif [["${{ github.event.inputs.rollback_type }}" == "gradual"]]; then
             echo "- 🔄 Gradual Rollback: ${{ needs.gradual-rollback.result }}" >> $GITHUB_STEP_SUMMARY
           else
             echo "- 🔄 Blue-Green Swap: ${{ needs.blue-green-swap.result }}" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "1. Monitor system health" >> $GITHUB_STEP_SUMMARY
           echo "2. Investigate root cause of original issue" >> $GITHUB_STEP_SUMMARY
@@ -315,9 +316,9 @@ jobs:
       - name: Enhanced monitoring after rollback
         run: |
           echo "📊 Running enhanced monitoring after rollback..."
-          
+
           TARGET_ENV="${{ github.event.inputs.target_environment }}"
-          
+
           # Run additional health checks
           for i in {1..5}; do
             if curl -f -s "https://$TARGET_ENV.ai-orchestrator-hub.com/health" > /dev/null; then
@@ -328,13 +329,13 @@ jobs:
             fi
             sleep 30
           done
-          
+
           echo "✅ Post-rollback monitoring completed"
 
       - name: Performance validation
         run: |
           echo "⚡ Validating performance after rollback..."
-          
+
           # Run performance checks to ensure rollback didn't introduce issues
-          
+
           echo "✅ Performance validation completed"

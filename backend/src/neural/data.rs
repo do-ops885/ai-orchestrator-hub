@@ -222,6 +222,7 @@ pub struct StreamingLoaderMetrics {
 
 impl StreamingDataLoader {
     /// Create a new memory-efficient streaming data loader
+    #[must_use] 
     pub fn new(data_path: std::path::PathBuf, config: StreamConfig) -> Self {
         let memory_pool = Arc::new(RwLock::new(Vec::with_capacity(config.memory_pool_size)));
         let compression_buffer = Vec::with_capacity(config.max_chunk_size);
@@ -248,7 +249,7 @@ impl StreamingDataLoader {
                     .memory_pool
                     .try_write()
                     .map_err(|e| HiveError::ProcessingError {
-                        reason: format!("Failed to acquire write lock on memory pool: {}", e),
+                        reason: format!("Failed to acquire write lock on memory pool: {e}"),
                     })?;
             for _ in 0..loader.config.memory_pool_size {
                 pool.push(vec![0u8; loader.config.max_chunk_size]);
@@ -346,17 +347,18 @@ impl StreamingDataLoader {
         encoder
             .write_all(data)
             .map_err(|e| HiveError::ProcessingError {
-                reason: format!("Failed to compress chunk data: {}", e),
+                reason: format!("Failed to compress chunk data: {e}"),
             })?;
 
         encoder.finish().map_err(|e| HiveError::ProcessingError {
-            reason: format!("Failed to finish compression: {}", e),
+            reason: format!("Failed to finish compression: {e}"),
         })?;
 
         Ok(self.compression_buffer.clone())
     }
 
     /// Get streaming loader performance metrics
+    #[must_use] 
     pub fn get_metrics(&self) -> &StreamingLoaderMetrics {
         &self.metrics
     }
@@ -371,7 +373,7 @@ impl StreamingDataLoader {
             .memory_pool
             .try_read()
             .map_err(|e| HiveError::ProcessingError {
-                reason: format!("Failed to acquire read lock on memory pool: {}", e),
+                reason: format!("Failed to acquire read lock on memory pool: {e}"),
             })?
             .len()
             * self.config.max_chunk_size;
@@ -420,6 +422,7 @@ pub struct DatasetMetrics {
 
 impl StreamingBatch {
     /// Create new streaming batch with memory pool
+    #[must_use] 
     pub fn new(
         features: Vec<Vec<f32>>,
         labels: Vec<Vec<f32>>,
@@ -440,11 +443,13 @@ impl StreamingBatch {
     }
 
     /// Get batch size
+    #[must_use] 
     pub fn size(&self) -> usize {
         self.features.len()
     }
 
     /// Calculate memory efficiency (lower is better)
+    #[must_use] 
     pub fn memory_efficiency(&self) -> f64 {
         if self.size() == 0 {
             return 0.0;
@@ -489,6 +494,7 @@ impl StreamingBatch {
 
 impl MemoryEfficientDataset {
     /// Create new memory-efficient dataset
+    #[must_use] 
     pub fn new(metadata: DatasetMetadata, max_memory_limit: usize) -> Self {
         let feature_pool = Arc::new(RwLock::new(Vec::with_capacity(1000)));
         let label_pool = Arc::new(RwLock::new(Vec::with_capacity(1000)));
@@ -615,6 +621,7 @@ impl MemoryEfficientDataset {
     }
 
     /// Get dataset performance metrics
+    #[must_use] 
     pub fn get_metrics(&self) -> &DatasetMetrics {
         &self.metrics
     }
@@ -679,6 +686,7 @@ impl DataPipeline {
     }
 
     /// Create a new data pipeline with streaming support
+    #[must_use] 
     pub fn new_with_streaming(stream_config: StreamConfig) -> Self {
         let stream_processor = StreamProcessor::new(stream_config.clone());
         let neural_stream = NeuralDataStream::new(stream_config);
@@ -728,7 +736,7 @@ impl DataPipeline {
         })?;
 
         // Create streaming data loader
-        let loader_id = format!("{}_streaming", name);
+        let loader_id = format!("{name}_streaming");
         let _streaming_loader =
             StreamingDataLoader::new(path.to_path_buf(), stream_processor.config.clone());
 
@@ -769,7 +777,7 @@ impl DataPipeline {
             self.data_loaders
                 .get(loader_id)
                 .ok_or_else(|| HiveError::ProcessingError {
-                    reason: format!("Data loader '{}' not found", loader_id),
+                    reason: format!("Data loader '{loader_id}' not found"),
                 })?;
 
         let mut loader = loader.write().await;
@@ -827,7 +835,7 @@ impl DataPipeline {
     ) -> HiveResult<String> {
         let dataset = Arc::clone(self.datasets.get(dataset_name).ok_or_else(|| {
             HiveError::ProcessingError {
-                reason: format!("Dataset '{}' not found", dataset_name),
+                reason: format!("Dataset '{dataset_name}' not found"),
             }
         })?);
 
@@ -860,7 +868,7 @@ impl DataPipeline {
             self.data_loaders
                 .get(loader_id)
                 .ok_or_else(|| HiveError::ProcessingError {
-                    reason: format!("Data loader '{}' not found", loader_id),
+                    reason: format!("Data loader '{loader_id}' not found"),
                 })?;
 
         let mut loader = loader.write().await;
@@ -914,6 +922,7 @@ impl DataPipeline {
     }
 
     /// Convert regular batch to streaming batch
+    #[must_use] 
     pub fn to_streaming_batch(&self, batch: DataBatch) -> StreamingBatch {
         let memory_usage = self.estimate_batch_memory(&batch.features, &batch.labels);
 
@@ -937,7 +946,7 @@ impl DataPipeline {
             self.datasets
                 .get(dataset_name)
                 .ok_or_else(|| HiveError::ProcessingError {
-                    reason: format!("Dataset '{}' not found", dataset_name),
+                    reason: format!("Dataset '{dataset_name}' not found"),
                 })?;
 
         let mut dataset = dataset.write().await;
@@ -981,7 +990,7 @@ impl DataPipeline {
             .datasets
             .get(dataset_name)
             .ok_or_else(|| HiveError::ProcessingError {
-                reason: format!("Dataset '{}' not found", dataset_name),
+                reason: format!("Dataset '{dataset_name}' not found"),
             })?
             .read()
             .await;

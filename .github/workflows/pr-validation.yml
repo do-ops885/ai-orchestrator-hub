@@ -1,10 +1,9 @@
+---
 name: PR Validation
-
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    branches: [ main, develop ]
-
+    branches: [main, develop]
 concurrency:
   group: pr-validation-${{ github.ref }}
   cancel-in-progress: true
@@ -15,18 +14,11 @@ env:
   CORRELATION_ID: ${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
-   # Enhanced PR metadata validation
-   pr-metadata:
-     name: PR Metadata Validation
-     runs-on: ubuntu-latest
-     timeout-minutes: 5
-     permissions:
-       contents: read
-       pull-requests: read
-    outputs:
-      has-breaking-changes: ${{ steps.analysis.outputs.has-breaking-changes }}
-      change-impact: ${{ steps.analysis.outputs.change-impact }}
-      test-strategy: ${{ steps.analysis.outputs.test-strategy }}
+  # Enhanced PR metadata validation
+  pr-metadata:
+    name: PR Metadata Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Checkout code
@@ -75,60 +67,46 @@ jobs:
           source log_helper.sh
           log_structured "INFO" "Analyzing PR changes"
 
-           # Get changed files
-           git diff --name-only origin/${{ github.base_ref }}...HEAD > changed_files.txt 2>/dev/null || touch changed_files.txt
+          # Get changed files
+          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed_files.txt
 
           # Analyze change impact
           has_breaking_changes=false
           change_impact="low"
           test_strategy="standard"
 
-            # Check for breaking changes
-            # Check for breaking changes in title
-            if echo "${{ github.event.pull_request.title }}" | grep -E "(BREAKING|breaking)" 2>/dev/null; then
-              has_breaking_changes=true
-              change_impact="high"
-              test_strategy="comprehensive"
-            fi
-
-            # Skip body-based breaking changes check for dependabot PRs to avoid shell issues
-            if [[ "${{ github.event.pull_request.user.login }}" == "dependabot[bot]" ]]; then
-              log_structured "INFO" "Skipping body-based breaking changes check for dependabot PR"
-            fi
+           # Check for breaking changes
+           if grep -E "(BREAKING|breaking)" <<< "${{ github.event.pull_request.title }}" || \
+              grep -E "(BREAKING|breaking)" pr_body.txt; then
             has_breaking_changes=true
             change_impact="high"
             test_strategy="comprehensive"
           fi
 
           # Analyze file changes
-          backend_changes=$(grep -c "^backend/" changed_files.txt 2>/dev/null || echo "0")
-          frontend_changes=$(grep -c "^frontend/" changed_files.txt 2>/dev/null || echo "0")
-          config_changes=$(grep -c -E "\.(yml|yaml|toml|json)$" changed_files.txt 2>/dev/null || echo "0")
-
-          # Ensure variables are numeric
-          backend_changes=${backend_changes:-0}
-          frontend_changes=${frontend_changes:-0}
-          config_changes=${config_changes:-0}
+          backend_changes=$(grep -c "^backend/" changed_files.txt || echo 0)
+          frontend_changes=$(grep -c "^frontend/" changed_files.txt || echo 0)
+          config_changes=$(grep -c -E "\.(yml|yaml|toml|json)$" changed_files.txt || echo 0)
 
           # Determine impact based on changes
           total_changes=$((backend_changes + frontend_changes + config_changes))
 
-          if [ $total_changes -gt 20 ]; then
+          if [$total_changes -gt 20]; then
             change_impact="high"
             test_strategy="comprehensive"
-          elif [ $total_changes -gt 10 ]; then
+          elif [$total_changes -gt 10]; then
             change_impact="medium"
             test_strategy="extended"
           fi
 
-           # Check for critical file changes
-           if grep -E "(Cargo\.toml|package\.json|\.github/)" changed_files.txt 2>/dev/null; then
+          # Check for critical file changes
+          if grep -E "(Cargo\.toml|package\.json|\.github/)" changed_files.txt; then
             change_impact="medium"
             test_strategy="extended"
           fi
 
-           log_structured "INFO" "Change analysis completed" \
-             "{\"backend_changes\": $backend_changes, \"frontend_changes\": $frontend_changes, \"config_changes\": $config_changes, \"total_changes\": $total_changes, \"impact\": \"$change_impact\"}"
+          log_structured "INFO" "Change analysis completed" \
+            "{\"backend_changes\": $backend_changes, \"frontend_changes\": $frontend_changes, \"config_changes\": $config_changes, \"total_changes\": $total_changes, \"impact\": \"$change_impact\"}"
 
            echo "has-breaking-changes=$has_breaking_changes" >> $GITHUB_OUTPUT
            echo "change-impact=$change_impact" >> $GITHUB_OUTPUT
@@ -140,43 +118,48 @@ jobs:
            sudo apt-get install -y jq
 
        - name: PR title and description validation
-          run: |
-            source log_helper.sh
-            log_structured "INFO" "Validating PR title and description"
+         run: |
+           source log_helper.sh
+           log_structured "INFO" "Validating PR title and description"
 
             pr_title="${{ github.event.pull_request.title }}"
+            # Store PR body in a file to avoid shell interpretation issues
+            cat > pr_body.txt << 'EOF'
+${{ github.event.pull_request.body }}
+EOF
+            pr_body=$(cat pr_body.txt)
 
-            # For dependabot PRs, skip body validation to avoid shell interpretation issues
-            if [[ "${{ github.event.pull_request.user.login }}" == "dependabot[bot]" ]]; then
-              pr_body=""
-            else
-              pr_body="${{ github.event.pull_request.body }}"
-            fi
+           # Check title format (allow 'deps' for dependency updates)
+           if ! echo "$pr_title" | grep -E "^(feat|fix|docs|style|refactor|perf|test|chore|ci|deps)(\(.+\))?: .+"; then
+             log_structured "WARN" "PR title doesn't follow conventional commit format"
+             echo "::warning::PR title should follow conventional commit format: type(scope): description"
+           fi
 
-            # Check title format (allow 'deps' for dependency updates)
-            if ! echo "$pr_title" | grep -E "^(feat|fix|docs|style|refactor|perf|test|chore|ci|deps)(\(.+\))?: .+" 2>/dev/null; then
-              log_structured "WARN" "PR title doesn't follow conventional commit format"
-              echo "::warning::PR title should follow conventional commit format: type(scope): description"
-            else
-              log_structured "INFO" "PR title follows conventional commit format"
+          # Check description completeness
+          if [${#pr_body} -lt 50]; then
+            log_structured "WARN" "PR description is too short"
+            echo "::warning::Please provide a more detailed PR description"
+          fi
+
+           # Check for required sections in description (skip for dependabot PRs)
+           if [["${{ github.event.pull_request.user.login }}" != "dependabot[bot]"]]; then
+             if ! grep -i "## changes\|## what\|## description" pr_body.txt; then
+               log_structured "WARN" "PR description missing changes section"
              fi
 
-            # Check description completeness (skip validation for dependabot)
-            if [[ "${{ github.event.pull_request.user.login }}" != "dependabot[bot]" ]]; then
-              log_structured "INFO" "Validating PR description for non-dependabot PR"
-              # Skip detailed validation for now to avoid shell interpretation issues
-            else
-              log_structured "INFO" "Skipping description validation for dependabot PR"
-            fi
+             if ! grep -i "## testing\|## test" pr_body.txt; then
+               log_structured "WARN" "PR description missing testing information"
+             fi
+           else
+             log_structured "INFO" "Skipping description validation for dependabot PR"
+           fi
 
-   # Enhanced code quality validation with edge case testing
-   code-quality:
-     name: Code Quality Validation
-     runs-on: ubuntu-latest
-     needs: pr-metadata
-     timeout-minutes: 25
-     permissions:
-       contents: read
+  # Enhanced code quality validation with edge case testing
+  code-quality:
+    name: Code Quality Validation
+    runs-on: ubuntu-latest
+    needs: pr-metadata
+    timeout-minutes: 25
 
     steps:
       - name: Checkout code
@@ -219,12 +202,12 @@ jobs:
             local delay=5
             local attempt=1
 
-            while [ $attempt -le $max_attempts ]; do
+            while [$attempt -le $max_attempts]; do
               if eval "$1"; then
                 return 0
               else
                 local exit_code=$?
-                if [ $attempt -eq $max_attempts ]; then
+                if [$attempt -eq $max_attempts]; then
                   return $exit_code
                 fi
                 sleep $delay
@@ -343,7 +326,7 @@ jobs:
 
           # Run tests multiple times to detect flakiness
           test_runs=3
-          if [ "${{ needs.pr-metadata.outputs.test-strategy }}" = "comprehensive" ]; then
+          if ["${{ needs.pr-metadata.outputs.test-strategy }}" = "comprehensive"]; then
             test_runs=5
           fi
 
@@ -357,17 +340,17 @@ jobs:
           done
 
           # Analyze test consistency
-          if [ -n "$failed_run" ]; then
+          if [-n "$failed_run"]; then
             log_structured "WARN" "Potential flaky tests detected" "{\"failed_run\": $failed_run}"
 
             # Compare failed run with successful runs
             for log_file in test_run_*.log; do
-              if [ "$log_file" != "test_run_$failed_run.log" ]; then
+              if ["$log_file" != "test_run_$failed_run.log"]; then
                 diff "test_run_$failed_run.log" "$log_file" > flaky_test_diff.txt || true
               fi
             done
 
-            if [ -s flaky_test_diff.txt ]; then
+            if [-s flaky_test_diff.txt]; then
               log_structured "ERROR" "Flaky tests confirmed - inconsistent results detected"
               echo "::error::Flaky tests detected. Please investigate test reliability."
             fi
@@ -383,7 +366,7 @@ jobs:
           cd backend
 
           # Run benchmarks if available
-          if [ -d "benches" ]; then
+          if [-d "benches"]; then
             # Baseline benchmark (main branch)
             git checkout origin/${{ github.base_ref }}
             cargo bench -- --save-baseline main 2>/dev/null || true
@@ -396,7 +379,7 @@ jobs:
             if command -v critcmp &> /dev/null; then
               critcmp main pr > benchmark_comparison.txt || true
 
-              if [ -s benchmark_comparison.txt ]; then
+              if [-s benchmark_comparison.txt]; then
                 log_structured "INFO" "Benchmark comparison completed"
 
                 # Check for significant regressions (>10% slower)
@@ -420,14 +403,12 @@ jobs:
             benchmark_comparison.txt
           retention-days: 30
 
-   # Enhanced integration testing with chaos engineering
-   integration-testing:
-     name: Integration Testing
-     runs-on: ubuntu-latest
-     needs: [pr-metadata, code-quality]
-     timeout-minutes: 30
-     permissions:
-       contents: read
+  # Enhanced integration testing with chaos engineering
+  integration-testing:
+    name: Integration Testing
+    runs-on: ubuntu-latest
+    needs: [pr-metadata, code-quality]
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -465,7 +446,7 @@ jobs:
           EOF
           chmod +x log_helper.sh
           source log_helper.sh
-          log_structured "INFO" "Integration testing started"
+           log_structured "INFO" "Integration testing started"
 
        - name: Setup test environment
          run: |
@@ -498,7 +479,7 @@ jobs:
           sleep 2
 
           # Standard integration tests
-          if [ -f "scripts/integration_tests.sh" ]; then
+          if [-f "scripts/integration_tests.sh"]; then
             ./scripts/integration_tests.sh 2>&1 | \
             while IFS= read -r line; do
               log_structured "DEBUG" "Integration test output" "{\"line\": \"$line\"}"
@@ -506,7 +487,7 @@ jobs:
           fi
 
           # Chaos engineering tests based on strategy
-          if [ "$test_strategy" = "comprehensive" ] || [ "$test_strategy" = "extended" ]; then
+          if ["$test_strategy" = "comprehensive"] || ["$test_strategy" = "extended"]; then
             log_structured "INFO" "Running chaos engineering tests"
 
             # Network latency injection
@@ -535,7 +516,7 @@ jobs:
           log_structured "INFO" "Testing database migrations"
 
           # Check for database migration files
-          if [ -d "backend/migrations" ] || [ -f "backend/src/migrations.rs" ]; then
+          if [-d "backend/migrations"] || [-f "backend/src/migrations.rs"]; then
             log_structured "INFO" "Database migrations detected, running migration tests"
 
             # Test forward and backward migrations
@@ -548,15 +529,12 @@ jobs:
             log_structured "INFO" "No database migrations found, skipping migration tests"
           fi
 
-   # Enhanced security validation for PRs
-   security-validation:
-     name: Security Validation
-     runs-on: ubuntu-latest
-     needs: pr-metadata
-     timeout-minutes: 20
-     permissions:
-       contents: read
-       security-events: write
+  # Enhanced security validation for PRs
+  security-validation:
+    name: Security Validation
+    runs-on: ubuntu-latest
+    needs: pr-metadata
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -661,27 +639,24 @@ jobs:
           ./gitleaks detect --source . --log-opts="origin/${{ github.base_ref }}..HEAD" \
             --report-format json --report-path pr_secrets.json --verbose || true
 
-          if [ -f pr_secrets.json ]; then
+          if [-f pr_secrets.json]; then
             secrets_count=$(jq length pr_secrets.json)
             log_structured "INFO" "Secrets scanning completed" "{\"secrets_found\": $secrets_count}"
 
-            if [ $secrets_count -gt 0 ]; then
+            if [$secrets_count -gt 0]; then
               log_structured "ERROR" "Secrets detected in PR"
               echo "::error::Secrets detected in PR changes. Please remove sensitive information."
               exit 1
             fi
           fi
 
-   # PR validation summary with comprehensive reporting
-   pr-validation-summary:
-     name: PR Validation Summary
-     runs-on: ubuntu-latest
-     needs: [pr-metadata, code-quality, integration-testing, security-validation]
-     if: always()
-     timeout-minutes: 10
-     permissions:
-       contents: read
-       pull-requests: write
+  # PR validation summary with comprehensive reporting
+  pr-validation-summary:
+    name: PR Validation Summary
+    runs-on: ubuntu-latest
+    needs: [pr-metadata, code-quality, integration-testing, security-validation]
+    if: always()
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -755,8 +730,8 @@ jobs:
               "security_validation": "${{ needs.security-validation.result }}"
             },
             "quality_gates": {
-              "all_checks_passed": $([ "${{ needs.pr-metadata.result }}" = "success" ] && [ "${{ needs.code-quality.result }}" = "success" ] && [ "${{ needs.integration-testing.result }}" = "success" ] && [ "${{ needs.security-validation.result }}" = "success" ] && echo true || echo false),
-              "ready_for_review": $([ "${{ needs.code-quality.result }}" = "success" ] && [ "${{ needs.security-validation.result }}" = "success" ] && echo true || echo false)
+              "all_checks_passed": $(["${{ needs.pr-metadata.result }}" = "success"] && ["${{ needs.code-quality.result }}" = "success"] && ["${{ needs.integration-testing.result }}" = "success"] && ["${{ needs.security-validation.result }}" = "success"] && echo true || echo false),
+              "ready_for_review": $(["${{ needs.code-quality.result }}" = "success"] && ["${{ needs.security-validation.result }}" = "success"] && echo true || echo false)
             }
           }
           EOF
@@ -836,7 +811,7 @@ jobs:
           # Determine final status
           all_passed=$(jq -r '.quality_gates.all_checks_passed' pr_validation_summary.json)
 
-          if [ "$all_passed" = "true" ]; then
+          if ["$all_passed" = "true"]; then
             log_structured "INFO" "PR validation completed successfully"
             exit 0
           else

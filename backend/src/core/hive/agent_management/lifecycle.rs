@@ -24,6 +24,7 @@ pub struct AgentLifecycle {
 
 impl AgentLifecycle {
     /// Create a new agent lifecycle manager
+    #[must_use] 
     pub fn new(registry: AgentRegistry) -> Self {
         Self { registry }
     }
@@ -119,7 +120,7 @@ impl AgentLifecycle {
             "learner" => Ok(AgentType::Learner),
             _ => Err(crate::utils::error::HiveError::ValidationError {
                 field: "type".to_string(),
-                reason: format!("Unknown agent type: {}", type_str),
+                reason: format!("Unknown agent type: {type_str}"),
             }),
         }
     }

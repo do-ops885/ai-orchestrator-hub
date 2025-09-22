@@ -3,7 +3,7 @@
 //! Handles the actual execution of tasks with verification, monitoring,
 //! and error recovery capabilities.
 
-use super::task_types::*;
+use super::task_types::{TaskDistributionConfig, TaskExecutionResult, TaskStatus, TaskPerformanceAnalytics};
 use crate::agents::agent::{Agent, AgentState};
 use crate::tasks::task::Task;
 use crate::utils::error::{HiveError, HiveResult};
@@ -40,6 +40,7 @@ struct TaskExecution {
 
 impl TaskExecutor {
     /// Create a new task executor with async optimizations
+    #[must_use] 
     pub fn new(config: TaskDistributionConfig) -> Self {
         let config_clone = config.clone();
         // Initialize async optimizer for task operations
@@ -171,7 +172,7 @@ impl TaskExecutor {
         // Race between execution and timeout
         tokio::select! {
             result = execution_future => result,
-            _ = timeout_future => {
+            () = timeout_future => {
                 // Handle timeout by returning partial result
                 self.handle_task_timeout(task, agent).await
             }
@@ -339,7 +340,7 @@ impl TaskExecutor {
             .read()
             .await
             .keys()
-            .cloned()
+            .copied()
             .collect()
     }
 

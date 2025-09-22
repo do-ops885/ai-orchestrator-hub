@@ -181,6 +181,7 @@ pub struct ConnectionPool {
 
 impl ConnectionPool {
     /// Create a new connection pool
+    #[must_use] 
     pub fn new(config: CommunicationConfig) -> Self {
         Self {
             connections: Arc::new(RwLock::new(std::collections::HashMap::new())),
@@ -199,7 +200,7 @@ impl ConnectionPool {
 
         // Create new connection if it doesn't exist
         Err(crate::utils::error::HiveError::Communication {
-            reason: format!("Connection not found for key: {}", key),
+            reason: format!("Connection not found for key: {key}"),
         })
     }
 
@@ -272,6 +273,7 @@ impl Default for CircuitBreakerConfig {
 
 impl CircuitBreaker {
     /// Create a new circuit breaker
+    #[must_use] 
     pub fn new(config: CircuitBreakerConfig) -> Self {
         Self {
             state: Arc::new(RwLock::new(CircuitBreakerState {
@@ -318,14 +320,11 @@ impl CircuitBreaker {
         match operation().await {
             Ok(result) => {
                 let mut state = self.state.write().await;
-                match state.state {
-                    CircuitState::HalfOpen => {
-                        // Success in half-open state - close the circuit
-                        state.state = CircuitState::Closed;
-                        state.failures = 0;
-                        state.last_failure_time = None;
-                    }
-                    _ => {}
+                if let CircuitState::HalfOpen = state.state {
+                    // Success in half-open state - close the circuit
+                    state.state = CircuitState::Closed;
+                    state.failures = 0;
+                    state.last_failure_time = None;
                 }
                 Ok(result)
             }
@@ -372,6 +371,7 @@ impl Default for RetryConfig {
 
 impl RetryMechanism {
     /// Create a new retry mechanism
+    #[must_use] 
     pub fn new(config: RetryConfig) -> Self {
         Self { config }
     }
@@ -431,6 +431,7 @@ pub struct ResourceStats {
 
 impl ResourceManager {
     /// Create a new resource manager
+    #[must_use] 
     pub fn new(max_concurrent: usize) -> Self {
         Self {
             semaphore: Arc::new(tokio::sync::Semaphore::new(max_concurrent)),
@@ -444,7 +445,7 @@ impl ResourceManager {
     ) -> Result<tokio::sync::SemaphorePermit<'_>, crate::utils::error::HiveError> {
         let permit = self.semaphore.acquire().await.map_err(|e| {
             crate::utils::error::HiveError::Communication {
-                reason: format!("Failed to acquire resource permit: {}", e),
+                reason: format!("Failed to acquire resource permit: {e}"),
             }
         })?;
 

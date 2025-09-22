@@ -4,7 +4,7 @@
 //! with real-time updates, customizable widgets, and interactive features.
 
 use super::production_monitoring::ProductionMonitoringSystem;
-use super::types::*;
+use super::types::{DashboardConfig, DashboardWidget, WidgetPosition, WidgetType};
 use crate::utils::error::HiveResult;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -46,6 +46,7 @@ impl Default for EnhancedDashboard {
 }
 
 impl EnhancedDashboard {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             config: Arc::new(RwLock::new(DashboardConfig {
@@ -60,6 +61,7 @@ impl EnhancedDashboard {
         }
     }
 
+    #[must_use] 
     pub fn with_production_monitoring(
         mut self,
         monitoring: Arc<ProductionMonitoringSystem>,
@@ -584,7 +586,7 @@ impl EnhancedDashboard {
             Ok(())
         } else {
             Err(crate::utils::error::HiveError::NotFound {
-                resource: format!("Widget {}", widget_id),
+                resource: format!("Widget {widget_id}"),
             })
         }
     }
@@ -652,6 +654,7 @@ impl Default for Dashboard {
 }
 
 impl Dashboard {
+    #[must_use] 
     pub fn new() -> Self {
         Self
     }

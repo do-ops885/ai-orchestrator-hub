@@ -1,3 +1,4 @@
+---
 name: Quality Monitoring & Alerting
 
 on:
@@ -71,7 +72,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Process quality metrics
-          if [ "$quality_files" -gt 0 ]; then
+          if ["$quality_files" -gt 0]; then
             echo "### Code Quality Trends" >> $GITHUB_STEP_SUMMARY
             echo "| Date | Coverage | Complexity | Benchmarks |" >> $GITHUB_STEP_SUMMARY
             echo "|------|----------|------------|------------|" >> $GITHUB_STEP_SUMMARY
@@ -90,7 +91,7 @@ jobs:
           fi
 
           # Process security metrics
-          if [ "$security_files" -gt 0 ]; then
+          if ["$security_files" -gt 0]; then
             echo "### Security Trends" >> $GITHUB_STEP_SUMMARY
             echo "| Date | Rust Vulns | NPM Vulns | Secrets |" >> $GITHUB_STEP_SUMMARY
             echo "|------|------------|-----------|---------|" >> $GITHUB_STEP_SUMMARY
@@ -117,8 +118,8 @@ jobs:
             "quality_data_points": $quality_files,
             "security_data_points": $security_files,
             "summary": {
-              "quality_trends_available": $([ "$quality_files" -gt 1 ] && echo "true" || echo "false"),
-              "security_trends_available": $([ "$security_files" -gt 1 ] && echo "true" || echo "false")
+              "quality_trends_available": $(["$quality_files" -gt 1] && echo "true" || echo "false"),
+              "security_trends_available": $(["$security_files" -gt 1] && echo "true" || echo "false")
             }
           }
           EOF
@@ -155,19 +156,19 @@ jobs:
           alerts_triggered=0
 
           # Check for quality degradation
-          if [ -f "aggregated-metrics/aggregated_*.json" ]; then
+          if [-f "aggregated-metrics/aggregated_*.json"]; then
             latest_file=$(find aggregated-metrics -name "aggregated_*.json" -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
 
             quality_points=$(jq '.quality_data_points' "$latest_file" 2>/dev/null || echo "0")
             security_points=$(jq '.security_data_points' "$latest_file" 2>/dev/null || echo "0")
 
             # Alert if insufficient data points
-            if [ "$quality_points" -lt 3 ]; then
+            if ["$quality_points" -lt 3]; then
               echo "⚠️ **Low Quality Data**: Only $quality_points quality data points available (recommended: 3+)" >> $GITHUB_STEP_SUMMARY
               alerts_triggered=$((alerts_triggered + 1))
             fi
 
-            if [ "$security_points" -lt 3 ]; then
+            if ["$security_points" -lt 3]; then
               echo "⚠️ **Low Security Data**: Only $security_points security data points available (recommended: 3+)" >> $GITHUB_STEP_SUMMARY
               alerts_triggered=$((alerts_triggered + 1))
             fi
@@ -176,7 +177,7 @@ jobs:
           # Check for recent workflow failures
           recent_failures=$(gh run list --limit 5 --json conclusion --jq '.[] | select(.conclusion == "failure") | length' 2>/dev/null || echo "0")
 
-          if [ "$recent_failures" -gt 2 ]; then
+          if ["$recent_failures" -gt 2]; then
             echo "❌ **Frequent Failures**: $recent_failures of last 5 workflow runs failed" >> $GITHUB_STEP_SUMMARY
             alerts_triggered=$((alerts_triggered + 1))
           fi
@@ -184,12 +185,12 @@ jobs:
           # Check for open security issues
           open_security_issues=$(gh issue list --label "security" --state open --json number --jq 'length' 2>/dev/null || echo "0")
 
-          if [ "$open_security_issues" -gt 0 ]; then
+          if ["$open_security_issues" -gt 0]; then
             echo "🔒 **Open Security Issues**: $open_security_issues unresolved security issues" >> $GITHUB_STEP_SUMMARY
             alerts_triggered=$((alerts_triggered + 1))
           fi
 
-          if [ $alerts_triggered -eq 0 ]; then
+          if [$alerts_triggered -eq 0]; then
             echo "✅ **No Quality Alerts**: All quality metrics within acceptable ranges" >> $GITHUB_STEP_SUMMARY
           else
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -230,7 +231,7 @@ jobs:
 
           # Analyze coverage trends
           coverage_files=$(find . -name "metrics_*.json" | wc -l)
-          if [ "$coverage_files" -gt 1 ]; then
+          if ["$coverage_files" -gt 1]; then
             # Get latest coverage
             latest_coverage=$(find . -name "metrics_*.json" -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2- | xargs jq -r '.coverage.typescript_coverage' 2>/dev/null || echo "0")
 
@@ -244,10 +245,10 @@ jobs:
 
           # Analyze complexity
           complexity_files=$(find . -name "*complexity*.json" | wc -l)
-          if [ "$complexity_files" -gt 0 ]; then
+          if ["$complexity_files" -gt 0]; then
             high_complexity=$(find . -name "frontend-complexity.json" -exec jq '[.[] | select(.complexity > 15)] | length' {} \; 2>/dev/null || echo "0")
 
-            if [ "$high_complexity" -gt 3 ]; then
+            if ["$high_complexity" -gt 3]; then
               echo "🔄 **Reduce Code Complexity**: $high_complexity files have high complexity (>15)" >> $GITHUB_STEP_SUMMARY
               echo "   - Refactor complex functions into smaller units" >> $GITHUB_STEP_SUMMARY
               echo "   - Extract utility functions" >> $GITHUB_STEP_SUMMARY
@@ -258,10 +259,10 @@ jobs:
 
           # Security recommendations
           security_files=$(find . -name "security_metrics_*.json" | wc -l)
-          if [ "$security_files" -gt 0 ]; then
+          if ["$security_files" -gt 0]; then
             latest_vulns=$(find . -name "security_metrics_*.json" -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2- | xargs jq -r '.vulnerabilities.rust + .vulnerabilities.npm' 2>/dev/null || echo "0")
 
-            if [ "$latest_vulns" -gt 0 ]; then
+            if ["$latest_vulns" -gt 0]; then
               echo "🔒 **Address Security Vulnerabilities**: $latest_vulns outstanding vulnerabilities" >> $GITHUB_STEP_SUMMARY
               echo "   - Update dependencies to latest secure versions" >> $GITHUB_STEP_SUMMARY
               echo "   - Review and fix vulnerable code patterns" >> $GITHUB_STEP_SUMMARY
@@ -272,7 +273,7 @@ jobs:
 
           # Performance recommendations
           benchmark_files=$(find . -name "benchmark-results.json" | wc -l)
-          if [ "$benchmark_files" -eq 0 ]; then
+          if ["$benchmark_files" -eq 0]; then
             echo "⚡ **Implement Performance Benchmarks**: No benchmark results found" >> $GITHUB_STEP_SUMMARY
             echo "   - Add criterion benchmarks for critical functions" >> $GITHUB_STEP_SUMMARY
             echo "   - Set up performance regression testing" >> $GITHUB_STEP_SUMMARY
@@ -280,7 +281,7 @@ jobs:
             recommendations=$((recommendations + 1))
           fi
 
-          if [ $recommendations -eq 0 ]; then
+          if [$recommendations -eq 0]; then
             echo "✅ **Quality Status Good**: No major improvements needed at this time" >> $GITHUB_STEP_SUMMARY
           else
             echo "" >> $GITHUB_STEP_SUMMARY

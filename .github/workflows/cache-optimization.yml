@@ -1,10 +1,11 @@
+---
 name: Cache Optimization & Fast Builds
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   schedule:
     # Daily cache maintenance
     - cron: '0 1 * * *'
@@ -250,7 +251,7 @@ jobs:
               "Add parallel test distribution",
               "Enable selective component builds",
               "Optimize artifact caching"
-            ]
+           ]
           }
           EOF
 

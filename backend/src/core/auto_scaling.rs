@@ -572,7 +572,7 @@ impl AutoScalingSystem {
         strategy: &AgentSelectionStrategy,
     ) -> Result<Vec<Uuid>> {
         let agents = hive.get_all_agents().await;
-        let mut candidates: Vec<_> = agents.into_iter().map(|(id, agent)| (id, agent)).collect();
+        let mut candidates: Vec<_> = agents.into_iter().collect();
 
         // Sort based on strategy
         match strategy {

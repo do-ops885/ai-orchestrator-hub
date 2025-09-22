@@ -5,12 +5,12 @@
 
 use crate::communication::optimized_messaging::{OptimizedSwarmCommunicator, OptimizedMessagingConfig};
 use crate::infrastructure::cpu_load_balancer::{CpuLoadBalancer, LoadBalancerConfig};
-use crate::infrastructure::memory_pool::{SwarmMemoryPools, SwarmPoolStats};
+use crate::infrastructure::memory_pool::SwarmMemoryPools;
 use crate::tasks::task::{Task, TaskPriority};
 use crate::utils::error::{HiveError, HiveResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{RwLock, Semaphore};
@@ -256,6 +256,7 @@ struct LoadTestError {
 
 impl LoadTestEngine {
     /// Create a new load testing engine
+    #[must_use] 
     pub fn new(config: LoadTestConfig) -> Self {
         let messaging_config = OptimizedMessagingConfig::default();
         let load_balancer_config = LoadBalancerConfig::default();
@@ -361,7 +362,7 @@ impl LoadTestEngine {
         let max_users = self.config.concurrent_users;
         let step_duration = ramp_duration.as_millis() / max_users as u128;
         
-        for user_count in 1..=max_users {
+        for _user_count in 1..=max_users {
             let users_to_start = 1;
             self.start_virtual_users(users_to_start).await?;
             tokio::time::sleep(Duration::from_millis(step_duration as u64)).await;
@@ -440,7 +441,7 @@ impl LoadTestEngine {
             let latency = start_time.elapsed().as_millis() as f64;
             
             match result {
-                Ok(_) => {
+                Ok(()) => {
                     metrics.read().await.requests_completed.fetch_add(1, Ordering::Relaxed);
                     metrics.read().await.response_times.write().await.push(latency);
                 }
@@ -448,7 +449,7 @@ impl LoadTestEngine {
                     metrics.read().await.requests_failed.fetch_add(1, Ordering::Relaxed);
                     let error = LoadTestError {
                         timestamp: Instant::now(),
-                        operation: format!("{:?}", operation),
+                        operation: format!("{operation:?}"),
                         error_type: "SimulationError".to_string(),
                         error_message: e.to_string(),
                     };

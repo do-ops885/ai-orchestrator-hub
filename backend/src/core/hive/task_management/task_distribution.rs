@@ -5,7 +5,7 @@
 use super::task_executor::TaskExecutor;
 use super::task_metrics::TaskMetricsCollector;
 use super::task_queue::TaskQueueManager;
-use super::task_types::*;
+use super::task_types::{TaskDistributionConfig, TaskExecutionResult};
 use crate::agents::agent::Agent;
 use crate::core::hive::coordinator::CoordinationMessage;
 use crate::tasks::task::Task;
@@ -30,6 +30,7 @@ pub struct TaskDistributor {
 
 impl TaskDistributor {
     /// Create a new task distributor
+    #[must_use] 
     pub fn new(
         queue_manager: TaskQueueManager,
         executor: TaskExecutor,
@@ -61,7 +62,7 @@ impl TaskDistributor {
     /// 1. Get available agents (currently idle)
     /// 2. Dequeue tasks from queue
     /// 3. Match tasks to suitable agents
-    /// 4. Execute tasks concurrently (up to max_concurrent_tasks)
+    /// 4. Execute tasks concurrently (up to `max_concurrent_tasks`)
     /// 5. Handle execution failures and retries
     ///
     /// ## Load Balancing

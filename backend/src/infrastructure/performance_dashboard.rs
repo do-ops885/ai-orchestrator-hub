@@ -3,12 +3,9 @@
 //! This module provides comprehensive performance monitoring and real-time
 //! dashboard capabilities to track system efficiency and optimization impact.
 
-use crate::communication::optimized_messaging::OptimizedMessagingStats;
-use crate::infrastructure::cpu_load_balancer::{LoadBalancerStats, LoadBalancerEfficiency};
-use crate::infrastructure::memory_pool::SwarmPoolStats;
 use crate::utils::error::{HiveError, HiveResult};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::{broadcast, RwLock};
@@ -171,6 +168,7 @@ pub struct PerformanceDashboard {
 
 impl PerformanceDashboard {
     /// Create a new performance dashboard
+    #[must_use] 
     pub fn new(config: DashboardConfig) -> Self {
         let (sender, _) = broadcast::channel(100);
         
@@ -400,7 +398,7 @@ impl PerformanceDashboard {
         };
         let health_score = throughput_score + latency_score + memory_score + error_score;
         
-        let uptime_hours = start_time.elapsed().as_secs_f64() / 3600.0;
+        let _uptime_hours = start_time.elapsed().as_secs_f64() / 3600.0;
         let uptime_percent = 100.0; // Simplified - would track actual downtime
         
         PerformanceSummary {
@@ -508,6 +506,7 @@ impl PerformanceDashboard {
     }
 
     /// Subscribe to real-time metrics updates
+    #[must_use] 
     pub fn subscribe(&self) -> broadcast::Receiver<DashboardMetrics> {
         self.metrics_sender.subscribe()
     }
@@ -544,7 +543,7 @@ impl PerformanceDashboard {
             Ok(())
         } else {
             Err(HiveError::OperationFailed {
-                reason: format!("Alert {} not found", alert_id),
+                reason: format!("Alert {alert_id} not found"),
             })
         }
     }

@@ -5,7 +5,7 @@
 use super::task_executor::TaskExecutor;
 use super::task_metrics::TaskMetricsCollector;
 use super::task_queue::TaskQueueManager;
-use super::task_types::*;
+use super::task_types::TaskDistributionConfig;
 use crate::utils::error::HiveResult;
 
 /// Task status and analytics functionality
@@ -22,6 +22,7 @@ pub struct TaskStatusReporter {
 
 impl TaskStatusReporter {
     /// Create a new status reporter
+    #[must_use] 
     pub fn new(
         queue_manager: TaskQueueManager,
         executor: TaskExecutor,
@@ -65,7 +66,7 @@ impl TaskStatusReporter {
         let queue_healthy = queue_health.get("status").and_then(|v| v.as_str()) == Some("healthy");
         let executor_healthy = executor_status
             .get("healthy")
-            .and_then(|v| v.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or_default();
         let system_healthy = queue_healthy && executor_healthy;
 
@@ -148,7 +149,7 @@ impl TaskStatusReporter {
         let is_healthy = status
             .get("system")
             .and_then(|s| s.get("healthy"))
-            .and_then(|h| h.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or_default();
 
         serde_json::json!({

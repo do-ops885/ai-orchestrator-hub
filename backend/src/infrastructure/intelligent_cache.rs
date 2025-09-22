@@ -330,7 +330,7 @@ impl AccessPattern {
         let mut predictions: Vec<(String, f64)> = self
             .sequential_patterns
             .iter()
-            .map(|(key, count)| (key.clone(), *count as f64 / total_sequential as f64))
+            .map(|(key, count)| (key.clone(), f64::from(*count) / f64::from(total_sequential)))
             .collect();
 
         predictions.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -371,7 +371,7 @@ impl AccessPattern {
         let frequency_score = (self.access_frequency / 10.0).min(1.0);
 
         // Adjust based on access velocity (rate of change)
-        let velocity_score = ((self.access_velocity + 1.0) / 2.0).max(0.0).min(1.0);
+        let velocity_score = f64::midpoint(self.access_velocity, 1.0).max(0.0).min(1.0);
 
         // Adjust based on burst access
         let burst_score = if self.is_in_burst() { 1.0 } else { 0.0 };
@@ -671,7 +671,7 @@ where
         let pattern = patterns
             .entry(key.clone())
             .or_insert_with(AccessPattern::new);
-        pattern.record_access(previous_key.map(|k| k.as_ref()));
+        pattern.record_access(previous_key.map(std::convert::AsRef::as_ref));
 
         // Check if we should trigger prefetching
         if self.config.enable_prefetching && pattern.should_prefetch(self.config.prefetch_threshold)
@@ -785,6 +785,7 @@ where
     }
 
     /// Start background optimization processes
+    #[must_use] 
     pub fn start_optimization(&self) -> tokio::task::JoinHandle<()> {
         let patterns_clone = Arc::clone(&self.access_patterns);
         let stats_clone = Arc::clone(&self.stats);
@@ -799,7 +800,7 @@ where
                 // Cleanup expired patterns
                 {
                     let mut patterns = patterns_clone.write().await;
-                    let cutoff = Instant::now() - Duration::from_secs(3600); // 1 hour
+                    let cutoff = Instant::now().checked_sub(Duration::from_secs(3600)).unwrap(); // 1 hour
                     patterns.retain(|_, pattern| pattern.last_access > cutoff);
                 }
 
@@ -931,7 +932,7 @@ where
             // Temporal pattern analysis
             let temporal_score = pattern.get_temporal_multiplier();
             if temporal_score > 1.5 {
-                reasons.push(format!("High temporal relevance ({:.2})", temporal_score));
+                reasons.push(format!("High temporal relevance ({temporal_score:.2})"));
                 if priority != PrefetchPriority::Critical {
                     priority = PrefetchPriority::High;
                 }
@@ -1227,8 +1228,15 @@ pub struct MultiTierCacheManager {
     query_interceptor: Arc<RwLock<QueryInterceptor>>,
 }
 
+impl Default for CacheWarmer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CacheWarmer {
     /// Create new cache warmer
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             pattern_analyzer: Arc::new(RwLock::new(AccessPatternAnalyzer::new())),
@@ -1267,12 +1275,10 @@ impl CacheWarmer {
             // Process medium priority if no high priority
             if requests.is_empty() {
                 while let Some(request) = queue.front() {
-                    if request.priority != WarmPriority::Low {
-                        if let Some(request) = queue.pop_front() {
-                            requests.push(request);
-                        }
-                    } else {
+                    if request.priority == WarmPriority::Low {
                         break;
+                    } else if let Some(request) = queue.pop_front() {
+                        requests.push(request);
                     }
                 }
             }
@@ -1380,8 +1386,15 @@ impl CacheWarmer {
     }
 }
 
+impl Default for AccessPatternAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AccessPatternAnalyzer {
     /// Create new access pattern analyzer
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             patterns: HashMap::new(),
@@ -1400,7 +1413,7 @@ impl AccessPatternAnalyzer {
 
         self.patterns
             .entry(key.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(record);
 
         // Keep only recent records
@@ -1421,12 +1434,11 @@ impl AccessPatternAnalyzer {
 
             let time_span = records
                 .last()
-                .map(|r| {
+                .map_or(0.0, |r| {
                     r.timestamp
                         .duration_since(records[0].timestamp)
                         .as_secs_f64()
-                })
-                .unwrap_or(0.0);
+                });
             if time_span > 0.0 {
                 let frequency = records.len() as f64 / time_span;
                 // Normalize to 0-1 scale (assuming max 1 access per second)
@@ -1477,6 +1489,7 @@ impl AccessPatternAnalyzer {
     }
 
     /// Predict if key will be accessed soon
+    #[must_use] 
     pub fn predict_access(&self, key: &str) -> Option<f64> {
         self.prediction_model
             .get(key)
@@ -1486,6 +1499,7 @@ impl AccessPatternAnalyzer {
 
 impl MultiTierCacheManager {
     /// Create a new multi-tier cache manager with intelligent features
+    #[must_use] 
     pub fn new() -> Self {
         let l1_config = IntelligentCacheConfig {
             max_size: 1000,
@@ -1545,11 +1559,12 @@ impl MultiTierCacheManager {
         serde_json::json!({
             "l1_cache": l1_stats,
             "l2_cache": l2_stats,
-            "total_efficiency": (l1_stats.cache_efficiency_score + l2_stats.cache_efficiency_score) / 2.0
+            "total_efficiency": f64::midpoint(l1_stats.cache_efficiency_score, l2_stats.cache_efficiency_score)
         })
     }
 
     /// Start optimization for both tiers
+    #[must_use] 
     pub fn start_optimization(&self) -> (tokio::task::JoinHandle<()>, tokio::task::JoinHandle<()>) {
         let l1_handle = self.l1_cache.start_optimization();
         let l2_handle = self.l2_cache.start_optimization();
@@ -1589,8 +1604,15 @@ pub struct QueryMetrics {
     pub query_reduction_percentage: f64,
 }
 
+impl Default for QueryInterceptor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QueryInterceptor {
     /// Create new query interceptor
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             total_queries: 0,
@@ -1601,8 +1623,15 @@ impl QueryInterceptor {
     }
 }
 
+impl Default for BatchQueryOptimizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BatchQueryOptimizer {
     /// Create new batch query optimizer
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             pending_queries: HashMap::new(),
@@ -1613,6 +1642,7 @@ impl BatchQueryOptimizer {
     }
 
     /// Get total number of pending queries
+    #[must_use] 
     pub fn total_pending_queries(&self) -> usize {
         self.pending_queries
             .values()
@@ -1625,7 +1655,7 @@ impl BatchQueryOptimizer {
         let query_key = request.query_key.clone();
         self.pending_queries
             .entry(query_key)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(request);
 
         // Start batch timer if not already started
@@ -1635,6 +1665,7 @@ impl BatchQueryOptimizer {
     }
 
     /// Check if batch should be executed
+    #[must_use] 
     pub fn should_execute_batch(&self) -> bool {
         if let Some(timer) = self.batch_timer {
             tokio::time::Instant::now() >= timer
@@ -1651,8 +1682,15 @@ impl BatchQueryOptimizer {
     }
 }
 
+impl Default for QueryPerformanceAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QueryPerformanceAnalyzer {
     /// Create new query performance analyzer
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             execution_times: HashMap::new(),
@@ -1667,7 +1705,7 @@ impl QueryPerformanceAnalyzer {
         // Record execution time
         self.execution_times
             .entry(query_pattern.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(execution_time);
 
         // Keep only last 100 executions
@@ -1706,8 +1744,7 @@ impl QueryPerformanceAnalyzer {
                     suggestion_type: OptimizationType::CacheQuery,
                     estimated_improvement: 0.8, // 80% improvement
                     reasoning: format!(
-                        "High-frequency query ({}) with slow execution ({:.2}ms)",
-                        frequency, execution_time
+                        "High-frequency query ({frequency}) with slow execution ({execution_time:.2}ms)"
                     ),
                 });
         } else if execution_time > 1000.0 {
@@ -1717,17 +1754,19 @@ impl QueryPerformanceAnalyzer {
                     query_pattern: query_pattern.to_string(),
                     suggestion_type: OptimizationType::OptimizeQuery,
                     estimated_improvement: 0.6, // 60% improvement
-                    reasoning: format!("Very slow query execution ({:.2}ms)", execution_time),
+                    reasoning: format!("Very slow query execution ({execution_time:.2}ms)"),
                 });
         }
     }
 
     /// Get optimization suggestions
+    #[must_use] 
     pub fn get_optimization_suggestions(&self) -> &[QueryOptimizationSuggestion] {
         &self.optimization_suggestions
     }
 
     /// Calculate average execution time for a query pattern
+    #[must_use] 
     pub fn get_average_execution_time(&self, query_pattern: &str) -> Option<f64> {
         self.execution_times.get(query_pattern).and_then(|times| {
             if times.is_empty() {
@@ -1796,16 +1835,19 @@ impl QueryInterceptor {
     }
 
     /// Get query performance metrics
+    #[must_use] 
     pub fn get_metrics(&self) -> &QueryMetrics {
         &self.metrics
     }
 
     /// Check if query reduction target is met (25% reduction)
+    #[must_use] 
     pub fn is_target_met(&self) -> bool {
         self.metrics.query_reduction_percentage >= 25.0
     }
 
     /// Generate query performance report
+    #[must_use] 
     pub fn generate_report(&self) -> String {
         format!(
             "Database Query Performance Report\n\
@@ -1908,7 +1950,7 @@ impl MultiTierCacheManager {
                 data_loader: None, // Would be provided by the application
             };
 
-            let _ = self.cache_warmer.queue_for_warming(warm_request).await;
+            let () = self.cache_warmer.queue_for_warming(warm_request).await;
         }
     }
 
@@ -1932,7 +1974,7 @@ impl MultiTierCacheManager {
             "cache_warmer": warm_metrics,
             "query_performance": query_metrics,
             "overall_efficiency": {
-                "cache_hit_rate": (l1_stats.cache_efficiency_score + l2_stats.cache_efficiency_score) / 2.0,
+                "cache_hit_rate": f64::midpoint(l1_stats.cache_efficiency_score, l2_stats.cache_efficiency_score),
                 "query_reduction": query_metrics.query_reduction_percentage,
                 "warming_effectiveness": if warm_metrics.total_warm_requests > 0 {
                     (warm_metrics.successful_warms as f64 / warm_metrics.total_warm_requests as f64) * 100.0

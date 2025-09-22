@@ -1,10 +1,11 @@
+---
 name: Build and Test
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   workflow_dispatch:
 
 concurrency:
@@ -165,7 +166,7 @@ jobs:
 
       - name: Run integration tests
         run: |
-          if [ -f "scripts/integration_tests.sh" ]; then
+          if [-f "scripts/integration_tests.sh"]; then
             ./scripts/integration_tests.sh
           fi
 

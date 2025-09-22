@@ -130,7 +130,7 @@ impl Default for AgentMemory {
 }
 
 impl AgentMemory {
-    /// Creates a new empty AgentMemory instance.
+    /// Creates a new empty `AgentMemory` instance.
     ///
     /// # Returns
     /// A new `AgentMemory` with empty experiences, learned patterns, and social connections.
@@ -221,7 +221,7 @@ impl Agent {
     /// This helper ensures all agent operations follow the same pattern:
     /// 1. Save previous state
     /// 2. Set working state
-    /// 3. Update last_active timestamp
+    /// 3. Update `last_active` timestamp
     /// 4. Execute operation
     /// 5. Restore to Idle state (or previous state on error)
     ///
@@ -254,7 +254,7 @@ impl Agent {
     /// Standardized communication delay helper.
     ///
     /// Provides consistent processing delays based on operation complexity.
-    /// Use this instead of direct tokio::time::sleep calls for consistency.
+    /// Use this instead of direct `tokio::time::sleep` calls for consistency.
     pub async fn communication_delay(&self, complexity: CommunicationComplexity) {
         let delay_ms = match complexity {
             CommunicationComplexity::Simple => 50,
@@ -357,11 +357,11 @@ impl Agent {
 ///
 /// ## Standardized Async Patterns:
 /// - **State Management**: Always save previous state, set appropriate working state, restore to Idle
-/// - **Error Handling**: Use HiveResult for all operations
-/// - **Timing**: Use tokio::time::sleep for processing delays
-/// - **Performance**: Track execution time and update last_active timestamp
+/// - **Error Handling**: Use `HiveResult` for all operations
+/// - **Timing**: Use `tokio::time::sleep` for processing delays
+/// - **Performance**: Track execution time and update `last_active` timestamp
 /// - **Resource Management**: Clean up resources and restore state in all code paths
-/// - **Communication**: Use standardized MessageEnvelope for all inter-agent communication
+/// - **Communication**: Use standardized `MessageEnvelope` for all inter-agent communication
 ///
 /// ## Implementation Guidelines:
 /// 1. Always update `last_active` timestamp at start of operation
@@ -369,7 +369,7 @@ impl Agent {
 /// 3. Handle errors gracefully without leaving agent in inconsistent state
 /// 4. Use appropriate processing delays based on operation complexity
 /// 5. Update performance metrics when applicable
-/// 6. Use MessageEnvelope for all communication instead of raw strings
+/// 6. Use `MessageEnvelope` for all communication instead of raw strings
 #[async_trait]
 pub trait AgentBehavior {
     /// Execute a task with standardized state management and error handling.

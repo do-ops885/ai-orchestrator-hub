@@ -2,7 +2,7 @@
 //!
 //! Central monitoring coordinator that orchestrates all monitoring subsystems
 
-use super::types::*;
+use super::types::{AgentInfo, MonitoringStatus, HealthSnapshot, PerformanceStatusSummary, BehaviorStatusSummary, ReportType, ExportFormat, HealthStatus};
 use super::{
     AgentDiscovery, Automation, BehaviorAnalyzer, Dashboard, Diagnostics, HealthMonitor,
     Integration, PerformanceMonitor, Reporting,
@@ -209,7 +209,7 @@ impl AgentMonitor {
         });
 
         serde_json::to_string_pretty(&export_data).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to serialize monitoring data: {}", e),
+            reason: format!("Failed to serialize monitoring data: {e}"),
         })
     }
 

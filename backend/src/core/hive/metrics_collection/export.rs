@@ -92,13 +92,13 @@ impl MetricsCollector {
         match format {
             "json" => {
                 serde_json::to_string_pretty(&*metrics).map_err(|e| HiveError::OperationFailed {
-                    reason: format!("Failed to serialize metrics to JSON: {}", e),
+                    reason: format!("Failed to serialize metrics to JSON: {e}"),
                 })
             }
             "prometheus" => Ok(self.format_prometheus_metrics(&metrics).await),
             _ => Err(HiveError::ValidationError {
                 field: "format".to_string(),
-                reason: format!("Unsupported export format: {}", format),
+                reason: format!("Unsupported export format: {format}"),
             }),
         }
     }

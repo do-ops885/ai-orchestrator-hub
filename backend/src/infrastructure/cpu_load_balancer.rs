@@ -6,12 +6,11 @@
 use crate::tasks::task::{Task, TaskPriority};
 use crate::utils::error::{HiveError, HiveResult};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, RwLock, Semaphore};
-use uuid::Uuid;
 
 /// Configuration for CPU load balancing
 #[derive(Debug, Clone)]
@@ -168,11 +167,11 @@ impl WorkerThread {
 
             loop {
                 tokio::select! {
-                    _ = shutdown.notified() => {
+                    () = shutdown.notified() => {
                         tracing::debug!("Worker {} shutting down", worker_id);
                         break;
                     }
-                    _ = tokio::time::sleep(Duration::from_millis(10)) => {
+                    () = tokio::time::sleep(Duration::from_millis(10)) => {
                         // Check for tasks to process
                         let task_opt = {
                             let mut queue = task_queue.lock().await;
@@ -192,7 +191,7 @@ impl WorkerThread {
                             Self::process_task(lb_task.task).await;
 
                             // Update statistics
-                            let processing_time = start_time.elapsed();
+                            let _processing_time = start_time.elapsed();
                             stats.tasks_processed.fetch_add(1, Ordering::Relaxed);
                             
                             let mut last_task_time = stats.last_task_time.write().await;
@@ -262,6 +261,7 @@ pub struct CpuLoadBalancer {
 
 impl CpuLoadBalancer {
     /// Create a new CPU load balancer
+    #[must_use] 
     pub fn new(config: LoadBalancerConfig) -> Self {
         let balancer = Self {
             config: config.clone(),

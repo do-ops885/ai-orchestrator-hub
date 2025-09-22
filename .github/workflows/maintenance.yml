@@ -1,22 +1,8 @@
-name: Maintenance
-
+---
 on:
   schedule:
-    # Run weekly on Sundays at 2 AM UTC
     - cron: '0 2 * * 0'
   workflow_dispatch:
-    inputs:
-      maintenance_type:
-        description: 'Type of maintenance to run'
-        required: false
-        default: 'full'
-        type: choice
-        options:
-          - full
-          - dependencies
-          - cache
-          - security
-          - performance
 
 concurrency:
   group: maintenance
@@ -28,7 +14,6 @@ env:
   CORRELATION_ID: ${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
-  # Maintenance planning and setup
   maintenance-setup:
     name: Maintenance Setup
     runs-on: ubuntu-latest
@@ -107,371 +92,370 @@ jobs:
           echo "plan=$plan" >> $GITHUB_OUTPUT
           log_structured "INFO" "Maintenance plan created" "{\"plan\": $plan}"
 
-   # Enhanced dependency updates with automated PR creation
-   dependency-updates:
-     name: Dependency Updates
-     runs-on: ubuntu-latest
-     needs: maintenance-setup
-     if: fromJson(needs.maintenance-setup.outputs.maintenance-plan).dependencies
-     timeout-minutes: 45
-     permissions:
-       contents: write
-       pull-requests: write
+  # Enhanced dependency updates with automated PR creation
+  dependency-updates:
+    name: Dependency Updates
+    runs-on: ubuntu-latest
+    needs: maintenance-setup
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Initialize logging
-        run: |
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-
-          retry_with_backoff() {
-            local max_attempts=3
-            local delay=5
-            local attempt=1
-
-            while [ $attempt -le $max_attempts ]; do
-              if eval "$1"; then
-                return 0
-              else
-                local exit_code=$?
-                if [ $attempt -eq $max_attempts ]; then
-                  return $exit_code
-                fi
-                sleep $delay
-                delay=$((delay * 2))
-                attempt=$((attempt + 1))
-              fi
-            done
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Dependency updates job started"
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install dependency update tools
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Installing dependency update tools"
-
-          # Install cargo-update for Rust dependencies
-          retry_with_backoff "cargo install cargo-update"
-
-          # Install npm-check-updates for Node.js dependencies
-          retry_with_backoff "npm install -g npm-check-updates"
-
-      - name: Check Rust dependencies with impact analysis
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Checking Rust dependencies"
-
-          cd backend
-
-          # Get current dependency versions
-          cargo tree --format "{p} {f}" > current_deps.txt
-
-          # Check for outdated dependencies
-          cargo outdated --format json > outdated_deps.json || echo '[]' > outdated_deps.json
-
-          # Analyze impact of updates
-          outdated_count=$(jq length outdated_deps.json)
-          log_structured "INFO" "Rust dependency analysis completed" \
-            "{\"outdated_count\": $outdated_count}"
-
-          if [ $outdated_count -gt 0 ]; then
-            log_structured "INFO" "Found outdated Rust dependencies" \
-              "{\"dependencies\": $(cat outdated_deps.json)}"
-          fi
-
-      - name: Check Node.js dependencies with impact analysis
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Checking Node.js dependencies"
-
-          cd frontend
-
-          # Check for outdated dependencies
-          ncu --jsonAll > outdated_npm.json || echo '{}' > outdated_npm.json
-
-          # Analyze security vulnerabilities
-          npm audit --json > security_audit.json || echo '{}' > security_audit.json
+     - name: Checkout code
+       uses: actions/checkout@v4
+       with:
+         fetch-depth: 0
+         token: ${{ secrets.GITHUB_TOKEN }}
+
+     - name: Initialize logging
+       run: |
+         cat > log_helper.sh << 'EOF'
+         #!/bin/bash
+         log_structured() {
+           local level="$1"
+           local message="$2"
+           local extra="${3:-{}}"
+
+           jq -n \
+             --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
+             --arg level "$level" \
+             --arg message "$message" \
+             --arg workflow "$GITHUB_WORKFLOW" \
+             --arg job "$GITHUB_JOB" \
+             --arg run_id "$GITHUB_RUN_ID" \
+             --arg correlation_id "$CORRELATION_ID" \
+             --arg extra "$extra" \
+             '{
+               timestamp: $timestamp,
+               level: $level,
+               message: $message,
+               workflow: $workflow,
+               job: $job,
+               run_id: $run_id,
+               correlation_id: $correlation_id,
+               context: $extra
+             }'
+         }
+
+         retry_with_backoff() {
+           local max_attempts=3
+           local delay=5
+           local attempt=1
+
+           while [$attempt -le $max_attempts]; do
+             if eval "$1"; then
+               return 0
+             else
+               local exit_code=$?
+               if [$attempt -eq $max_attempts]; then
+                 return $exit_code
+               fi
+               sleep $delay
+               delay=$((delay * 2))
+               attempt=$((attempt + 1))
+             fi
+           done
+         }
+         EOF
+         chmod +x log_helper.sh
+         source log_helper.sh
+         log_structured "INFO" "Dependency updates job started"
+
+     - name: Setup Node.js
+       uses: actions/setup-node@v5
+       with:
+         node-version: '20'
+         cache: 'npm'
+         cache-dependency-path: frontend/package-lock.json
+
+     - name: Setup Rust
+       uses: dtolnay/rust-toolchain@stable
+
+     - name: Install dependency update tools
+       run: |
+         source log_helper.sh
+         log_structured "INFO" "Installing dependency update tools"
+
+         # Install cargo-update for Rust dependencies
+         retry_with_backoff "cargo install cargo-update"
+
+         # Install npm-check-updates for Node.js dependencies
+         retry_with_backoff "npm install -g npm-check-updates"
+
+     - name: Check Rust dependencies with impact analysis
+       run: |
+         source log_helper.sh
+         log_structured "INFO" "Checking Rust dependencies"
+
+         cd backend
+
+         # Get current dependency versions
+         cargo tree --format "{p} {f}" > current_deps.txt
+
+         # Check for outdated dependencies
+         cargo outdated --format json > outdated_deps.json || echo '[]' > outdated_deps.json
+
+         # Analyze impact of updates
+         outdated_count=$(jq length outdated_deps.json)
+         log_structured "INFO" "Rust dependency analysis completed" \
+           "{\"outdated_count\": $outdated_count}"
+
+         if [$outdated_count -gt 0]; then
+           log_structured "INFO" "Found outdated Rust dependencies" \
+             "{\"dependencies\": $(cat outdated_deps.json)}"
+         fi
+
+     - name: Check Node.js dependencies with impact analysis
+       run: |
+         source log_helper.sh
+         log_structured "INFO" "Checking Node.js dependencies"
+
+         cd frontend
+
+         # Check for outdated dependencies
+         ncu --jsonAll > outdated_npm.json || echo '{}' > outdated_npm.json
+
+         # Analyze security vulnerabilities
+         npm audit --json > security_audit.json || echo '{}' > security_audit.json
 
-          # Count updates needed
-          outdated_count=$(jq 'keys | length' outdated_npm.json)
-          vulnerabilities=$(jq '.metadata.vulnerabilities.total // 0' security_audit.json)
+         # Count updates needed
+         outdated_count=$(jq 'keys | length' outdated_npm.json)
+         vulnerabilities=$(jq '.metadata.vulnerabilities.total // 0' security_audit.json)
 
-          log_structured "INFO" "Node.js dependency analysis completed" \
-            "{\"outdated_count\": $outdated_count, \"vulnerabilities\": $vulnerabilities}"
+         log_structured "INFO" "Node.js dependency analysis completed" \
+           "{\"outdated_count\": $outdated_count, \"vulnerabilities\": $vulnerabilities}"
 
-      - name: Create dependency update branch
-        run: |
-          source log_helper.sh
+     - name: Create dependency update branch
+       run: |
+         source log_helper.sh
 
-          # Check if updates are needed
-          rust_updates=$(jq length backend/outdated_deps.json)
-          npm_updates=$(jq 'keys | length' frontend/outdated_npm.json)
-
-          if [ $rust_updates -gt 0 ] || [ $npm_updates -gt 0 ]; then
-            branch_name="maintenance/dependency-updates-$(date +%Y%m%d)"
-
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-
-            git checkout -b $branch_name
+         # Check if updates are needed
+         rust_updates=$(jq length backend/outdated_deps.json)
+         npm_updates=$(jq 'keys | length' frontend/outdated_npm.json)
+
+         if [$rust_updates -gt 0] || [$npm_updates -gt 0]; then
+           branch_name="maintenance/dependency-updates-$(date +%Y%m%d)"
+
+           git config user.name "github-actions[bot]"
+           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+           git checkout -b $branch_name
 
-            log_structured "INFO" "Created dependency update branch" \
-              "{\"branch\": \"$branch_name\", \"rust_updates\": $rust_updates, \"npm_updates\": $npm_updates}"
-
-            echo "BRANCH_NAME=$branch_name" >> $GITHUB_ENV
-            echo "HAS_UPDATES=true" >> $GITHUB_ENV
-          else
-            log_structured "INFO" "No dependency updates needed"
-            echo "HAS_UPDATES=false" >> $GITHUB_ENV
-          fi
-
-      - name: Update Rust dependencies
-        if: env.HAS_UPDATES == 'true'
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Updating Rust dependencies"
-
-          cd backend
-
-          # Update patch versions only (safer)
-          cargo update
-
-          # Test that updates don't break anything
-          if cargo check --all-features; then
-            log_structured "INFO" "Rust dependency updates successful"
-            git add Cargo.lock
-          else
-            log_structured "ERROR" "Rust dependency updates failed tests"
-            git checkout Cargo.lock
-          fi
-
-      - name: Update Node.js dependencies
-        if: env.HAS_UPDATES == 'true'
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Updating Node.js dependencies"
-
-          cd frontend
-
-          # Update patch and minor versions only
-          ncu --target minor --upgrade
-
-          # Install updated dependencies
-          npm install
-
-          # Test that updates don't break anything
-          if npm run build && npm test; then
-            log_structured "INFO" "Node.js dependency updates successful"
-            git add package.json package-lock.json
-          else
-            log_structured "ERROR" "Node.js dependency updates failed tests"
-            git checkout package.json package-lock.json
-          fi
-
-      - name: Commit and create PR
-        if: env.HAS_UPDATES == 'true'
-        run: |
-          source log_helper.sh
-
-          if git diff --staged --quiet; then
-            log_structured "INFO" "No changes to commit"
-            exit 0
-          fi
-
-          # Create commit
-          git commit -m "chore: update dependencies
-
-          - Updated Rust dependencies to latest patch versions
-          - Updated Node.js dependencies to latest minor versions
-          - All tests passing after updates
-
-          Automated maintenance update on $(date -u +%Y-%m-%d)"
-
-          # Push branch
-          git push origin $BRANCH_NAME
-
-          # Create PR using GitHub CLI
-          gh pr create \
-            --title "🔧 Automated Dependency Updates - $(date +%Y-%m-%d)" \
-            --body "## Automated Dependency Updates
-
-          This PR contains automated dependency updates performed by the maintenance workflow.
-
-          ### Changes
-          - ✅ Rust dependencies updated to latest patch versions
-          - ✅ Node.js dependencies updated to latest minor versions
-          - ✅ All tests passing
-
-          ### Safety
-          - Only patch and minor version updates included
-          - All builds and tests verified before PR creation
-          - No breaking changes expected
-
-          ### Review Notes
-          Please review the dependency changes and merge if everything looks good.
-
-          Correlation ID: $CORRELATION_ID" \
-            --label "maintenance,dependencies,automated" \
-            --assignee "@me"
-
-          log_structured "INFO" "Dependency update PR created" \
-            "{\"branch\": \"$BRANCH_NAME\", \"correlation_id\": \"$CORRELATION_ID\"}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Cleanup dependency updates
-        if: always()
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Dependency updates job completed" \
-            '{"status": "${{ job.status }}", "has_updates": "${{ env.HAS_UPDATES }}"}'
-          rm -f log_helper.sh
-
-   # Enhanced cache maintenance with intelligent cleanup
-   cache-maintenance:
-     name: Cache Maintenance
-     runs-on: ubuntu-latest
-     needs: maintenance-setup
-     if: fromJson(needs.maintenance-setup.outputs.maintenance-plan).cache
-     timeout-minutes: 20
-     permissions:
-       actions: write
-       contents: read
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Initialize cache maintenance logging
-        run: |
-          cat > log_helper.sh << 'EOF'
-          #!/bin/bash
-          log_structured() {
-            local level="$1"
-            local message="$2"
-            local extra="${3:-{}}"
-
-            jq -n \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
-              --arg level "$level" \
-              --arg message "$message" \
-              --arg workflow "$GITHUB_WORKFLOW" \
-              --arg job "$GITHUB_JOB" \
-              --arg run_id "$GITHUB_RUN_ID" \
-              --arg correlation_id "$CORRELATION_ID" \
-              --arg extra "$extra" \
-              '{
-                timestamp: $timestamp,
-                level: $level,
-                message: $message,
-                workflow: $workflow,
-                job: $job,
-                run_id: $run_id,
-                correlation_id: $correlation_id,
-                context: $extra
-              }'
-          }
-          EOF
-          chmod +x log_helper.sh
-          source log_helper.sh
-          log_structured "INFO" "Cache maintenance job started"
-
-      - name: Analyze cache usage
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Analyzing cache usage patterns"
-
-          # Get cache statistics using GitHub API
-          cache_stats=$(gh api repos/${{ github.repository }}/actions/caches --jq '.actions_caches[] | {key: .key, size_in_bytes: .size_in_bytes, last_accessed_at: .last_accessed_at}')
-
-          echo "$cache_stats" > cache_analysis.json
-
-          total_caches=$(echo "$cache_stats" | jq -s length)
-          total_size=$(echo "$cache_stats" | jq -s 'map(.size_in_bytes) | add // 0')
-
-          log_structured "INFO" "Cache analysis completed" \
-            "{\"total_caches\": $total_caches, \"total_size_bytes\": $total_size}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Clean old caches
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Cleaning old caches"
-
-          # Delete caches older than 7 days
-          cutoff_date=$(date -d '7 days ago' -u +%Y-%m-%dT%H:%M:%SZ)
-
-          deleted_count=0
-          while IFS= read -r cache_id; do
-            if [ -n "$cache_id" ]; then
-              gh api --method DELETE repos/${{ github.repository }}/actions/caches/$cache_id
-              deleted_count=$((deleted_count + 1))
-              log_structured "DEBUG" "Deleted cache" "{\"cache_id\": \"$cache_id\"}"
-            fi
-          done < <(gh api repos/${{ github.repository }}/actions/caches --jq ".actions_caches[] | select(.last_accessed_at < \"$cutoff_date\") | .id")
-
-          log_structured "INFO" "Cache cleanup completed" \
-            "{\"deleted_count\": $deleted_count, \"cutoff_date\": \"$cutoff_date\"}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Optimize cache keys
-        run: |
-          source log_helper.sh
-          log_structured "INFO" "Optimizing cache key strategies"
-
-          # Analyze cache hit rates and suggest optimizations
-          # This would typically involve analyzing workflow logs
-
-          log_structured "INFO" "Cache optimization analysis completed"
-
-  # Enhanced security monitoring with automated remediation
-  security-monitoring:
+           log_structured "INFO" "Created dependency update branch" \
+             "{\"branch\": \"$branch_name\", \"rust_updates\": $rust_updates, \"npm_updates\": $npm_updates}"
+
+           echo "BRANCH_NAME=$branch_name" >> $GITHUB_ENV
+           echo "HAS_UPDATES=true" >> $GITHUB_ENV
+         else
+           log_structured "INFO" "No dependency updates needed"
+           echo "HAS_UPDATES=false" >> $GITHUB_ENV
+         fi
+
+     - name: Update Rust dependencies
+       if: env.HAS_UPDATES == 'true'
+       run: |
+         source log_helper.sh
+         log_structured "INFO" "Updating Rust dependencies"
+
+         cd backend
+
+         # Update patch versions only (safer)
+         cargo update
+
+         # Test that updates don't break anything
+         if cargo check --all-features; then
+           log_structured "INFO" "Rust dependency updates successful"
+           git add Cargo.lock
+         else
+           log_structured "ERROR" "Rust dependency updates failed tests"
+           git checkout Cargo.lock
+         fi
+
+     - name: Update Node.js dependencies
+       if: env.HAS_UPDATES == 'true'
+       run: |
+         source log_helper.sh
+         log_structured "INFO" "Updating Node.js dependencies"
+
+         cd frontend
+
+         # Update patch and minor versions only
+         ncu --target minor --upgrade
+
+         # Install updated dependencies
+         npm install
+
+         # Test that updates don't break anything
+         if npm run build && npm test; then
+           log_structured "INFO" "Node.js dependency updates successful"
+           git add package.json package-lock.json
+         else
+           log_structured "ERROR" "Node.js dependency updates failed tests"
+           git checkout package.json package-lock.json
+         fi
+
+     - name: Commit and create PR
+       if: env.HAS_UPDATES == 'true'
+       run: |
+         source log_helper.sh
+
+         if git diff --staged --quiet; then
+           log_structured "INFO" "No changes to commit"
+           exit 0
+         fi
+
+         # Create commit
+         git commit -m "chore: update dependencies
+
+         - Updated Rust dependencies to latest patch versions
+         - Updated Node.js dependencies to latest minor versions
+         - All tests passing after updates
+
+         Automated maintenance update on $(date -u +%Y-%m-%d)"
+
+         # Push branch
+         git push origin $BRANCH_NAME
+
+         # Create PR using GitHub CLI
+         gh pr create \
+           --title "🔧 Automated Dependency Updates - $(date +%Y-%m-%d)" \
+           --body "## Automated Dependency Updates
+
+         This PR contains automated dependency updates performed by the maintenance workflow.
+
+         ### Changes
+         - ✅ Rust dependencies updated to latest patch versions
+         - ✅ Node.js dependencies updated to latest minor versions
+         - ✅ All tests passing
+
+         ### Safety
+         - Only patch and minor version updates included
+         - All builds and tests verified before PR creation
+         - No breaking changes expected
+
+         ### Review Notes
+         Please review the dependency changes and merge if everything looks good.
+
+         Correlation ID: $CORRELATION_ID" \
+           --label "maintenance,dependencies,automated" \
+           --assignee "@me"
+
+         log_structured "INFO" "Dependency update PR created" \
+           "{\"branch\": \"$BRANCH_NAME\", \"correlation_id\": \"$CORRELATION_ID\"}"
+       env:
+         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+     - name: Cleanup dependency updates
+       if: always()
+       run: |
+         source log_helper.sh
+         log_structured "INFO" "Dependency updates job completed" \
+           '{"status": "${{ job.status }}", "has_updates": "${{ env.HAS_UPDATES }}"}'
+         rm -f log_helper.sh
+
+  # Enhanced cache maintenance with intelligent cleanup
+  cache-maintenance:
+    name: Cache Maintenance
+    runs-on: ubuntu-latest
+    needs: maintenance-setup
+    if: fromJson(needs.maintenance-setup.outputs.maintenance-plan).cache
+    timeout-minutes: 20
+    permissions:
+        actions: write
+        contents: read
+
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v4
+
+       - name: Initialize cache maintenance logging
+         run: |
+           cat > log_helper.sh << 'EOF'
+           #!/bin/bash
+           log_structured() {
+             local level="$1"
+             local message="$2"
+             local extra="${3:-{}}"
+
+             jq -n \
+               --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
+               --arg level "$level" \
+               --arg message "$message" \
+               --arg workflow "$GITHUB_WORKFLOW" \
+               --arg job "$GITHUB_JOB" \
+               --arg run_id "$GITHUB_RUN_ID" \
+               --arg correlation_id "$CORRELATION_ID" \
+               --arg extra "$extra" \
+               '{
+                 timestamp: $timestamp,
+                 level: $level,
+                 message: $message,
+                 workflow: $workflow,
+                 job: $job,
+                 run_id: $run_id,
+                 correlation_id: $correlation_id,
+                 context: $extra
+               }'
+           }
+           EOF
+           chmod +x log_helper.sh
+           source log_helper.sh
+           log_structured "INFO" "Cache maintenance job started"
+
+       - name: Analyze cache usage
+         run: |
+           source log_helper.sh
+           log_structured "INFO" "Analyzing cache usage patterns"
+
+           # Get cache statistics using GitHub API
+           cache_stats=$(gh api repos/${{ github.repository }}/actions/caches --jq '.actions_caches[] | {key: .key, size_in_bytes: .size_in_bytes, last_accessed_at: .last_accessed_at}')
+
+           echo "$cache_stats" > cache_analysis.json
+
+           total_caches=$(echo "$cache_stats" | jq -s length)
+           total_size=$(echo "$cache_stats" | jq -s 'map(.size_in_bytes) | add // 0')
+
+           log_structured "INFO" "Cache analysis completed" \
+             "{\"total_caches\": $total_caches, \"total_size_bytes\": $total_size}"
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+       - name: Clean old caches
+         run: |
+           source log_helper.sh
+           log_structured "INFO" "Cleaning old caches"
+
+           # Delete caches older than 7 days
+           cutoff_date=$(date -d '7 days ago' -u +%Y-%m-%dT%H:%M:%SZ)
+
+           deleted_count=0
+           while IFS= read -r cache_id; do
+             if [-n "$cache_id"]; then
+               gh api --method DELETE repos/${{ github.repository }}/actions/caches/$cache_id
+               deleted_count=$((deleted_count + 1))
+               log_structured "DEBUG" "Deleted cache" "{\"cache_id\": \"$cache_id\"}"
+             fi
+           done < <(gh api repos/${{ github.repository }}/actions/caches --jq ".actions_caches[] | select(.last_accessed_at < \"$cutoff_date\") | .id")
+
+           log_structured "INFO" "Cache cleanup completed" \
+             "{\"deleted_count\": $deleted_count, \"cutoff_date\": \"$cutoff_date\"}"
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+       - name: Optimize cache keys
+         run: |
+           source log_helper.sh
+           log_structured "INFO" "Optimizing cache key strategies"
+
+           # Analyze cache hit rates and suggest optimizations
+           # This would typically involve analyzing workflow logs
+
+           log_structured "INFO" "Cache optimization analysis completed"
+
+   # Enhanced security monitoring with automated remediation
+   security-monitoring:
     name: Security Monitoring
     runs-on: ubuntu-latest
     needs: maintenance-setup
@@ -566,7 +550,7 @@ jobs:
             "rust_vulnerabilities": $rust_vulns,
             "npm_vulnerabilities": $npm_vulns,
             "high_risk_total": $total_high_risk,
-            "requires_immediate_attention": $([ $total_high_risk -gt 0 ] && echo true || echo false)
+            "requires_immediate_attention": $([$total_high_risk -gt 0] && echo true || echo false)
           }
           EOF
 
@@ -574,7 +558,7 @@ jobs:
         run: |
           source log_helper.sh
 
-          if [ -f security_report.json ] && [ $(jq '.requires_immediate_attention' security_report.json) = "true" ]; then
+          if [-f security_report.json] && [$(jq '.requires_immediate_attention' security_report.json) = "true"]; then
             log_structured "WARN" "High-risk vulnerabilities detected, attempting automated remediation"
 
             # Create security fix branch
@@ -717,7 +701,7 @@ jobs:
 
           # Rust benchmarks
           cd backend
-          if [ -d "benches" ]; then
+          if [-d "benches"]; then
             cargo bench --bench criterion_benchmark -- --output-format json > ../rust_benchmarks.json || echo '{}' > ../rust_benchmarks.json
             log_structured "INFO" "Rust benchmarks completed"
           fi
@@ -770,7 +754,7 @@ jobs:
           # Set threshold (e.g., 30 seconds = 30000ms)
           threshold=30000
 
-          if [ $frontend_build_time -gt $threshold ]; then
+          if [$frontend_build_time -gt $threshold]; then
             log_structured "WARN" "Performance regression detected" \
               "{\"metric\": \"frontend_build_time\", \"value\": $frontend_build_time, \"threshold\": $threshold}"
 
@@ -881,8 +865,8 @@ jobs:
               "performance_monitoring": "${{ needs.performance-monitoring.result }}"
             },
             "reports_generated": {
-              "security_report": $([ -f "security_report.json" ] && echo "true" || echo "false"),
-              "performance_report": $([ -f "performance_report.json" ] && echo "true" || echo "false")
+              "security_report": $([-f "security_report.json"] && echo "true" || echo "false"),
+              "performance_report": $([-f "performance_report.json"] && echo "true" || echo "false")
             }
           }
           EOF
@@ -897,29 +881,29 @@ jobs:
           # Check if any critical issues were found
           critical_issues=false
 
-          if [ -f "security_report.json" ]; then
+          if [-f "security_report.json"]; then
             requires_attention=$(jq -r '.requires_immediate_attention' security_report.json)
-            if [ "$requires_attention" = "true" ]; then
+            if ["$requires_attention" = "true"]; then
               critical_issues=true
             fi
           fi
 
           # Check job failures
           failed_jobs=""
-          if [ "${{ needs.dependency-updates.result }}" = "failure" ]; then
+          if ["${{ needs.dependency-updates.result }}" = "failure"]; then
             failed_jobs="$failed_jobs dependency-updates"
           fi
-          if [ "${{ needs.cache-maintenance.result }}" = "failure" ]; then
+          if ["${{ needs.cache-maintenance.result }}" = "failure"]; then
             failed_jobs="$failed_jobs cache-maintenance"
           fi
-          if [ "${{ needs.security-monitoring.result }}" = "failure" ]; then
+          if ["${{ needs.security-monitoring.result }}" = "failure"]; then
             failed_jobs="$failed_jobs security-monitoring"
           fi
-          if [ "${{ needs.performance-monitoring.result }}" = "failure" ]; then
+          if ["${{ needs.performance-monitoring.result }}" = "failure"]; then
             failed_jobs="$failed_jobs performance-monitoring"
           fi
 
-          if [ "$critical_issues" = "true" ] || [ -n "$failed_jobs" ]; then
+          if ["$critical_issues" = "true"] || [-n "$failed_jobs"]; then
             log_structured "WARN" "Creating maintenance issue due to critical findings"
 
             gh issue create \
@@ -940,8 +924,8 @@ jobs:
               Please review the maintenance reports and address any critical issues.
 
               ### Reports
-              - Security Report: $([ -f 'security_report.json' ] && echo 'Available' || echo 'Not generated')
-              - Performance Report: $([ -f 'performance_report.json' ] && echo 'Available' || echo 'Not generated')
+              - Security Report: $([-f 'security_report.json'] && echo 'Available' || echo 'Not generated')
+              - Performance Report: $([-f 'performance_report.json'] && echo 'Available' || echo 'Not generated')
 
               See workflow artifacts for detailed reports." \
               --label "maintenance,attention-required"
@@ -965,16 +949,16 @@ jobs:
 
           # Determine overall maintenance status
           overall_status="success"
-          if [ "${{ needs.dependency-updates.result }}" = "failure" ] || \
-             [ "${{ needs.cache-maintenance.result }}" = "failure" ] || \
-             [ "${{ needs.security-monitoring.result }}" = "failure" ] || \
-             [ "${{ needs.performance-monitoring.result }}" = "failure" ]; then
+          if ["${{ needs.dependency-updates.result }}" = "failure"] || \
+             ["${{ needs.cache-maintenance.result }}" = "failure"] || \
+             ["${{ needs.security-monitoring.result }}" = "failure"] || \
+             ["${{ needs.performance-monitoring.result }}" = "failure"]; then
             overall_status="failure"
           fi
 
           log_structured "INFO" "Maintenance workflow completed" \
             "{\"overall_status\": \"$overall_status\", \"correlation_id\": \"$CORRELATION_ID\"}"
 
-          if [ "$overall_status" = "failure" ]; then
+          if ["$overall_status" = "failure"]; then
             exit 1
           fi

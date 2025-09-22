@@ -123,6 +123,7 @@ pub struct MonitoringSystem {
 }
 
 impl MonitoringSystem {
+    #[must_use] 
     pub fn new(
         config: MonitoringConfig,
         swarm_coordinator: Arc<HiveCoordinator>,
@@ -160,7 +161,7 @@ impl MonitoringSystem {
                     history.push(metrics);
 
                     // Keep only recent metrics
-                    let max_entries = ((config.retention_days as u64) * 24 * 60 * 60 / config.collection_interval_seconds) as usize;
+                    let max_entries = (u64::from(config.retention_days) * 24 * 60 * 60 / config.collection_interval_seconds) as usize;
                     if history.len() > max_entries {
                         history.remove(0);
                     }
@@ -168,7 +169,7 @@ impl MonitoringSystem {
 
                 // Check alert rules
                 if let Err(e) = Self::check_alerts(&config.alert_rules, &alerts, &swarm_coordinator).await {
-                    eprintln!("Error checking alerts: {}", e);
+                    eprintln!("Error checking alerts: {e}");
                 }
             }
         });
@@ -400,7 +401,7 @@ impl MonitoringSystem {
             // Check cooldown
             if let Some(last_triggered) = rule.last_triggered {
                 let minutes_since_triggered = (Utc::now() - last_triggered).num_minutes();
-                if minutes_since_triggered < rule.cooldown_minutes as i64 {
+                if minutes_since_triggered < i64::from(rule.cooldown_minutes) {
                     continue;
                 }
             }
@@ -466,7 +467,7 @@ impl MonitoringSystem {
     /// Get metrics history
     pub async fn get_metrics_history(&self, hours: u32) -> Vec<SystemMetrics> {
         let history = self.metrics_history.read().await;
-        let cutoff = Utc::now() - chrono::Duration::hours(hours as i64);
+        let cutoff = Utc::now() - chrono::Duration::hours(i64::from(hours));
 
         history
             .iter()
@@ -497,6 +498,7 @@ impl MonitoringSystem {
     }
 
     /// Get system uptime
+    #[must_use] 
     pub fn get_uptime(&self) -> Duration {
         self.start_time.elapsed()
     }
@@ -526,7 +528,14 @@ pub struct AlertManager {
     notification_channels: Vec<Box<dyn NotificationChannel + Send + Sync>>,
 }
 
+impl Default for AlertManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AlertManager {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             alerts: Arc::new(RwLock::new(Vec::new())),
@@ -545,7 +554,7 @@ impl AlertManager {
         // Send notifications
         for channel in &self.notification_channels {
             if let Err(e) = channel.send_notification(alert).await {
-                eprintln!("Failed to send notification: {}", e);
+                eprintln!("Failed to send notification: {e}");
             }
         }
     }
@@ -572,6 +581,7 @@ pub struct SlackChannel {
 }
 
 impl SlackChannel {
+    #[must_use] 
     pub fn new(webhook_url: String) -> Self {
         Self { webhook_url }
     }
@@ -630,6 +640,7 @@ pub struct EmailChannel {
 }
 
 impl EmailChannel {
+    #[must_use] 
     pub fn new(
         smtp_server: String,
         smtp_port: u16,

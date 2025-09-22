@@ -92,6 +92,7 @@ pub struct OptimizationEvent {
 
 impl CacheOptimizationEngine {
     /// Create a new cache optimization engine
+    #[must_use] 
     pub fn new(
         cache_manager: Arc<CachedQueryManager>,
         performance_monitor: Arc<CachePerformanceMonitor>,
@@ -261,10 +262,10 @@ impl CacheOptimizationEngine {
             let key = CacheKey::Custom(format!("benchmark_key_{}", operations % 1000));
 
             // Mix of get and set operations
-            if operations % 3 == 0 {
+            if operations.is_multiple_of(3) {
                 // Set operation
                 let cache_entry = crate::infrastructure::cached_query::CacheEntry::new(
-                    format!("benchmark_value_{}", operations),
+                    format!("benchmark_value_{operations}"),
                     vec![],
                 );
                 if let Err(e) = self.cache_manager.set_cached(key, cache_entry).await {
@@ -362,17 +363,17 @@ impl CacheOptimizationEngine {
 
         // Calculate success rate
         let successful_optimizations = history.iter().filter(|e| e.success).count();
-        let success_rate = if !history.is_empty() {
-            successful_optimizations as f64 / history.len() as f64
-        } else {
+        let success_rate = if history.is_empty() {
             0.0
+        } else {
+            successful_optimizations as f64 / history.len() as f64
         };
 
         // Calculate average improvement
-        let avg_improvement = if !history.is_empty() {
-            history.iter().map(|e| e.improvement).sum::<f64>() / history.len() as f64
-        } else {
+        let avg_improvement = if history.is_empty() {
             0.0
+        } else {
+            history.iter().map(|e| e.improvement).sum::<f64>() / history.len() as f64
         };
 
         serde_json::json!({
@@ -492,6 +493,7 @@ impl Default for TuningConfig {
 }
 
 impl CacheTuner {
+    #[must_use] 
     pub fn new(optimization_engine: Arc<CacheOptimizationEngine>, config: TuningConfig) -> Self {
         Self {
             optimization_engine,
@@ -500,6 +502,7 @@ impl CacheTuner {
     }
 
     /// Start automatic tuning
+    #[must_use] 
     pub fn start_auto_tuning(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(self.tuning_config.tuning_interval);

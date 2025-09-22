@@ -43,7 +43,7 @@ pub struct MetricsCollector {
     /// Current metrics state
     ///
     /// Real-time metrics data that gets updated with each event.
-    /// Protected by RwLock for concurrent read/write access.
+    /// Protected by `RwLock` for concurrent read/write access.
     pub metrics: Arc<RwLock<HiveMetrics>>,
 
     /// Historical metrics for trend analysis
@@ -124,7 +124,7 @@ impl MetricsCollector {
     /// O(1) average case for counter updates and metric modifications.
     /// Triggers coordination messages for system-wide notifications.
     pub async fn record_agent_event(&self, event_type: &str, agent_id: Uuid) {
-        let event_key = format!("agent_{}", event_type);
+        let event_key = format!("agent_{event_type}");
         {
             let mut counters = self.event_counters.write().await;
             *counters.entry(event_key).or_insert(0) += 1;
@@ -241,11 +241,11 @@ impl MetricsCollector {
         metrics.system_metrics.uptime_seconds = self.start_time.elapsed().as_secs();
 
         // Extract and update metrics from the provided data
-        if let Some(cpu_usage) = new_metrics.get("cpu_usage").and_then(|v| v.as_f64()) {
+        if let Some(cpu_usage) = new_metrics.get("cpu_usage").and_then(serde_json::Value::as_f64) {
             metrics.system_metrics.cpu_usage_percent = cpu_usage * 100.0;
         }
 
-        if let Some(memory_usage) = new_metrics.get("memory_usage").and_then(|v| v.as_f64()) {
+        if let Some(memory_usage) = new_metrics.get("memory_usage").and_then(serde_json::Value::as_f64) {
             metrics.system_metrics.total_memory_usage_mb = memory_usage;
         }
 

@@ -69,7 +69,7 @@ impl OptimizedAgent {
         }
     }
 
-    /// Async version of new() that properly handles file I/O in async contexts
+    /// Async version of `new()` that properly handles file I/O in async contexts
     pub async fn new_async(
         name: String,
         agent_type: AgentType,

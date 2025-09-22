@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dashboard = Arc::new(PerformanceDashboard::new(dashboard_config));
     
     // Establish performance baseline
-    dashboard.establish_baseline().await?;
+    dashboard.set_baseline(PerformanceDashboard::collect_current_metrics().await).await?;
     
     info!("📊 Performance dashboard initialized with baseline metrics");
 

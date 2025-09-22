@@ -44,6 +44,7 @@ pub struct MessageEnvelope {
 
 impl MessageEnvelope {
     /// Create a new message envelope
+    #[must_use] 
     pub fn new(
         message_type: MessageType,
         sender_id: Uuid,
@@ -67,6 +68,7 @@ impl MessageEnvelope {
     }
 
     /// Create a request message with correlation ID
+    #[must_use] 
     pub fn new_request(
         message_type: MessageType,
         sender_id: Uuid,
@@ -91,6 +93,7 @@ impl MessageEnvelope {
     }
 
     /// Create a response message
+    #[must_use] 
     pub fn new_response(
         original_message: &MessageEnvelope,
         sender_id: Uuid,
@@ -113,6 +116,7 @@ impl MessageEnvelope {
     }
 
     /// Check if message is expired
+    #[must_use] 
     pub fn is_expired(&self) -> bool {
         if let Some(ttl) = self.ttl_seconds {
             let elapsed = self.timestamp.signed_duration_since(Utc::now());
@@ -123,24 +127,28 @@ impl MessageEnvelope {
     }
 
     /// Add metadata to the message
+    #[must_use] 
     pub fn with_metadata(mut self, key: String, value: serde_json::Value) -> Self {
         self.metadata.insert(key, value);
         self
     }
 
     /// Set message priority
+    #[must_use] 
     pub fn with_priority(mut self, priority: MessagePriority) -> Self {
         self.priority = priority;
         self
     }
 
     /// Set delivery guarantee
+    #[must_use] 
     pub fn with_delivery_guarantee(mut self, guarantee: DeliveryGuarantee) -> Self {
         self.delivery_guarantee = guarantee;
         self
     }
 
     /// Set TTL
+    #[must_use] 
     pub fn with_ttl(mut self, ttl_seconds: u64) -> Self {
         self.ttl_seconds = Some(ttl_seconds);
         self
@@ -233,6 +241,7 @@ pub enum MessagePayload {
 
 impl MessagePayload {
     /// Get the size of the payload in bytes
+    #[must_use] 
     pub fn size_bytes(&self) -> usize {
         match self {
             MessagePayload::Empty => 0,
@@ -249,6 +258,7 @@ impl MessagePayload {
     }
 
     /// Check if payload is empty
+    #[must_use] 
     pub fn is_empty(&self) -> bool {
         matches!(self, MessagePayload::Empty)
     }
@@ -264,6 +274,7 @@ pub struct ProtocolVersion {
 
 impl ProtocolVersion {
     /// Create a new protocol version
+    #[must_use] 
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
         Self {
             major,
@@ -276,7 +287,7 @@ impl ProtocolVersion {
     pub fn parse(version: &str) -> Result<Self, String> {
         let parts: Vec<&str> = version.split('.').collect();
         if parts.len() != 3 {
-            return Err(format!("Invalid version format: {}", version));
+            return Err(format!("Invalid version format: {version}"));
         }
 
         let major = parts[0].parse().map_err(|_| "Invalid major version")?;
@@ -291,11 +302,13 @@ impl ProtocolVersion {
     }
 
     /// Convert to string
+    #[must_use] 
     pub fn to_string(&self) -> String {
         format!("{}.{}.{}", self.major, self.minor, self.patch)
     }
 
     /// Check if this version is compatible with another
+    #[must_use] 
     pub fn is_compatible(&self, other: &ProtocolVersion) -> bool {
         self.major == other.major
     }
@@ -313,28 +326,28 @@ pub struct MessageSerializer;
 impl MessageSerializer {
     /// Serialize a message envelope to bytes
     pub fn serialize(envelope: &MessageEnvelope) -> Result<Vec<u8>, String> {
-        serde_json::to_vec(envelope).map_err(|e| format!("Serialization failed: {}", e))
+        serde_json::to_vec(envelope).map_err(|e| format!("Serialization failed: {e}"))
     }
 
     /// Deserialize a message envelope from bytes
     pub fn deserialize(data: &[u8]) -> Result<MessageEnvelope, String> {
-        serde_json::from_slice(data).map_err(|e| format!("Deserialization failed: {}", e))
+        serde_json::from_slice(data).map_err(|e| format!("Deserialization failed: {e}"))
     }
 
     /// Serialize with compression
     pub fn serialize_compressed(envelope: &MessageEnvelope) -> Result<Vec<u8>, String> {
         let json_data =
-            serde_json::to_vec(envelope).map_err(|e| format!("Serialization failed: {}", e))?;
+            serde_json::to_vec(envelope).map_err(|e| format!("Serialization failed: {e}"))?;
 
         // Simple compression using flate2
         use std::io::Write;
         let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         encoder
             .write_all(&json_data)
-            .map_err(|e| format!("Compression failed: {}", e))?;
+            .map_err(|e| format!("Compression failed: {e}"))?;
         encoder
             .finish()
-            .map_err(|e| format!("Compression finish failed: {}", e))
+            .map_err(|e| format!("Compression finish failed: {e}"))
     }
 
     /// Deserialize with decompression
@@ -344,9 +357,9 @@ impl MessageSerializer {
         let mut decompressed = Vec::new();
         decoder
             .read_to_end(&mut decompressed)
-            .map_err(|e| format!("Decompression failed: {}", e))?;
+            .map_err(|e| format!("Decompression failed: {e}"))?;
 
-        serde_json::from_slice(&decompressed).map_err(|e| format!("Deserialization failed: {}", e))
+        serde_json::from_slice(&decompressed).map_err(|e| format!("Deserialization failed: {e}"))
     }
 }
 
@@ -367,7 +380,7 @@ impl MessageValidator {
             errors.push("Recipients list cannot be empty".to_string());
         }
 
-        if envelope.recipients.iter().any(|id| id.is_nil()) {
+        if envelope.recipients.iter().any(uuid::Uuid::is_nil) {
             errors.push("Recipient IDs cannot be nil".to_string());
         }
 
@@ -404,7 +417,7 @@ impl MessageValidator {
         current_version: &ProtocolVersion,
     ) -> Result<(), String> {
         let message_ver = ProtocolVersion::parse(message_version)
-            .map_err(|e| format!("Invalid protocol version: {}", e))?;
+            .map_err(|e| format!("Invalid protocol version: {e}"))?;
 
         if !current_version.is_compatible(&message_ver) {
             return Err(format!(
@@ -423,6 +436,7 @@ pub struct MessageRouter;
 
 impl MessageRouter {
     /// Route a message to appropriate handlers based on message type
+    #[must_use] 
     pub fn route_message<'a>(
         envelope: &MessageEnvelope,
         handlers: &'a [Box<dyn super::patterns::MessageHandler>],
@@ -434,6 +448,7 @@ impl MessageRouter {
     }
 
     /// Determine if a message should be broadcast
+    #[must_use] 
     pub fn should_broadcast(envelope: &MessageEnvelope) -> bool {
         matches!(
             envelope.message_type,
@@ -442,6 +457,7 @@ impl MessageRouter {
     }
 
     /// Get routing priority based on message characteristics
+    #[must_use] 
     pub fn get_routing_priority(envelope: &MessageEnvelope) -> MessagePriority {
         // Critical messages get highest priority
         if matches!(
@@ -460,7 +476,7 @@ impl MessageRouter {
         }
 
         // Use the message's own priority
-        envelope.priority.clone()
+        envelope.priority
     }
 }
 
@@ -472,6 +488,7 @@ pub struct MessageDeduplicator {
 
 impl MessageDeduplicator {
     /// Create a new deduplicator
+    #[must_use] 
     pub fn new(max_size: usize) -> Self {
         Self {
             seen_messages: std::collections::HashSet::new(),
@@ -480,6 +497,7 @@ impl MessageDeduplicator {
     }
 
     /// Check if message is duplicate
+    #[must_use] 
     pub fn is_duplicate(&self, message_id: &Uuid) -> bool {
         self.seen_messages.contains(message_id)
     }
@@ -488,7 +506,7 @@ impl MessageDeduplicator {
     pub fn mark_seen(&mut self, message_id: Uuid) {
         if self.seen_messages.len() >= self.max_size {
             // Remove oldest entries (simple FIFO eviction)
-            let to_remove: Vec<Uuid> = self.seen_messages.iter().take(100).cloned().collect();
+            let to_remove: Vec<Uuid> = self.seen_messages.iter().take(100).copied().collect();
             for id in to_remove {
                 self.seen_messages.remove(&id);
             }

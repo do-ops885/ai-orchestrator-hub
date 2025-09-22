@@ -11,7 +11,7 @@ use crate::utils::error::{HiveError, HiveResult};
 use flate2::{Compression, write::GzEncoder};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, RwLock, Semaphore};
@@ -69,6 +69,7 @@ pub struct MessageBatch {
 
 impl MessageBatch {
     /// Create a new message batch
+    #[must_use] 
     pub fn new(messages: Vec<MessageEnvelope>) -> Self {
         Self {
             batch_id: Uuid::new_v4(),
@@ -80,7 +81,8 @@ impl MessageBatch {
         }
     }
 
-    /// Get compression ratio (compressed_size / original_size)
+    /// Get compression ratio (`compressed_size` / `original_size`)
+    #[must_use] 
     pub fn compression_ratio(&self) -> f64 {
         if self.original_size_bytes == 0 {
             1.0
@@ -100,6 +102,7 @@ pub struct MessagePool {
 
 impl MessagePool {
     /// Create a new message pool
+    #[must_use] 
     pub fn new(max_size: usize) -> Self {
         Self {
             pool: Arc::new(Mutex::new(VecDeque::with_capacity(max_size))),
@@ -139,6 +142,7 @@ impl MessagePool {
     }
 
     /// Get pool statistics
+    #[must_use] 
     pub fn get_stats(&self) -> MessagePoolStats {
         let created = self.created_count.load(std::sync::atomic::Ordering::Relaxed);
         let reused = self.reused_count.load(std::sync::atomic::Ordering::Relaxed);
@@ -180,6 +184,7 @@ pub struct CompressionStats {
 
 impl MessageCompressor {
     /// Create a new message compressor
+    #[must_use] 
     pub fn new(compression_level: u32, threshold_bytes: usize) -> Self {
         Self {
             compression_level,
@@ -195,7 +200,7 @@ impl MessageCompressor {
         // Serialize the messages
         let original_data = bincode::serialize(&batch.messages).map_err(|e| {
             HiveError::OperationFailed {
-                reason: format!("Failed to serialize message batch: {}", e),
+                reason: format!("Failed to serialize message batch: {e}"),
             }
         })?;
 
@@ -212,13 +217,13 @@ impl MessageCompressor {
         let mut encoder = GzEncoder::new(Vec::new(), Compression::new(self.compression_level));
         encoder.write_all(&original_data).map_err(|e| {
             HiveError::OperationFailed {
-                reason: format!("Failed to compress message batch: {}", e),
+                reason: format!("Failed to compress message batch: {e}"),
             }
         })?;
 
         let compressed_data = encoder.finish().map_err(|e| {
             HiveError::OperationFailed {
-                reason: format!("Failed to finish compression: {}", e),
+                reason: format!("Failed to finish compression: {e}"),
             }
         })?;
 
@@ -292,6 +297,7 @@ pub struct BatchProcessorStats {
 
 impl BatchProcessor {
     /// Create a new batch processor
+    #[must_use] 
     pub fn new(config: OptimizedMessagingConfig) -> Self {
         let compressor = MessageCompressor::new(
             config.compression_level,
@@ -450,6 +456,7 @@ impl BatchProcessor {
     }
 
     /// Get message pool
+    #[must_use] 
     pub fn get_message_pool(&self) -> &MessagePool {
         &self.message_pool
     }
@@ -465,6 +472,7 @@ impl BatchProcessor {
     }
 
     /// Get message pool statistics
+    #[must_use] 
     pub fn get_pool_stats(&self) -> MessagePoolStats {
         self.message_pool.get_stats()
     }
@@ -494,6 +502,7 @@ pub struct OptimizedSwarmCommunicator {
 
 impl OptimizedSwarmCommunicator {
     /// Create a new optimized swarm communicator
+    #[must_use] 
     pub fn new(config: OptimizedMessagingConfig) -> Self {
         let batch_processor = BatchProcessor::new(config.clone());
         
@@ -545,6 +554,7 @@ pub struct OptimizedMessagingStats {
 
 impl OptimizedMessagingStats {
     /// Calculate overall efficiency metrics
+    #[must_use] 
     pub fn calculate_efficiency_metrics(&self) -> EfficiencyMetrics {
         let bandwidth_savings = if self.compression_stats.total_original_bytes > 0 {
             1.0 - self.compression_stats.average_compression_ratio

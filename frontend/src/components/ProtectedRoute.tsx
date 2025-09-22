@@ -1,11 +1,11 @@
-import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { LoginForm } from './LoginForm';
+import React from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { LoginForm } from './LoginForm'
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
-  requiredPermission?: string;
-  requiredRole?: string;
+  children: React.ReactNode
+  requiredPermission?: string
+  requiredRole?: string
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
@@ -13,18 +13,18 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredPermission,
   requiredRole,
 }) => {
-  const { isAuthenticated, isLoading, hasPermission, hasRole } = useAuth();
+  const { isAuthenticated, isLoading, hasPermission, hasRole } = useAuth()
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
       </div>
-    );
+    )
   }
 
   if (!isAuthenticated) {
-    return <LoginForm />;
+    return <LoginForm />
   }
 
   // Check permission requirements
@@ -34,11 +34,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
           <p className="text-gray-600">
-            You don't have the required permission: {requiredPermission}
+            You don&apos;t have the required permission: {requiredPermission}
           </p>
         </div>
       </div>
-    );
+    )
   }
 
   // Check role requirements
@@ -47,13 +47,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-          <p className="text-gray-600">
-            You don't have the required role: {requiredRole}
-          </p>
+          <p className="text-gray-600">You don&apos;t have the required role: {requiredRole}</p>
         </div>
       </div>
-    );
+    )
   }
 
-  return <>{children}</>;
-};
+  return <>{children}</>
+}

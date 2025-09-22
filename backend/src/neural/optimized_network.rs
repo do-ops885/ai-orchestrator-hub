@@ -94,7 +94,7 @@ pub enum ActivationFunction {
     FastSigmoid,
     /// Tanh with optimized implementation
     OptimizedTanh,
-    /// ReLU with leak prevention
+    /// `ReLU` with leak prevention
     LeakyReLU { alpha: f32 },
     /// Swish activation (x * sigmoid(x))
     Swish,
@@ -202,7 +202,7 @@ impl OptimizedNeuralNetwork {
 
         // Calculate initial metrics
         let parameter_count: usize = weights.iter().map(|w| w.nrows() * w.ncols()).sum::<usize>()
-            + biases.iter().map(|b| b.len()).sum::<usize>();
+            + biases.iter().map(nalgebra::Matrix::len).sum::<usize>();
 
         let metrics = NetworkMetrics {
             forward_pass_time_us: 0.0,
@@ -372,7 +372,7 @@ impl OptimizedNeuralNetwork {
             ActivationFunction::FastSigmoid => {
                 // Fast sigmoid approximation: x / (1 + |x|)
                 output.apply(|x| {
-                    *x = *x / (1.0 + x.abs());
+                    *x /= 1.0 + x.abs();
                 });
             }
             ActivationFunction::OptimizedTanh => {
@@ -419,7 +419,7 @@ impl OptimizedNeuralNetwork {
 
         match activation {
             ActivationFunction::FastSigmoid => {
-                output.apply(|x| *x = *x / (1.0 + x.abs()));
+                output.apply(|x| *x /= 1.0 + x.abs());
             }
             ActivationFunction::OptimizedTanh => {
                 output.apply(|x| {
@@ -524,8 +524,8 @@ impl OptimizedNeuralNetwork {
             // Multi-class confidence based on max probability
             let max_val = output.max();
             let sum_exp: f32 = output.iter().map(|x| (x - max_val).exp()).sum();
-            let max_prob = (output.max() - max_val).exp() / sum_exp;
-            max_prob
+            
+            (output.max() - max_val).exp() / sum_exp
         }
     }
 
@@ -549,6 +549,7 @@ impl OptimizedNeuralNetwork {
     }
 
     /// Get network performance metrics
+    #[must_use] 
     pub fn get_metrics(&self) -> &NetworkMetrics {
         &self.metrics
     }
@@ -557,7 +558,7 @@ impl OptimizedNeuralNetwork {
     pub fn save_to_bytes(&self) -> HiveResult<Vec<u8>> {
         bincode::serialize(self).map_err(|e| HiveError::ValidationError {
             field: "network_serialization".to_string(),
-            reason: format!("Failed to serialize network: {}", e),
+            reason: format!("Failed to serialize network: {e}"),
         })
     }
 
@@ -565,7 +566,7 @@ impl OptimizedNeuralNetwork {
     pub fn load_from_bytes(data: &[u8]) -> HiveResult<Self> {
         bincode::deserialize(data).map_err(|e| HiveError::ValidationError {
             field: "network_deserialization".to_string(),
-            reason: format!("Failed to deserialize network: {}", e),
+            reason: format!("Failed to deserialize network: {e}"),
         })
     }
 
@@ -691,8 +692,15 @@ pub struct GlobalNeuralMetrics {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
+impl Default for OptimizedNeuralManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OptimizedNeuralManager {
     /// Create a new optimized neural manager
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             networks: Arc::new(RwLock::new(std::collections::HashMap::new())),
@@ -765,7 +773,7 @@ impl OptimizedNeuralManager {
         // Update global metrics
         let mut metrics = self.global_metrics.write().await;
         metrics.avg_inference_time_us =
-            (metrics.avg_inference_time_us + result.inference_time_us) / 2.0;
+            f64::midpoint(metrics.avg_inference_time_us, result.inference_time_us);
 
         Ok(result)
     }

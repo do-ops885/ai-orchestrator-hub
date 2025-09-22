@@ -3,7 +3,7 @@
 //! Comprehensive metrics tracking for task performance, execution patterns,
 //! and system analytics.
 
-use super::task_types::*;
+use super::task_types::{TaskMetrics, TaskPerformanceAnalytics, TaskExecutionResult, TaskStatus};
 use crate::utils::error::HiveResult;
 use chrono::Utc;
 use std::collections::HashMap;
@@ -26,6 +26,7 @@ pub struct TaskMetricsCollector {
 
 impl TaskMetricsCollector {
     /// Create a new task metrics collector
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             task_metrics: Arc::new(RwLock::new(HashMap::new())),
@@ -183,34 +184,34 @@ impl TaskMetricsCollector {
             if result.success {
                 let current_completed = entry
                     .get("tasks_completed")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or_default();
                 entry["tasks_completed"] = (current_completed + 1).into();
             } else {
                 let current_failed = entry
                     .get("tasks_failed")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or_default();
                 entry["tasks_failed"] = (current_failed + 1).into();
             }
 
             let current_total_time = entry
                 .get("total_execution_time_ms")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or_default();
             entry["total_execution_time_ms"] =
                 (current_total_time + result.execution_time_ms).into();
         }
 
         // Calculate success rates and averages for agents
-        for (_, agent_data) in agent_performance.iter_mut() {
+        for agent_data in agent_performance.values_mut() {
             let completed = agent_data
                 .get("tasks_completed")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or_default();
             let failed = agent_data
                 .get("tasks_failed")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or_default();
             let total = completed + failed;
 
@@ -218,7 +219,7 @@ impl TaskMetricsCollector {
                 agent_data["success_rate"] = serde_json::json!(completed as f64 / total as f64);
                 let total_time = agent_data
                     .get("total_execution_time_ms")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or_default();
                 agent_data["average_execution_time_ms"] =
                     serde_json::json!(total_time as f64 / total as f64);
@@ -284,7 +285,7 @@ impl TaskMetricsCollector {
 
     /// Clear old metrics to prevent memory growth
     pub async fn cleanup_old_metrics(&self, retention_hours: u32) -> HiveResult<()> {
-        let cutoff_time = Utc::now() - chrono::Duration::hours(retention_hours as i64);
+        let cutoff_time = Utc::now() - chrono::Duration::hours(i64::from(retention_hours));
 
         // Remove old task metrics
         {

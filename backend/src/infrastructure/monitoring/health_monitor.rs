@@ -2,7 +2,7 @@
 //!
 //! Monitors the health and status of agents and system components
 
-use super::types::*;
+use super::types::{AgentHealth, SystemHealth, HealthSnapshot, HealthStatus, ResourceHealth};
 use crate::utils::error::HiveResult;
 use chrono::Utc;
 use std::collections::HashMap;
@@ -26,6 +26,7 @@ impl Default for HealthMonitor {
 
 impl HealthMonitor {
     /// Create a new health monitor
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             agent_health: Arc::new(RwLock::new(HashMap::new())),
@@ -234,7 +235,7 @@ impl HealthMonitor {
 
     /// Perform health checks for all monitored agents
     async fn perform_health_checks(&self) -> HiveResult<()> {
-        let agent_ids: Vec<Uuid> = self.agent_health.read().await.keys().cloned().collect();
+        let agent_ids: Vec<Uuid> = self.agent_health.read().await.keys().copied().collect();
 
         for agent_id in agent_ids {
             let health_status = self.check_agent_health(agent_id).await?;

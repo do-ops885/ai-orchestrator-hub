@@ -1,14 +1,15 @@
+---
 name: Security Report Location Validation
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'security-reports/**'
       - 'scripts/**'
       - '.github/workflows/**'
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'security-reports/**'
       - 'scripts/**'
@@ -42,7 +43,7 @@ jobs:
           log_structured "INFO" "Validating security reports directory structure"
 
           # Check if security-reports directory exists
-          if [ ! -d "security-reports" ]; then
+          if [! -d "security-reports"]; then
             log_structured "ERROR" "security-reports directory does not exist"
             echo "❌ **security-reports directory missing**" >> $GITHUB_STEP_SUMMARY
             echo "The security-reports/ directory must exist at the project root." >> $GITHUB_STEP_SUMMARY
@@ -84,12 +85,12 @@ jobs:
           )
 
           for dir in "${DIRECTORIES_TO_CHECK[@]}"; do
-            if [ -d "$dir" ]; then
+            if [-d "$dir"]; then
               for pattern in "${SECURITY_PATTERNS[@]}"; do
                 # Find files matching security patterns in non-security directories
                 while IFS= read -r -d '' file; do
                   # Skip if it's in security-reports directory
-                  if [[ "$file" != security-reports/* ]]; then
+                  if [["$file" != security-reports/*]]; then
                     MISPLACED_FILES+=("$file")
                   fi
                 done < <(find "$dir" -name "$pattern" -type f -print0 2>/dev/null)
@@ -101,13 +102,13 @@ jobs:
           for pattern in "${SECURITY_PATTERNS[@]}"; do
             while IFS= read -r -d '' file; do
               # Only flag files that are clearly security-related and not in security-reports
-              if [[ "$file" != security-reports/* ]] && [[ "$file" =~ (audit|security|secrets|scan|vulnerability|codeql|trivy|dependency) ]]; then
+              if [["$file" != security-reports/*]] && [["$file" =~ (audit|security|secrets|scan|vulnerability|codeql|trivy|dependency)]]; then
                 MISPLACED_FILES+=("$file")
               fi
             done < <(find . -maxdepth 1 -name "$pattern" -type f -print0 2>/dev/null)
           done
 
-          if [ ${#MISPLACED_FILES[@]} -gt 0 ]; then
+          if [${#MISPLACED_FILES[@]} -gt 0]; then
             log_structured "ERROR" "Found ${#MISPLACED_FILES[@]} misplaced security files"
             echo "❌ **Misplaced Security Files Detected**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -134,22 +135,22 @@ jobs:
 
           INVALID_NAMING=()
 
-          if [ -d "security-reports" ]; then
+          if [-d "security-reports"]; then
             # Check for files that don't follow naming conventions
             while IFS= read -r file; do
               filename=$(basename "$file")
 
               # Check if filename follows expected patterns
-              if [[ ! "$filename" =~ ^(cargo-audit|npm-audit|secrets-scan|codeql|container-scan|dependency-review|security-metrics)-[0-9]{8}-[0-9]{6}\.(json|txt|sarif)$ ]]; then
+              if [[! "$filename" =~ ^(cargo-audit|npm-audit|secrets-scan|codeql|container-scan|dependency-review|security-metrics)-[0-9]{8}-[0-9]{6}\.(json|txt|sarif)$]]; then
                 # Allow some legacy files but flag them for migration
-                if [[ "$filename" =~ (audit|security|secrets|scan|vulnerability|codeql|trivy|dependency) ]]; then
+                if [["$filename" =~ (audit|security|secrets|scan|vulnerability|codeql|trivy|dependency)]]; then
                   INVALID_NAMING+=("$file")
                 fi
               fi
             done < <(find security-reports -type f \( -name "*.json" -o -name "*.txt" -o -name "*.sarif" \))
           fi
 
-          if [ ${#INVALID_NAMING[@]} -gt 0 ]; then
+          if [${#INVALID_NAMING[@]} -gt 0]; then
             log_structured "WARNING" "Found ${#INVALID_NAMING[@]} files with non-standard naming"
             echo "⚠️ **Non-standard Security Report Names**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -159,17 +160,17 @@ jobs:
             for file in "${INVALID_NAMING[@]}"; do
               filename=$(basename "$file")
               # Suggest proper naming based on content
-              if [[ "$filename" =~ cargo ]]; then
+              if [["$filename" =~ cargo]]; then
                 suggestion="cargo-audit-$(date +%Y%m%d-%H%M%S).json"
-              elif [[ "$filename" =~ npm ]]; then
+              elif [["$filename" =~ npm]]; then
                 suggestion="npm-audit-$(date +%Y%m%d-%H%M%S).json"
-              elif [[ "$filename" =~ secrets ]]; then
+              elif [["$filename" =~ secrets]]; then
                 suggestion="secrets-scan-$(date +%Y%m%d-%H%M%S).txt"
-              elif [[ "$filename" =~ codeql ]]; then
+              elif [["$filename" =~ codeql]]; then
                 suggestion="codeql-$(date +%Y%m%d-%H%M%S).sarif"
-              elif [[ "$filename" =~ container|trivy ]]; then
+              elif [["$filename" =~ container|trivy]]; then
                 suggestion="container-scan-$(date +%Y%m%d-%H%M%S).sarif"
-              elif [[ "$filename" =~ dependency ]]; then
+              elif [["$filename" =~ dependency]]; then
                 suggestion="dependency-review-$(date +%Y%m%d-%H%M%S).json"
               else
                 suggestion="security-report-$(date +%Y%m%d-%H%M%S).json"
@@ -190,18 +191,18 @@ jobs:
 
           INVALID_PERMISSIONS=()
 
-          if [ -d "security-reports" ]; then
+          if [-d "security-reports"]; then
             # Check for files with overly permissive permissions
             while IFS= read -r file; do
               permissions=$(stat -c "%a" "$file")
               # Flag files that are world-writable or world-readable in group/other
-              if [[ "$permissions" =~ [2367]$ ]]; then
+              if [["$permissions" =~ [2367]$]]; then
                 INVALID_PERMISSIONS+=("$file:$permissions")
               fi
             done < <(find security-reports -type f)
           fi
 
-          if [ ${#INVALID_PERMISSIONS[@]} -gt 0 ]; then
+          if [${#INVALID_PERMISSIONS[@]} -gt 0]; then
             log_structured "WARNING" "Found ${#INVALID_PERMISSIONS[@]} files with overly permissive permissions"
             echo "⚠️ **Security Files with Overly Permissive Permissions**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -228,7 +229,7 @@ jobs:
           echo "## 📊 Security Reports Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ -d "security-reports" ]; then
+          if [-d "security-reports"]; then
             total_files=$(find security-reports -type f | wc -l)
             json_files=$(find security-reports -name "*.json" | wc -l)
             txt_files=$(find security-reports -name "*.txt" | wc -l)
@@ -241,7 +242,7 @@ jobs:
             echo "| Text Reports | $txt_files |" >> $GITHUB_STEP_SUMMARY
             echo "| SARIF Reports | $sarif_files |" >> $GITHUB_STEP_SUMMARY
 
-            if [ $total_files -gt 0 ]; then
+            if [$total_files -gt 0]; then
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "### Recent Security Reports" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
@@ -298,7 +299,7 @@ jobs:
           )
 
           for script in "${SECURITY_SCRIPTS[@]}"; do
-            if [ -f "$script" ]; then
+            if [-f "$script"]; then
               # Check if script contains security-reports directory references
               if ! grep -q "security-reports" "$script"; then
                 SCRIPT_ISSUES+=("$script:missing_security_reports_reference")
@@ -320,7 +321,7 @@ jobs:
             fi
           done < <(find scripts -name "*.sh" -type f)
 
-          if [ ${#SCRIPT_ISSUES[@]} -gt 0 ]; then
+          if [${#SCRIPT_ISSUES[@]} -gt 0]; then
             log_structured "WARNING" "Found ${#SCRIPT_ISSUES[@]} script issues"
             echo "⚠️ **Security Script Issues Detected**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

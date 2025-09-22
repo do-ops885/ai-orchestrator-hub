@@ -707,8 +707,15 @@ impl AdaptiveVerificationSystem {
     }
 }
 
+impl Default for ThresholdHistory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ThresholdHistory {
-    fn new() -> Self {
+    #[must_use] 
+    pub fn new() -> Self {
         Self {
             confidence_thresholds: Vec::new(),
             last_adaptation: Utc::now() - Duration::hours(24), // Allow immediate first adaptation
@@ -717,8 +724,15 @@ impl ThresholdHistory {
     }
 }
 
+impl Default for PerformanceTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceTracker {
-    fn new() -> Self {
+    #[must_use] 
+    pub fn new() -> Self {
         Self {
             verification_outcomes: Vec::new(),
             efficiency_metrics: EfficiencyMetrics {
@@ -807,8 +821,7 @@ impl AgentBehavior for AdaptiveVerificationSystem {
                 let response_payload = match &envelope.payload {
                     MessagePayload::Text(text) => {
                         MessagePayload::Text(format!(
-                            "Adaptive verification system acknowledging: {} - Ready to adapt thresholds",
-                            text
+                            "Adaptive verification system acknowledging: {text} - Ready to adapt thresholds"
                         ))
                     }
                     MessagePayload::Json(json) => {

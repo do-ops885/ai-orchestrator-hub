@@ -703,7 +703,7 @@ impl From<std::time::SystemTimeError> for HiveError {
     fn from(error: std::time::SystemTimeError) -> Self {
         HiveError::ValidationError {
             field: "timestamp".to_string(),
-            reason: format!("System time conversion failed: {}", error),
+            reason: format!("System time conversion failed: {error}"),
         }
     }
 }
@@ -801,7 +801,7 @@ where
     }
 }
 
-/// Implement From<std::io::Error> for HiveError to support codec traits
+/// Implement From<std::io::Error> for `HiveError` to support codec traits
 impl From<std::io::Error> for HiveError {
     fn from(err: std::io::Error) -> Self {
         HiveError::IoError {
@@ -810,7 +810,7 @@ impl From<std::io::Error> for HiveError {
     }
 }
 
-/// Implement From<anyhow::Error> for HiveError
+/// Implement From<anyhow::Error> for `HiveError`
 impl From<anyhow::Error> for HiveError {
     fn from(err: anyhow::Error) -> Self {
         HiveError::OperationFailed {
@@ -819,7 +819,7 @@ impl From<anyhow::Error> for HiveError {
     }
 }
 
-/// Implement From<serde_json::Error> for HiveError
+/// Implement From<`serde_json::Error`> for `HiveError`
 impl From<serde_json::Error> for HiveError {
     fn from(err: serde_json::Error) -> Self {
         HiveError::InvalidJson {

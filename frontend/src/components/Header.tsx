@@ -1,19 +1,19 @@
-import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import React from 'react'
+import { useAuth } from '../contexts/AuthContext'
 
 export const Header: React.FC = () => {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth()
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await logout()
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Logout error:', error)
     }
-  };
+  }
 
   if (!isAuthenticated || !user) {
-    return null;
+    return null
   }
 
   return (
@@ -21,9 +21,7 @@ export const Header: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <h1 className="text-xl font-semibold text-gray-900">
-              AI Orchestrator Hub
-            </h1>
+            <h1 className="text-xl font-semibold text-gray-900">AI Orchestrator Hub</h1>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -32,7 +30,7 @@ export const Header: React.FC = () => {
                 Welcome, <span className="font-medium">{user.username}</span>
               </div>
               <div className="flex flex-wrap gap-1">
-                {user.roles.map((role) => (
+                {user.roles.map(role => (
                   <span
                     key={role}
                     className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
@@ -53,5 +51,5 @@ export const Header: React.FC = () => {
         </div>
       </div>
     </header>
-  );
-};
+  )
+}

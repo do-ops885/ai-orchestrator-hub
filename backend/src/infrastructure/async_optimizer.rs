@@ -83,12 +83,14 @@ impl<T> AsyncOperation<T> {
     }
 
     /// Set operation priority
+    #[must_use] 
     pub fn with_priority(mut self, priority: OperationPriority) -> Self {
         self.priority = priority;
         self
     }
 
     /// Set operation timeout
+    #[must_use] 
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
         self
@@ -115,6 +117,7 @@ where
     T: Send + 'static,
 {
     /// Create a new batch processor
+    #[must_use] 
     pub fn new(config: AsyncOptimizerConfig) -> Self {
         Self {
             pending_operations: Arc::new(Mutex::new(VecDeque::new())),
@@ -170,7 +173,7 @@ where
                 tokio::spawn(async move {
                     let _permit = semaphore_clone.acquire().await.map_err(|e| {
                         HiveError::OperationFailed {
-                            reason: format!("Failed to acquire semaphore: {}", e),
+                            reason: format!("Failed to acquire semaphore: {e}"),
                         }
                     })?;
 
@@ -198,7 +201,7 @@ where
             .map(|handle_result| {
                 handle_result
                     .map_err(|e| HiveError::OperationFailed {
-                        reason: format!("Task join error: {}", e),
+                        reason: format!("Task join error: {e}"),
                     })
                     .and_then(|inner| inner)
             })
@@ -245,6 +248,7 @@ pub struct OptimizerMetrics {
 
 impl AsyncOptimizer {
     /// Create a new async optimizer
+    #[must_use] 
     pub fn new(config: AsyncOptimizerConfig) -> Self {
         let semaphore = Arc::new(Semaphore::new(config.max_concurrent_ops));
 
@@ -270,7 +274,7 @@ impl AsyncOptimizer {
             .acquire()
             .await
             .map_err(|e| HiveError::OperationFailed {
-                reason: format!("Failed to acquire execution permit: {}", e),
+                reason: format!("Failed to acquire execution permit: {e}"),
             })?;
 
         // Update concurrent operations count
@@ -339,6 +343,7 @@ impl AsyncOptimizer {
     }
 
     /// Start background metrics collection
+    #[must_use] 
     pub fn start_metrics_collection(&self) -> tokio::task::JoinHandle<()> {
         let metrics = Arc::clone(&self.metrics);
         let interval_duration = self.config.metrics_interval;
@@ -385,6 +390,7 @@ pub struct ConnectionMetrics {
 
 impl ConnectionPoolOptimizer {
     /// Create a new connection pool optimizer
+    #[must_use] 
     pub fn new(pool_size: usize) -> Self {
         Self {
             pool_size,
@@ -432,20 +438,17 @@ impl ConnectionPoolOptimizer {
             metrics.active_connections = active_count;
             metrics.peak_connections = std::cmp::max(metrics.peak_connections, active_count);
 
-            match &result {
-                Ok(_) => {
-                    let total_connections = metrics.total_connections_created as f64;
-                    metrics.average_connection_time_ms = (metrics.average_connection_time_ms
-                        * (total_connections - 1.0)
-                        + connection_time.as_millis() as f64)
-                        / total_connections;
-                }
-                Err(_) => {
-                    metrics.connection_errors += 1;
-                    // Release the connection slot on error
-                    let mut active = self.active_connections.lock().await;
-                    *active = active.saturating_sub(1);
-                }
+            if result.is_ok() {
+                let total_connections = metrics.total_connections_created as f64;
+                metrics.average_connection_time_ms = (metrics.average_connection_time_ms
+                    * (total_connections - 1.0)
+                    + connection_time.as_millis() as f64)
+                    / total_connections;
+            } else {
+                metrics.connection_errors += 1;
+                // Release the connection slot on error
+                let mut active = self.active_connections.lock().await;
+                *active = active.saturating_sub(1);
             }
         }
 

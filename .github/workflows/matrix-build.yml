@@ -1,10 +1,11 @@
+---
 name: Matrix Build & Compatibility Test
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   schedule:
     # Weekly compatibility check
     - cron: '0 2 * * 1'
@@ -184,7 +185,7 @@ jobs:
       - name: Run cross-platform integration tests
         run: |
           # Basic integration test that works across platforms
-          if [ -f "scripts/integration_tests.sh" ]; then
+          if [-f "scripts/integration_tests.sh"]; then
             ./scripts/integration_tests.sh --cross-platform
           else
             echo "No integration tests script found, running basic checks"
@@ -234,7 +235,7 @@ jobs:
           git checkout -
 
           # Compare benchmarks (simplified comparison)
-          if [ -f "baseline_benchmarks.json" ] && [ -f "main_benchmarks.json" ]; then
+          if [-f "baseline_benchmarks.json"] && [-f "main_benchmarks.json"]; then
             echo "Benchmark comparison completed"
             # TODO: Add detailed comparison logic
           fi
@@ -279,9 +280,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🎯 Compatibility Status" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "$rust_jobs" == "success" && "$node_jobs" == "success" ]]; then
+          if [["$rust_jobs" == "success" && "$node_jobs" == "success"]]; then
             echo "✅ **Full Compatibility**: All tested environments passed" >> $GITHUB_STEP_SUMMARY
-          elif [[ "$rust_jobs" == "success" || "$node_jobs" == "success" ]]; then
+          elif [["$rust_jobs" == "success" || "$node_jobs" == "success"]]; then
             echo "⚠️ **Partial Compatibility**: Some environments had issues" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Compatibility Issues**: Multiple environments failed" >> $GITHUB_STEP_SUMMARY
@@ -289,7 +290,7 @@ jobs:
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📈 Performance Status" >> $GITHUB_STEP_SUMMARY
-          if [[ "$perf_jobs" == "success" || "$perf_jobs" == "skipped" ]]; then
+          if [["$perf_jobs" == "success" || "$perf_jobs" == "skipped"]]; then
             echo "✅ **No Performance Regressions Detected**" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ **Performance Regression Check Failed**" >> $GITHUB_STEP_SUMMARY

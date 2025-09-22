@@ -180,17 +180,17 @@ impl TaskDistributor {
         // Extract key metrics
         let success_rate = execution_stats
             .get("success_rate")
-            .and_then(|v| v.as_f64())
+            .and_then(serde_json::Value::as_f64)
             .unwrap_or_default();
 
         let efficiency_score = queue_efficiency
             .get("efficiency_score")
-            .and_then(|v| v.as_f64())
+            .and_then(serde_json::Value::as_f64)
             .unwrap_or_default();
 
         let balance_score = workload_balance
             .get("workload_balance_score")
-            .and_then(|v| v.as_f64())
+            .and_then(serde_json::Value::as_f64)
             .unwrap_or_default();
 
         // Calculate overall health score (0.0 to 1.0, higher is better)
@@ -312,11 +312,11 @@ impl TaskDistributor {
         let older_executions: Vec<&TaskExecutionResult> =
             history.iter().rev().skip(20).take(20).collect();
 
-        let older_success_rate = if !older_executions.is_empty() {
+        let older_success_rate = if older_executions.is_empty() {
+            recent_success_rate
+        } else {
             older_executions.iter().filter(|r| r.success).count() as f64
                 / older_executions.len() as f64
-        } else {
-            recent_success_rate
         };
 
         let trend = if (recent_success_rate - older_success_rate).abs() < 0.05 {

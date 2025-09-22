@@ -259,8 +259,7 @@ impl AgentBehavior for SkillEvolutionSystem {
             MessageType::Request => {
                 let response_payload = match &envelope.payload {
                     MessagePayload::Text(text) => MessagePayload::Text(format!(
-                        "Skill evolution system acknowledging: {} - Managing skill development",
-                        text
+                        "Skill evolution system acknowledging: {text} - Managing skill development"
                     )),
                     MessagePayload::Json(json) => {
                         let stats = self.get_evolution_stats().await;
@@ -675,7 +674,7 @@ impl SkillEvolutionSystem {
         let template = library
             .skill_templates
             .get(skill_id)
-            .ok_or_else(|| anyhow::anyhow!("Skill template not found: {}", skill_id))?;
+            .ok_or_else(|| anyhow::anyhow!("Skill template not found: {skill_id}"))?;
 
         // Calculate learning time and proficiency gain
         let learning_time = template.learning_time_hours * learning_params.learning_time_multiplier;

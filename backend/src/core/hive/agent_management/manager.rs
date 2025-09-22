@@ -185,9 +185,7 @@ impl AgentManager {
         // Extract agent name from config, default to type-based name
         let agent_name = config
             .get("name")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("{:?}", agent_type));
+            .and_then(|v| v.as_str()).map_or_else(|| format!("{agent_type:?}"), std::string::ToString::to_string);
 
         // Create the agent
         let agent = Agent::new(agent_name, agent_type);
@@ -270,6 +268,7 @@ impl AgentManager {
     /// Get the total number of agents
     ///
     /// Returns the current number of registered agents in the system.
+    #[must_use] 
     pub fn get_agent_count(&self) -> usize {
         self.registry.get_agent_count()
     }
@@ -277,6 +276,7 @@ impl AgentManager {
     /// Get agent performance statistics
     ///
     /// Returns detailed performance statistics for a specific agent.
+    #[must_use] 
     pub fn get_agent_performance(&self, agent_id: Uuid) -> Option<serde_json::Value> {
         self.metrics.get_agent_performance(agent_id)
     }
@@ -284,6 +284,7 @@ impl AgentManager {
     /// Get system-wide performance summary
     ///
     /// Aggregates performance metrics across all agents.
+    #[must_use] 
     pub fn get_system_performance_summary(&self) -> serde_json::Value {
         self.metrics.get_system_performance_summary()
     }
@@ -291,6 +292,7 @@ impl AgentManager {
     /// Get top performing agents
     ///
     /// Returns a list of the top performing agents based on performance score.
+    #[must_use] 
     pub fn get_top_performers(&self, limit: usize) -> Vec<(Uuid, f64)> {
         self.metrics.get_top_performers(limit)
     }

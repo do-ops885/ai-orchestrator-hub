@@ -40,7 +40,7 @@ pub struct NormalizationStats {
     pub max: Vec<f32>,
 }
 
-/// Replacement for FANNConfig with enhanced options
+/// Replacement for `FANNConfig` with enhanced options
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FastNeuralConfig {
     /// Network layer sizes
@@ -121,6 +121,7 @@ impl FastNeuralNetwork {
     }
 
     /// Get the network layers configuration
+    #[must_use] 
     pub fn layers(&self) -> &[usize] {
         &self.network.config.layers
     }
@@ -358,6 +359,7 @@ impl FastNeuralNetwork {
     }
 
     /// Get network performance metrics
+    #[must_use] 
     pub fn get_performance_metrics(&self) -> serde_json::Value {
         let metrics = self.network.get_metrics();
         serde_json::json!({
@@ -388,7 +390,7 @@ impl FastNeuralNetwork {
     }
 }
 
-/// Enhanced replacement for the HybridNeuralProcessor
+/// Enhanced replacement for the `HybridNeuralProcessor`
 #[derive(Debug)]
 pub struct FastNeuralProcessor {
     /// Neural network manager
@@ -426,8 +428,15 @@ impl Default for FastProcessorConfig {
     }
 }
 
+impl Default for FastNeuralProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FastNeuralProcessor {
     /// Create a new fast neural processor
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             manager: OptimizedNeuralManager::new(),
@@ -436,7 +445,7 @@ impl FastNeuralProcessor {
         }
     }
 
-    /// Create a neural network for an agent (replaces create_fann_network)
+    /// Create a neural network for an agent (replaces `create_fann_network`)
     pub async fn create_agent_network(
         &self,
         agent_id: Uuid,
@@ -474,7 +483,7 @@ impl FastNeuralProcessor {
         Ok(())
     }
 
-    /// Train a network (replaces train_fann_network)
+    /// Train a network (replaces `train_fann_network`)
     pub async fn train_agent_network(
         &self,
         agent_id: Uuid,
@@ -505,7 +514,7 @@ impl FastNeuralProcessor {
         Ok(result)
     }
 
-    /// Predict using a network (replaces predict_with_fann)
+    /// Predict using a network (replaces `predict_with_fann`)
     pub async fn predict_with_agent_network(
         &self,
         agent_id: Uuid,

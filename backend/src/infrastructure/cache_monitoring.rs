@@ -152,6 +152,7 @@ pub struct CachePerformanceMonitor {
 
 impl CachePerformanceMonitor {
     /// Create a new cache performance monitor
+    #[must_use] 
     pub fn new(
         cache_managers: Vec<Arc<CachedQueryManager>>,
         invalidation_managers: Vec<Arc<CacheInvalidationManager>>,
@@ -206,6 +207,7 @@ impl CachePerformanceMonitor {
     }
 
     /// Get cache managers (for testing)
+    #[must_use] 
     pub fn cache_managers(&self) -> &Vec<Arc<CachedQueryManager>> {
         &self.cache_managers
     }
@@ -233,7 +235,7 @@ impl CachePerformanceMonitor {
             // Estimate memory usage (simplified)
             total_memory += (stats.cache_hits + stats.cache_misses) as usize * 1024; // Rough estimate
 
-            let cache_type = format!("cache_{}", i);
+            let cache_type = format!("cache_{i}");
             let type_hit_rate = if stats.cache_hits + stats.cache_misses > 0 {
                 stats.cache_hits as f64 / (stats.cache_hits + stats.cache_misses) as f64
             } else {
@@ -432,6 +434,7 @@ impl CachePerformanceMonitor {
     }
 
     /// Start background monitoring
+    #[must_use] 
     pub fn start_monitoring(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let mut metrics_interval = tokio::time::interval(self.config.collection_interval);

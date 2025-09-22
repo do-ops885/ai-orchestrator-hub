@@ -304,35 +304,35 @@ impl PersistenceManager {
             metrics: SystemMetrics {
                 total_agents: metrics
                     .get("total_agents")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0) as usize,
                 active_agents: metrics
                     .get("active_agents")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0) as usize,
                 completed_tasks: metrics
                     .get("completed_tasks")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0),
                 failed_tasks: metrics
                     .get("failed_tasks")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0),
                 average_performance: metrics
                     .get("average_performance")
-                    .and_then(|v| v.as_f64())
+                    .and_then(serde_json::Value::as_f64)
                     .unwrap_or(0.0),
                 swarm_cohesion: metrics
                     .get("swarm_cohesion")
-                    .and_then(|v| v.as_f64())
+                    .and_then(serde_json::Value::as_f64)
                     .unwrap_or(0.0),
                 learning_progress: metrics
                     .get("learning_progress")
-                    .and_then(|v| v.as_f64())
+                    .and_then(serde_json::Value::as_f64)
                     .unwrap_or(0.0),
                 uptime_seconds: metrics
                     .get("uptime_seconds")
-                    .and_then(|v| v.as_u64())
+                    .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0),
             },
             configuration: serde_json::json!({
@@ -627,7 +627,7 @@ impl StorageProvider for SQLiteStorage {
         let snapshot_id = snapshot.snapshot_id;
         let snapshot_clone = snapshot.clone();
         let conn = Arc::clone(&self.connection);
-        let encryption_key_clone = encryption_key.map(|k| *k);
+        let encryption_key_clone = encryption_key.copied();
 
         task::spawn_blocking(move || {
             let json_data = serde_json::to_string(&snapshot_clone)
@@ -697,7 +697,7 @@ impl StorageProvider for SQLiteStorage {
         // Move database query and deserialization to blocking thread
         let snapshot_id = snapshot_id.to_string();
         let conn = Arc::clone(&self.connection);
-        let encryption_key_clone = encryption_key.map(|k| *k);
+        let encryption_key_clone = encryption_key.copied();
 
         task::spawn_blocking(move || {
             let conn_guard = conn.blocking_lock();

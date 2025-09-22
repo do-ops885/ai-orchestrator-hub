@@ -123,6 +123,8 @@ pub use utils::auth::AuthManager;
 pub struct AppState {
     /// The main hive coordinator managing all agents and tasks
     pub hive: std::sync::Arc<tokio::sync::RwLock<HiveCoordinator>>,
+    /// MCP server for handling Model Context Protocol communications
+    pub mcp_server: std::sync::Arc<HiveMCPServer>,
     /// System configuration
     pub config: std::sync::Arc<HiveConfig>,
     /// Enhanced metrics collection system with alerting and trend analysis

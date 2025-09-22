@@ -19,7 +19,7 @@ describe('RootLayout', () => {
 
   it('has correct metadata structure', () => {
     expect(metadata).toEqual({
-      title: 'Multiagent Hive System',
+      title: 'AI Orchestrator Hub',
       description: expect.stringContaining('multiagent system'),
     })
   })
@@ -32,7 +32,7 @@ describe('RootLayout', () => {
   })
 
   it('metadata has required properties', () => {
-    expect(metadata.title).toBe('Multiagent Hive System')
+    expect(metadata.title).toBe('AI Orchestrator Hub')
     expect(metadata.description).toContain('multiagent system')
     expect(metadata.description).toContain('hive/swarm intelligence')
     expect(metadata.description).toContain('NLP self-learning')

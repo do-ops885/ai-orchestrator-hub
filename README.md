@@ -1,731 +1,148 @@
-# AI Orchestrator Hub
+actionlint
+==========
+[![CI Status][ci-badge]][ci]
+[![API Document][apidoc-badge]][apidoc]
 
-A sophisticated **hybrid neural multiagent orchestration system** implementing advanced swarm intelligence with AI integration, adaptive learning, and comprehensive monitoring. **CPU-native, GPU-optional - built for the GPU-poor.**
+[actionlint][repo] is a static checker for GitHub Actions workflow files. [Try it online!][playground]
 
-[![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
-[![TypeScript](https://img.shields.io/badge/typescript-5.6+-blue.svg)](https://www.typescriptlang.org)
-[![Next.js](https://img.shields.io/badge/next.js-15.0+-black.svg)](https://nextjs.org)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![CI](https://github.com/do-ops885/ai-orchestrator-hub/actions/workflows/build.yml/badge.svg)](https://github.com/do-ops885/ai-orchestrator-hub/actions/workflows/build.yml)
-[![GitHub issues](https://img.shields.io/github/issues/do-ops885/ai-orchestrator-hub)](https://github.com/do-ops885/ai-orchestrator-hub/issues)
-[![GitHub stars](https://img.shields.io/github/stars/do-ops885/ai-orchestrator-hub)](https://github.com/do-ops885/ai-orchestrator-hub/stargazers)
+Features:
 
-## Table of Contents
+- **Syntax check for workflow files** to check unexpected or missing keys following [workflow syntax][syntax-doc]
+- **Strong type check for `${{ }}` expressions** to catch several semantic errors like access to not existing property,
+  type mismatches, ...
+- **Actions usage check** to check that inputs at `with:` and outputs in `steps.{id}.outputs` are correct
+- **Reusable workflow check** to check inputs/outputs/secrets of reusable workflows and workflow calls
+- **[shellcheck][] and [pyflakes][] integrations** for scripts at `run:`
+- **Security checks**; [script injection][script-injection-doc] by untrusted inputs, hard-coded credentials
+- **Other several useful checks**; [glob syntax][filter-pattern-doc] validation, dependencies check for `needs:`,
+  runner label validation, cron syntax validation, ...
 
-- [Overview](#overview)
-- [System Architecture](#system-architecture)
-- [Key Features](#key-features)
-- [Quick Start](#quick-start)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Agent Lifecycle](#agent-lifecycle)
-- [API Documentation](#api-documentation)
-- [Development](#development)
-- [Deployment](#deployment)
-- [Testing](#testing)
-- [Contributing](#contributing)
-- [Security](#security)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
-- [Acknowledgments](#acknowledgments)
+See the [full list][checks] of checks done by actionlint.
 
-## Overview
+<img src="https://github.com/rhysd/ss/blob/master/actionlint/main.gif?raw=true" alt="actionlint reports 7 errors" width="806" height="492"/>
 
-The AI Orchestrator Hub is a cutting-edge implementation of swarm intelligence that combines neural processing, real-time communication, adaptive learning, and AI integration. Designed with a "CPU-native, GPU-optional" philosophy, it delivers maximum intelligence on minimal hardware while scaling to utilize advanced resources when available.
+**Example of broken workflow:**
 
-**Key Capabilities:**
-- 🤖 **Multiagent Swarm Intelligence** with adaptive coordination and evolution
-- 🧠 **Hybrid Neural Processing** (basic NLP + optional FANN networks)
-- 📊 **Advanced Monitoring & Alerting** with predictive analytics and health checks
-- 🔄 **Real-time Communication** via WebSocket with MCP protocol support
-- 💾 **Intelligent Persistence** with state recovery and checkpointing
-- 🛡️ **Enterprise Security** with rate limiting, auditing, and input validation
-- 🚀 **AI Integration** with OpenAI, Anthropic, and custom models
-- ⚡ **Performance Optimization** with circuit breakers and auto-scaling
-- 🧪 **Comprehensive Testing** with integration, chaos engineering, and performance regression tests
-
-## System Architecture
-
-### Core Components
-
-#### Backend (Rust)
-- **Main Entry**: `backend/src/main.rs` - Enhanced Axum web server with advanced middleware
-- **Hive Coordinator**: `backend/src/core/hive/` - Central orchestration with swarm intelligence
-- **Agent System**: `backend/src/agents/` - Modular agent implementations with evolution and recovery
-- **Task Management**: `backend/src/tasks/` - Advanced task scheduling with work stealing
-- **Communication**: `backend/src/communication/` - WebSocket + MCP protocol support
-- **Neural Processing**: `backend/src/neural/` - Adaptive learning with optional FANN networks
-- **Infrastructure**: `backend/src/infrastructure/` - Monitoring, persistence, security, and optimization
-- **MCP Server**: `backend/src/bin/mcp_server.rs` - Standalone Model Context Protocol server
-
-#### Frontend (TypeScript/React/Next.js)
-- **Dashboard**: `frontend/src/components/HiveDashboard.tsx` - Comprehensive monitoring interface
-- **Visualization**: `frontend/src/components/SwarmVisualization.tsx` - Real-time 3D swarm display
-- **Metrics**: `frontend/src/components/MetricsPanel.tsx` & `NeuralMetrics.tsx` - Advanced analytics
-- **Resource Monitor**: `frontend/src/components/ResourceMonitor.tsx` - System resource tracking
-- **State Management**: `frontend/src/store/hiveStore.ts` - Zustand store with real-time updates
-- **Agent/Task Managers**: `frontend/src/components/AgentManager.tsx`, `TaskManager.tsx` - Full lifecycle management
-- **AI Integration**: OpenAI, Anthropic SDK integration for enhanced capabilities
-
-## Key Features
-
-### Hybrid Neural Architecture - CPU-native, GPU-optional
-- **Basic NLP** (default): Lightweight CPU processing for real-time swarm coordination
-- **Advanced Neural** (optional): ruv-FANN integration for complex pattern recognition
-- **AI Integration**: OpenAI, Anthropic SDK support for enhanced intelligence
-- **Philosophy**: Built for the GPU-poor - maximum intelligence on minimal hardware
-- **Feature Flags**: `basic-nlp`, `advanced-neural`, `gpu-acceleration`
-
-### Advanced Agent System
-- **Agent Types**: Worker, Coordinator, Specialist, Learner with evolution capabilities
-- **Adaptive Learning**: Continuous improvement through experience and neural networks
-- **Recovery System**: Automatic agent recovery and fault tolerance
-- **Social Intelligence**: Agent relationships and collaborative learning
-- **Capability Evolution**: Dynamic skill assessment and enhancement
-
-### Intelligent Communication & Coordination
-- **WebSocket**: Real-time bidirectional communication with heartbeat monitoring
-- **MCP Protocol**: Model Context Protocol for external AI tool integration
-- **Message Types**: Enhanced event system with structured logging
-- **Rate Limiting**: API protection with configurable limits
-- **Circuit Breaker**: Fault tolerance and graceful degradation
-
-### Advanced Task Management
-- **Priority Levels**: Low, Medium, High, Critical with dynamic adjustment
-- **Work Stealing**: Efficient load balancing across agent pools
-- **Status Tracking**: Comprehensive lifecycle monitoring with failure recovery
-- **Capability Matching**: ML-enhanced agent assignment with performance prediction
-- **Batch Processing**: Efficient handling of large task queues
-
-### Enterprise Monitoring & Observability
-- **Intelligent Alerting**: Predictive analytics with adaptive thresholds
-- **Advanced Metrics**: Multi-dimensional performance tracking
-- **Structured Logging**: JSON logging with security event tracking
-- **Health Checks**: Comprehensive system health monitoring
-- **Performance Optimization**: Auto-tuning with resource management
-
-### Security & Compliance
-- **Input Validation**: Comprehensive payload validation and sanitization
-- **Security Auditing**: Detailed audit trails and compliance logging
-- **Rate Limiting**: Configurable API protection
-- **CORS Configuration**: Secure cross-origin resource sharing
-- **JWT Authentication**: Optional authentication with role-based access
-
-### Persistence & Reliability
-- **Intelligent Persistence**: SQLite/PostgreSQL with compression and encryption
-- **State Recovery**: Automatic checkpointing and crash recovery
-- **Backup System**: Incremental backups with retention policies
-- **Data Integrity**: Validation and consistency checks
-
-## Quick Start
-
-### Basic Setup (Recommended)
-```bash
-# Clone the repository
-git clone https://github.com/do-ops885/ai-orchestrator-hub.git
-cd ai-orchestrator-hub
-
-# Backend with basic NLP (default)
-cd backend
-cargo run
-
-# Frontend (in new terminal)
-cd ../frontend
-npm install
-npm run dev
+```yaml
+on:
+  push:
+    branch: main
+    tags:
+      - 'v\d+'
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [macos-latest, linux-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: echo "Checking commit '${{ github.event.head_commit.message }}'"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node_version: 18.x
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ matrix.platform }}-node-${{ hashFiles('**/package-lock.json') }}
+        if: ${{ github.repository.permissions.admin == true }}
+      - run: npm install && npm test
 ```
 
-### Advanced Features (Optional)
-```bash
-# Backend with advanced neural processing
-cd backend
-cargo run --features advanced-neural
+**actionlint reports 7 errors:**
 
-# Run neural comparison demo
-cargo run --features advanced-neural --example neural_comparison
-
-# Run MCP server for external integrations
-cargo run --bin mcp_server
+```
+test.yaml:3:5: unexpected key "branch" for "push" section. expected one of "branches", "branches-ignore", "paths", "paths-ignore", "tags", "tags-ignore", "types", "workflows" [syntax-check]
+  |
+3 |     branch: main
+  |     ^~~~~~~
+test.yaml:5:11: character '\' is invalid for branch and tag names. only special characters [, ?, +, *, \, ! can be escaped with \. see `man git-check-ref-format` for more details. note that regular expression is unavailable. note: filter pattern syntax is explained at https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#filter-pattern-cheat-sheet [glob]
+  |
+5 |       - 'v\d+'
+  |           ^~~~
+test.yaml:10:28: label "linux-latest" is unknown. available labels are "windows-latest", "windows-latest-8-cores", "windows-2025", "windows-2022", "windows-2019", "ubuntu-latest", "ubuntu-latest-4-cores", "ubuntu-latest-8-cores", "ubuntu-latest-16-cores", "ubuntu-24.04", "ubuntu-22.04", "ubuntu-20.04", "macos-latest", "macos-latest-xl", "macos-latest-xlarge", "macos-latest-large", "macos-15-xlarge", "macos-15-large", "macos-15", "macos-14-xl", "macos-14-xlarge", "macos-14-large", "macos-14", "macos-13-xl", "macos-13-xlarge", "macos-13-large", "macos-13", "self-hosted", "x64", "arm", "arm64", "linux", "macos", "windows". if it is a custom label for self-hosted runner, set list of labels in actionlint.yaml config file [runner-label]
+   |
+10 |         os: [macos-latest, linux-latest]
+   |                            ^~~~~~~~~~~~~
+test.yaml:13:41: "github.event.head_commit.message" is potentially untrusted. avoid using it directly in inline scripts. instead, pass it through an environment variable. see https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions for more details [expression]
+   |
+13 |       - run: echo "Checking commit '${{ github.event.head_commit.message }}'"
+   |                                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+test.yaml:17:11: input "node_version" is not defined in action "actions/setup-node@v4". available inputs are "always-auth", "architecture", "cache", "cache-dependency-path", "check-latest", "node-version", "node-version-file", "registry-url", "scope", "token" [action]
+   |
+17 |           node_version: 18.x
+   |           ^~~~~~~~~~~~~
+test.yaml:21:20: property "platform" is not defined in object type {os: string} [expression]
+   |
+21 |           key: ${{ matrix.platform }}-node-${{ hashFiles('**/package-lock.json') }}
+   |                    ^~~~~~~~~~~~~~~
+test.yaml:22:17: receiver of object dereference "permissions" must be type of object but got "string" [expression]
+   |
+22 |         if: ${{ github.repository.permissions.admin == true }}
+   |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ```
 
-## Ports & Endpoints
-- **Backend API**: `http://localhost:3001`
-- **Frontend Dashboard**: `http://localhost:3000`
-- **WebSocket**: `ws://localhost:3001/ws`
-- **MCP Server**: `http://localhost:3002` (when running standalone)
-- **Health Check**: `http://localhost:3001/health`
-- **Metrics**: `http://localhost:3001/metrics`
-- **API Documentation**: `http://localhost:3001/docs` (when available)
+## Quick start
 
-## API Endpoints
-- **Agents**: `GET/POST /api/agents`, `GET/PUT/DELETE /api/agents/{id}`
-- **Tasks**: `GET/POST /api/tasks`, `GET/PUT/DELETE /api/tasks/{id}`
-- **Hive Status**: `GET /api/hive/status`, `GET /api/hive/metrics`
-- **Resources**: `GET /api/resources` (system resource information)
-- **Health**: `GET /health` (comprehensive health check)
-- **Metrics**: `GET /metrics` (performance metrics)
-- **WebSocket Events**: Real-time updates via `ws://localhost:3001/ws`
+Install `actionlint` command by downloading [the released binary][releases] or by Homebrew or by `go install`. See
+[the installation document][install] for more details like how to manage the command with several package managers
+or run via Docker container.
 
-## Data Structures
-
-### Core Types
-- **Agent**: ID, type, state, capabilities, position, energy, social connections
-- **Task**: ID, description, priority, status, required capabilities, assigned agents
-- **HiveStatus**: Metrics, swarm center, total energy, creation/update timestamps
-- **SwarmMetrics**: Agent counts, task completion, performance, cohesion, learning progress
-
-### Neural Processing
-- **NLPProcessor**: Pattern recognition, semantic analysis, learning insights
-- **HybridNeuralProcessor**: Optional FANN networks for advanced capabilities
-- **NetworkType**: Basic, FANN, LSTM configurations
-
-## Installation
-
-### Prerequisites
-
-- **Rust**: 1.70+ with Cargo
-- **Node.js**: 18+ with npm
-- **System Requirements**:
-  - Minimum: 2GB RAM, 2 CPU cores
-  - Recommended: 4GB RAM, 4+ CPU cores
-  - Optimal: 8GB+ RAM, 8+ CPU cores with SIMD support
-
-### Backend Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/do-ops885/ai-orchestrator-hub.git
-cd ai-orchestrator-hub
-
-# Install Rust dependencies and build
-cd backend
-cargo build
-
-# Run with basic NLP (recommended for development)
-cargo run
-
-# Run with advanced neural features
-cargo run --features advanced-neural
-
-# Run MCP server for external integrations
-cargo run --bin mcp_server
+```sh
+go install github.com/rhysd/actionlint/cmd/actionlint@latest
 ```
 
-### Frontend Setup
+Basically all you need to do is run the `actionlint` command in your repository. actionlint automatically detects workflows and
+checks errors. actionlint focuses on finding out mistakes. It tries to catch errors as much as possible and make false positives
+as minimal as possible.
 
-```bash
-# Install Node.js dependencies
-cd frontend
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
+```sh
+actionlint
 ```
 
-### Frontend Setup
+Another option to try actionlint is [the online playground][playground]. Your browser can run actionlint through WebAssembly.
 
-```bash
-# Install Node.js dependencies
-cd frontend
-npm install
+See [the usage document][usage] for more details.
 
-# Start development server
-npm run dev
+## Documents
 
-# Build for production
-npm run build
-```
+- [Checks][checks]: Full list of all checks done by actionlint with example inputs, outputs, and playground links.
+- [Installation][install]: Installation instructions. Prebuilt binaries, a Docker image, building from source, a download script
+  (for CI), supports by several package managers are available.
+- [Usage][usage]: How to use `actionlint` command locally or on GitHub Actions, the online playground, an official Docker image,
+  and integrations with reviewdog, Problem Matchers, super-linter, pre-commit, VS Code.
+- [Configuration][config]: How to configure actionlint behavior. Currently, the labels of self-hosted runners, the configuration
+  variables, and ignore patterns of errors for each file paths can be set.
+- [Go API][api]: How to use actionlint as Go library.
+- [References][refs]: Links to resources.
 
-### MCP Server (Optional)
+## Bug reporting
 
-```bash
-# Run standalone MCP server for external integrations
-cd backend
-cargo run --bin mcp_server
-```
+When you see some bugs or false positives, it is helpful to [file a new issue][issue-form] with a minimal example
+of input. Giving me some feedbacks like feature requests or ideas of additional checks is also welcome.
 
-## Configuration
-
-### Environment Variables
-
-Create a `.env` file in the backend directory:
-
-```env
-# Server Configuration
-HIVE_PORT=3001
-HIVE_HOST=0.0.0.0
-CORS_ORIGINS=http://localhost:3000
-
-# Logging & Monitoring
-LOG_LEVEL=info
-LOG_FORMAT=json
-METRICS_COLLECTION_INTERVAL_MS=5000
-ALERT_CHECK_INTERVAL_MS=30000
-
-# Neural Processing
-NEURAL_MODE=basic
-MAX_AGENTS=1000
-TASK_QUEUE_SIZE=10000
-LEARNING_RATE=0.01
-
-# WebSocket & Communication
-WS_MAX_CONNECTIONS=100
-WS_HEARTBEAT_INTERVAL=30
-WS_TIMEOUT_SECS=300
-
-# Resource Management
-MEMORY_LIMIT_MB=1024
-CPU_CORES=auto
-CPU_WARNING_THRESHOLD=70.0
-MEMORY_WARNING_THRESHOLD=80.0
-
-# Persistence
-DATABASE_URL=./data/hive_persistence.db
-PERSISTENCE_CHECKPOINT_INTERVAL_MINUTES=5
-BACKUP_ENABLED=true
-
-# Security
-RATE_LIMIT_REQUESTS_PER_MINUTE=1000
-JWT_SECRET=your-secret-key-here
-AUDIT_LOGGING_ENABLED=true
-
-# Performance
-CIRCUIT_BREAKER_FAILURE_THRESHOLD=5
-CIRCUIT_BREAKER_RECOVERY_TIMEOUT_MS=30000
-PERFORMANCE_OPTIMIZATION_ENABLED=true
-```
-
-### Feature Flags
-
-The system supports multiple build configurations:
-
-- `default = ["basic-nlp"]`: Lightweight NLP processing
-- `advanced-neural`: Enables ruv-FANN neural networks
-- `gpu-acceleration`: GPU support (requires compatible hardware)
-
-## Agent Lifecycle
-
-The AI Orchestrator Hub implements a comprehensive agent lifecycle management system that covers the complete journey of agents from creation to retirement. This includes sophisticated state management, adaptive learning, real-time communication, and intelligent scaling.
-
-### Key Lifecycle Components
-
-#### Agent Types & Roles
-- **Worker Agents**: General-purpose task execution with adaptive capabilities
-- **Coordinator Agents**: Leadership and orchestration with decision-making authority
-- **Specialist Agents**: Domain-specific expertise with targeted capabilities
-- **Learner Agents**: Continuous learning and pattern recognition
-
-#### Lifecycle States
-- **Created**: Initial agent instantiation and configuration
-- **Idle**: Available for task assignment with energy regeneration
-- **Working**: Active task execution with performance monitoring
-- **Learning**: Processing experiences and capability evolution
-- **Communicating**: Inter-agent coordination and swarm intelligence
-- **Failed**: Error state with automatic recovery mechanisms
-- **Inactive**: Temporary suspension with state preservation
-
-#### Communication Patterns
-- **Task Communication**: Structured messaging for task assignment and completion
-- **Coordination Communication**: Swarm intelligence and resource management
-- **Real-time WebSocket**: Bidirectional communication with event streaming
-- **MCP Protocol**: External AI tool integration and interoperability
-
-### Advanced Features
-
-#### Adaptive Learning
-- Continuous capability evolution based on task performance
-- Experience-based proficiency adjustments
-- Pattern recognition and predictive optimization
-
-#### Intelligent Scaling
-- Dynamic agent creation based on workload demands
-- Resource-aware scaling with performance optimization
-- Auto-scaling configurations for Kubernetes and Docker Swarm
-
-#### Monitoring & Debugging
-- Comprehensive health checks and performance metrics
-- Real-time monitoring dashboards with WebSocket updates
-- Diagnostic tools for troubleshooting and optimization
-
-For complete details on agent lifecycle management, deployment strategies, and best practices, see the [Agent Lifecycle Documentation](docs/agent-lifecycle.md).
-
-## API Documentation
-
-### REST Endpoints
-
-#### Agents Management
-- `GET /api/agents` - List all agents with filtering and pagination
-- `POST /api/agents` - Create a new agent with validation
-- `GET /api/agents/{id}` - Get detailed agent information
-- `PUT /api/agents/{id}` - Update agent configuration
-- `DELETE /api/agents/{id}` - Remove agent with cleanup
-
-#### Tasks Management
-- `GET /api/tasks` - List tasks with status filtering
-- `POST /api/tasks` - Create task with capability matching
-- `GET /api/tasks/{id}` - Get task details and execution history
-- `PUT /api/tasks/{id}` - Update task priority or cancel
-- `DELETE /api/tasks/{id}` - Cancel and cleanup task
-
-#### Hive Operations
-- `GET /api/hive/status` - Comprehensive hive status and metrics
-- `GET /api/hive/metrics` - Detailed performance metrics and trends
-- `GET /api/resources` - System resource utilization
-- `POST /api/hive/reset` - Reset hive state (development only)
-
-#### System Management
-- `GET /health` - Comprehensive health check with component status
-- `GET /metrics` - Prometheus-compatible metrics endpoint
-
-### WebSocket Events
-
-Connect to `ws://localhost:3001/ws` for real-time updates:
-
-- `hive_status`: Complete hive state, metrics, and swarm intelligence
-- `agents_update`: Agent list with states, capabilities, and performance
-- `metrics_update`: Real-time performance metrics and alerts
-- `agent_created`: New agent creation with configuration details
-- `agent_failed`: Agent failure notifications with recovery status
-- `task_created`: New task creation with assignment details
-- `task_completed`: Task completion with results and metrics
-- `task_failed`: Task failure with error details and retry status
-- `alert_triggered`: Intelligent alerting with predictive insights
-- `resource_update`: System resource utilization updates
-- `error`: Structured error notifications with context
-
-### MCP (Model Context Protocol) Integration
-
-The system implements MCP 1.0 for seamless AI tool integration:
-
-#### Available Tools
-- `create_swarm_agent`: Create agents with custom capabilities and behaviors
-- `assign_swarm_task`: Distribute tasks with intelligent agent matching
-- `get_swarm_status`: Retrieve comprehensive hive status and metrics
-- `analyze_with_nlp`: Perform advanced NLP analysis using neural networks
-- `coordinate_agents`: Trigger swarm coordination and formation optimization
-- `get_performance_metrics`: Access detailed performance analytics
-- `manage_resources`: Monitor and optimize system resource usage
-
-#### Resources
-- `hive://status`: Live system status with real-time updates
-- `hive://agents`: Agent information with capability profiles
-- `hive://tasks`: Task queue with execution status and history
-- `hive://metrics`: Performance metrics and alerting data
-- `hive://resources`: System resource utilization and optimization
-
-#### Standalone MCP Server
-Run the dedicated MCP server for external integrations:
-```bash
-cd backend
-cargo run --bin mcp_server
-```
-Access at `http://localhost:3002` with WebSocket support at `ws://localhost:3002/ws`
-
-## Testing
-
-### Backend Testing
-
-```bash
-cd backend
-cargo test                    # Basic tests
-cargo test --features advanced-neural  # With neural features
-cargo test --all-features     # All features enabled
-cargo test --test integration_tests  # Integration tests
-cargo test --test chaos_engineering_tests  # Chaos engineering tests
-cargo test --test performance_regression_tests  # Performance regression tests
-```
-
-### Frontend Testing
-
-```bash
-cd frontend
-npm test                      # Unit tests
-npm run test:coverage         # Test coverage
-npm run lint                  # ESLint checks
-npm run build                 # Build verification
-npm run test:e2e              # End-to-end tests (when configured)
-```
-
-### Performance Benchmarks
-
-| Configuration | Agents | Tasks/sec | Memory Usage | CPU Usage | Features |
-|---------------|--------|-----------|--------------|-----------|----------|
-| Basic NLP     | 100    | 50-75     | 256MB        | 15%       | Core swarm intelligence |
-| Basic NLP     | 500    | 200-300   | 512MB        | 35%       | + Adaptive learning |
-| Advanced Neural| 100   | 75-100    | 384MB        | 25%       | + FANN networks |
-| Advanced Neural| 500   | 350-500   | 768MB        | 55%       | + Neural optimization |
-| Full Featured | 1000   | 500-750   | 1.2GB        | 70%       | + Persistence, monitoring |
-| High Performance| 5000  | 1000+     | 2.5GB        | 85%       | + GPU acceleration |
-
-**System Requirements:**
-- **Minimum**: 2GB RAM, 2 CPU cores, 1GB storage
-- **Recommended**: 4GB RAM, 4+ CPU cores, 5GB storage
-- **High Performance**: 8GB+ RAM, 8+ CPU cores, 10GB+ storage
-- **GPU Optional**: CUDA-compatible GPU for neural acceleration
-
-## Development
-
-### Code Standards
-
-- **Rust**: Follow Clippy rules with comprehensive linting
-- **TypeScript**: Strict type checking with ESLint flat config
-- **Documentation**: Use `///` for public APIs, `//!` for module docs
-- **Testing**: Write unit tests for all public functions
-- **Error Handling**: Use `anyhow::Result` for Rust, proper error boundaries for React
-
-### Development Workflow
-
-```bash
-# Backend development
-cd backend
-cargo build                    # Build with default features
-cargo run                      # Run basic version
-cargo run --features advanced-neural  # Run with neural features
-cargo test                     # Run tests
-cargo clippy --all-features    # Comprehensive linting
-cargo fmt --all                # Code formatting
-
-# Frontend development
-cd frontend
-npm install                    # Install dependencies
-npm run dev                    # Start development server
-npm test                       # Run tests
-npm run lint                   # Frontend linting
-npm run build                  # Production build
-
-# Full system testing
-cd backend && cargo test --all-features
-cd ../frontend && npm test && npm run build
-```
-
-### Examples and Demos
-
-```bash
-# Neural processing demos
-cargo run --features advanced-neural --example neural_comparison
-cargo run --features advanced-neural --example advanced_neural_test
-cargo run --features advanced-neural --example lstm_demo
-
-# Agent system demos
-cargo run --example adaptive_verification_demo
-cargo run --example agent_monitor_example
-cargo run --example pair_programming_demo
-
-# Persistence and recovery
-cargo run --example persistence_demo
-cargo run --example advanced_persistence_demo
-
-# Swarm intelligence
-cargo run --example swarm_coordination_demo
-```
-
-## Deployment
-
-### Production Build
-
-```bash
-# Backend
-cd backend
-cargo build --release
-
-# Frontend
-cd frontend
-npm run build
-```
-
-### Docker Deployment
-
-```dockerfile
-# Example Dockerfile for backend
-FROM rust:1.70 as builder
-WORKDIR /app
-COPY backend/ .
-RUN cargo build --release
-
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates
-COPY --from=builder /app/target/release/multiagent-hive /usr/local/bin/
-EXPOSE 3001
-CMD ["multiagent-hive"]
-```
-
-### Security Considerations
-
-- Configure CORS policies for production domains
-- Use HTTPS in production environments
-- Implement rate limiting for API endpoints
-- Monitor WebSocket connection limits
-- Validate all input data
-- Use secure environment variable management
-
-## Security
-
-We take security seriously. If you discover a security vulnerability, please:
-
-- **Do not** create a public issue
-- Use GitHub's [private vulnerability reporting](https://github.com/do-ops885/ai-orchestrator-hub/security/advisories/new)
-- Or email: security@ai-orchestrator-hub.dev
-
-For more information, see our [Security Policy](.github/SECURITY.MD).
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
-
-### Development Workflow
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes and add tests
-4. Run the test suite: `cargo test && npm test`
-5. Run linting: `cargo clippy && npm run lint`
-6. Commit your changes: `git commit -m 'Add amazing feature'`
-7. Push to the branch: `git push origin feature/amazing-feature`
-8. Open a Pull Request
-
-### Code Review Process
-
-- All changes require review from at least one maintainer
-- Ensure all CI checks pass
-- Update documentation for new features
-- Add tests for bug fixes and new functionality
-
-## Troubleshooting
-
-### Common Issues
-
-#### Backend Won't Start
-
-```bash
-# Check Rust version
-rustc --version  # Should be 1.70+
-
-# Clean and rebuild
-cd backend
-cargo clean
-cargo build
-
-# Check for port conflicts
-lsof -i :3001
-```
-
-#### Frontend Build Errors
-
-```bash
-# Clear node modules and reinstall
-cd frontend
-rm -rf node_modules package-lock.json
-npm install
-
-# Check Node.js version
-node --version  # Should be 18+
-```
-
-#### WebSocket Connection Issues
-
-- Ensure backend is running on port 3001
-- Check firewall settings for WebSocket connections
-- Verify CORS configuration in production
-- Check browser console for connection errors
-
-#### Agent Communication Problems
-
-- Verify MCP server is running if using external integrations
-- Check agent registration and heartbeat monitoring
-- Review swarm coordination logs for communication failures
-- Ensure proper message passing between agents
-
-#### Performance Issues
-
-- Monitor system resources with the ResourceMonitor component
-- Consider using `advanced-neural` features for better performance
-- Adjust `MAX_AGENTS` and `TASK_QUEUE_SIZE` in configuration
-- Check for memory leaks in long-running processes
-
-### Getting Help
-
-- **GitHub Issues**: [Report bugs and request features](https://github.com/do-ops885/ai-orchestrator-hub/issues)
-- **Documentation**: Comprehensive guides in [docs/](docs/) directory
-- **Health Checks**: Use `/health` endpoint for system diagnostics
-- **Logs**: Enable debug logging with `RUST_LOG=debug`
-- **Community**: Join discussions and get help from the community
-
-## Testing & Examples
-
-### Available Examples
-
-- **Neural Processing**:
-  - `neural_comparison.rs` - Compare basic vs advanced neural processing
-  - `advanced_neural_test.rs` - Test FANN neural network integration
-  - `lstm_demo.rs` - Time series forecasting with LSTM networks
-
-- **Agent System**:
-  - `adaptive_verification_demo.rs` - Adaptive verification capabilities
-  - `agent_monitor_example.rs` - Agent monitoring and metrics
-  - `pair_programming_demo.rs` - Collaborative agent programming
-
-- **Persistence & Recovery**:
-  - `persistence_demo.rs` - Basic persistence functionality
-  - `advanced_persistence_demo.rs` - Advanced state management
-
-- **Swarm Intelligence**:
-  - `swarm_coordination_demo.rs` - Swarm formation and coordination
-  - `simple_verification_demo.rs` - Basic verification workflows
-
-### Running Examples
-
-```bash
-# Neural processing examples
-cd backend
-cargo run --features advanced-neural --example neural_comparison
-cargo run --features advanced-neural --example advanced_neural_test
-cargo run --features advanced-neural --example lstm_demo
-
-# Agent system examples
-cargo run --example adaptive_verification_demo
-cargo run --example agent_monitor_example
-cargo run --example pair_programming_demo
-
-# Persistence examples
-cargo run --example persistence_demo
-cargo run --example advanced_persistence_demo
-
-# Swarm intelligence
-cargo run --example swarm_coordination_demo
-cargo run --example simple_verification_demo
-```
-
-### Testing Infrastructure
-
-The project includes comprehensive testing with:
-- **Unit Tests**: Individual component testing
-- **Integration Tests**: API integration testing
-- **Chaos Engineering Tests**: Fault injection and recovery testing
-- **Performance Regression Tests**: Automated performance monitoring
-- **End-to-End Tests**: Playwright-based UI testing
-
-**System Requirements:**
-- **Minimum**: 2GB RAM, 2 CPU cores, 1GB storage
-- **Recommended**: 4GB RAM, 4+ CPU cores, 5GB storage
-- **High Performance**: 8GB+ RAM, 8+ CPU cores, 10GB+ storage
-- **GPU Optional**: CUDA-compatible GPU for neural acceleration
+See the [contribution guide](./CONTRIBUTING.md) for more details.
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+actionlint is distributed under [the MIT license](./LICENSE.txt).
 
-## Acknowledgments
-
-- **Core Technologies**: [Rust](https://www.rust-lang.org/) for performance and safety, [Tokio](https://tokio.rs/) for async runtime
-- **Web Framework**: [Axum](https://github.com/tokio-rs/axum) for robust HTTP/WebSocket server
-- **Frontend**: [Next.js](https://nextjs.org/) and [React](https://reactjs.org/) with [TypeScript](https://www.typescriptlang.org/)
-- **Neural Processing**: ruv-FANN for advanced neural networks, custom NLP implementation
-- **AI Integration**: [OpenAI SDK](https://github.com/openai/openai-node) and [Anthropic SDK](https://github.com/anthropics/anthropic-sdk-typescript)
-- **Data Processing**: [Serde](https://serde.rs/) for serialization, [Petgraph](https://github.com/petgraph/petgraph) for graph algorithms
-- **Database**: [rusqlite](https://github.com/rusqlite/rusqlite) for embedded persistence
-- **Security**: [Ring](https://github.com/briansmith/ring) for cryptography, [jsonwebtoken](https://github.com/Keats/jsonwebtoken) for auth
-- **Monitoring**: Custom metrics collection with [tracing](https://tracing.rs/) for observability
-- **MCP Protocol**: [Model Context Protocol](https://modelcontextprotocol.io/) for AI tool integration
+[ci-badge]: https://github.com/rhysd/actionlint/actions/workflows/ci.yaml/badge.svg
+[ci]: https://github.com/rhysd/actionlint/actions/workflows/ci.yaml
+[apidoc-badge]: https://pkg.go.dev/badge/github.com/rhysd/actionlint.svg
+[apidoc]: https://pkg.go.dev/github.com/rhysd/actionlint
+[repo]: https://github.com/rhysd/actionlint
+[playground]: https://rhysd.github.io/actionlint/
+[shellcheck]: https://github.com/koalaman/shellcheck
+[pyflakes]: https://github.com/PyCQA/pyflakes
+[syntax-doc]: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions
+[filter-pattern-doc]: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#filter-pattern-cheat-sheet
+[script-injection-doc]: https://docs.github.com/en/actions/learn-github-actions/security-hardening-for-github-actions#understanding-the-risk-of-script-injections
+[releases]: https://github.com/rhysd/actionlint/releases
+[checks]: https://github.com/rhysd/actionlint/blob/v1.7.7/docs/checks.md
+[install]: https://github.com/rhysd/actionlint/blob/v1.7.7/docs/install.md
+[usage]: https://github.com/rhysd/actionlint/blob/v1.7.7/docs/usage.md
+[config]: https://github.com/rhysd/actionlint/blob/v1.7.7/docs/config.md
+[api]: https://github.com/rhysd/actionlint/blob/v1.7.7/docs/api.md
+[refs]: https://github.com/rhysd/actionlint/blob/v1.7.7/docs/reference.md
+[issue-form]: https://github.com/rhysd/actionlint/issues/new

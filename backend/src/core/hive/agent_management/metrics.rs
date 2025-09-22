@@ -28,6 +28,7 @@ pub struct AgentMetricsManager {
 
 impl AgentMetricsManager {
     /// Create a new agent metrics manager
+    #[must_use] 
     pub fn new(registry: AgentRegistry, cache_manager: Arc<CachedQueryManager>) -> Self {
         Self {
             registry,
@@ -50,7 +51,7 @@ impl AgentMetricsManager {
         let mut metrics = self
             .registry
             .get_agent_metrics(agent_id)
-            .unwrap_or_else(|| AgentMetrics::default());
+            .unwrap_or_default();
 
         // Update metrics based on task result
         if success {
@@ -114,6 +115,7 @@ impl AgentMetricsManager {
     /// Get agent performance statistics
     ///
     /// Returns detailed performance statistics for a specific agent.
+    #[must_use] 
     pub fn get_agent_performance(&self, agent_id: Uuid) -> Option<serde_json::Value> {
         self.registry.get_agent_metrics(agent_id).map(|metrics| {
             let total_tasks = metrics.tasks_completed + metrics.tasks_failed;
@@ -139,8 +141,9 @@ impl AgentMetricsManager {
     /// Get system-wide performance summary
     ///
     /// Aggregates performance metrics across all agents.
+    #[must_use] 
     pub fn get_system_performance_summary(&self) -> serde_json::Value {
-        let total_tasks;
+        
         let mut total_completed = 0u64;
         let mut total_failed = 0u64;
         let mut total_execution_time = 0u64;
@@ -159,7 +162,7 @@ impl AgentMetricsManager {
             }
         }
 
-        total_tasks = total_completed + total_failed;
+        let total_tasks = total_completed + total_failed;
         let overall_success_rate = if total_tasks > 0 {
             total_completed as f64 / total_tasks as f64
         } else {
@@ -195,6 +198,7 @@ impl AgentMetricsManager {
     /// Get top performing agents
     ///
     /// Returns a list of the top performing agents based on performance score.
+    #[must_use] 
     pub fn get_top_performers(&self, limit: usize) -> Vec<(Uuid, f64)> {
         let mut performers: Vec<(Uuid, f64)> = self
             .registry

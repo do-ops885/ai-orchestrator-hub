@@ -165,7 +165,7 @@ impl VectorizedOps {
     /// Safety is guaranteed by:
     /// - Runtime CPU feature detection in the public API
     /// - Input validation ensuring equal slice lengths
-    /// - Use of unaligned load/store operations (_mm256_loadu_ps, _mm256_storeu_ps)
+    /// - Use of unaligned load/store operations (_`mm256_loadu_ps`, _`mm256_storeu_ps`)
     /// - No pointer arithmetic beyond slice bounds
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]
@@ -210,7 +210,7 @@ impl VectorizedOps {
     /// Safety is guaranteed by:
     /// - Runtime CPU feature detection in the public API
     /// - Input validation ensuring equal slice lengths
-    /// - Use of unaligned load/store operations (_mm_loadu_ps, _mm_storeu_ps)
+    /// - Use of unaligned load/store operations (_`mm_loadu_ps`, _`mm_storeu_ps`)
     /// - No pointer arithmetic beyond slice bounds
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "sse4.1")]
@@ -344,7 +344,7 @@ impl VectorizedOps {
     /// Safety is guaranteed by:
     /// - Runtime CPU feature detection in the public API
     /// - Input validation ensuring equal slice lengths
-    /// - Use of unaligned load/store operations (_mm256_loadu_ps, _mm256_storeu_ps)
+    /// - Use of unaligned load/store operations (_`mm256_loadu_ps`, _`mm256_storeu_ps`)
     /// - Bounds checking prevents out-of-bounds access
     #[cfg(target_arch = "x86_64")]
     #[target_feature(enable = "avx2")]

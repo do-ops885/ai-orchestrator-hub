@@ -75,16 +75,16 @@ export const usePerformanceMetrics = (): UsePerformanceMetricsResult => {
       wsRef.current = ws
 
       ws.onopen = () => {
-        console.log('📊 Connected to performance metrics WebSocket')
+        console.warn('📊 Connected to performance metrics WebSocket')
         setIsConnected(true)
         setError(null)
         reconnectAttempts.current = 0
-        
+
         // Send initial ping
         ws.send(JSON.stringify({ action: 'ping' }))
       }
 
-      ws.onmessage = (event) => {
+      ws.onmessage = event => {
         try {
           const data: DashboardMetrics = JSON.parse(event.data)
           setMetrics(data)
@@ -94,16 +94,16 @@ export const usePerformanceMetrics = (): UsePerformanceMetricsResult => {
         }
       }
 
-      ws.onclose = (event) => {
-        console.log('📊 WebSocket connection closed:', event.code, event.reason)
+      ws.onclose = event => {
+        console.warn('📊 WebSocket connection closed:', event.code, event.reason)
         setIsConnected(false)
         wsRef.current = null
 
         // Attempt to reconnect with exponential backoff
         if (!event.wasClean && reconnectAttempts.current < 10) {
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000)
-          console.log(`🔄 Attempting to reconnect in ${delay}ms...`)
-          
+          console.warn(`🔄 Attempting to reconnect in ${delay}ms...`)
+
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttempts.current++
             connect()
@@ -113,11 +113,10 @@ export const usePerformanceMetrics = (): UsePerformanceMetricsResult => {
         }
       }
 
-      ws.onerror = (event) => {
+      ws.onerror = event => {
         console.error('📊 WebSocket error:', event)
         setError('WebSocket connection error')
       }
-
     } catch (err) {
       console.error('Failed to create WebSocket connection:', err)
       setError('Failed to create WebSocket connection')
@@ -134,7 +133,7 @@ export const usePerformanceMetrics = (): UsePerformanceMetricsResult => {
       wsRef.current.close(1000, 'User disconnected')
       wsRef.current = null
     }
-    
+
     setIsConnected(false)
   }, [])
 
@@ -142,18 +141,18 @@ export const usePerformanceMetrics = (): UsePerformanceMetricsResult => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       const message = {
         action: 'acknowledge_alert',
-        data: { alert_id: alertId }
+        data: { alert_id: alertId },
       }
       wsRef.current.send(JSON.stringify(message))
-      
+
       // Optimistically update local state
       setMetrics(prev => {
-        if (!prev) return prev
+        if (!prev) {return prev}
         return {
           ...prev,
           alerts: prev.alerts.map(alert =>
-            alert.id === alertId ? { ...alert, acknowledged: true } : alert
-          )
+            alert.id === alertId ? { ...alert, acknowledged: true } : alert,
+          ),
         }
       })
     }
@@ -178,7 +177,7 @@ export const usePerformanceMetrics = (): UsePerformanceMetricsResult => {
 
   // Setup heartbeat
   useEffect(() => {
-    if (!isConnected || !wsRef.current) return
+    if (!isConnected || !wsRef.current) {return}
 
     const heartbeat = setInterval(() => {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {

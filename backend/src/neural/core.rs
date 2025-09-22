@@ -575,7 +575,7 @@ impl HybridNeuralProcessor {
                 .collect();
 
             if input.len() == network.num_inputs() {
-                let output = network.run(&input);
+                let output = network.run(&input)?;
 
                 // Use network output to enhance sentiment analysis
                 if !output.is_empty() {
@@ -715,7 +715,7 @@ impl HybridNeuralProcessor {
             }
 
             if input.len() == network.num_inputs() {
-                let output = network.run(&input);
+                let output = network.run(&input)?;
                 if !output.is_empty() {
                     // Ensure output is in reasonable range [0, 1]
                     let prediction = f64::from(output[0]);
@@ -1109,14 +1109,14 @@ impl HybridNeuralProcessor {
                 Ok(text) => {
                     let processed = self.nlp_processor.process_text(&text).await.map_err(|e| {
                         crate::utils::error::HiveError::ProcessingError {
-                            reason: format!("Failed to process text: {}", e),
+                            reason: format!("Failed to process text: {e}"),
                         }
                     })?;
                     results.push(processed);
                 }
                 Err(e) => {
                     return Err(crate::utils::error::HiveError::ProcessingError {
-                        reason: format!("Stream error: {}", e),
+                        reason: format!("Stream error: {e}"),
                     });
                 }
             }
@@ -1176,22 +1176,22 @@ impl HybridNeuralProcessor {
                     let processing_time = start_time.elapsed().as_millis() as f64;
                     processing_times.push(processing_time);
 
-                    if total_processed % 100 == 0 {
+                    if total_processed.is_multiple_of(100) {
                         tracing::debug!("Processed {} streaming chunks", total_processed);
                     }
                 }
                 Err(e) => {
                     return Err(crate::utils::error::HiveError::ProcessingError {
-                        reason: format!("Dataset stream error: {}", e),
+                        reason: format!("Dataset stream error: {e}"),
                     });
                 }
             }
         }
 
-        let avg_processing_time = if !processing_times.is_empty() {
-            processing_times.iter().sum::<f64>() / processing_times.len() as f64
-        } else {
+        let avg_processing_time = if processing_times.is_empty() {
             0.0
+        } else {
+            processing_times.iter().sum::<f64>() / processing_times.len() as f64
         };
 
         tracing::info!(

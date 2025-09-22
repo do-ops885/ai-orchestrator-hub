@@ -1,10 +1,8 @@
 //! # Edge Case Tests for Testing Utilities Unwrap Fixes
 //!
-//! Tests to prevent regression of unwrap_or() to unwrap_or_else(||) changes
+//! Tests to prevent regression of `unwrap_or()` to `unwrap_or_else`(||) changes
 //! in the testing utilities.
 
-use crate::utils::testing::{ConsistencyReport, IntegrationTests, LoadTestResults, TestHarness};
-use serde_json::json;
 
 /// Test malformed JSON strings in testing utilities
 #[test]

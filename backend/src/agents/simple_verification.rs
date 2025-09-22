@@ -872,8 +872,7 @@ impl AgentBehavior for SimpleVerificationSystem {
             MessageType::Request => {
                 let response_payload = match &envelope.payload {
                     MessagePayload::Text(text) => MessagePayload::Text(format!(
-                        "Simple verification system acknowledging: {} - Ready to verify tasks",
-                        text
+                        "Simple verification system acknowledging: {text} - Ready to verify tasks"
                     )),
                     MessagePayload::Json(json) => {
                         let metrics = self.get_metrics().await;

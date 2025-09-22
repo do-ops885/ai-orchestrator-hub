@@ -39,13 +39,13 @@ pub enum CacheKey {
 impl std::fmt::Display for CacheKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CacheKey::Agent(id) => write!(f, "agent:{}", id),
-            CacheKey::Task(id) => write!(f, "task:{}", id),
-            CacheKey::AgentMetrics(id) => write!(f, "agent_metrics:{}", id),
-            CacheKey::TaskMetrics(id) => write!(f, "task_metrics:{}", id),
-            CacheKey::SystemStatus(key) => write!(f, "system_status:{}", key),
-            CacheKey::PerformanceMetrics(key) => write!(f, "performance_metrics:{}", key),
-            CacheKey::Custom(key) => write!(f, "custom:{}", key),
+            CacheKey::Agent(id) => write!(f, "agent:{id}"),
+            CacheKey::Task(id) => write!(f, "task:{id}"),
+            CacheKey::AgentMetrics(id) => write!(f, "agent_metrics:{id}"),
+            CacheKey::TaskMetrics(id) => write!(f, "task_metrics:{id}"),
+            CacheKey::SystemStatus(key) => write!(f, "system_status:{key}"),
+            CacheKey::PerformanceMetrics(key) => write!(f, "performance_metrics:{key}"),
+            CacheKey::Custom(key) => write!(f, "custom:{key}"),
         }
     }
 }
@@ -158,6 +158,7 @@ pub struct CachedQueryStats {
 
 impl CachedQueryManager {
     /// Create a new cached query manager
+    #[must_use] 
     pub fn new(config: CachedQueryConfig) -> Self {
         let _cache_config = IntelligentCacheConfig {
             base_ttl: config.default_ttl,
@@ -239,7 +240,7 @@ impl CachedQueryManager {
     {
         let cache_key = key.to_string();
         let cache_value = serde_json::to_value(&entry).map_err(|e| HiveError::OperationFailed {
-            reason: format!("Failed to serialize cache entry: {}", e),
+            reason: format!("Failed to serialize cache entry: {e}"),
         })?;
 
         self.cache_manager.set(cache_key, cache_value).await?;
@@ -431,7 +432,7 @@ impl CachedQueryManager {
                             Ok(value) => return Ok(value),
                             Err(e) => {
                                 return Err(HiveError::ProcessingError {
-                                    reason: format!("Type conversion failed: {}", e),
+                                    reason: format!("Type conversion failed: {e}"),
                                 })
                             }
                         }
@@ -442,15 +443,11 @@ impl CachedQueryManager {
                     execution_guard.waiters.push(tx);
 
                     // Wait for the result
-                    match rx.await {
-                        Ok(result) => {
-                            self.update_stats(true, false).await;
-                            return result;
-                        }
-                        Err(_) => {
-                            // Original query failed, fall through to execute
-                        }
+                    if let Ok(result) = rx.await {
+                        self.update_stats(true, false).await;
+                        return result;
                     }
+                    // Original query failed, fall through to execute
                 }
             }
         }

@@ -645,11 +645,7 @@ impl NeuralTrainingSystem {
                         .ok()?
                 };
 
-                if let Some(batch_data) = batch {
-                    Some((batch_data, batch_idx + 1))
-                } else {
-                    return None;
-                }
+                batch.map(|batch_data| (batch_data, batch_idx + 1))
             }
         });
 
@@ -943,7 +939,7 @@ impl NeuralTrainingSystem {
         }
 
         let avg_loss = if batch_count > 0 {
-            total_loss / batch_count as f64
+            total_loss / f64::from(batch_count)
         } else {
             0.5
         };
@@ -1296,7 +1292,7 @@ impl NeuralTrainingSystem {
                     Ok(chunk) => {
                         // Deserialize weights from chunk
                         let weights: Vec<f32> = bincode::deserialize(&chunk.data)
-                            .map_err(|e| anyhow::anyhow!("Failed to deserialize weights: {}", e))?;
+                            .map_err(|e| anyhow::anyhow!("Failed to deserialize weights: {e}"))?;
                         worker_weights.extend(weights);
                     }
                     Err(e) => {
@@ -1305,7 +1301,7 @@ impl NeuralTrainingSystem {
                             worker_id,
                             e
                         );
-                        return Err(anyhow::anyhow!("Weight aggregation failed: {}", e));
+                        return Err(anyhow::anyhow!("Weight aggregation failed: {e}"));
                     }
                 }
             }
@@ -1316,7 +1312,7 @@ impl NeuralTrainingSystem {
             } else {
                 for (i, &weight) in worker_weights.iter().enumerate() {
                     if i < aggregated_weights.len() {
-                        aggregated_weights[i] = (aggregated_weights[i] + weight) / 2.0;
+                        aggregated_weights[i] = f32::midpoint(aggregated_weights[i], weight);
                     }
                 }
             }

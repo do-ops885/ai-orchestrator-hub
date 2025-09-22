@@ -3,10 +3,8 @@
 //! This module provides object pooling capabilities to reduce memory allocation overhead
 //! and improve performance through object reuse patterns.
 
-use crate::utils::error::{HiveError, HiveResult};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -154,6 +152,7 @@ pub struct SwarmMemoryPools {
 
 impl SwarmMemoryPools {
     /// Create new swarm memory pools
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             string_pool: SimpleObjectPool::new(
@@ -197,6 +196,7 @@ pub struct SwarmPoolStats {
 
 impl SwarmPoolStats {
     /// Calculate overall memory efficiency
+    #[must_use] 
     pub fn overall_efficiency(&self) -> f64 {
         let pools = [
             &self.string_pool_stats,
@@ -209,6 +209,7 @@ impl SwarmPoolStats {
     }
 
     /// Calculate total memory saved
+    #[must_use] 
     pub fn total_memory_saved_bytes(&self) -> u64 {
         self.string_pool_stats.memory_saved_bytes +
         self.byte_vec_pool_stats.memory_saved_bytes +

@@ -176,6 +176,7 @@ pub struct SelfHealingSwarmAgent {
 
 impl SelfHealingSwarmAgent {
     /// Creates a new self-healing swarm agent
+    #[must_use] 
     pub fn new(name: String, config: SelfHealingConfig) -> Self {
         let agent = Agent::new(name, AgentType::Coordinator);
 
@@ -363,7 +364,7 @@ impl SelfHealingSwarmAgent {
         _metrics: &HealthMetrics,
     ) -> RecoveryStrategy {
         // Use learned patterns if available
-        if let Some(&threshold) = self.learned_thresholds.get(&format!("{:?}", failure_type)) {
+        if let Some(&threshold) = self.learned_thresholds.get(&format!("{failure_type:?}")) {
             if threshold > 0.8 {
                 return RecoveryStrategy::AgentRestart;
             }
@@ -536,7 +537,7 @@ impl SelfHealingSwarmAgent {
 
     /// Learns from successful recovery incidents to improve future responses
     async fn learn_from_incident(&mut self, strategy: &RecoveryStrategy) {
-        let strategy_key = format!("{:?}", strategy);
+        let strategy_key = format!("{strategy:?}");
         let current_confidence = self
             .learned_thresholds
             .get(&strategy_key)
@@ -640,6 +641,7 @@ impl SelfHealingSwarmAgent {
     }
 
     /// Gets incident history for analysis
+    #[must_use] 
     pub fn get_incident_history(&self) -> &[IncidentRecord] {
         &self.incident_history
     }

@@ -2,7 +2,7 @@
 //!
 //! Generates monitoring reports and analytics
 
-use super::types::*;
+use super::types::ReportType;
 use crate::utils::error::HiveResult;
 
 #[derive(Clone)]
@@ -15,6 +15,7 @@ impl Default for Reporting {
 }
 
 impl Reporting {
+    #[must_use] 
     pub fn new() -> Self {
         Self
     }

@@ -20,6 +20,7 @@ use crate::{
     CircuitBreaker, IntelligentAlertingSystem, MetricsCollector, PerformanceOptimizer,
     PersistenceManager, RateLimiter, SecurityAuditor, SwarmIntelligenceEngine,
 };
+use crate::communication::mcp::HiveMCPServer;
 use crate::utils::auth::AuthManager;
 
 use chrono::Utc;
@@ -83,6 +84,10 @@ pub async fn initialize_system() -> HiveResult<AppState> {
     })?));
     info!("✅ Hive coordinator initialized with enhanced error handling");
 
+    // Create shared MCP server instance
+    let mcp_server = Arc::new(HiveMCPServer::new(Arc::clone(&hive)));
+    info!("✅ MCP server initialized with shared hive instance");
+
     // Log security event for system startup
     StructuredLogger::log_security_event(
         &SecurityEventType::AuthenticationSuccess,
@@ -102,6 +107,7 @@ pub async fn initialize_system() -> HiveResult<AppState> {
 
     let app_state = AppState {
         hive,
+        mcp_server,
         config,
         metrics: Arc::clone(&metrics),
         advanced_metrics: metrics,
@@ -243,8 +249,7 @@ async fn initialize_persistence(_config: &HiveConfig) -> HiveResult<Arc<Persiste
     if let Err(e) = tokio::task::spawn_blocking(|| std::fs::create_dir_all("./data"))
         .await
         .unwrap_or_else(|_| {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            Err(std::io::Error::other(
                 "spawn_blocking failed",
             ))
         })
@@ -254,8 +259,7 @@ async fn initialize_persistence(_config: &HiveConfig) -> HiveResult<Arc<Persiste
     if let Err(e) = tokio::task::spawn_blocking(|| std::fs::create_dir_all("./data/backups"))
         .await
         .unwrap_or_else(|_| {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            Err(std::io::Error::other(
                 "spawn_blocking failed",
             ))
         })

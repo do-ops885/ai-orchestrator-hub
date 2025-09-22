@@ -56,6 +56,7 @@ Object.assign(MockWebSocket, {
   CLOSED: 3,
 })
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 global.WebSocket = MockWebSocket as any
 
 // Mock localStorage
@@ -88,6 +89,7 @@ const originalConsole = { ...console }
 beforeAll(() => {
   console.warn = vi.fn()
   console.error = vi.fn()
+  // eslint-disable-next-line no-console
   console.log = vi.fn()
 })
 
@@ -106,7 +108,7 @@ afterEach(() => {
 // Custom test utilities
 global.testUtils = {
   // Create mock API responses
-  createMockResponse: (data: any, status = 200) => ({
+  createMockResponse: (data: unknown, status = 200) => ({
     ok: status >= 200 && status < 300,
     status,
     json: () => Promise.resolve(data),
@@ -197,14 +199,56 @@ global.testUtils = {
 // Type declarations for global test utilities
 declare global {
   var testUtils: {
-    createMockResponse: (data: any, status?: number) => any
-    createMockError: (message: string, status?: number) => any
+    createMockResponse: (data: unknown, status?: number) => {
+      ok: boolean
+      status: number
+      json: () => Promise<unknown>
+      text: () => Promise<string>
+      headers: Headers
+    }
+    createMockError: (message: string, status?: number) => {
+      ok: boolean
+      status: number
+      json: () => Promise<{ error: string }>
+      text: () => Promise<string>
+      headers: Headers
+    }
     waitForCondition: (condition: () => boolean, timeout?: number) => Promise<void>
     generateTestData: {
-      user: () => any
-      agent: () => any
-      task: () => any
+      user: () => {
+        id: string
+        username: string
+        email: string
+        role: string
+        createdAt: string
+      }
+      agent: () => {
+        id: string
+        name: string
+        type: string
+        status: string
+        capabilities: string[]
+        lastSeen: string
+      }
+      task: () => {
+        id: string
+        title: string
+        description: string
+        status: string
+        priority: string
+        createdAt: string
+      }
     }
-    createMockWebSocket: () => any
+    createMockWebSocket: () => {
+      send: ReturnType<typeof vi.fn>
+      close: ReturnType<typeof vi.fn>
+      addEventListener: ReturnType<typeof vi.fn>
+      removeEventListener: ReturnType<typeof vi.fn>
+      readyState: number
+      CONNECTING: number
+      OPEN: number
+      CLOSING: number
+      CLOSED: number
+    }
   }
 }

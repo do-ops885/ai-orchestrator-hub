@@ -325,7 +325,7 @@ where
 
     async fn from_request_parts(
         parts: &mut axum::http::request::Parts,
-        state: &S,
+        _state: &S,
     ) -> Result<Self, Self::Rejection> {
         // Get the authorization header
         let auth_header = parts
@@ -334,7 +334,7 @@ where
             .and_then(|h| h.to_str().ok())
             .and_then(|h| h.strip_prefix("Bearer "));
 
-        let token = match auth_header {
+        let _token = match auth_header {
             Some(token) => token,
             None => {
                 return Err((
@@ -395,7 +395,7 @@ async fn login(
     let user_id = Uuid::new_v4().to_string();
     let client_type = payload.client_type.unwrap_or(ClientType::Human);
     let roles = vec![Role::Admin];
-    let permissions = roles.iter().flat_map(|r| r.permissions()).collect::<Vec<_>>();
+    let permissions = roles.iter().flat_map(super::utils::auth::Role::permissions).collect::<Vec<_>>();
 
     // Generate JWT token
     let (token, session_id) = state.auth_manager.authenticate_user(
@@ -418,8 +418,8 @@ async fn login(
     let user_info = UserInfo {
         id: user_id,
         username: payload.username.clone(),
-        roles: roles.iter().map(|r| format!("{:?}", r)).collect(),
-        permissions: permissions.iter().map(|p| format!("{:?}", p)).collect(),
+        roles: roles.iter().map(|r| format!("{r:?}")).collect(),
+        permissions: permissions.iter().map(|p| format!("{p:?}")).collect(),
         client_type,
     };
 
@@ -499,35 +499,32 @@ async fn refresh_token(
 }
 
 async fn get_current_user(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     claims: Option<Claims>,
 ) -> Result<axum::Json<UserInfo>, (StatusCode, axum::Json<serde_json::Value>)> {
     let request_id = Uuid::new_v4();
 
-    match claims {
-        Some(claims) => {
-            info!("👤 [{}] Getting current user info for: {}", request_id, claims.sub);
+    if let Some(claims) = claims {
+        info!("👤 [{}] Getting current user info for: {}", request_id, claims.sub);
 
-            let user_info = UserInfo {
-                id: claims.sub.clone(),
-                username: "demo_user".to_string(), // In production, get from database
-                roles: claims.roles.clone(),
-                permissions: claims.permissions.clone(),
-                client_type: claims.client_type,
-            };
+        let user_info = UserInfo {
+            id: claims.sub.clone(),
+            username: "demo_user".to_string(), // In production, get from database
+            roles: claims.roles.clone(),
+            permissions: claims.permissions.clone(),
+            client_type: claims.client_type,
+        };
 
-            Ok(axum::Json(user_info))
-        }
-        None => {
-            warn!("🚫 [{}] No authentication token provided", request_id);
-            Err((
-                StatusCode::UNAUTHORIZED,
-                axum::Json(json!({
-                    "error": "Authentication required",
-                    "request_id": request_id.to_string()
-                })),
-            ))
-        }
+        Ok(axum::Json(user_info))
+    } else {
+        warn!("🚫 [{}] No authentication token provided", request_id);
+        Err((
+            StatusCode::UNAUTHORIZED,
+            axum::Json(json!({
+                "error": "Authentication required",
+                "request_id": request_id.to_string()
+            })),
+        ))
     }
 }
 
@@ -1047,7 +1044,7 @@ async fn get_monitoring_metrics(
 }
 
 async fn get_monitoring_alerts(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
 ) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
     // In a full implementation, this would use the AlertManager
     // For now, return mock alerts
@@ -1074,7 +1071,7 @@ async fn get_monitoring_alerts(
 }
 
 async fn get_monitoring_health(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
 ) -> Result<axum::Json<serde_json::Value>, (StatusCode, axum::Json<serde_json::Value>)> {
     // Generate comprehensive health report
     let health_report = json!({

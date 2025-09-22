@@ -724,7 +724,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
         success: `${(recentSuccessRate * 100).toFixed(1)}%`,
         quality: get().connectionQuality,
       },
-      'ConnectionManager'
+      'ConnectionManager',
     )
 
     return roundedDelay
@@ -772,7 +772,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
       getLogger().warn(
         `Invalid state transition: ${currentState} -> ${newState}`,
         { from: currentState, to: newState },
-        'ConnectionManager'
+        'ConnectionManager',
       )
       return
     }
@@ -789,7 +789,7 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     getLogger().info(
       `Connection state: ${currentState} -> ${newState}${reasonText}`,
       { from: currentState, to: newState, reason },
-      'ConnectionManager'
+      'ConnectionManager',
     )
 
     // Trigger side effects based on new state
@@ -1528,7 +1528,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     set({ monitoringEnabled: false })
 
     // Clear monitoring interval
-    const monitoringInterval = (get() as unknown as Record<string, unknown>)._monitoringInterval as number
+    const monitoringInterval = (get() as unknown as Record<string, unknown>)
+      ._monitoringInterval as number
     if (monitoringInterval) {
       clearInterval(monitoringInterval)
     }
@@ -2664,8 +2665,10 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
     }
 
     // Remove event listeners
-    const onlineHandler = (get() as unknown as Record<string, unknown>)._networkOnlineHandler as EventListener
-    const offlineHandler = (get() as unknown as Record<string, unknown>)._networkOfflineHandler as EventListener
+    const onlineHandler = (get() as unknown as Record<string, unknown>)
+      ._networkOnlineHandler as EventListener
+    const offlineHandler = (get() as unknown as Record<string, unknown>)
+      ._networkOfflineHandler as EventListener
 
     if (onlineHandler) {
       window.removeEventListener('online', onlineHandler)
@@ -3206,7 +3209,8 @@ export const useHiveStore = create<HiveStore>((set, get) => ({
   },
 
   stopPredictiveRecovery: () => {
-    const predictiveInterval = (get() as unknown as Record<string, unknown>)._predictiveRecoveryInterval
+    const predictiveInterval = (get() as unknown as Record<string, unknown>)
+      ._predictiveRecoveryInterval
     if (predictiveInterval) {
       clearInterval(predictiveInterval as number)
       console.warn('🔮 Stopped predictive recovery monitoring')

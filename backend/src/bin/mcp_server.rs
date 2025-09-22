@@ -51,22 +51,26 @@ async fn main() -> Result<()> {
 
 /// Run MCP server in HTTP mode
 async fn run_http_server(hive: Arc<RwLock<HiveCoordinator>>) -> Result<()> {
-    let mcp_server = HiveMCPServer::new(Arc::clone(&hive));
+    // Create shared MCP server instance (Phase 1.1 optimization)
+    let mcp_server = Arc::new(HiveMCPServer::new(Arc::clone(&hive)));
 
-    // Create a simple app state for MCP
+    // Enhanced app state with shared server instance
     #[derive(Clone)]
     struct MCPAppState {
         hive: Arc<RwLock<HiveCoordinator>>,
+        mcp_server: Arc<HiveMCPServer>,  // SHARED INSTANCE
     }
 
-    let app_state = MCPAppState { hive };
+    let app_state = MCPAppState { 
+        hive,
+        mcp_server: Arc::clone(&mcp_server)
+    };
 
-    // Create router
+    // Create router with optimized handler
     let app = Router::new()
         .route("/", post(move |state: axum::extract::State<MCPAppState>, Json(request): Json<MCPRequest>| async move {
-            let hive = Arc::clone(&state.hive);
-            let mcp_server = HiveMCPServer::new(hive);
-            let response = mcp_server.handle_request(request).await;
+            // Use shared server instance instead of creating new one per request
+            let response = state.mcp_server.handle_request(request).await;
             Ok::<Json<MCPResponse>, (StatusCode, Json<Value>)>(Json(response))
         }))
         .route("/health", get(|| async {

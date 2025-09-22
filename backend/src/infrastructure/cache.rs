@@ -238,7 +238,7 @@ where
             return; // No eviction needed
         }
 
-        space_needed = max_memory.saturating_sub(current_size) + space_needed;
+        space_needed += max_memory.saturating_sub(current_size);
 
         // Find entries to evict based on strategy
         while space_needed > 0 && !data.is_empty() {

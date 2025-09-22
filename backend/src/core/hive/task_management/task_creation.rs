@@ -2,7 +2,7 @@
 //!
 //! Handles task creation, validation, and initial setup.
 
-use super::task_types::*;
+use super::task_types::TaskDistributionConfig;
 use crate::core::hive::coordinator::CoordinationMessage;
 use crate::tasks::task::{Task, TaskPriority, TaskRequiredCapability};
 use crate::utils::error::{HiveError, HiveResult};
@@ -19,6 +19,7 @@ pub struct TaskCreator {
 
 impl TaskCreator {
     /// Create a new task creator
+    #[must_use] 
     pub fn new(
         coordination_tx: mpsc::UnboundedSender<CoordinationMessage>,
         config: TaskDistributionConfig,
@@ -119,7 +120,7 @@ impl TaskCreator {
             "critical" => Ok(TaskPriority::Critical),
             _ => Err(HiveError::ValidationError {
                 field: "priority".to_string(),
-                reason: format!("Unknown priority: {}", priority_str),
+                reason: format!("Unknown priority: {priority_str}"),
             }),
         }
     }
@@ -139,7 +140,7 @@ impl TaskCreator {
                 if let Some(cap_name) = cap.get("name").and_then(|v| v.as_str()) {
                     let min_proficiency = cap
                         .get("minimum_proficiency")
-                        .and_then(|v| v.as_f64())
+                        .and_then(serde_json::Value::as_f64)
                         .unwrap_or_default();
 
                     required_capabilities.push(TaskRequiredCapability {

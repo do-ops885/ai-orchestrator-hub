@@ -2,7 +2,7 @@
 //!
 //! Handles external integrations for monitoring data
 
-use super::types::*;
+use super::types::IntegrationType;
 use crate::utils::error::HiveResult;
 
 #[derive(Clone)]
@@ -15,6 +15,7 @@ impl Default for Integration {
 }
 
 impl Integration {
+    #[must_use] 
     pub fn new() -> Self {
         Self
     }

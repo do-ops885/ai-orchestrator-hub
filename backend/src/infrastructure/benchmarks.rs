@@ -550,6 +550,7 @@ impl MemoryTracker {
         }
     }
 
+    #[must_use] 
     pub fn get_current_metrics(&self) -> MemoryMetrics {
         // TODO: Implement actual memory metrics collection
         MemoryMetrics {
@@ -563,11 +564,13 @@ impl MemoryTracker {
         }
     }
 
+    #[must_use] 
     pub fn check_for_leaks(&self) -> bool {
         // TODO: Implement memory leak detection logic
         false
     }
 
+    #[must_use] 
     pub fn has_memory_leak(&self) -> bool {
         // TODO: Check if memory leak is detected
         false
@@ -584,6 +587,7 @@ impl CpuTracker {
         }
     }
 
+    #[must_use] 
     pub fn get_current_metrics(&self) -> CpuMetrics {
         // TODO: Implement actual CPU metrics collection
         CpuMetrics {

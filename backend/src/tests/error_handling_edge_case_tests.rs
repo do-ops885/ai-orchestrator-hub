@@ -1,10 +1,8 @@
 //! # Edge Case Tests for Error Handling Unwrap Fixes
 //!
-//! Tests to prevent regression of unwrap_or() to unwrap_or_else(||) changes
+//! Tests to prevent regression of `unwrap_or()` to `unwrap_or_else`(||) changes
 //! in the error handling and recovery system.
 
-use crate::utils::error_handling::{CircuitBreaker, CircuitBreakerState, RecoveryConfig, SafeOperations};
-use crate::HiveError;
 
 /// Test cascade failure scenarios
 #[tokio::test]

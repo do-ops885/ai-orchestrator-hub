@@ -298,13 +298,13 @@ impl LoadTestResults {
                 .iter()
                 .map(|s| s.active_agents)
                 .max()
-                .unwrap_or_else(|| 0),
+                .unwrap_or(0),
             peak_queue_size: self
                 .performance_samples
                 .iter()
                 .map(|s| s.tasks_in_queue)
                 .max()
-                .unwrap_or_else(|| 0),
+                .unwrap_or(0),
         }
     }
 }

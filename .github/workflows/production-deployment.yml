@@ -1,3 +1,4 @@
+---
 name: Production Deployment (Blue-Green)
 
 on:
@@ -108,7 +109,7 @@ jobs:
         id: validation
         run: |
           # Check if this is a force deploy or if all validations passed
-          if [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
+          if [["${{ github.event.inputs.force_deploy }}" == "true"]]; then
             echo "should_deploy=true" >> $GITHUB_OUTPUT
             echo "🚨 Force deployment enabled - proceeding with caution"
           else
@@ -211,23 +212,23 @@ jobs:
         id: deploy
         run: |
           echo "🚀 Deploying to staging environment..."
-          
+
           # This is a placeholder - replace with your actual deployment commands
           # Examples for different platforms:
-          
+
           # AWS ECS Example:
           # aws ecs update-service --cluster ai-orchestrator-staging --service ai-orchestrator-service --force-new-deployment
-          
+
           # Kubernetes Example:
           # kubectl set image deployment/ai-orchestrator-backend ai-orchestrator-backend=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
           # kubectl set image deployment/ai-orchestrator-frontend ai-orchestrator-frontend=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
           # kubectl rollout status deployment/ai-orchestrator-backend
           # kubectl rollout status deployment/ai-orchestrator-frontend
-          
+
           # Docker Compose Example:
           # docker-compose -f docker-compose.staging.yml pull
           # docker-compose -f docker-compose.staging.yml up -d
-          
+
           STAGING_URL="https://staging.ai-orchestrator-hub.com"
           echo "staging_url=$STAGING_URL" >> $GITHUB_OUTPUT
           echo "✅ Staging deployment completed"
@@ -235,7 +236,7 @@ jobs:
       - name: Health check staging
         run: |
           echo "🔍 Running health checks on staging..."
-          
+
           # Wait for deployment to be ready
           for i in {1..30}; do
             if curl -f -s "${{ steps.deploy.outputs.staging_url }}/health" > /dev/null; then
@@ -245,8 +246,8 @@ jobs:
             echo "Waiting for staging to be healthy... ($i/30)"
             sleep 10
           done
-          
-          if [[ $i -eq 30 ]]; then
+
+          if [[$i -eq 30]]; then
             echo "❌ Staging health check failed"
             exit 1
           fi
@@ -254,11 +255,11 @@ jobs:
       - name: Run staging smoke tests
         run: |
           echo "🧪 Running smoke tests on staging..."
-          
+
           # Basic smoke tests
           curl -f "${{ steps.deploy.outputs.staging_url }}/api/health"
           curl -f "${{ steps.deploy.outputs.staging_url }}/api/agents"
-          
+
           echo "✅ Staging smoke tests passed"
 
   # Blue-Green deployment to production
@@ -282,16 +283,16 @@ jobs:
         run: |
           # Determine which environment is currently active
           # This is a placeholder - replace with your actual logic
-          
+
           # Example: Check current active environment via API or config
           CURRENT_ACTIVE="blue"  # This should be determined dynamically
-          
-          if [[ "$CURRENT_ACTIVE" == "blue" ]]; then
+
+          if [["$CURRENT_ACTIVE" == "blue"]]; then
             TARGET_ENV="green"
           else
             TARGET_ENV="blue"
           fi
-          
+
           echo "current_active=$CURRENT_ACTIVE" >> $GITHUB_OUTPUT
           echo "target_environment=$TARGET_ENV" >> $GITHUB_OUTPUT
 
@@ -300,20 +301,20 @@ jobs:
         run: |
           TARGET_ENV="${{ steps.target.outputs.target_environment }}"
           DEPLOYMENT_ID="deploy-$(date +%Y%m%d-%H%M%S)"
-          
+
           echo "🚀 Deploying to $TARGET_ENV environment..."
           echo "📋 Deployment ID: $DEPLOYMENT_ID"
-          
+
           # Deploy to the inactive environment
           # Replace with your actual deployment commands
-          
+
           # Example for AWS ECS:
           # aws ecs update-service --cluster ai-orchestrator-prod --service ai-orchestrator-service-$TARGET_ENV --force-new-deployment
-          
+
           # Example for Kubernetes:
           # kubectl set image deployment/ai-orchestrator-backend-$TARGET_ENV ai-orchestrator-backend=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
           # kubectl set image deployment/ai-orchestrator-frontend-$TARGET_ENV ai-orchestrator-frontend=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
-          
+
           echo "active_environment=$TARGET_ENV" >> $GITHUB_OUTPUT
           echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
 
@@ -321,7 +322,7 @@ jobs:
         run: |
           TARGET_ENV="${{ steps.target.outputs.target_environment }}"
           echo "🔍 Running health checks on $TARGET_ENV environment..."
-          
+
           # Health check the newly deployed environment
           for i in {1..30}; do
             # Replace with your actual health check endpoint
@@ -332,8 +333,8 @@ jobs:
             echo "Waiting for $TARGET_ENV environment to be healthy... ($i/30)"
             sleep 10
           done
-          
-          if [[ $i -eq 30 ]]; then
+
+          if [[$i -eq 30]]; then
             echo "❌ $TARGET_ENV environment health check failed"
             exit 1
           fi
@@ -342,12 +343,12 @@ jobs:
         run: |
           TARGET_ENV="${{ steps.target.outputs.target_environment }}"
           echo "🧪 Running smoke tests on $TARGET_ENV environment..."
-          
+
           # Comprehensive smoke tests
           curl -f "https://$TARGET_ENV.ai-orchestrator-hub.com/api/health"
           curl -f "https://$TARGET_ENV.ai-orchestrator-hub.com/api/agents"
           curl -f "https://$TARGET_ENV.ai-orchestrator-hub.com/api/tasks"
-          
+
           echo "✅ $TARGET_ENV environment smoke tests passed"
 
       - name: Gradual traffic shifting
@@ -355,12 +356,12 @@ jobs:
         run: |
           TARGET_ENV="${{ steps.target.outputs.target_environment }}"
           CURRENT_ACTIVE="${{ steps.target.outputs.current_active }}"
-          
+
           echo "🚦 Starting gradual traffic shifting from $CURRENT_ACTIVE to $TARGET_ENV..."
-          
+
           # Implement gradual traffic shifting
           # This is a placeholder - replace with your load balancer configuration
-          
+
           # Example: AWS ALB weighted routing
           # aws elbv2 modify-listener --listener-arn $LISTENER_ARN \
           #   --default-actions '[
@@ -371,18 +372,18 @@ jobs:
           #         "TargetGroups": [
           #           {"TargetGroupArn": "'$CURRENT_ACTIVE_TG_ARN'", "Weight": 90},
           #           {"TargetGroupArn": "'$TARGET_TG_ARN'", "Weight": 10}
-          #         ]
+          #        ]
           #       }
           #     }
-          #   ]'
-          
+          #  ]'
+
           # Simulate gradual shifting
           for percentage in 10 25 50 75 100; do
             echo "📊 Shifting $percentage% traffic to $TARGET_ENV..."
-            
+
             # Wait and monitor
             sleep 30
-            
+
             # Check for errors during traffic shift
             if curl -f -s "https://$TARGET_ENV.ai-orchestrator-hub.com/health" > /dev/null; then
               echo "✅ Traffic shift to $percentage% successful"
@@ -391,7 +392,7 @@ jobs:
               exit 1
             fi
           done
-          
+
           echo "✅ Traffic shifting completed successfully"
 
       - name: Finalize deployment
@@ -415,12 +416,12 @@ jobs:
       - name: Setup monitoring
         run: |
           echo "📊 Setting up deployment monitoring..."
-          
+
           # Send deployment metrics to monitoring system
           DEPLOYMENT_STATUS="${{ needs.blue-green-deployment.result }}"
           ACTIVE_ENV="${{ needs.blue-green-deployment.outputs.active_environment }}"
           DEPLOYMENT_ID="${{ needs.blue-green-deployment.outputs.deployment_id }}"
-          
+
           # Example: Send to DataDog, New Relic, or custom monitoring
           echo "Deployment Status: $DEPLOYMENT_STATUS"
           echo "Active Environment: $ACTIVE_ENV"
@@ -429,10 +430,10 @@ jobs:
       - name: Performance monitoring
         run: |
           echo "⚡ Running performance checks..."
-          
+
           # Monitor key performance metrics
           # Replace with your actual monitoring commands
-          
+
           # Example: Check response times, error rates, etc.
           echo "✅ Performance monitoring completed"
 
@@ -440,17 +441,17 @@ jobs:
         if: needs.blue-green-deployment.result == 'failure'
         run: |
           echo "🚨 Deployment failed! Sending alerts..."
-          
+
           # Send alerts to team
           # Example: Slack notification, email, PagerDuty, etc.
-          
+
           echo "Alert sent to team about deployment failure"
 
       - name: Success notification
         if: needs.blue-green-deployment.result == 'success'
         run: |
           echo "🎉 Deployment successful! Sending notifications..."
-          
+
           # Send success notifications
           echo "Success notification sent to team"
 
@@ -466,12 +467,12 @@ jobs:
       - name: Prepare rollback plan
         run: |
           echo "🔄 Preparing rollback capabilities..."
-          
+
           DEPLOYMENT_STATUS="${{ needs.blue-green-deployment.result }}"
           ACTIVE_ENV="${{ needs.blue-green-deployment.outputs.active_environment }}"
           PREVIOUS_ENV="${{ steps.target.outputs.current_active }}"
-          
-          if [[ "$DEPLOYMENT_STATUS" == "failure" ]]; then
+
+          if [["$DEPLOYMENT_STATUS" == "failure"]]; then
             echo "❌ Deployment failed - rollback recommended"
             echo "Rollback Plan:"
             echo "1. Switch traffic back to $PREVIOUS_ENV"
@@ -490,23 +491,23 @@ jobs:
           #!/bin/bash
           # Rollback script for AI Orchestrator Hub
           # Generated on $(date)
-          
+
           echo "Starting rollback process..."
-          
+
           # Switch traffic back to previous environment
           # Replace with your actual rollback commands
-          
+
           # Example for AWS:
           # aws elbv2 modify-listener --listener-arn \$LISTENER_ARN \\
           #   --default-actions '[{"Type": "forward", "TargetGroupArn": "\$PREVIOUS_TG_ARN"}]'
-          
+
           # Example for Kubernetes:
           # kubectl scale deployment ai-orchestrator-backend-\$ACTIVE_ENV --replicas=0
           # kubectl scale deployment ai-orchestrator-frontend-\$ACTIVE_ENV --replicas=0
-          
+
           echo "Rollback completed"
           EOF
-          
+
           chmod +x rollback-script.sh
 
   # Post-deployment validation
@@ -524,28 +525,28 @@ jobs:
       - name: End-to-end testing
         run: |
           echo "🧪 Running end-to-end tests on production..."
-          
+
           # Run comprehensive E2E tests
           # Replace with your actual test commands
-          
+
           echo "✅ E2E tests passed"
 
       - name: Load testing
         run: |
           echo "🔥 Running load tests..."
-          
+
           # Run load tests to ensure performance
           # Replace with your actual load testing commands
-          
+
           echo "✅ Load tests passed"
 
       - name: Security validation
         run: |
           echo "🔒 Running security validation..."
-          
+
           # Run security checks on production
           # Replace with your actual security validation
-          
+
           echo "✅ Security validation passed"
 
   # Deployment summary and reporting
@@ -566,7 +567,7 @@ jobs:
           echo "**Commit:** ${{ needs.pre-deployment-validation.outputs.commit_sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Deployment Status" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Pre-deployment validation: ${{ needs.pre-deployment-validation.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- 🐳 Image build & push: ${{ needs.build-and-push-images.result }}" >> $GITHUB_STEP_SUMMARY
@@ -574,8 +575,8 @@ jobs:
           echo "- 📊 Monitoring & alerting: ${{ needs.monitoring-and-alerting.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- 🧪 Post-deployment validation: ${{ needs.post-deployment-validation.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [[ "${{ needs.blue-green-deployment.result }}" == "success" ]]; then
+
+          if [["${{ needs.blue-green-deployment.result }}" == "success"]]; then
             echo "### Active Environment" >> $GITHUB_STEP_SUMMARY
             echo "- 🌐 **${{ needs.blue-green-deployment.outputs.active_environment }}** is now active" >> $GITHUB_STEP_SUMMARY
             echo "- 📋 Deployment ID: ${{ needs.blue-green-deployment.outputs.deployment_id }}" >> $GITHUB_STEP_SUMMARY

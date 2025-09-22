@@ -92,6 +92,7 @@ pub struct CircuitBreaker {
 
 impl CircuitBreaker {
     /// Create a new circuit breaker with the given configuration
+    #[must_use] 
     pub fn new(config: RecoveryConfig) -> Self {
         Self {
             state: CircuitBreakerState::Closed,
@@ -140,6 +141,7 @@ impl CircuitBreaker {
     }
 
     /// Check if operations are allowed to proceed
+    #[must_use] 
     pub fn allow_operation(&self) -> bool {
         match self.state {
             CircuitBreakerState::Closed => true,
@@ -158,6 +160,7 @@ impl CircuitBreaker {
     }
 
     /// Get the current circuit breaker state
+    #[must_use] 
     pub fn get_state(&self) -> &CircuitBreakerState {
         &self.state
     }
@@ -172,6 +175,7 @@ pub struct SafeOperations {
 
 impl SafeOperations {
     /// Create a new safe operations wrapper
+    #[must_use] 
     pub fn new(config: RecoveryConfig) -> Self {
         let circuit_breaker = Arc::new(RwLock::new(CircuitBreaker::new(config.clone())));
         Self {
@@ -309,7 +313,7 @@ impl SafeOperations {
 
 /// Panic-safe option handling utilities
 pub mod safe_option {
-    use super::*;
+    use super::{HiveResult, HiveError};
 
     /// Safely extract value from Option with proper error handling
     pub fn expect_or_error<T>(option: Option<T>, error_message: &str) -> HiveResult<T> {
@@ -342,7 +346,7 @@ pub mod safe_option {
 
 /// Panic-safe result handling utilities
 pub mod safe_result {
-    use super::*;
+    use super::{HiveResult, HiveError};
 
     /// Safely extract value from Result with proper error handling
     pub fn expect_or_error<T>(result: HiveResult<T>, error_message: &str) -> HiveResult<T> {
@@ -362,14 +366,14 @@ pub mod safe_result {
     /// Safely extract value from Result with additional context
     pub fn with_context<T>(result: HiveResult<T>, context: &str) -> HiveResult<T> {
         result.map_err(|e| HiveError::OperationFailed {
-            reason: format!("{}: {}", context, e),
+            reason: format!("{context}: {e}"),
         })
     }
 }
 
 /// JSON value handling utilities
 pub mod safe_json {
-    use super::*;
+    use super::{HiveResult, HiveError};
     use serde_json::Value;
 
     /// Safely extract string from JSON value
@@ -377,10 +381,10 @@ pub mod safe_json {
         value
             .get(key)
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .ok_or_else(|| HiveError::ValidationError {
                 field: key.to_string(),
-                reason: format!("Missing or invalid string field: {}", key),
+                reason: format!("Missing or invalid string field: {key}"),
             })
     }
 
@@ -388,10 +392,10 @@ pub mod safe_json {
     pub fn get_number(value: &Value, key: &str) -> HiveResult<f64> {
         value
             .get(key)
-            .and_then(|v| v.as_f64())
+            .and_then(serde_json::Value::as_f64)
             .ok_or_else(|| HiveError::ValidationError {
                 field: key.to_string(),
-                reason: format!("Missing or invalid number field: {}", key),
+                reason: format!("Missing or invalid number field: {key}"),
             })
     }
 
@@ -399,10 +403,10 @@ pub mod safe_json {
     pub fn get_boolean(value: &Value, key: &str) -> HiveResult<bool> {
         value
             .get(key)
-            .and_then(|v| v.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .ok_or_else(|| HiveError::ValidationError {
                 field: key.to_string(),
-                reason: format!("Missing or invalid boolean field: {}", key),
+                reason: format!("Missing or invalid boolean field: {key}"),
             })
     }
 
@@ -414,7 +418,7 @@ pub mod safe_json {
             .map(|arr| arr.iter().collect())
             .ok_or_else(|| HiveError::ValidationError {
                 field: key.to_string(),
-                reason: format!("Missing or invalid array field: {}", key),
+                reason: format!("Missing or invalid array field: {key}"),
             })
     }
 
@@ -428,26 +432,29 @@ pub mod safe_json {
             .and_then(|v| v.as_object())
             .ok_or_else(|| HiveError::ValidationError {
                 field: key.to_string(),
-                reason: format!("Missing or invalid object field: {}", key),
+                reason: format!("Missing or invalid object field: {key}"),
             })
     }
 
     /// Safely extract optional string from JSON value
+    #[must_use] 
     pub fn get_optional_string(value: &Value, key: &str) -> Option<String> {
         value
             .get(key)
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
     }
 
     /// Safely extract optional number from JSON value
+    #[must_use] 
     pub fn get_optional_number(value: &Value, key: &str) -> Option<f64> {
-        value.get(key).and_then(|v| v.as_f64())
+        value.get(key).and_then(serde_json::Value::as_f64)
     }
 
     /// Safely extract optional boolean from JSON value
+    #[must_use] 
     pub fn get_optional_boolean(value: &Value, key: &str) -> Option<bool> {
-        value.get(key).and_then(|v| v.as_bool())
+        value.get(key).and_then(serde_json::Value::as_bool)
     }
 }
 

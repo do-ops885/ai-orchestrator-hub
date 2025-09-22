@@ -2,6 +2,13 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { ResourceMonitor } from './ResourceMonitor'
 import { vi } from 'vitest'
 
+// Mock useAuth
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: vi.fn(() => ({
+    token: 'test-token',
+  })),
+}))
+
 // Mock fetch
 const mockFetch = vi.fn()
 global.fetch = mockFetch

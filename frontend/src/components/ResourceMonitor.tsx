@@ -58,7 +58,7 @@ export function ResourceMonitor() {
     const interval = setInterval(fetchResourceInfo, 30000) // Update every 30 seconds
 
     return () => clearInterval(interval)
-  }, [])
+  }, [token])
 
   if (systemResources === null || resourceProfile === null) {
     return (

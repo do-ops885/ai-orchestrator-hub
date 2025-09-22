@@ -1,3 +1,4 @@
+---
 name: Release
 
 on:
@@ -44,9 +45,9 @@ jobs:
       - name: Determine version
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if ["${{ github.event_name }}" = "workflow_dispatch"]; then
             VERSION="${{ inputs.version }}"
-            if [[ "$VERSION" != v* ]]; then
+            if [["$VERSION" != v*]]; then
               VERSION="v$VERSION"
             fi
           else
@@ -156,7 +157,7 @@ jobs:
         shell: bash
         run: |
           cd backend
-          if [ "${{ matrix.os }}" = "windows" ]; then
+          if ["${{ matrix.os }}" = "windows"]; then
             BINARY_NAME="multiagent-hive.exe"
             ARCHIVE_NAME="multiagent-hive-${{ needs.pre-release-check.outputs.version }}-${{ matrix.target }}.zip"
             7z a "$ARCHIVE_NAME" "target/${{ matrix.target }}/release/$BINARY_NAME"
@@ -354,7 +355,7 @@ jobs:
           echo "- 📊 Performance check: ${{ needs.performance-check.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [[ "${{ needs.create-release.result }}" == "success" ]]; then
+          if [["${{ needs.create-release.result }}" == "success"]]; then
             echo "🎉 **Release ${{ needs.pre-release-check.outputs.version }} successfully created!**" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Release failed!** Please check the logs above." >> $GITHUB_STEP_SUMMARY

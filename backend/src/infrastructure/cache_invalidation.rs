@@ -86,7 +86,14 @@ pub struct DependencyGraph {
     reverse_deps: HashMap<CacheKey, HashSet<CacheKey>>,
 }
 
+impl Default for DependencyGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DependencyGraph {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             forward_deps: HashMap::new(),
@@ -99,13 +106,13 @@ impl DependencyGraph {
         // Forward: key depends on depends_on
         self.forward_deps
             .entry(key.clone())
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(depends_on.clone());
 
         // Reverse: depends_on is depended on by key
         self.reverse_deps
             .entry(depends_on)
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(key);
     }
 
@@ -120,11 +127,13 @@ impl DependencyGraph {
     }
 
     /// Get all keys that depend on the given key
+    #[must_use] 
     pub fn get_dependents(&self, key: &CacheKey) -> HashSet<CacheKey> {
         self.reverse_deps.get(key).cloned().unwrap_or_default()
     }
 
     /// Get all keys that the given key depends on
+    #[must_use] 
     pub fn get_dependencies(&self, key: &CacheKey) -> HashSet<CacheKey> {
         self.forward_deps.get(key).cloned().unwrap_or_default()
     }
@@ -223,6 +232,7 @@ pub struct InvalidationStats {
 
 impl CacheInvalidationManager {
     /// Create a new invalidation manager
+    #[must_use] 
     pub fn new(cache_manager: Arc<CachedQueryManager>, strategy: InvalidationStrategy) -> Self {
         Self {
             cache_manager,
@@ -261,7 +271,7 @@ impl CacheInvalidationManager {
             let mut stats = self.stats.write().await;
             stats.total_invalidations += 1;
             stats.avg_invalidation_time_ms =
-                (stats.avg_invalidation_time_ms + elapsed.as_millis() as f64) / 2.0;
+                f64::midpoint(stats.avg_invalidation_time_ms, elapsed.as_millis() as f64);
         }
 
         Ok(())
@@ -269,16 +279,13 @@ impl CacheInvalidationManager {
 
     /// Invalidate multiple keys with batching
     pub async fn invalidate_keys(&self, keys: &[CacheKey]) -> HiveResult<()> {
-        match &self.strategy {
-            InvalidationStrategy::Batched { batch_size } => {
-                self.invalidate_keys_batched(keys, *batch_size).await
+        if let InvalidationStrategy::Batched { batch_size } = &self.strategy {
+            self.invalidate_keys_batched(keys, *batch_size).await
+        } else {
+            for key in keys {
+                self.invalidate_key(key).await?;
             }
-            _ => {
-                for key in keys {
-                    self.invalidate_key(key).await?;
-                }
-                Ok(())
-            }
+            Ok(())
         }
     }
 
@@ -393,7 +400,7 @@ impl CacheInvalidationManager {
 
         for key in all_keys {
             let age = if let Some(last_invalidation) = state.age_distribution.get(&key) {
-                now.duration_since(Instant::now() - *last_invalidation)
+                now.duration_since(Instant::now().checked_sub(*last_invalidation).unwrap())
             } else {
                 Duration::from_secs(0)
             };
@@ -421,7 +428,7 @@ impl CacheInvalidationManager {
 
         let regex = Regex::new(pattern).map_err(|e| HiveError::ValidationError {
             field: "pattern".to_string(),
-            reason: format!("Invalid regex pattern: {}", e),
+            reason: format!("Invalid regex pattern: {e}"),
         })?;
 
         let mut invalidated_count = 0;
@@ -692,6 +699,7 @@ pub struct AgentCacheInvalidationManager {
 }
 
 impl AgentCacheInvalidationManager {
+    #[must_use] 
     pub fn new(base_manager: Arc<CacheInvalidationManager>) -> Self {
         Self { base_manager }
     }
@@ -751,6 +759,7 @@ pub struct TaskCacheInvalidationManager {
 }
 
 impl TaskCacheInvalidationManager {
+    #[must_use] 
     pub fn new(base_manager: Arc<CacheInvalidationManager>) -> Self {
         Self { base_manager }
     }

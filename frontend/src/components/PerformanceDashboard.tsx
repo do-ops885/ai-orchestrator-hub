@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { AlertTriangle, TrendingUp, TrendingDown, Activity, Cpu, HardDrive, Zap } from 'lucide-react'
+import {
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  Cpu,
+  HardDrive,
+  Zap,
+} from 'lucide-react'
 
 // Performance data types matching backend
 interface PerformanceDataPoint {
@@ -57,23 +65,23 @@ interface DashboardMetrics {
 const generateMockData = (): DashboardMetrics => {
   const now = Date.now()
   const history: PerformanceDataPoint[] = []
-  
+
   // Generate 60 data points (1 minute of data)
   for (let i = 59; i >= 0; i--) {
     history.push({
-      timestamp: now - (i * 1000),
+      timestamp: now - i * 1000,
       throughput_ops_sec: 850 + Math.random() * 100 - 50,
       latency_ms: 85 + Math.random() * 20 - 10,
       memory_mb: 48 + Math.random() * 4 - 2,
       cpu_utilization: 65 + Math.random() * 20 - 10,
       active_connections: 45 + Math.floor(Math.random() * 20),
       error_rate: 0.1 + Math.random() * 0.3 - 0.15,
-      optimization_score: 92 + Math.random() * 8 - 4
+      optimization_score: 92 + Math.random() * 8 - 4,
     })
   }
 
   const current = history[history.length - 1]
-  
+
   return {
     current,
     history,
@@ -85,7 +93,7 @@ const generateMockData = (): DashboardMetrics => {
       avg_memory_mb: 48.1,
       peak_memory_mb: 52.3,
       health_score: 94.2,
-      uptime_percent: 99.97
+      uptime_percent: 99.97,
     },
     alerts: [
       {
@@ -93,21 +101,21 @@ const generateMockData = (): DashboardMetrics => {
         threshold: {
           name: 'High Latency',
           metric: 'latency',
-          threshold: 100
+          threshold: 100,
         },
         triggered_at: new Date(now - 300000).toISOString(),
         current_value: 98.7,
         message: 'Latency approaching threshold',
-        acknowledged: false
-      }
+        acknowledged: false,
+      },
     ],
     optimization_impact: {
       improvement_percent: 84.2,
       memory_efficiency_gain: 30.1,
       cpu_efficiency_gain: 31.3,
       communication_improvement: 47.8,
-      overall_effectiveness: 48.4
-    }
+      overall_effectiveness: 48.4,
+    },
   }
 }
 
@@ -124,7 +132,8 @@ const MetricCard: React.FC<{
       <div>
         <p className="text-sm font-medium text-gray-600">{title}</p>
         <p className="text-2xl font-bold text-gray-900">
-          {typeof value === 'number' ? value.toFixed(1) : value}{unit}
+          {typeof value === 'number' ? value.toFixed(1) : value}
+          {unit}
         </p>
         {trend !== undefined && (
           <div className="flex items-center mt-1">
@@ -177,12 +186,16 @@ const SimpleChart: React.FC<{
 
 const AlertBadge: React.FC<{ alert: PerformanceAlert; onAcknowledge: (id: string) => void }> = ({
   alert,
-  onAcknowledge
+  onAcknowledge,
 }) => (
-  <div className={`p-3 rounded-lg border-l-4 ${alert.acknowledged ? 'bg-gray-50 border-gray-400' : 'bg-red-50 border-red-400'}`}>
+  <div
+    className={`p-3 rounded-lg border-l-4 ${alert.acknowledged ? 'bg-gray-50 border-gray-400' : 'bg-red-50 border-red-400'}`}
+  >
     <div className="flex items-center justify-between">
       <div className="flex items-center">
-        <AlertTriangle className={`h-5 w-5 mr-2 ${alert.acknowledged ? 'text-gray-500' : 'text-red-500'}`} />
+        <AlertTriangle
+          className={`h-5 w-5 mr-2 ${alert.acknowledged ? 'text-gray-500' : 'text-red-500'}`}
+        />
         <div>
           <p className={`font-medium ${alert.acknowledged ? 'text-gray-700' : 'text-red-800'}`}>
             {alert.threshold.name}
@@ -226,8 +239,8 @@ const PerformanceDashboard: React.FC = () => {
     setMetrics(prev => ({
       ...prev,
       alerts: prev.alerts.map(alert =>
-        alert.id === alertId ? { ...alert, acknowledged: true } : alert
-      )
+        alert.id === alertId ? { ...alert, acknowledged: true } : alert,
+      ),
     }))
   }, [])
 
@@ -244,7 +257,9 @@ const PerformanceDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold text-gray-900">Performance Dashboard</h1>
             <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+              <div
+                className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+              />
               <span className="text-sm text-gray-600">
                 {isConnected ? 'Connected' : 'Disconnected'}
               </span>
@@ -295,9 +310,7 @@ const PerformanceDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Throughput Chart */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Throughput Trend (ops/sec)
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Throughput Trend (ops/sec)</h3>
             <SimpleChart data={throughputData} color="#10B981" height={120} />
             <div className="mt-4 text-sm text-gray-600">
               Last 60 seconds • Peak: {Math.max(...throughputData).toFixed(1)} ops/sec
@@ -306,9 +319,7 @@ const PerformanceDashboard: React.FC = () => {
 
           {/* Latency Chart */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Latency Trend (ms)
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Latency Trend (ms)</h3>
             <SimpleChart data={latencyData} color="#F59E0B" height={120} />
             <div className="mt-4 text-sm text-gray-600">
               Last 60 seconds • P95: {metrics.summary.p95_latency.toFixed(1)}ms
@@ -317,9 +328,7 @@ const PerformanceDashboard: React.FC = () => {
 
           {/* Memory Chart */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Memory Usage (MB)
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Memory Usage (MB)</h3>
             <SimpleChart data={memoryData} color="#8B5CF6" height={120} />
             <div className="mt-4 text-sm text-gray-600">
               Last 60 seconds • Peak: {Math.max(...memoryData).toFixed(1)}MB
@@ -328,9 +337,7 @@ const PerformanceDashboard: React.FC = () => {
 
           {/* CPU Chart */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              CPU Utilization (%)
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">CPU Utilization (%)</h3>
             <SimpleChart data={cpuData} color="#EF4444" height={120} />
             <div className="mt-4 text-sm text-gray-600">
               Last 60 seconds • Avg: {metrics.summary.avg_memory_mb.toFixed(1)}%
@@ -342,9 +349,7 @@ const PerformanceDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Optimization Impact */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Optimization Impact
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Optimization Impact</h3>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Overall Effectiveness</span>
@@ -387,11 +392,7 @@ const PerformanceDashboard: React.FC = () => {
             <div className="space-y-3">
               {metrics.alerts.length > 0 ? (
                 metrics.alerts.map(alert => (
-                  <AlertBadge
-                    key={alert.id}
-                    alert={alert}
-                    onAcknowledge={handleAcknowledgeAlert}
-                  />
+                  <AlertBadge key={alert.id} alert={alert} onAcknowledge={handleAcknowledgeAlert} />
                 ))
               ) : (
                 <div className="text-center py-8 text-gray-500">
@@ -405,9 +406,7 @@ const PerformanceDashboard: React.FC = () => {
 
         {/* System Health Summary */}
         <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            System Health Summary
-          </h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">System Health Summary</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
               <p className="text-2xl font-bold text-green-600">

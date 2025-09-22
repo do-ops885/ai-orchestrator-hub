@@ -29,9 +29,9 @@ pub fn factorial(n: u64) -> Result<u128, String> {
     }
     let mut result: u128 = 1;
     for i in 1..=n {
-        match result.checked_mul(i as u128) {
+        match result.checked_mul(u128::from(i)) {
             Some(val) => result = val,
-            None => return Err(format!("Factorial of {} would overflow u128", n)),
+            None => return Err(format!("Factorial of {n} would overflow u128")),
         }
     }
     Ok(result)

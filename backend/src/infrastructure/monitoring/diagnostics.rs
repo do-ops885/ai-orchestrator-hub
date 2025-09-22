@@ -14,6 +14,7 @@ impl Default for Diagnostics {
 }
 
 impl Diagnostics {
+    #[must_use] 
     pub fn new() -> Self {
         Self
     }

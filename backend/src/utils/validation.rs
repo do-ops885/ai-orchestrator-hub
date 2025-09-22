@@ -60,7 +60,7 @@ impl InputValidator {
             }
 
             if is_specialist {
-                let specialist_type = agent_type.strip_prefix("specialist:").unwrap_or_else(|| "");
+                let specialist_type = agent_type.strip_prefix("specialist:").unwrap_or("");
                 if specialist_type.is_empty() {
                     return Err(HiveError::AgentCreationFailed {
                         reason: "Specialist type cannot be empty".to_string(),

@@ -176,7 +176,7 @@ pub struct ProcessManager {
 
     /// Handles for all background processes
     ///
-    /// Stores JoinHandle instances for all spawned background tasks.
+    /// Stores `JoinHandle` instances for all spawned background tasks.
     /// Used for graceful shutdown and process monitoring.
     process_handles: Arc<tokio::sync::RwLock<Vec<tokio::task::JoinHandle<()>>>>,
 }
@@ -412,7 +412,7 @@ impl ProcessManager {
     ///
     /// # Returns
     ///
-    /// Returns a JoinHandle for the background task.
+    /// Returns a `JoinHandle` for the background task.
     async fn start_work_stealing_process(
         &self,
         agent_manager: &Arc<AgentManager>,
@@ -473,7 +473,7 @@ impl ProcessManager {
     ///
     /// # Returns
     ///
-    /// Returns a JoinHandle for the background task.
+    /// Returns a `JoinHandle` for the background task.
     async fn start_learning_process(
         &self,
         _agent_manager: AgentManager,
@@ -528,7 +528,7 @@ impl ProcessManager {
     ///
     /// # Returns
     ///
-    /// Returns a JoinHandle for the background task.
+    /// Returns a `JoinHandle` for the background task.
     async fn start_swarm_coordination_process(
         &self,
         agent_manager: AgentManager,
@@ -581,7 +581,7 @@ impl ProcessManager {
     ///
     /// # Returns
     ///
-    /// Returns a JoinHandle for the background task.
+    /// Returns a `JoinHandle` for the background task.
     async fn start_metrics_collection_process(
         &self,
         metrics_collector: MetricsCollector,
@@ -640,7 +640,7 @@ impl ProcessManager {
     ///
     /// # Returns
     ///
-    /// Returns a JoinHandle for the background task.
+    /// Returns a `JoinHandle` for the background task.
     async fn start_resource_monitoring_process(
         &self,
         resource_manager: &Arc<ResourceManager>,

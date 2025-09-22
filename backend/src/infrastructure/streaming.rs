@@ -72,6 +72,7 @@ pub struct DataChunk {
 
 impl DataChunk {
     /// Create a new data chunk
+    #[must_use] 
     pub fn new(sequence: u64, data: Vec<u8>) -> Self {
         Self {
             id: uuid::Uuid::new_v4(),
@@ -84,12 +85,14 @@ impl DataChunk {
     }
 
     /// Add metadata to the chunk
+    #[must_use] 
     pub fn with_metadata(mut self, key: String, value: String) -> Self {
         self.metadata.insert(key, value);
         self
     }
 
     /// Calculate and set checksum
+    #[must_use] 
     pub fn with_checksum(mut self) -> Self {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
@@ -99,6 +102,7 @@ impl DataChunk {
     }
 
     /// Verify checksum
+    #[must_use] 
     pub fn verify_checksum(&self) -> bool {
         if let Some(expected) = &self.checksum {
             use sha2::{Digest, Sha256};
@@ -119,10 +123,10 @@ impl DataChunk {
         encoder
             .write_all(&self.data)
             .map_err(|e| HiveError::ProcessingError {
-                reason: format!("Failed to compress chunk data: {}", e),
+                reason: format!("Failed to compress chunk data: {e}"),
             })?;
         self.data = encoder.finish().map_err(|e| HiveError::ProcessingError {
-            reason: format!("Failed to finish compression: {}", e),
+            reason: format!("Failed to finish compression: {e}"),
         })?;
 
         // Add compression metadata
@@ -147,7 +151,7 @@ impl DataChunk {
         decoder
             .read_to_end(&mut decompressed)
             .map_err(|e| HiveError::ProcessingError {
-                reason: format!("Failed to decompress chunk data: {}", e),
+                reason: format!("Failed to decompress chunk data: {e}"),
             })?;
 
         self.data = decompressed;
@@ -164,6 +168,7 @@ pub struct DataChunkCodec {
 }
 
 impl DataChunkCodec {
+    #[must_use] 
     pub fn new(max_chunk_size: usize) -> Self {
         Self { max_chunk_size }
     }
@@ -200,7 +205,7 @@ impl Decoder for DataChunkCodec {
         match bincode::deserialize(chunk_data) {
             Ok(chunk) => Ok(Some(chunk)),
             Err(e) => Err(HiveError::MessageParsingError {
-                reason: format!("Failed to deserialize chunk: {}", e),
+                reason: format!("Failed to deserialize chunk: {e}"),
             }),
         }
     }
@@ -211,7 +216,7 @@ impl Encoder<DataChunk> for DataChunkCodec {
 
     fn encode(&mut self, item: DataChunk, dst: &mut bytes::BytesMut) -> Result<(), Self::Error> {
         let serialized = bincode::serialize(&item).map_err(|e| HiveError::MessageParsingError {
-            reason: format!("Failed to serialize chunk: {}", e),
+            reason: format!("Failed to serialize chunk: {e}"),
         })?;
 
         if serialized.len() > self.max_chunk_size {
@@ -242,6 +247,7 @@ pub struct StreamProcessor {
 
 impl StreamProcessor {
     /// Create a new stream processor
+    #[must_use] 
     pub fn new(config: StreamConfig) -> Self {
         let memory_pool = if config.enable_memory_pool {
             Some(Arc::new(MemoryPool::new(
@@ -340,7 +346,7 @@ impl StreamProcessor {
                                 .acquire()
                                 .await
                                 .map_err(|e| HiveError::ProcessingError {
-                                    reason: format!("Failed to acquire semaphore: {}", e),
+                                    reason: format!("Failed to acquire semaphore: {e}"),
                                 })?;
 
                         match chunk_result {
@@ -534,6 +540,7 @@ pub struct NeuralDataStream {
 
 impl NeuralDataStream {
     /// Create a new neural data stream
+    #[must_use] 
     pub fn new(config: StreamConfig) -> Self {
         Self {
             processor: StreamProcessor::new(config.clone()),
@@ -552,7 +559,7 @@ impl NeuralDataStream {
                 let training_data: TrainingData =
                     bincode::deserialize(&chunk.data).map_err(|e| {
                         HiveError::NeuralProcessingError {
-                            reason: format!("Failed to deserialize training data: {}", e),
+                            reason: format!("Failed to deserialize training data: {e}"),
                         }
                     })?;
 
@@ -574,7 +581,7 @@ impl NeuralDataStream {
     ) -> HiveResult<impl Stream<Item = HiveResult<DataChunk>>> {
         let serialized =
             bincode::serialize(&weights).map_err(|e| HiveError::NeuralProcessingError {
-                reason: format!("Failed to serialize weights: {}", e),
+                reason: format!("Failed to serialize weights: {e}"),
             })?;
 
         Ok(self.processor.create_stream_from_data(serialized))
@@ -592,7 +599,7 @@ impl NeuralDataStream {
             // Parse neural training data from chunk
             let training_data: TrainingData = bincode::deserialize(&chunk.data).map_err(|e| {
                 HiveError::NeuralProcessingError {
-                    reason: format!("Failed to deserialize training data: {}", e),
+                    reason: format!("Failed to deserialize training data: {e}"),
                 }
             })?;
 
@@ -617,7 +624,7 @@ impl NeuralDataStream {
     ) -> HiveResult<impl Stream<Item = HiveResult<DataChunk>>> {
         let serialized =
             bincode::serialize(&weights).map_err(|e| HiveError::NeuralProcessingError {
-                reason: format!("Failed to serialize weights: {}", e),
+                reason: format!("Failed to serialize weights: {e}"),
             })?;
 
         self.processor
@@ -707,6 +714,7 @@ pub struct MemoryMonitor {
 
 impl MemoryMonitor {
     /// Create a new memory monitor
+    #[must_use] 
     pub fn new(memory_reduction_target: f64) -> Self {
         Self {
             peak_memory_usage: Arc::new(RwLock::new(0)),
@@ -769,10 +777,10 @@ impl MemoryMonitor {
         let efficiency = self.calculate_efficiency().await;
         let history = self.memory_history.read().await;
 
-        let avg_usage = if !history.is_empty() {
-            history.iter().map(|(_, usage)| *usage).sum::<usize>() / history.len()
-        } else {
+        let avg_usage = if history.is_empty() {
             0
+        } else {
+            history.iter().map(|(_, usage)| *usage).sum::<usize>() / history.len()
         };
 
         MemoryStatistics {
@@ -874,6 +882,7 @@ pub struct MemoryPool {
 
 impl MemoryPool {
     /// Create a new memory pool
+    #[must_use] 
     pub fn new(max_pool_size: usize, chunk_size: usize) -> Self {
         Self {
             pool: Arc::new(RwLock::new(Vec::with_capacity(max_pool_size))),
@@ -924,6 +933,7 @@ pub struct ParallelConfig {
 }
 
 impl ParallelConfig {
+    #[must_use] 
     pub fn new(workers: usize) -> Self {
         Self {
             workers,
@@ -933,8 +943,15 @@ impl ParallelConfig {
     }
 }
 
+impl Default for StreamingPerformanceMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StreamingPerformanceMonitor {
     /// Create new performance monitor
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             start_time: std::time::Instant::now(),
@@ -1038,7 +1055,7 @@ impl StreamingPerformanceMonitor {
         let mut metrics = self.metrics.write().await;
         if original_size > 0 {
             let ratio = compressed_size as f64 / original_size as f64;
-            metrics.compression_ratio = (metrics.compression_ratio + ratio) / 2.0; // Running average
+            metrics.compression_ratio = f64::midpoint(metrics.compression_ratio, ratio); // Running average
 
             if compressed_size < original_size {
                 metrics.total_memory_saved += original_size - compressed_size;
@@ -1050,7 +1067,7 @@ impl StreamingPerformanceMonitor {
     pub async fn record_cache_hit(&self) {
         let mut metrics = self.metrics.write().await;
         // Simplified cache hit tracking - in real implementation would track hits vs misses
-        metrics.cache_hit_rate = (metrics.cache_hit_rate + 1.0) / 2.0;
+        metrics.cache_hit_rate = f64::midpoint(metrics.cache_hit_rate, 1.0);
     }
 
     /// Get current performance metrics
@@ -1286,11 +1303,13 @@ where
     }
 
     /// Get current memory usage
+    #[must_use] 
     pub fn memory_usage(&self) -> usize {
         self.memory_usage
     }
 
     /// Get memory efficiency percentage
+    #[must_use] 
     pub fn memory_efficiency(&self) -> f64 {
         if self.chunk_size == 0 {
             return 100.0;
@@ -1303,6 +1322,7 @@ where
 
 impl<T> MemoryEfficientIterator<T> {
     /// Create a new memory-efficient iterator
+    #[must_use] 
     pub fn new(data: Vec<T>, chunk_size: usize) -> Self {
         Self {
             data,
@@ -1313,6 +1333,7 @@ impl<T> MemoryEfficientIterator<T> {
     }
 
     /// Create iterator with performance monitoring
+    #[must_use] 
     pub fn new_with_monitor(
         data: Vec<T>,
         chunk_size: usize,

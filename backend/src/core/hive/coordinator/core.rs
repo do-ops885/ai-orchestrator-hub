@@ -1,6 +1,6 @@
 //! # Core Coordinator Implementation
 //!
-//! This module contains the main HiveCoordinator struct and its core operations.
+//! This module contains the main `HiveCoordinator` struct and its core operations.
 //! It focuses on the essential coordinator functionality without lifecycle or status concerns.
 
 use crate::agents::agent::Agent;
@@ -109,7 +109,7 @@ pub struct HiveCoordinator {
 
     /// Receiver for coordination messages
     ///
-    /// Wrapped in RwLock for safe concurrent access during
+    /// Wrapped in `RwLock` for safe concurrent access during
     /// initialization and shutdown operations.
     pub(super) coordination_rx: Arc<RwLock<Option<mpsc::UnboundedReceiver<CoordinationMessage>>>>,
 }
@@ -135,14 +135,14 @@ impl HiveCoordinator {
         // Initialize core systems
         let resource_manager = Arc::new(ResourceManager::new().await.map_err(|e| {
             HiveError::ResourceInitializationFailed {
-                reason: format!("Failed to initialize resource manager: {}", e),
+                reason: format!("Failed to initialize resource manager: {e}"),
             }
         })?);
 
         let nlp_processor =
             Arc::new(crate::neural::nlp::NLPProcessor::new().await.map_err(|e| {
                 HiveError::NeuralProcessingError {
-                    reason: format!("Failed to initialize NLP processor: {}", e),
+                    reason: format!("Failed to initialize NLP processor: {e}"),
                 }
             })?);
 
@@ -150,7 +150,7 @@ impl HiveCoordinator {
             crate::neural::core::HybridNeuralProcessor::new()
                 .await
                 .map_err(|e| HiveError::NeuralProcessingError {
-                    reason: format!("Failed to initialize neural processor: {}", e),
+                    reason: format!("Failed to initialize neural processor: {e}"),
                 })?,
         ));
 
@@ -203,6 +203,7 @@ impl HiveCoordinator {
     }
 
     /// Get the current number of agents in the system.
+    #[must_use] 
     pub fn get_agent_count(&self) -> usize {
         self.agent_manager.get_agent_count()
     }
@@ -243,11 +244,13 @@ impl HiveCoordinator {
     }
 
     /// Get reference to NLP processor.
+    #[must_use] 
     pub fn get_nlp_processor(&self) -> &Arc<crate::neural::nlp::NLPProcessor> {
         &self.nlp_processor
     }
 
     /// Get reference to neural processor.
+    #[must_use] 
     pub fn get_neural_processor(&self) -> &Arc<RwLock<crate::neural::core::HybridNeuralProcessor>> {
         &self.neural_processor
     }

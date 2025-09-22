@@ -2,7 +2,7 @@
 //!
 //! Discovers and tracks agents in the system
 
-use super::types::*;
+use super::types::AgentInfo;
 use crate::utils::error::HiveResult;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
@@ -24,6 +24,7 @@ impl Default for AgentDiscovery {
 }
 
 impl AgentDiscovery {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             agents: Arc::new(RwLock::new(HashMap::new())),

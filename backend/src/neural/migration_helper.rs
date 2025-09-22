@@ -7,14 +7,14 @@ use crate::neural::optimized_integration::{FastNeuralConfig, FastNeuralNetwork};
 use crate::utils::error::{HiveError, HiveResult};
 use serde::{Deserialize, Serialize};
 
-/// Drop-in replacement for ruv_fann::Network
+/// Drop-in replacement for `ruv_fann::Network`
 #[derive(Debug)]
 pub struct Network<T: Clone> {
     inner: FastNeuralNetwork,
     _phantom: std::marker::PhantomData<T>,
 }
 
-/// Drop-in replacement for ruv_fann::ActivationFunction
+/// Drop-in replacement for `ruv_fann::ActivationFunction`
 #[derive(Debug, Clone, Copy)]
 pub enum ActivationFunction {
     Sigmoid,
@@ -75,7 +75,7 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
         let _result = self
             .inner
             .train_batch(&float_inputs, &float_outputs, learning_rate, epochs)
-            .map_err(|e| format!("Training failed: {}", e))?;
+            .map_err(|e| format!("Training failed: {e}"))?;
 
         Ok(())
     }
@@ -99,18 +99,16 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
     }
 
     /// Get number of inputs
+    #[must_use] 
     pub fn num_inputs(&self) -> usize {
         self.inner.layers()[0]
     }
 
     /// Get number of outputs
     pub fn num_outputs(&self) -> usize {
-        match self.inner.layers().last() {
-            Some(&output_size) => output_size,
-            None => {
-                tracing::warn!("Network layers is empty, returning 0 for num_outputs");
-                0
-            }
+        if let Some(&output_size) = self.inner.layers().last() { output_size } else {
+            tracing::warn!("Network layers is empty, returning 0 for num_outputs");
+            0
         }
     }
 
@@ -124,7 +122,7 @@ impl<T: Clone + Into<f32> + From<f32>> Network<T> {
     /// Load network from file (compatibility function)
     pub fn load(_filename: &str) -> Result<Self, String> {
         // Return a default network for compatibility
-        Self::new(&[10, 5, 1]).map_err(|e| format!("Failed to create default network: {}", e))
+        Self::new(&[10, 5, 1]).map_err(|e| format!("Failed to create default network: {e}"))
     }
 }
 
@@ -158,9 +156,10 @@ pub fn create_optimized_network_from_fann(config: &FANNConfig) -> HiveResult<Fas
 
 /// Migration utility functions
 pub mod migration_utils {
-    use super::*;
+    use super::{FastNeuralConfig, HiveResult, FastNeuralNetwork, HiveError};
 
     /// Convert ruv-fann style layer configuration to optimized config
+    #[must_use] 
     pub fn convert_layer_config(layers: &[usize], specialization: &str) -> FastNeuralConfig {
         FastNeuralConfig {
             layers: layers.to_vec(),
@@ -179,6 +178,7 @@ pub mod migration_utils {
     }
 
     /// Performance comparison utility
+    #[must_use] 
     pub fn benchmark_migration_performance() -> serde_json::Value {
         serde_json::json!({
             "migration_status": "completed",

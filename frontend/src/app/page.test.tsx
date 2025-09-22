@@ -4,6 +4,7 @@ import { vi } from 'vitest'
 import Home from './page'
 import { useHiveStore } from '@/store/hiveStore'
 import { useNetworkRecovery, useErrorRecovery } from '@/hooks/useErrorRecovery'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 // Mock the store
 vi.mock('@/store/hiveStore', () => ({
@@ -55,6 +56,21 @@ vi.mock('@/hooks/useErrorRecovery', () => ({
   })),
 }))
 
+// Mock useAuth to return authenticated state
+vi.mock('@/contexts/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAuth: vi.fn(() => ({
+    isAuthenticated: true,
+    isLoading: false,
+    user: { username: 'testuser', roles: ['user'] },
+    token: 'test-token',
+    login: vi.fn(),
+    logout: vi.fn(),
+    hasPermission: vi.fn(),
+    hasRole: vi.fn(),
+  })),
+}))
+
 describe('Home Page', () => {
   const mockUseHiveStore = useHiveStore as any
 
@@ -93,7 +109,7 @@ describe('Home Page', () => {
     render(<Home />)
 
     // The component renders the main application immediately in tests
-    expect(screen.getByText('🐝 Multiagent Hive System')).toBeInTheDocument()
+    expect(screen.getByText('AI Orchestrator Hub')).toBeInTheDocument()
     expect(screen.getByTestId('hive-dashboard')).toBeInTheDocument()
   })
 
@@ -101,7 +117,7 @@ describe('Home Page', () => {
     render(<Home />)
 
     await waitFor(() => {
-      expect(screen.getByText('🐝 Multiagent Hive System')).toBeInTheDocument()
+      expect(screen.getByText('AI Orchestrator Hub')).toBeInTheDocument()
     })
   })
 
@@ -227,7 +243,7 @@ describe('Home Page', () => {
 
     // The component attempts to connect, but the exact timing may vary in tests
     // Just verify that the component renders and the connection attempt is made
-    expect(screen.getByText('🐝 Multiagent Hive System')).toBeInTheDocument()
+    expect(screen.getByText('AI Orchestrator Hub')).toBeInTheDocument()
 
     // If the connection was attempted, it would have been called
     // This test mainly verifies the component renders without errors
@@ -257,7 +273,7 @@ describe('Home Page', () => {
     const { unmount } = render(<Home />)
 
     await waitFor(() => {
-      expect(screen.getByText('🐝 Multiagent Hive System')).toBeInTheDocument()
+      expect(screen.getByText('AI Orchestrator Hub')).toBeInTheDocument()
     })
 
     unmount()

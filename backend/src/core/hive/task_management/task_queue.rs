@@ -3,7 +3,7 @@
 //! Manages task queuing, prioritization, and distribution using both
 //! legacy and work-stealing queue implementations.
 
-use super::task_types::*;
+use super::task_types::{TaskDistributionConfig, TaskQueueStats, TaskStatus};
 use crate::tasks::task::Task;
 use crate::tasks::work_stealing_queue::WorkStealingQueue;
 use crate::utils::error::{HiveError, HiveResult};
@@ -26,6 +26,7 @@ pub struct TaskQueueManager {
 
 impl TaskQueueManager {
     /// Create a new task queue manager
+    #[must_use] 
     pub fn new(config: TaskDistributionConfig) -> Self {
         Self {
             legacy_queue: Arc::new(RwLock::new(VecDeque::new())),
