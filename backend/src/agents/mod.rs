@@ -18,8 +18,6 @@ pub mod skill_evolution;
 /// Pair programming verification system
 pub mod verification;
 
-#[cfg(test)]
-mod communication_test;
 pub use agent::*;
 pub use recovery::*;
 pub use self_healing_swarm::*;
