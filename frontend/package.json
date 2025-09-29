@@ -90,7 +90,7 @@
     "@playwright/test": "^1.40.0",
     "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^24.5.2",
-    "@types/react": "^19.1.13",
+    "@types/react": "^19.1.15",
     "@types/react-dom": "^19.0.0",
     "@typescript-eslint/eslint-plugin": "^8.44.0",
     "@typescript-eslint/parser": "^8.41.0",
