@@ -86,7 +86,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.17",
-    "@ai-sdk/openai": "^2.0.5",
+    "@ai-sdk/openai": "^2.0.51",
     "@playwright/test": "^1.40.0",
     "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^24.5.2",
